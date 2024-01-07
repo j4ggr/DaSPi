@@ -1,9 +1,10 @@
 import matplotlib.pyplot as plt
 
-from os import environ
 from typing import List
 from datetime import date
 
+KDE_POINTS = 300
+KDE_PADDING = 0.05
 
 class _Kw_:
     @property
@@ -17,14 +18,6 @@ class _Kw_:
 KW = _Kw_()
 
 
-class _String_:
-    USERNAME: str = environ['USERNAME']
-    @property
-    def TODAY(self):
-        return date.today().strftime('%Y.%m.%d')
-STR = _String_()
-
-
 class _Color_:
     @property
     def PALETTE(self) -> List[str]:
@@ -32,8 +25,10 @@ class _Color_:
         return plt.rcParams['axes.prop_cycle'].by_key()['color']
 COLOR = _Color_()
 
+
 __all__ = [
+    'KDE_POINTS',
+    'KDE_PADDING',
     KW.__name__,
-    STR.__name__,
     COLOR.__name__,
 ]

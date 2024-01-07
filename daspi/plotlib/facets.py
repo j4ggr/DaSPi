@@ -12,7 +12,7 @@ from matplotlib.figure import Figure
 from matplotlib.legend import Legend
 from matplotlib.artist import Artist
 
-from .constants import *
+from .._strings import STR
 
 
 class LabelFacets:
