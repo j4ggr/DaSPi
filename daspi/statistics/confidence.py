@@ -70,7 +70,7 @@ def variance_ci(
     """
     alpha = confidence_to_alpha(level, two_sided=True, n_groups=n_groups)
     n = len(x)
-    s2 = np.var(x, ddof=1)
+    s2 = np.var(x, ddof=1) # do not remove ddof=1, default is 0!
     df = n - 1
     ci_upp = df * s2 / chi2.ppf(alpha, df)
     ci_low = df * s2 / chi2.ppf(1 - alpha, df)

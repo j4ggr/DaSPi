@@ -191,41 +191,42 @@ class ProcessEstimator(Estimator):
         elif self.usl:
             cpk = (self.usl - self.mean) / divisor
         return cp, cpk
-
-
-def best_fit_distribution(
-        x: ArrayLike, 
-        distributions: Tuple[str|rv_continuous] = DISTRIBUTION.COMMON
-        ) -> Tuple[rv_continuous, float, Tuple[float]]:
-    """First, the p-score is calculated by performing a 
-    Kolmogorov-Smirnov test to determine how well each distribution fits
-    the data. Whatever has the highest P-score is considered the most
-    accurate. This is because a higher p-score means the hypothesis is
-    closest to reality.
     
-    Parameters
-    ----------
-    x : array like
-        sample data, Only one-dimensional samples are accepted
-    
-    Returns
-    -------
-    dist : scipy.stats rv_continuous
-        A generic continous distribution class of best fit
-    p : float
-        The two-tailed p-value for the best fit
-    params : tuple of floats
-        Estimates for any shape parameters (if applicable), followed 
-        by those for location and scale. For most random variables, 
-        shape statistics will be returned, but there are exceptions 
-        (e.g. norm). Can be used to generate values with the help of
-        returned dist
-    """
-    results = {d: kolmogorov_smirnov_test(x, d) for d in distributions}
-    dist = min(results, key=lambda x: results[x][0])
-    (p, _, params) = results[dist]
-    if isinstance(dist, str): dist = getattr(stats, dist)
-    return dist, p, params
+    def distribution(
+            self,
+            dists: Tuple[str|rv_continuous] = DISTRIBUTION.COMMON
+            ) -> Tuple[rv_continuous, float, Tuple[float]]:
+        """First, the p-score is calculated by performing a 
+        Kolmogorov-Smirnov test to determine how well each distribution fits
+        the data. Whatever has the highest P-score is considered the most
+        accurate. This is because a higher p-score means the hypothesis is
+        closest to reality.
+        
+        Parameters
+        ----------
+        dists : tuple of strings or rv_continous, optional
+            Distributions to which the data may be subject. Only 
+            continuous distributions of scipy.stats are allowed,
+            by default DISTRIBUTION.COMMON
+        
+        Returns
+        -------
+        dist : scipy.stats rv_continuous
+            A generic continous distribution class of best fit
+        p : float
+            The two-tailed p-value for the best fit
+        params : tuple of floats
+            Estimates for any shape parameters (if applicable), followed 
+            by those for location and scale. For most random variables, 
+            shape statistics will be returned, but there are exceptions 
+            (e.g. norm). Can be used to generate values with the help of
+            returned dist
+        """
+        dists = (dists, ) if isinstance(dists, (str, rv_continuous)) else dists
+        results = {d: kolmogorov_smirnov_test(self.filtered, d) for d in dists}
+        dist, (p, _, params) = max(results.items(), key=lambda i: i[1][0])
+        if isinstance(dist, str): dist = getattr(stats, dist)
+        return dist, p, params
 
 
 
