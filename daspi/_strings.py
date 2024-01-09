@@ -57,6 +57,4 @@ class _String_:
             return empty
 STR = _String_()
 
-__all__ = [
-    'LANG',
-    STR.__name__]
+__all__ = ['STR']

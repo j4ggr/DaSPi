@@ -16,5 +16,5 @@ DISTRIBUTION = _Distribution_()
 
 
 __all__ = [
-    DISTRIBUTION.__name__,
+    'DISTRIBUTION',
 ]

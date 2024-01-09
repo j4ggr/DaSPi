@@ -13,6 +13,8 @@ from statsmodels.regression.linear_model import RegressionResults
 from statsmodels.stats.outliers_influence import OLSInfluence
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 
+norm.rvs()
+
 def mean_ci(
         x: Iterable, level: float = 0.95, n_groups: int = 1
         ) -> Tuple[float, float, float]:
@@ -42,7 +44,6 @@ def mean_ci(
     x_bar = np.mean(x)
     ci_low, ci_upp = t.interval(level, df, loc=x_bar, scale=se)
     return x_bar, ci_low, ci_upp
-
 
 def variance_ci(
         x: Iterable, level: float = 0.95, n_groups: int = 1
@@ -74,7 +75,6 @@ def variance_ci(
     ci_upp = df * s2 / chi2.ppf(alpha, df)
     ci_low = df * s2 / chi2.ppf(1 - alpha, df)
     return s2, ci_low, ci_upp
-
 
 def stdev_ci(
         x: Iterable, level: float = 0.95, n_groups: int = 1
@@ -394,7 +394,7 @@ def confidence_to_alpha(
     alpha : float
         significance level as alpha risk
     """
-    assert 0 <= confidence_level <= 1, f'given confidence interval: {confidence_level} not in (0, 1)'
+    assert 0 <= confidence_level <= 1, f'Confidence level {confidence_level} not in (0, 1)'
     sides = 2 if two_sided else 1
     alpha = (1 - confidence_level)/(sides * n_groups)
     return alpha

@@ -1,5 +1,3 @@
-from .ci import *
-
+from .confidence import *
 from .hypothesis import *
-
 from .estimation import *
