@@ -119,13 +119,13 @@ class TestEstimation:
         size = 10
         for dist in df_dist10.columns:
             estimate = Estimator(df_dist10[dist])
-            excess, p = estimate.excess()
+            excess = estimate.excess
             assert excess == df_valid[(dist, str(size))]['excess']
         
         size = 25
         for dist in df_dist10.columns:
             estimate = Estimator(df_dist25[dist])
-            excess, p = estimate.excess()
+            excess = estimate.excess
             assert excess == df_valid[(dist, str(size))]['excess']
 
     def test_skew(self):
@@ -133,12 +133,30 @@ class TestEstimation:
         size = 10
         for dist in df_dist10.columns:
             estimate = Estimator(df_dist10[dist])
-            skew, p = estimate.skew()
+            skew = estimate.skew
             assert skew == df_valid[(dist, str(size))]['skew']
         
         size = 25
         for dist in df_dist10.columns:
             estimate = Estimator(df_dist25[dist])
-            skew, p = estimate.skew()
+            skew = estimate.skew
             assert skew == df_valid[(dist, str(size))]['skew']
 
+    def test_follows_norm_curve(self):
+        estimate = Estimator(df_dist25['norm'])
+        assert estimate.follows_norm_curve()
+        
+        estimate = Estimator(df_dist25['foldnorm'])
+        assert not estimate.follows_norm_curve()
+        
+        estimate = Estimator(df_dist25['chi2'])
+        assert not estimate.follows_norm_curve()
+        
+        estimate = Estimator(df_dist25['gamma'])
+        assert not estimate.follows_norm_curve()
+        
+        estimate = Estimator(df_dist25['wald'])
+        assert not estimate.follows_norm_curve()
+
+        estimate = Estimator(df_dist25['expon'])
+        assert not estimate.follows_norm_curve()

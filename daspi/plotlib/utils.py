@@ -4,10 +4,10 @@ from scipy import stats
 from typing import Tuple
 from numpy.typing import ArrayLike
 
-from .constants import KDE_POINTS
+from .._constants import KDE
 
 def estimate_kernel_density(
-        data: ArrayLike, scale: float | None = None, n_points: int = KDE_POINTS
+        data: ArrayLike, scale: float | None = None, n_points: int = KDE.POINTS
     ) -> Tuple[ArrayLike, ArrayLike]:
     """Estimates the kernel density of data and returns values that are 
     useful for a plot. If those values are plotted in combination with 

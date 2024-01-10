@@ -18,26 +18,34 @@ from .hypothesis import skew_test
 from .hypothesis import kurtosis_test
 from .hypothesis import anderson_darling_test
 from .hypothesis import kolmogorov_smirnov_test
-from .constants import DISTRIBUTION
+from .._constants import DISTRIBUTION
 
 
 class Estimator:
 
     __slots__ = (
         '_data', '_filtered', '_n_samples', '_mean', '_median', '_std',
-        '_distribution')
+        '_distribution', '_excess', '_p_excess', '_skew', '_p_skew')
     _data: pd.Series
     _filtered: pd.Series
     _n_samples: int | None
     _mean: float | None
     _median: float | None
     _std: float | None
+    _excess: float | None
+    _p_excess: float | None
+    _skew: float | None
+    _p_skew: float | None
 
     def __init__(self, data: ArrayLike) -> None:
         self._n_samples = 0
         self._mean = None
         self._median = None
         self._std = None
+        self._excess = None
+        self._p_excess = None
+        self._skew = None
+        self._p_skew = None
         self._data = data if isinstance(data, pd.Series) else pd.Series(data)
         self._filtered = pd.Series()
         
@@ -75,7 +83,8 @@ class Estimator:
             self._std = self.filtered.std()
         return self._std
     
-    def excess(self) -> Tuple[float]:
+    @property
+    def excess(self) -> float:
         """The curvature of the distribution corresponds to the 
         curvature of a normal distribution when the excess is close to 
         zero. Distributions with negative excess kurtosis are said to be 
@@ -85,42 +94,66 @@ class Estimator:
         excess kurtosis are said to be leptokurtic (e.g. the Laplace 
         distribution, which has tails that asymptotically approach zero 
         more slowly than a Gaussian, and therefore produces more 
-        outliers than the normal distribution).
-
-        Returns
-        -------
-        gamma : float
-            Calculated excess value
-            - gamma < 0: less extreme outliers than normal distribution
-            - gamma > 0: more extreme outliers than normal distribution
-        p : float
-            Probability whether the excess is different from the normal 
-            distribution.
+        outliers than the normal distribution):
+            - excess < 0: less extreme outliers than normal distribution
+            - excess > 0: more extreme outliers than normal distribution
         """
-        gamma = kurtosis(self.filtered, fisher=True)
-        p = kurtosis_test(self.filtered)
-        return gamma, p
+        if self._excess is None:
+            self._excess = kurtosis(self.filtered, fisher=True)
+        return self._excess
     
+    @property
+    def p_excess(self) -> float:
+        """Get the probability that the excess of the population that
+        the sample was drawn from is the same as that of a corresponding
+        normal distribution."""
+        if self._p_excess is None:
+            self._p_excess = kurtosis_test(self.filtered)[0]
+        return self._p_excess
+    
+    @property
     def skew(self) -> Tuple[float]:
-        """Compute the sample skewness of the filtered data. For 
-        normally distributed data, the skewness should be about zero. 
+        """Get the sample skewness of the filtered data. 
+        For normally distributed data, the skewness should be about zero. 
         For unimodal continuous distributions, a skewness value greater 
         than zero means that there is more weight in the right tail of 
-        the distribution.
+        the distribution:
+            - skew < 0: left-skewed -> long tail left
+            - skew > 0: right-skewed -> long tail right
+        """
+        if self._skew is None:
+            self._skew = skew(self.filtered)
+        return self._skew
+    
+    @property
+    def p_skew(self) -> float:
+        """Get the probability that the skewness of the population that
+        the sample was drawn from is the same as that of a corresponding
+        normal distribution"""
+        if self._p_skew is None:
+            self._p_skew = skew_test(self.filtered)[0]
+        return self._p_skew
+    
+    def follows_norm_curve(self, alpha: float = 0.05) -> bool:
+        """Two sided hypothesis whether the skew or the excess 
+        (kurtosis) is different from the normal distribution.
         
+        Parameters
+        ----------
+        alpha : float
+            Alpha risk of hypothesis tests. If a p-value is below this 
+            limit, the null hypothesis is rejected
+            
         Returns
         -------
-        gamma_m : float
-            Calculated skew value
-            - gamma_m < 0: left-skewed -> long tail left
-            - gamma_m > 0: right-skewed -> long tail right
-        p : float
-            Probability whether the skew is different from the normal 
-            distribution."""
-        gamma_m = skew(self.filtered)
-        p = skew_test(self.filtered)
-        return gamma_m, p
-    
+        remain_h0 : bool
+            True if both p-values > alpha, otherwise False
+        """
+        remain_h0 = [
+            self.p_excess > alpha,
+            self.p_skew > alpha]
+        return all(remain_h0)
+
     def norm_test_statistics(self) -> pd.DataFrame:
         pass
 
