@@ -85,7 +85,9 @@ class Estimator:
     
     @property
     def excess(self) -> float:
-        """The curvature of the distribution corresponds to the 
+        """Get the Fisher kurtosis (excess) of the filtered data.
+        Calculations are corrected for statistical bias.
+        The curvature of the distribution corresponds to the 
         curvature of a normal distribution when the excess is close to 
         zero. Distributions with negative excess kurtosis are said to be 
         platykurtic, this distribution produces fewer and/or less 
@@ -99,7 +101,7 @@ class Estimator:
             - excess > 0: more extreme outliers than normal distribution
         """
         if self._excess is None:
-            self._excess = kurtosis(self.filtered, fisher=True)
+            self._excess = kurtosis(self.filtered, fisher=True, bias=False)
         return self._excess
     
     @property
@@ -113,7 +115,8 @@ class Estimator:
     
     @property
     def skew(self) -> Tuple[float]:
-        """Get the sample skewness of the filtered data. 
+        """Get the sample skewness of the filtered data.
+        Calculations are corrected for statistical bias.
         For normally distributed data, the skewness should be about zero. 
         For unimodal continuous distributions, a skewness value greater 
         than zero means that there is more weight in the right tail of 
@@ -122,7 +125,7 @@ class Estimator:
             - skew > 0: right-skewed -> long tail right
         """
         if self._skew is None:
-            self._skew = skew(self.filtered)
+            self._skew = skew(self.filtered, bias=False)
         return self._skew
     
     @property

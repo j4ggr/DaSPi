@@ -15,16 +15,24 @@ from daspi.statistics.estimation import *
 from daspi.statistics.hypothesis import *
 
 source = Path(__file__).parent/'data'
-df_dist10: pd.DataFrame = pd.read_csv(source/f'dists_10-samples.csv')
-df_dist25: pd.DataFrame = pd.read_csv(source/f'dists_25-samples.csv')
-df_valid: pd.DataFrame = pd.read_csv(
-    source/'dist_metrics_validation.csv', header=[0, 1], index_col=0)
+KW_READ = dict(sep=';', index_col=0)
+
+df_dist10: pd.DataFrame = pd.read_csv(
+    source/f'dists_10-samples.csv', skiprows=1, nrows=10, **KW_READ)
+df_valid10: pd.DataFrame = pd.read_csv(
+    source/f'dists_10-samples.csv', skiprows=14, **KW_READ)
+df_dist25: pd.DataFrame = pd.read_csv(
+    source/f'dists_25-samples.csv', skiprows=1, nrows=25, **KW_READ)
+df_valid25: pd.DataFrame = pd.read_csv(
+    source/f'dists_25-samples.csv', skiprows=29, **KW_READ)
 
 class TestConfidence:
 
+    # source data contains 8 decimal places
     rel_central: float = 1e-7
     # The calculated confidence intervals in Minitab have only 4 decimal places
-    rel_interval: float = 1e-3 
+    rel_interval: float = 1e-3
+
 
     def test_confidence_to_alpha(self):
         level = 0.95
@@ -50,7 +58,7 @@ class TestConfidence:
         size = 10
         for dist in df_dist10.columns:
             x_bar, ci_low, ci_upp = mean_ci(df_dist10[dist], level=.95)
-            _x_bar, _ci_low, _ci_upp = df_valid[(dist, str(size))][rows]
+            _x_bar, _ci_low, _ci_upp = df_valid10[dist][rows]
             assert x_bar == approx(_x_bar, rel=self.rel_central)
             assert ci_low == approx(_ci_low, rel=self.rel_interval)
             assert ci_upp == approx(_ci_upp, rel=self.rel_interval)
@@ -58,7 +66,7 @@ class TestConfidence:
         size = 25
         for dist in df_dist25.columns:
             x_bar, ci_low, ci_upp = mean_ci(df_dist25[dist], level=.95)
-            _x_bar, _ci_low, _ci_upp = df_valid[(dist, str(size))][rows]
+            _x_bar, _ci_low, _ci_upp = df_valid25[dist][rows]
             assert x_bar == approx(_x_bar, rel=self.rel_central)
             assert ci_low == approx(_ci_low, rel=self.rel_interval)
             assert ci_upp == approx(_ci_upp, rel=self.rel_interval)
@@ -69,7 +77,7 @@ class TestConfidence:
         size = 10
         for dist in df_dist10.columns:
             std, ci_low, ci_upp = stdev_ci(df_dist10[dist], level=.95)
-            _std, _ci_low, _ci_upp = df_valid[(dist, str(size))][rows]
+            _std, _ci_low, _ci_upp = df_valid10[dist][rows]
             assert std == approx(_std, rel=self.rel_central)
             assert ci_low == approx(_ci_low, rel=self.rel_interval)
             assert ci_upp == approx(_ci_upp, rel=self.rel_interval)
@@ -77,7 +85,7 @@ class TestConfidence:
         size = 25
         for dist in df_dist25.columns:
             std, ci_low, ci_upp = stdev_ci(df_dist25[dist], level=.95)
-            _std, _ci_low, _ci_upp = df_valid[(dist, str(size))][rows]
+            _std, _ci_low, _ci_upp = df_valid25[dist][rows]
             assert std == approx(_std, rel=self.rel_central)
             assert ci_low == approx(_ci_low, rel=self.rel_interval)
             assert ci_upp == approx(_ci_upp, rel=self.rel_interval)
@@ -85,6 +93,8 @@ class TestConfidence:
 
 class TestEstimation:
 
+    # source data contains 8 decimal places
+    rel_curve: float = 1e-7
     estimate: Estimator = Estimator(df_dist10['rayleigh'])
 
     def test_data_filtered(self):
@@ -115,41 +125,46 @@ class TestEstimation:
         assert self.estimate._std is not None
 
     def test_excess(self):
-        
+        rel = self.rel_curve
+
         size = 10
         for dist in df_dist10.columns:
             estimate = Estimator(df_dist10[dist])
             excess = estimate.excess
-            assert excess == df_valid[(dist, str(size))]['excess']
+            assert excess == approx(df_valid10[dist]['excess'], rel=rel)
         
         size = 25
         for dist in df_dist10.columns:
             estimate = Estimator(df_dist25[dist])
             excess = estimate.excess
-            assert excess == df_valid[(dist, str(size))]['excess']
+            assert excess == approx(df_valid25[dist]['excess'], rel=rel)
 
     def test_skew(self):
-        
+        rel = self.rel_curve
+
         size = 10
         for dist in df_dist10.columns:
             estimate = Estimator(df_dist10[dist])
             skew = estimate.skew
-            assert skew == df_valid[(dist, str(size))]['skew']
+            assert skew == approx(df_valid10[dist]['skew'], rel=rel)
         
         size = 25
         for dist in df_dist10.columns:
             estimate = Estimator(df_dist25[dist])
             skew = estimate.skew
-            assert skew == df_valid[(dist, str(size))]['skew']
+            assert skew == approx(df_valid25[dist]['skew'], rel=rel)
 
     def test_follows_norm_curve(self):
         estimate = Estimator(df_dist25['norm'])
         assert estimate.follows_norm_curve()
         
+        estimate = Estimator(df_dist25['chi2'])
+        assert not estimate.follows_norm_curve()
+        
         estimate = Estimator(df_dist25['foldnorm'])
         assert not estimate.follows_norm_curve()
         
-        estimate = Estimator(df_dist25['chi2'])
+        estimate = Estimator(df_dist25['weibull_min'])
         assert not estimate.follows_norm_curve()
         
         estimate = Estimator(df_dist25['gamma'])

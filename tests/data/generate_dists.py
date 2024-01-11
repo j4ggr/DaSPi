@@ -11,6 +11,7 @@ dists = {
     'chi2': params | {'df': 2},
     'foldnorm': params | {'c': 1.5},
     'rayleigh': params,
+    'weibull_min': params | {'c': 1.5},
     'gamma': params | {'a': 1.0},
     'wald': params,
     'expon': params,
