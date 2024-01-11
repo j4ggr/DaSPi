@@ -154,6 +154,31 @@ def levene_test(
     L, p = levene(x1, x2, center=center)
     return p, L
 
+def variance_stability_test(x: ArrayLike, n_sections: int = 5):
+    """Perform Levene test for equal variances within one sample.
+    
+    Divides the data into the number of n_sections. A Levene test is 
+    then performed between these intercepts to check whether the 
+    variance remains stable
+    
+    Parameters
+    ----------
+    x : ArrayLike
+        The sample data, nan values are ignored
+    n_sections : int, optional
+        Amount of sections to divide the data into, by default 5
+
+    Returns
+    -------
+    p : float
+        p-value for the test
+    L : float
+        Levene test statistic
+    """
+    xs = np.array_split(x, n_sections)
+    L, p = levene(*xs, center='median')
+    return p, L
+
 def position_test(
         x1: ArrayLike, x2: ArrayLike, equal_var: bool=True, 
         normal: Optional[bool]=None,
@@ -348,14 +373,16 @@ def skew_test(x: ArrayLike) -> Tuple[float, float]:
     statistic, p = skewtest(x, nan_policy='omit', alternative='two-sided')
     return p, statistic
 
+
 __all__ = [
     anderson_darling_test.__name__,
     all_normal.__name__,
     kolmogorov_smirnov_test.__name__,
     f_test.__name__,
     levene_test.__name__,
+    variance_stability_test.__name__,
     position_test.__name__,
     variance_test.__name__,
     proportions_test.__name__,
     kurtosis_test.__name__,
-    skew_test.__name__]
+    skew_test.__name__,]

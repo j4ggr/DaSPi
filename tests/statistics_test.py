@@ -91,7 +91,7 @@ class TestConfidence:
             assert ci_upp == approx(_ci_upp, rel=self.rel_interval)
 
 
-class TestEstimation:
+class TestEstimator:
 
     # source data contains 8 decimal places
     rel_curve: float = 1e-7
