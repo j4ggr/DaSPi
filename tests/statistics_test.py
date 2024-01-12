@@ -175,3 +175,26 @@ class TestEstimator:
 
         estimate = Estimator(df_dist25['expon'])
         assert not estimate.follows_norm_curve()
+
+    def test_stable_variance(self):
+        assert self.estimate.stable_variance()
+
+        data = list(df_dist25['logistic']) + list(df_dist25['expon'])
+        estimate = Estimator(data)
+        assert not estimate.stable_variance(n_sections=2)
+
+    def test_fit_distribution(self):
+        estimate = Estimator(df_dist25['expon'])
+        assert estimate._dist is None
+        assert estimate._dist_params is None
+        assert estimate._p_dist is None
+       
+        estimate.fit_distribution()
+        assert estimate.dist.name != 'norm'
+        assert estimate.p_dist > 0.005
+        assert estimate.dist_params is not None
+        
+        estimate = Estimator(df_dist25['norm'])
+        estimate.fit_distribution()
+        assert estimate.p_dist > 0.005
+        assert estimate.dist.name != 'expon'
