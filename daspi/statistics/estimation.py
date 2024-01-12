@@ -19,6 +19,7 @@ from .hypothesis import skew_test
 from .hypothesis import kurtosis_test
 from .hypothesis import variance_stability_test
 from .hypothesis import kolmogorov_smirnov_test
+from .._constants import KDE
 from .._constants import DISTRIBUTION
 
 
@@ -161,29 +162,29 @@ class Estimator:
 
     @property
     def dist(self) -> rv_continuous | None:
-        """Get fitted distribution. None if method fit_distribution has 
+        """Get fitted distribution. None if method distribution has 
         not been called."""
         return self._dist
     
     @property
     def p_dist(self) -> float | None:
         """Get probability of fitted distribution. None if method 
-        fit_distribution  has not been called."""
+        distribution  has not been called."""
         return self._p_dist
     
     @property
     def dist_params(self) -> tuple:
         """Get params of fitted distribution. None if method 
-        fit_distribution has not been called."""
+        distribution has not been called."""
         return self._dist_params
     
-    def fit_distribution(self):
+    def distribution(self):
         """First, the p-score is calculated by performing a 
         Kolmogorov-Smirnov test to determine how well each distribution fits
         the data. Whatever has the highest P-score is considered the most
         accurate. This is because a higher p-score means the hypothesis is
         closest to reality.""" # TODO link docstring
-        self._dist, self._p_dist, self._dist_params = fit_distribution(
+        self._dist, self._p_dist, self._dist_params = estimate_distribution(
             self.filtered, self.possible_dists)
     
     def stable_variance(
@@ -505,7 +506,7 @@ class ProcessEstimator(Estimator):
         if strategy == 'eval':
             pass # TODO implement control limits eval strategy
         elif strategy == 'fit':
-            self.fit_distribution()
+            self.distribution()
             if self.dist.name == 'norm':
                 lcl, ucl = self._calculate_control_limits_('norm')
             else:
@@ -537,7 +538,7 @@ class ProcessEstimator(Estimator):
         self._q_upp = None
 
 
-def fit_distribution(
+def estimate_distribution(
         data: ArrayLike,
         dists: Tuple[str|rv_continuous] = DISTRIBUTION.COMMON
         ) -> Tuple[rv_continuous, float, Tuple[float]]:
@@ -575,7 +576,51 @@ def fit_distribution(
     if isinstance(dist, str): dist = getattr(stats, dist)
     return dist, p, params
 
+def estimate_kernel_density(
+        data: ArrayLike, scale: float | None = None, n_points: int = KDE.POINTS
+    ) -> Tuple[ArrayLike, ArrayLike]:
+    """Estimates the kernel density of data and returns values that are 
+    useful for a plot. If those values are plotted in combination with 
+    a histogram, set scale as max value of the hostogram.
+    
+    Kernel density estimation is a way to estimate the probability 
+    density function (PDF) of a random variable in a non-parametric way. 
+    The used gaussian_kde function of scipy.stats works for both 
+    uni-variate and multi-variate data. It includes automatic bandwidth 
+    determination. The estimation works best for a unimodal 
+    distribution; bimodal or multi-modal distributions tend to be 
+    oversmoothed.
+    
+    Parameters
+    ----------
+    data : array_like
+        1-D array of datapoints to estimate from.
+    scale : float or None, optional
+        If the KDE curve is plotted in combination with other data 
+        (e.g. a histogram), you can use scale to specify the height at 
+        the maximum point of the KDE curve. If this value is specified, 
+        the area under the curve will not be normalized, by default None
+    n_points : int, optional
+        Number of points the estimation and sequence should have,
+        by default KDE_POINTS (defined in constants.py)
+
+    Returns
+    -------
+    sequence : 1D array
+        Data points at regular intervals from input data minimum to 
+        maximum
+    estimation : 1D array
+        Data points of kernel density estimation
+    """
+    data = np.array(data)[~np.isnan(data)]
+    sequence = np.linspace(data.min(), data.max(), n_points)
+    estimation = stats.gaussian_kde(data, bw_method='scott')(sequence)
+    if scale is not None:
+        estimation = estimation*scale/estimation.max()
+    return sequence, estimation
+
 __all__ = [
     Estimator.__name__,
     ProcessEstimator.__name__,
-    fit_distribution.__name__,]
+    estimate_distribution.__name__,
+    estimate_kernel_density.__name__,]
