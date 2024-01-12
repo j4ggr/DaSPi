@@ -34,6 +34,13 @@ class _String_:
     skew: dict = {
         'en': 'skew',
         'de': 'Schiefe'}
+    
+    kde_ax_label: dict = {
+        'en': 'estimated kernel density',
+        'de': 'geschätzte Kerndichte'
+    }
+    
+
 
     LANGUAGE: str = environ.get('DASPI_LANGUAGE', 'en')
     USERNAME: str = environ['USERNAME']

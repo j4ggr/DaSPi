@@ -13,6 +13,8 @@ from matplotlib.legend import Legend
 from matplotlib.artist import Artist
 
 from .._strings import STR
+from .._constants import KW
+from .._constants import COLOR
 
 
 class LabelFacets:
@@ -128,7 +130,7 @@ class AxesFacets:
 
     def __init__(
             self, nrows: int = 1, ncols: int = 1, sharex: str = 'none', 
-            sharey: str = 'none', **kwargs
+            sharey: str = 'none', **kwds
             ) -> None:
         """
         Parameters
@@ -169,7 +171,7 @@ class AxesFacets:
         """
         fig, axes = plt.subplots(
             nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey, 
-            squeeze=False, **kwargs)
+            squeeze=False, **kwds)
         self.figure: Figure = fig
         self.axes: ArrayLike[Axes] = axes
         self._ax: Axes = self.axes[0][0]
@@ -199,15 +201,13 @@ class AxesFacets:
 class CategoricalFacets(AxesFacets):
 
     def __init__(
-            self, source: pd.DataFrame, y: str, x: str, hue: str, 
-            columns: str = '', rows: str = '') -> None:
+            self, source: pd.DataFrame, y: str, x: str, columns: str = '', 
+            rows: str = '') -> None:
         self.df: pd.DataFrame = source
         self.y: str = y
         self.x: str = x
-        self.hue: str = hue
         self.rows: str = rows
         self.columns: str = columns
-        self.hue_labels: List[str] = self._categorical_labels(self.hue)
         self.row_labels: List[str] = self._categorical_labels(self.rows)
         self.col_labels: List[str] = self._categorical_labels(self.columns)
 

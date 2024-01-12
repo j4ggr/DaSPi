@@ -9,7 +9,7 @@ from scipy.stats._continuous_distns import _distn_names
 class _Kw_:
     @property
     def LINE(self):
-        """Base kwargs for horizontal or vertical lines"""
+        """Base kwds for horizontal or vertical lines"""
         return dict(ls=0.8, style='--')
     @property
     def LEGEND(self) -> dict:
