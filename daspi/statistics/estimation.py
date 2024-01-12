@@ -27,8 +27,8 @@ class Estimator:
 
     __slots__ = (
         '_data', '_filtered', '_n_samples', '_n_missing', '_mean', '_median', 
-        '_std', '_excess', '_p_excess', '_skew', '_p_skew' '_dist', '_p_dist',
-        '_dist_params')
+        '_std', '_excess', '_p_excess', '_skew', '_p_skew', '_dist', '_p_dist',
+        '_dist_params', 'possible_dists')
     _data: pd.Series
     _filtered: pd.Series
     _n_samples: int | None
@@ -43,8 +43,12 @@ class Estimator:
     _dist: rv_continuous | None
     _p_dist: float | None
     _dist_params: tuple | None
+    possible_dists: Tuple[str | rv_continuous]
 
-    def __init__(self, data: ArrayLike) -> None:
+    def __init__(
+            self, data: ArrayLike, 
+            possible_dists: Tuple[str | rv_continuous] = DISTRIBUTION.COMMON
+            ) -> None:
         self._n_samples = len(data)
         self._n_missing = None
         self._mean = None
@@ -57,8 +61,9 @@ class Estimator:
         self._dist = None
         self._p_dist = None
         self._dist_params = None
-        self._data = data if isinstance(data, pd.Series) else pd.Series(data)
+        self.possible_dists = possible_dists
         self._filtered = pd.Series()
+        self._data = data if isinstance(data, pd.Series) else pd.Series(data)
         
     @property
     def data(self) -> pd.Series:
@@ -188,7 +193,7 @@ class Estimator:
             self.filtered, self.possible_dists)
     
     def stable_variance(
-            self, alpha: float = 0.05, n_sections : int = 5) -> bool:
+            self, alpha: float = 0.05, n_sections : int = 3) -> bool:
         """Test whether the variance remains stable across the data. 
         
         The data is divided into 5 subgroups and the variances of their 
@@ -207,6 +212,8 @@ class Estimator:
         stable : bool
             True if the p-value > alpha
         """
+        assert isinstance(n_sections, int)
+        assert  1 < n_sections < len(self.filtered)
         p, L = variance_stability_test(self.filtered, n_sections=n_sections)
         return p > alpha
     
@@ -235,8 +242,7 @@ class ProcessEstimator(Estimator):
 
     __slots__ = (
         '_lsl', '_usl', '_n_ok', '_n_nok', '_error_values', '_n_errors', 
-        '_cp', '_cpk', '_control_limits', '_tolerance', 'possible_dists' 
-        '_q_low', '_q_upp')
+        '_cp', '_cpk', '_control_limits', '_tolerance', '_q_low', '_q_upp')
     lsl: float | None
     usl: float | None
     _n_ok: int | None
@@ -249,7 +255,6 @@ class ProcessEstimator(Estimator):
     _tolerance: int
     _q_low: float | None
     _q_upp: float | None
-    possible_dists: Tuple[str | rv_continuous]
 
     def __init__(
             self, data: ArrayLike,
@@ -319,10 +324,9 @@ class ProcessEstimator(Estimator):
         self._lsl = lsl
         self._usl = usl
         self._control_limits = control_limits
-        self.possible_dists = possible_dists
         self.tolerance = tolerance
         self._reset_capabilty_values_()
-        super().__init__(data)
+        super().__init__(data, possible_dists)
         
     @property
     def filtered(self) -> pd.Series:
