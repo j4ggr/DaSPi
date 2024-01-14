@@ -99,6 +99,15 @@ class MarkerLabelHandler(BaseCategoryLabelHandler):
     def __init__(self, labels: Tuple) -> None:
         super().__init__(labels)
 
+
+
+class SizeLabelHandler(BaseCategoryLabelHandler):
+
+    def __init__(self, min_value: int | float, max_value: int | float) -> None:
+        assert max_value > min_value
+        labels = None 
+        super().__init__(labels)
+
 __all__ = [
     add_second_axis.__name__,
     ]
