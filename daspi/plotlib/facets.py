@@ -2,9 +2,12 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from typing import Self
 from typing import List
 from typing import Dict
+from typing import Tuple
 from typing import Literal
+from typing import Generator
 from numpy.typing import ArrayLike
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
@@ -169,47 +172,65 @@ class AxesFacets:
             If not given, all rows will have the same height. Convenience
             for ``gridspec_kw={'height_ratios': [...]}``.
         """
-        fig, axes = plt.subplots(
+        fig, axs = plt.subplots(
             nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey, 
             squeeze=False, **kwds)
         self.figure: Figure = fig
-        self.axes: ArrayLike[Axes] = axes
-        self._ax: Axes = self.axes[0][0]
+        self.axs: ArrayLike[Axes] = axs
+        self._ax: Axes | None = None
+        self._nrows: int = nrows
+        self._ncols: int = ncols
 
     @property
     def ax(self) -> Axes:
-        """Get the axes that are currently being worked on"""
+        """Get the axes that is currently being worked on"""
         return self._ax
     
     @property
     def row_idx(self) -> int:
         """Get the index of the row from which the current axes 
         originates."""
-        for i, axes in enumerate(self.axes):
-            if self.ax in axes:
+        for i, axs in enumerate(self.axs):
+            if self.ax in axs:
                 return i
     
     @property
     def col_idx(self) -> int:
         """Get the index of the column from which the current axes 
         originates."""
-        for i, axes in enumerate(self.axes.T):
-            if self.ax in axes:
+        for i, axs in enumerate(self.axs.T):
+            if self.ax in axs:
                 return i
     
+    @property
+    def nrows(self) -> int:
+        return self._nrows
+    
+    @property
+    def ncols(self) -> int:
+        return self._ncols
+    
+    def __iter__(self) -> Generator[Axes, Self, None]:
+        def ax_gen() -> Generator[Axes, Self, None]:
+            for ax in self.axs.flat:
+                self._ax = ax
+                yield ax
+            self._ax = None
+        return ax_gen()
+    
+    def __next__(self) -> Axes:
+        return next(self)
+    
 
-class CategoricalFacets(AxesFacets):
+class CategoricalAxesFacets(AxesFacets):
 
     def __init__(
-            self, source: pd.DataFrame, y: str, x: str, columns: str = '', 
-            rows: str = '') -> None:
-        self.df: pd.DataFrame = source
-        self.y: str = y
-        self.x: str = x
-        self.rows: str = rows
-        self.columns: str = columns
-        self.row_labels: List[str] = self._categorical_labels(self.rows)
-        self.col_labels: List[str] = self._categorical_labels(self.columns)
+            self, source: pd.DataFrame, col: str = '', row: str = '') -> None:
+        self.source: pd.DataFrame = source
+        self.row: str = row
+        self.col: str = col
+        self.col_labels: Tuple | None = self._categorical_labels_(self.col)
+        self.row_labels: Tuple | None = self._categorical_labels_(self.row)
 
         super().__init__(
             nrows=len(self.row_names), ncols=len(self.col_names), sharex='all',
@@ -218,8 +239,8 @@ class CategoricalFacets(AxesFacets):
     @property
     def n_categories(self) -> Literal[4, 3, 2]:
         n: int = 2
-        if self.columns: n += 1
-        if self.rows: n += 1
+        if self.col: n += 1
+        if self.row: n += 1
         return n
 
     @property
@@ -242,9 +263,13 @@ class CategoricalFacets(AxesFacets):
         if not self.col_title | self.ax not in self.axes[0]: return
         self.ax.text(1, 0, self.col_title)
 
+    def _categorical_labels_(self, colname: str) -> Tuple | None:
+        """Get sorted unique elements of given column in source"""
+        if not colname: return
+        return tuple(sorted(np.unique(self.source[colname])))
 
 __all__ = [
     LabelFacets.__name__,
     AxesFacets.__name__,
-    CategoricalFacets.__name__
+    CategoricalAxesFacets.__name__,
 ]

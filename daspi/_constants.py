@@ -50,6 +50,18 @@ class _Color_:
         return (self.PERCENTIL, self.PERCENTIL, self.MEAN)
 COLOR = _Color_()
 
+@dataclass(frozen=True)
+class _Category_:
+    COLORS: Tuple[str] = tuple(COLOR.PALETTE)
+    MARKERS: Tuple[str] = ('o', 's', '^', 'p', 'D', 'V', 'P', 'X', '*')
+    MARKERSIZE_LIMITS: Tuple[int] = (2, 12)
+    @property
+    def SIZE_LIMITS(self) -> tuple[int]:
+        """Used for scatter plots. The area must be specified there 
+        instead of the height, as with markers in line plots.
+        See: https://stackoverflow.com/a/14860958/11362192"""
+        return tuple(s**2 for s in self.MARKERSIZE_LIMITS)
+CATEGORY = _Category_()
 
 @dataclass(frozen=True)
 class _Distribution_:
@@ -68,5 +80,6 @@ __all__ = [
     'KW',
     'KDE',
     'COLOR',
+    'CATEGORY',
     'DISTRIBUTION',
 ]
