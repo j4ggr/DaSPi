@@ -14,6 +14,7 @@ from matplotlib.lines import Line2D
 from matplotlib.figure import Figure
 from matplotlib.legend import Legend
 from matplotlib.artist import Artist
+from matplotlib.patches import Patch
 
 from .._strings import STR
 from .._constants import KW
@@ -71,7 +72,7 @@ class LabelFacets:
         return dict(x=x_pos, ha='left')
 
     def add_legend(
-            self, title: str, labels: List[str] = [], markers: List[str] = []
+            self, handles: List[Patch | Line2D], labels: List[str], title: str
             ) -> None:
         """Adds a legend at the right side of the figure. If there is 
         already one, the existing one is extended with the new one
@@ -172,11 +173,11 @@ class AxesFacets:
             If not given, all rows will have the same height. Convenience
             for ``gridspec_kw={'height_ratios': [...]}``.
         """
-        fig, axs = plt.subplots(
+        fig, axes = plt.subplots(
             nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey, 
             squeeze=False, **kwds)
         self.figure: Figure = fig
-        self.axs: np.ndarray = axs
+        self.axes: np.ndarray = axes
         self._ax: Axes | None = None
         self._nrows: int = nrows
         self._ncols: int = ncols
@@ -190,7 +191,7 @@ class AxesFacets:
     def row_idx(self) -> int:
         """Get the index of the row from which the current axes 
         originates."""
-        for i, axs in enumerate(self.axs):
+        for i, axs in enumerate(self.axes):
             if self.ax in axs:
                 return i
     
@@ -198,7 +199,7 @@ class AxesFacets:
     def col_idx(self) -> int:
         """Get the index of the column from which the current axes 
         originates."""
-        for i, axs in enumerate(self.axs.T):
+        for i, axs in enumerate(self.axes.T):
             if self.ax in axs:
                 return i
     
@@ -212,7 +213,7 @@ class AxesFacets:
     
     def __iter__(self) -> Generator[Axes, Self, None]:
         def ax_gen() -> Generator[Axes, Self, None]:
-            for ax in self.axs.flat:
+            for ax in self.axes.flat:
                 self._ax = ax
                 yield ax
             self._ax = None
@@ -220,6 +221,9 @@ class AxesFacets:
     
     def __next__(self) -> Axes:
         return next(self)
+    
+    def __getitem__(self, index: int):
+        return self.axes.flat[index]
     
 
 class CategoricalAxesFacets(AxesFacets):

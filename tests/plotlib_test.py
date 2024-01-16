@@ -10,8 +10,9 @@ from numpy.typing import ArrayLike
 
 sys.path.append(Path(__file__).parent.resolve())
 
-from daspi.plotlib.utils import *
 from daspi._constants import CATEGORY
+from daspi.plotlib.utils import *
+from daspi.plotlib.facets import *
 
 
 class TestCategoryLabelHandler:
@@ -76,3 +77,28 @@ class TestCategoryLabelHandler:
         sizes = self.sizes_s.sizes(values)
         assert np.array_equal(sizes, np.square(self.sizes_s.categories))
 
+
+class TestFacets:
+    axs = AxesFacets(
+        2, 2, sharex='col', sharey='row', 
+        width_ratios=[4, 1], height_ratios=[1, 4])
+    cat_axs = CategoricalAxesFacets()
+    
+    def test_iteration(self):
+        assert self.axs.ax is None
+        assert next(iter(self.axs)) == self.axs[0]
+        for i, ax in enumerate(self.axs):
+            assert self.axs.ax == ax
+            assert self.axs[i] == ax
+            
+            if i < 3:
+                assert self.axs.row_idx == 0
+            else:
+                assert self.axs.row_idx == 1
+            
+            if i in [0, 2]:
+                assert self.axs.col_idx == 0
+            else:
+                assert self.axs.col_idx == 1
+
+    def test_label_facets(self):...
