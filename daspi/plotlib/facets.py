@@ -176,7 +176,7 @@ class AxesFacets:
             nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey, 
             squeeze=False, **kwds)
         self.figure: Figure = fig
-        self.axs: ArrayLike[Axes] = axs
+        self.axs: np.ndarray = axs
         self._ax: Axes | None = None
         self._nrows: int = nrows
         self._ncols: int = ncols

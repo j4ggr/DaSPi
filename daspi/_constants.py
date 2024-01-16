@@ -1,3 +1,4 @@
+import numpy as np
 import matplotlib.pyplot as plt
 
 from typing import Tuple
@@ -33,8 +34,9 @@ KDE = _Kde_()
 class _Color_:
     GOOD: str = '#2ca02c'
     BAD: str = '#d62728'
-    MEAN: str = '#000000'
+    MEAN: str = '#101010'
     PERCENTIL: str = '#303030'
+    HANDLES: str = '#202020'
     @property
     def PALETTE(self) -> List[str]:
         """Get prop cycler color palette"""
@@ -50,18 +52,31 @@ class _Color_:
         return (self.PERCENTIL, self.PERCENTIL, self.MEAN)
 COLOR = _Color_()
 
+
 @dataclass(frozen=True)
 class _Category_:
     COLORS: Tuple[str] = tuple(COLOR.PALETTE)
     MARKERS: Tuple[str] = ('o', 's', '^', 'p', 'D', 'V', 'P', 'X', '*')
-    MARKERSIZE_LIMITS: Tuple[int] = (2, 12)
+    MARKERSIZE_LIMITS: Tuple[int] = (1, 13)
+    N_SIZE_BINS: int = 5
     @property
-    def SIZE_LIMITS(self) -> tuple[int]:
+    def SIZE_LIMITS(self) -> Tuple[int]:
         """Used for scatter plots. The area must be specified there 
         instead of the height, as with markers in line plots.
         See: https://stackoverflow.com/a/14860958/11362192"""
         return tuple(s**2 for s in self.MARKERSIZE_LIMITS)
+    @property
+    def HANDLE_SIZES(self) -> Tuple[int]:
+        """Get marker sizes for legend handles"""
+        sizes = tuple(np.linspace(
+            *self.MARKERSIZE_LIMITS, self.N_SIZE_BINS, dtype=int))
+        return sizes
+    @property
+    def MARKER(self):
+        """Get default marker if markers not specified"""
+        return self.MARKERS[0]
 CATEGORY = _Category_()
+
 
 @dataclass(frozen=True)
 class _Distribution_:
@@ -74,7 +89,6 @@ class _Distribution_:
         """Get all possible continous distributions coming from scipy"""
         return tuple(d for d in _distn_names if d not in self._ignore_)
 DISTRIBUTION = _Distribution_()
-
 
 __all__ = [
     'KW',

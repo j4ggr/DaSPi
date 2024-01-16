@@ -189,12 +189,12 @@ class TestEstimator:
         assert estimate._dist_params is None
         assert estimate._p_dist is None
        
-        estimate.fit_distribution()
+        estimate.distribution()
         assert estimate.dist.name != 'norm'
         assert estimate.p_dist > 0.005
         assert estimate.dist_params is not None
         
         estimate = Estimator(df_dist25['norm'])
-        estimate.fit_distribution()
+        estimate.distribution()
         assert estimate.p_dist > 0.005
         assert estimate.dist.name != 'expon'

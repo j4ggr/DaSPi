@@ -224,9 +224,9 @@ class MultiVariablePlotter:
         return self.axes_facets.figure
     
     @property
-    def axes(self) -> ArrayLike[Axes]:
+    def axs(self) -> np.ndarray:
         """Get the created axes"""
-        return self.axes_facets.axes
+        return self.axes_facets.axs
     
     @property
     def groupers(self) -> List[str]:
