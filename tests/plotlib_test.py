@@ -4,6 +4,7 @@ import pytest
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+import matplotlib.pyplot as plt
 
 from pytest import approx
 from pathlib import Path
@@ -147,3 +148,4 @@ class TestCharts:
             info = 'pytest figure'
         )
         chart.save(savedir/'multivariate_chart_mtcars.png')
+        plt.close('all')

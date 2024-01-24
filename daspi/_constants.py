@@ -15,51 +15,34 @@ class _Kw_:
     @property
     def LEGEND(self) -> dict:
         """Figure legend at right side of figure"""
-        return dict(loc='upper left', bbox_to_anchor=(1.2, 1), alignment='left')
+        return dict(loc='upper left', bbox_to_anchor=(1.05, 1), alignment='left')
     @property
     def SAVE_CHART(self) -> dict:
         """Key word arguments for matplotlib savefig"""
         return dict(bbox_inches='tight')
     @property
-    def XLABEL(self) -> dict:
-        """Keyword arguments for xlabel when using figure.text method.
-        This is the case if the diagram has several columns"""
-        return dict(
-            x=0.5, y=0, ha='center', va='top')
-    @property
-    def YLABEL(self) -> dict:
-        """Keyword arguments for ylabel when using figure.text method.
-        This is the case if the diagram has several rows"""
-        return dict(
-            x=0, y=0.5, ha='right', va='center', rotation='vertical')
-    @property
     def ROW_LABEL(self) -> dict:
         """Keyword arguments for Axes.text method used for adding column 
-        label as text at LabelFacets"""
+        label as text at LabelFacets."""
         return dict(x=1, y=0.5, ha='left', va='center', rotation=-90)
     @property
     def ROW_TITLE(self) -> dict:
-        """Keyword arguments for Axes.text method used for adding column 
-        label as text at LabelFacets"""
-        return dict(x=1.1, y=0.5, ha='left', va='center', rotation=-90)
+        """Keyword arguments for ax_rc ylabel used for adding row title 
+        at LabelFacets."""
+        return dict(rotation=-90, va='bottom')
     @property
     def COL_LABEL(self) -> dict:
         """Keyword arguments for Axes.text method used for adding row 
-        label as text at LabelFacets"""
+        label as text at LabelFacets."""
         return dict(x=0.5, y=1, ha='center', va='bottom')
-    @property
-    def COL_TITLE(self) -> dict:
-        """Keyword arguments for Axes.text method used for adding row 
-        label as text at LabelFacets centrally over the middle axis"""
-        return dict(x=0.5, y=1.1, ha='center', va='bottom')
     @property
     def SUB_TITLE(self) -> dict:
         """Keyword arguments for Axes.set_title method used for adding
-        sub title at LabelFacets"""
+        sub title at LabelFacets."""
         return dict(loc='left')
     @property
     def INFO(self) -> dict:
-        """Adding info text at bottom left of figure"""
+        """Adding info text at bottom left of figure."""
         return dict(x=0.02, y=0, size='x-small')
 KW = _Kw_()
 
@@ -78,6 +61,7 @@ class _Color_:
     MEAN: str = '#101010'
     PERCENTIL: str = '#303030'
     HANDLES: str = '#202020'
+    TRANSPARENT: str = '#ffffff00'
     @property
     def PALETTE(self) -> List[str]:
         """Get prop cycler color palette"""
