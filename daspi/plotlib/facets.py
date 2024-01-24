@@ -24,19 +24,26 @@ from .._constants import COLOR
 class LabelFacets:
 
     def __init__(
-            self, figure: Figure, fig_title: str = '', sub_title: str = '', 
-            info: bool = False) -> None:
-        self.figure: Figure = figure
-        self.fig_title: str = fig_title
-        self.sub_title: str = sub_title
+            self, figure: Figure, axes: np.ndarray, fig_title: str = '', 
+            sub_title: str = '', xlabel: str | Tuple[str] = '',
+            ylabel: str | Tuple[str] = '', info: bool | str = False,
+            rows: Tuple[str] = (), cols: Tuple[str] = (),
+            row_title: str = '', col_title: str = '',
+            legends: Dict[str, List] = {}
+            ) -> None:
+        self.figure = figure
+        self.axes = axes
+        self.fig_title = fig_title
+        self.sub_title = sub_title
+        self.xlabel = xlabel
+        self.ylabel = ylabel
+        self.rows = rows
+        self.cols = cols
+        self.row_title = row_title
+        self.col_title = col_title
+        self._legends = legends
+        self._info = info
         self._legend: Legend | None = None
-        self._info: bool = info
-
-    @property
-    def axes(self) -> List[Axes]:
-        """List of Axes in the Figure. You can access and modify the 
-        Axes in the Figure through this list."""
-        return self.figure.axes
     
     @property
     def legend(self) -> Legend | None:
@@ -66,12 +73,12 @@ class LabelFacets:
         - 'ha': 'left'
         """
         self.figure.canvas.draw()
-        x_spines_left = self.axes[0].spines.left.get_window_extent().x1
+        x_spines_left = self.axes[0][0].spines.left.get_window_extent().x1
         figure_width = self.figure.get_window_extent().width
         x_pos = x_spines_left/figure_width
         return dict(x=x_pos, ha='left')
 
-    def add_legend(
+    def _add_legend_(
             self, handles: List[Patch | Line2D], labels: List[str], title: str
             ) -> None:
         """Adds a legend at the right side of the figure. If there is 
@@ -89,45 +96,79 @@ class LabelFacets:
             Use this argument to extend a existing hue legend with a 
             symbolic legend.
         """
-        if not labels:
-            handles, labels = self.axes[0].get_legend_handles_labels()
-        else:
-            n_labels = len(labels)
-            colors = ['k'] * n_labels if markers else COLOR.PALETTE[:n_labels]
-            if not markers: 
-                markers = ['o' for _ in range(len(labels))]
-            handles = [self._handle_(m, c) for m, c in zip(markers, colors)]
         legend = Legend(
-            self.figure, handles, labels, title=title, **KW.LEGEND)
+            self.axes[0][-1], handles, labels, title=title, **KW.LEGEND)
         if not self.legend:
             self.figure.legends.append(legend)
             self._legend = legend
         else:
-            self.legend_box.extend(legend.get_children()[0].get_children())
+            new_children = legend.get_children()[0].get_children()
+            self.legend_box.get_children().extend(new_children)
     
-    def add_info(self, additional_info: str = '') -> None:
-        """Inserts an info text in the bottom left-hand corner of the 
-        figure. By default, the info text contains today's date and the 
-        user name. If "additional_info" is given, it is added to the 
-        info text separated by a comma."""
-        info_text = f'{STR.TODAY} {STR.USERNAME}'
-        if additional_info:
-            info_text = f'{info_text}, {additional_info}'
-        self.figure.text(s=info_text, **KW.INFO)
+    def _add_xlabel_(self) -> None:
+        if not self.xlabel: return
+        if len(self.axes[-1]) == 1:
+            self.axes[-1][0].set_xlabel(self.xlabel)
+        else:
+            self.figure.text(s=self.xlabel, **KW.XLABEL)
 
-    def add_fig_title(self, fig_title: str = '') -> None:
-        """Add figure at top, aligned with the left side of first axes.
-        This change should be the very last for the whole figure, 
+    def _add_ylabel_(self) -> None:
+        if not self.ylabel: return
+        if len(self.axes) == 1:
+            self.axes[0][0].set_ylabel(self.ylabel)
+        else:
+            self.figure.text(s=self.ylabel, **KW.YLABEL)
+
+    def _add_row_labels_(self) -> None:
+        """Add row labels and row title"""
+        if not self.rows: return
+        for axs, label in zip(self.axes, self.rows):
+            ax = axs[-1]
+            kwds = KW.ROW_LABEL | {'transform': ax.transAxes}
+            ax.text(s=label, **kwds)
+        self.figure.text(s=self.row_title, **KW.ROW_TITLE)
+    
+    def _add_col_labels_(self) -> None:
+        """Add column labels and column title"""
+        if not self.cols: return
+        for ax, label in zip(self.axes[0], self.cols):
+            kwds = KW.COL_LABEL | {'transform': ax.transAxes}
+            ax.text(s=label, **kwds)
+        self.figure.text(s=self.col_title, **KW.COL_TITLE)
+
+    def _add_fig_title_(self) -> None:
+        """Add figure title at top, aligned with the left side of first 
+        axes. This change should be the very last for the whole figure, 
         otherwise the alignment is not guaranteed. When this method
         is called, the figure will be rendered."""
-        if not fig_title: 
-            fig_title = self.fig_title
-        self.figure.suptitle(fig_title, **self._title_left_params_())
-        
-    @classmethod
-    def _handle_(marker: str, color: str | List) -> Line2D:
-        'Create an Artist (Line2D with no data) for the legend'
-        return Line2D([], [], linewidth=0, marker=marker, color=color)
+        if not self.fig_title: return
+        self.figure.suptitle(self.fig_title, **self._title_left_params_())
+
+    def _add_sub_title_(self) -> None:
+        """Add sub title as axes title of top left axes object"""
+        if not self.sub_title: return
+        self.axes[0][0].set_title(self.sub_title, **KW.SUB_TITLE)
+    
+    def _add_info_(self) -> None:
+        """Inserts an info text in the bottom left-hand corner of the 
+        figure. By default, the info text contains today's date and the 
+        user name. If self.info is a string, it is added to the 
+        info text separated by a comma."""
+        if not self.info: return
+        info_text = f'{STR.TODAY} {STR.USERNAME}'
+        if isinstance(self.info, str):
+            info_text = f'{info_text}, {self.info}'
+        self.figure.text(s=info_text, **KW.INFO)
+    
+    def draw(self):
+        self._add_xlabel_()
+        self._add_ylabel_()
+        self._add_row_labels_()
+        self._add_col_labels_()
+        for title, (handles, labels) in self._legends.items():
+            self._add_legend_(handles, labels, title)
+        self._add_sub_title_()
+        self._add_fig_title_()
 
 
 class AxesFacets:
@@ -188,17 +229,19 @@ class AxesFacets:
         return self._ax
     
     @property
-    def row_idx(self) -> int:
+    def row_idx(self) -> int | None:
         """Get the index of the row from which the current axes 
         originates."""
+        if self.ax is None: return None
         for i, axs in enumerate(self.axes):
             if self.ax in axs:
                 return i
     
     @property
-    def col_idx(self) -> int:
+    def col_idx(self) -> int | None:
         """Get the index of the column from which the current axes 
         originates."""
+        if self.ax is None: return None
         for i, axs in enumerate(self.axes.T):
             if self.ax in axs:
                 return i
@@ -212,7 +255,7 @@ class AxesFacets:
         return self._ncols
     
     def __iter__(self) -> Generator[Axes, Self, None]:
-        def ax_gen() -> Generator[Axes, Self, None]:
+        def ax_gen() -> Generator[Axes, None, None]:
             for ax in self.axes.flat:
                 self._ax = ax
                 yield ax
@@ -233,43 +276,24 @@ class CategoricalAxesFacets(AxesFacets):
         self.source: pd.DataFrame = source
         self.row: str = row
         self.col: str = col
-        self.col_labels: Tuple | None = self._categorical_labels_(self.col)
-        self.row_labels: Tuple | None = self._categorical_labels_(self.row)
+        self.col_labels: Tuple = self._categorical_labels_(self.col)
+        self.row_labels: Tuple = self._categorical_labels_(self.row)
 
         super().__init__(
-            nrows=len(self.row_names), ncols=len(self.col_names), sharex='all',
-            sharey='all')
-        
-    @property
-    def n_categories(self) -> Literal[4, 3, 2]:
-        n: int = 2
-        if self.col: n += 1
-        if self.row: n += 1
-        return n
+            nrows=self.nrows, ncols=self.ncols, 
+            sharex='all', sharey='all')
 
     @property
-    def row_title(self) -> str:
-        return self.row_labels[self.row_idx] if self.row_labels else ''
-        
+    def nrows(self) -> int:
+        return max([1, len(self.row_labels)])
+
     @property
-    def col_title(self) -> str:
-        return self.col_labels[self.col_idx] if self.col_labels else ''
-    
-    def label_current_row(self) -> None:
-        """Label the row according to which category it corresponds to.
-        Skip if current Axes is not one of the last column."""
-        if not self.row_title | self.ax not in self.axes.T[-1]: return
-        self.ax.text(0.5, 1, self.row_title)
+    def ncols(self) -> int:
+        return max([1, len(self.col_labels)])
 
-    def label_current_column(self) -> None:
-        """Label the column according to which category it corresponds 
-        to. Skip if current Axes is not one of the first row."""
-        if not self.col_title | self.ax not in self.axes[0]: return
-        self.ax.text(1, 0, self.col_title)
-
-    def _categorical_labels_(self, colname: str) -> Tuple | None:
+    def _categorical_labels_(self, colname: str) -> Tuple:
         """Get sorted unique elements of given column in source"""
-        if not colname: return
+        if not colname: return ()
         return tuple(sorted(np.unique(self.source[colname])))
 
 __all__ = [

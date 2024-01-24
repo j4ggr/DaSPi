@@ -50,19 +50,27 @@ def add_second_axis(# TODO remove if not needed
 
 class BaseCategoryLabelHandler(ABC):
 
-    __slots__ = ('_categories', '_labels', '_n')
-    _categories: Tuple[str]
-    _labels: Tuple[str]
+    __slots__ = ('_categories', '_default', '_labels', '_n')
+    _categories: Tuple
+    _default: Any
+    _labels: Tuple
     _n: int
     
     def __init__(self, labels: Tuple) -> None:
         self._n = len(labels)
-        self._labels = ()
+        self._default = None
         self.labels = labels
 
     @property
-    def categories(self) -> Tuple[str]:
+    def categories(self) -> Tuple:
         return self._categories
+
+    @property
+    def default(self) -> Any:
+        """Get default category item"""
+        if self._default is None:
+            self._default = self.categories[0]
+        return self._default
 
     @property
     def labels(self) -> Tuple:
@@ -84,14 +92,21 @@ class BaseCategoryLabelHandler(ABC):
         return len(self.categories)
     
     def __getitem__(self, label: Any) -> str:
-        try:
-            idx = self.labels.index(label)
-        except ValueError:
-            raise KeyError(f"Can't get category for label '{label}', got {self.labels}")
-        return self.categories[idx]
+        if label is not None: 
+            try:
+                idx = self.labels.index(label)
+            except ValueError:
+                raise KeyError(f"Can't get category for label '{label}', got {self.labels}")
+            item = self.categories[idx]
+        else:
+            item = self.default
+        return item
 
     def __str__(self) -> str:
         return self.__class__.__name__
+    
+    def __bool__(self) -> str:
+        return bool(self._n)
     
     @abstractmethod
     def handles_labels(self) -> Tuple[Tuple[Patch | Line2D], Tuple[str]]: ...
@@ -101,7 +116,7 @@ class HueLabelHandler(BaseCategoryLabelHandler):
 
     _categories = CATEGORY.COLORS
 
-    def __init__(self, labels: Tuple) -> None:
+    def __init__(self, labels: Tuple[str]) -> None:
         super().__init__(labels)
     
     @property
@@ -134,16 +149,15 @@ class ShapeLabelHandler(BaseCategoryLabelHandler):
 
 class SizeLabelHandler(BaseCategoryLabelHandler):
 
-    __slots__: ('_min', '_max', 'kind')
+    __slots__: ('_min', '_max', '_kind')
     _categories = CATEGORY.HANDLE_SIZES
     _min: int | float
     _max: int | float
-    kind: Literal['scatter', 'line']
+    _kind: Literal['scatter', 'line']
 
     def __init__(
             self, min_value: int | float, max_value: int | float,
             kind: Literal['scatter', 'line'] = 'scatter') -> None:
-        assert kind in ['scatter', 'line']
         assert max_value > min_value
         self.kind = kind
         self._min = min_value
@@ -157,6 +171,14 @@ class SizeLabelHandler(BaseCategoryLabelHandler):
         else:
             labels = tuple(map(lambda x: f'{x:.3f}', labels))
         super().__init__(labels)
+    
+    @property
+    def kind(self) -> str:
+        return self._kind
+    @kind.setter
+    def kind(self, kind: Literal['scatter', 'line']):
+        assert kind in ['scatter', 'line']
+        self._kind = kind
     
     @property
     def offset(self) -> int:
@@ -175,10 +197,11 @@ class SizeLabelHandler(BaseCategoryLabelHandler):
             Line2D(*xy, c=COLOR.HANDLES, markersize=s) for s in self.categories)
         return handles, self.labels
     
-    def __getitem__(self, item: int | float) -> float:
-        return self.sizes([item])[0]
+    def __getitem__(self, item: int | float | None) -> float:
+        if item is None: return self.default
+        return self([item])[0]
     
-    def sizes(self, values: ArrayLike) -> np.ndarray:
+    def __call__(self, values: ArrayLike) -> np.ndarray:
         """Convert values into size values for markers"""
         sizes = self.factor * (np.array(values) - self._min) + self.offset
         if self.kind == 'scatter':

@@ -15,11 +15,52 @@ class _Kw_:
     @property
     def LEGEND(self) -> dict:
         """Figure legend at right side of figure"""
-        return dict(loc='top right', bbox_to_anchor=(0.98, 0.5))
+        return dict(loc='upper left', bbox_to_anchor=(1.2, 1), alignment='left')
+    @property
+    def SAVE_CHART(self) -> dict:
+        """Key word arguments for matplotlib savefig"""
+        return dict(bbox_inches='tight')
+    @property
+    def XLABEL(self) -> dict:
+        """Keyword arguments for xlabel when using figure.text method.
+        This is the case if the diagram has several columns"""
+        return dict(
+            x=0.5, y=0, ha='center', va='top')
+    @property
+    def YLABEL(self) -> dict:
+        """Keyword arguments for ylabel when using figure.text method.
+        This is the case if the diagram has several rows"""
+        return dict(
+            x=0, y=0.5, ha='right', va='center', rotation='vertical')
+    @property
+    def ROW_LABEL(self) -> dict:
+        """Keyword arguments for Axes.text method used for adding column 
+        label as text at LabelFacets"""
+        return dict(x=1, y=0.5, ha='left', va='center', rotation=-90)
+    @property
+    def ROW_TITLE(self) -> dict:
+        """Keyword arguments for Axes.text method used for adding column 
+        label as text at LabelFacets"""
+        return dict(x=1.1, y=0.5, ha='left', va='center', rotation=-90)
+    @property
+    def COL_LABEL(self) -> dict:
+        """Keyword arguments for Axes.text method used for adding row 
+        label as text at LabelFacets"""
+        return dict(x=0.5, y=1, ha='center', va='bottom')
+    @property
+    def COL_TITLE(self) -> dict:
+        """Keyword arguments for Axes.text method used for adding row 
+        label as text at LabelFacets centrally over the middle axis"""
+        return dict(x=0.5, y=1.1, ha='center', va='bottom')
+    @property
+    def SUB_TITLE(self) -> dict:
+        """Keyword arguments for Axes.set_title method used for adding
+        sub title at LabelFacets"""
+        return dict(loc='left')
     @property
     def INFO(self) -> dict:
         """Adding info text at bottom left of figure"""
-        return dict(x=0.02, y=-0.03, size='x-small')
+        return dict(x=0.02, y=0, size='x-small')
 KW = _Kw_()
 
 
@@ -56,7 +97,7 @@ COLOR = _Color_()
 @dataclass(frozen=True)
 class _Category_:
     COLORS: Tuple[str] = tuple(COLOR.PALETTE)
-    MARKERS: Tuple[str] = ('o', 's', '^', 'p', 'D', 'V', 'P', 'X', '*')
+    MARKERS: Tuple[str] = ('o', 's', '^', 'p', 'D', 'v', 'P', 'X', '*')
     MARKERSIZE_LIMITS: Tuple[int] = (1, 13)
     N_SIZE_BINS: int = 5
     @property

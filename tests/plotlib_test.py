@@ -3,16 +3,26 @@ import pytest
 
 import numpy as np
 import pandas as pd
+import statsmodels.api as sm
 
 from pytest import approx
 from pathlib import Path
-from numpy.typing import ArrayLike 
+from numpy.typing import ArrayLike
 
 sys.path.append(Path(__file__).parent.resolve())
 
 from daspi._constants import CATEGORY
-from daspi.plotlib.utils import *
-from daspi.plotlib.facets import *
+from daspi.plotlib.utils import HueLabelHandler
+from daspi.plotlib.utils import SizeLabelHandler
+from daspi.plotlib.utils import ShapeLabelHandler
+from daspi.plotlib.chart import MultipleVariateChart
+from daspi.plotlib.facets import AxesFacets
+from daspi.plotlib.facets import CategoricalAxesFacets
+from daspi.plotlib.plotter import Scatter
+
+savedir = Path(__file__).parent/'charts'
+savedir.mkdir(parents=True, exist_ok=True)
+affairs = sm.datasets.fair.load_pandas()
 
 
 class TestCategoryLabelHandler:
@@ -53,6 +63,15 @@ class TestCategoryLabelHandler:
         assert len(self.sizes_s.categories) == self.sizes_s.n_used
         assert len(handles) == len(labels)
         assert len(handles) == CATEGORY.N_SIZE_BINS
+
+    def test_getitem(self):
+        assert self.colors['alpha'] == CATEGORY.COLORS[0]
+        assert self.colors['beta'] == CATEGORY.COLORS[1]
+        assert self.colors['gamma'] == CATEGORY.COLORS[2]
+
+        assert self.markers['foo'] == CATEGORY.MARKERS[0]
+        assert self.markers['bar'] == CATEGORY.MARKERS[1]
+        assert self.markers['bazz'] == CATEGORY.MARKERS[2]
     
     def test_sizes(self):
         s_min, s_max = CATEGORY.MARKERSIZE_LIMITS
@@ -61,20 +80,20 @@ class TestCategoryLabelHandler:
         assert self.sizes_s[1.5] == s_min**2
         assert self.sizes_s[3.5] == s_max**2
 
-        sizes = self.sizes_l.sizes([1.5, 3.5])
+        sizes = self.sizes_l([1.5, 3.5])
         assert np.array_equal(sizes, CATEGORY.MARKERSIZE_LIMITS)
 
         values = np.linspace(
             self.sizes_l._min, self.sizes_l._max, CATEGORY.N_SIZE_BINS)
-        sizes = self.sizes_l.sizes(values)
+        sizes = self.sizes_l(values)
         assert np.array_equal(sizes, self.sizes_l.categories)
 
-        sizes = self.sizes_l.sizes([1.5, 3.5])
+        sizes = self.sizes_l([1.5, 3.5])
         assert np.array_equal(sizes, CATEGORY.MARKERSIZE_LIMITS)
 
         values = np.linspace(
             self.sizes_l._min, self.sizes_l._max, CATEGORY.N_SIZE_BINS)
-        sizes = self.sizes_s.sizes(values)
+        sizes = self.sizes_s(values)
         assert np.array_equal(sizes, np.square(self.sizes_s.categories))
 
 
@@ -82,7 +101,7 @@ class TestFacets:
     axs = AxesFacets(
         2, 2, sharex='col', sharey='row', 
         width_ratios=[4, 1], height_ratios=[1, 4])
-    cat_axs = CategoricalAxesFacets()
+    # cat_axs = CategoricalAxesFacets()
     
     def test_iteration(self):
         assert self.axs.ax is None
@@ -91,7 +110,7 @@ class TestFacets:
             assert self.axs.ax == ax
             assert self.axs[i] == ax
             
-            if i < 3:
+            if i in [0, 1]:
                 assert self.axs.row_idx == 0
             else:
                 assert self.axs.row_idx == 1
@@ -102,3 +121,29 @@ class TestFacets:
                 assert self.axs.col_idx == 1
 
     def test_label_facets(self):...
+
+
+class TestCharts:
+
+    def test_multiple_variate_plot(self):
+        chart = MultipleVariateChart(
+            source = affairs.data,
+            target = 'affairs',
+            feature = 'yrs_married', 
+            hue = 'rate_marriage',
+            size = 'age',
+            shape = 'educ',
+            col = 'religious',
+            row = 'children'
+            )
+        chart.plot(Scatter)
+        chart.label(
+            fig_title = 'Multiple Variate Chart',
+            sub_title = 'MTCars R Dataset',
+            xlabel = 'Needed time for 1/4 mile',
+            ylabel = 'miles / gallon',
+            row_title = 'V-shaped engine',
+            col_title = 'Amount of carburetors',
+            info = 'pytest figure'
+        )
+        chart.save(savedir/'multivariate_chart_mtcars.png')
