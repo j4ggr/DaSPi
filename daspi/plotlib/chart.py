@@ -46,11 +46,11 @@ class MultipleVariateChart:
         self.axes_facets = CategoricalAxesFacets(
             source=self.source, col=self.col, row=self.row)
         
-        self.colors = HueLabelHandler(self._labels_(self.hue))
-        self.markers = ShapeLabelHandler(self._labels_(self.shape))
-        self.sizes = None
+        self.coloring = HueLabelHandler(self._labels_(self.hue))
+        self.marking = ShapeLabelHandler(self._labels_(self.shape))
+        self.sizing = None
         if self.size:
-            self.sizes = SizeLabelHandler(
+            self.sizing = SizeLabelHandler(
                 self.source[self.size].min(), self.source[self.size].max())
         
         self._variate_names = (self.row, self.col, self.hue, self.shape)
@@ -74,12 +74,12 @@ class MultipleVariateChart:
     @property
     def color(self) -> str:
         key = self._current_variate.get(self.hue, None)
-        return self.colors[key]
+        return self.coloring[key]
     
     @property
     def marker(self) -> str:
         key = self._current_variate.get(self.shape, None)
-        return self.markers[key]
+        return self.marking[key]
 
     def _labels_(self, colname: str) -> Tuple:
         """Get sorted unique elements of given column in source"""
@@ -107,11 +107,11 @@ class MultipleVariateChart:
         for data in self:
             if self.next_ax or ax is None:
                 ax = next(_ax)
-            sizes = self.sizes(data[self.size]) if self.size else None
+            size = self.sizing(data[self.size]) if self.size else None
             plot = plotter(
                 source=data, target=self.target, feature=self.feature,
                 orientation='vertical', color=self.color, ax=ax, 
-                marker=self.marker, sizes=sizes)
+                marker=self.marker, size=size)
             plot()
                 
     def label(
@@ -123,7 +123,7 @@ class MultipleVariateChart:
         xlabel = xlabel if xlabel else self.feature
         ylabel = ylabel if ylabel else self.target
         
-        handlers = (self.colors, self.markers, self.sizes)
+        handlers = (self.coloring, self.marking, self.sizing)
         titles = (self.hue, self.shape, self.size)
         legends = {t: h.handles_labels() for t, h in zip(titles, handlers)}
 
@@ -150,11 +150,8 @@ class MultipleVariateChart:
     
     def _set_sizes_kind_(self, plotter: BasePlotter) -> None:
         """Set kind attribute of sizes according to given plotter"""
-        if not self.sizes: return
-        if isinstance(plotter, Scatter):
-            self.sizes.kind = 'scatter'
-        else:
-            self.sizes.kind = 'line'
+        if not self.size: return
+        self.sizing.kind == plotter.kind
     
     def save(self, fname: str | Path, **kwds):
         kw = KW.SAVE_CHART | kwds

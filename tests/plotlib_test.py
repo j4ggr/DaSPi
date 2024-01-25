@@ -127,8 +127,10 @@ class TestFacets:
 class TestCharts:
 
     def test_multiple_variate_plot(self):
+        df = affairs.data
+        df['affairs'] = df['affairs']
         chart = MultipleVariateChart(
-            source = affairs.data,
+            source = df,
             target = 'affairs',
             feature = 'yrs_married', 
             hue = 'rate_marriage',
@@ -140,12 +142,13 @@ class TestCharts:
         chart.plot(Scatter)
         chart.label(
             fig_title = 'Multiple Variate Chart',
-            sub_title = 'MTCars R Dataset',
-            xlabel = 'Needed time for 1/4 mile',
-            ylabel = 'miles / gallon',
-            row_title = 'V-shaped engine',
-            col_title = 'Amount of carburetors',
+            sub_title = 'Affairs R Dataset',
+            xlabel = 'Years of marriage',
+            ylabel = 'Amount of affairs',
+            row_title = 'Amount of children',
+            col_title = 'How religious',
             info = 'pytest figure'
         )
+        chart.axes[0][0].set(xlim=(0, 25), ylim=(0, 60))
         chart.save(savedir/'multivariate_chart_mtcars.png')
         plt.close('all')

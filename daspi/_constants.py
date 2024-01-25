@@ -13,37 +13,74 @@ class _Kw_:
         """Base kwds for horizontal or vertical lines"""
         return dict(ls=0.8, style='--')
     @property
+    def HUE_HANDLES(self) -> dict:
+        """Pathc keyword arguments for genereting handles on 
+        HueLabelHandler"""
+        return dict(alpha=COLOR.FILL_ALPHA)
+    @property
+    def SHAPE_HANDLES(self) -> dict:
+        """Line2D keyword arguments for genereting handles on 
+        SizeLabelHandler"""
+        return dict(xdata=[], ydata=[], c=COLOR.HANDLES, lw=0)
+    @property
+    def SIZE_HANDLES(self) -> dict:
+        """Line2D keyword arguments for genereting handles on 
+        ShapeLabelHandler"""
+        return dict(
+            xdata=[], ydata=[], c=COLOR.HANDLES, marker='o', lw=0, 
+            alpha=COLOR.MARKER_ALPHA)
+    @property
     def LEGEND(self) -> dict:
         """Figure legend at right side of figure"""
-        return dict(loc='upper left', bbox_to_anchor=(1.05, 1), alignment='left')
+        return dict(loc='upper left', bbox_to_anchor=(1, 1.1), alignment='left')
     @property
     def SAVE_CHART(self) -> dict:
         """Key word arguments for matplotlib savefig"""
         return dict(bbox_inches='tight')
     @property
+    def XLABEL(self) -> dict:
+        """Keyword arguments for Figure.text method used to add a 
+        centered xlabel"""
+        return dict(x=0.5, y=0, ha='center', va='top')
+    @property
+    def YLABEL(self) -> dict:
+        """Keyword arguments for Figure.text method used to add a 
+        centered xlabel"""
+        return dict(x=0, y=0.5, ha='right', va='center', rotation=90)
+    @property
     def ROW_LABEL(self) -> dict:
-        """Keyword arguments for Axes.text method used for adding column 
-        label as text at LabelFacets."""
+        """Keyword Arguments for the Axes.text method used to add a 
+        row label to each plot_axes as text on LabelFacets."""
         return dict(x=1, y=0.5, ha='left', va='center', rotation=-90)
     @property
     def ROW_TITLE(self) -> dict:
-        """Keyword arguments for ax_rc ylabel used for adding row title 
-        at LabelFacets."""
-        return dict(rotation=-90, va='bottom')
+        """Keyword Arguments for the Axes.text method used to add a 
+        row title to ax as text on LabelFacets."""
+        return self.ROW_LABEL | {'x': 1}
     @property
     def COL_LABEL(self) -> dict:
-        """Keyword arguments for Axes.text method used for adding row 
-        label as text at LabelFacets."""
+        """Keyword Arguments for the Axes.text method used to add a 
+        column label to each plot axis as text on LabelFacets."""
         return dict(x=0.5, y=1, ha='center', va='bottom')
     @property
+    def COL_TITLE(self) -> dict:
+        """Keyword Arguments for the Figure.text method used to add a 
+        column title to each plot axis as text on LabelFacets."""
+        return self.COL_LABEL | {'y': 1}
+    @property
+    def FIG_TITLE(self) -> dict:
+        """Keyword arguments for Figure.text method used for adding
+        figure title on LabelFacets."""
+        return dict(y=1, size='x-large', va='bottom')
+    @property
     def SUB_TITLE(self) -> dict:
-        """Keyword arguments for Axes.set_title method used for adding
+        """Keyword arguments for Figure.set_title method used for adding
         sub title at LabelFacets."""
-        return dict(loc='left')
+        return dict(y=1, size='large', va='bottom')
     @property
     def INFO(self) -> dict:
         """Adding info text at bottom left of figure."""
-        return dict(x=0.02, y=0, size='x-small')
+        return dict(x=0, y=0, ha='left', va='top', size='x-small')
 KW = _Kw_()
 
 
@@ -62,6 +99,8 @@ class _Color_:
     PERCENTIL: str = '#303030'
     HANDLES: str = '#202020'
     TRANSPARENT: str = '#ffffff00'
+    MARKER_ALPHA: float = 0.5
+    FILL_ALPHA: float = 0.5
     @property
     def PALETTE(self) -> List[str]:
         """Get prop cycler color palette"""

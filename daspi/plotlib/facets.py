@@ -18,10 +18,11 @@ from matplotlib.patches import Patch
 
 from .._strings import STR
 from .._constants import KW
-from .._constants import COLOR
 
 
 class LabelFacets:
+
+    shift_text: float = 0.06
 
     def __init__(
             self, figure: Figure, axes: np.ndarray, fig_title: str = '', 
@@ -41,12 +42,9 @@ class LabelFacets:
         self.cols = cols
         self.row_title = row_title
         self.col_title = col_title
+        self.info = info
         self._legends = legends
-        self._info = info
         self._legend: Legend | None = None
-        self.ax_xy: Axes | None = None
-        self.ax_rc: Axes | None = None
-        self._add_label_axes_()
     
     @property
     def legend(self) -> Legend | None:
@@ -58,77 +56,6 @@ class LabelFacets:
         """Get legend box holding title, handles and labels."""
         if not self.legend: return None
         return self.legend.get_children()[0]
-    
-    def _get_longest_ticklabel_(self, axis: Literal['x', 'y']) -> str:        
-        longest = ''
-        for ax in self.plot_axes.flat:
-            labels = getattr(ax, f'get_{axis}ticklabels')()
-            if not labels: continue
-            _label = sorted(labels, key=lambda t: len(t._text))[-1].get_text()
-            longest = _label if len(_label) > len(longest) else longest
-        return longest
-    
-    def invisible_axis(
-            self, ax: Axes, origin: Literal['bl', 'tr'] = 'bl',
-            keep_ticklabel_space: Literal[False, True, 'x', 'y'] = True
-            ) -> Axes:
-        """Set all but xlabel and ylabel invisible.
-        
-        Parameters
-        ----------
-        ax : matplotlib Axes
-            Axes object to set invisible.
-        origin : {'bl', 'tr'}, optional
-            Specify where the origin lies, whether bottom left (bl) or 
-            top right (tr). if bl and if the ticklabel space is kept, 
-            the ticklabels are taken from the axes below. this ensures 
-            that both axes layers have the same spacing for the axis 
-            labels, by default 'bl'
-        keep_ticklabel_space : {False, True, 'x', 'y'}, optional
-            Keep invisible ticks and tick labels for given axis (or both 
-            if True) so that the axis label has a distance as if it had 
-            ticks and tick labels in betweenis. If False 
-            the axis label is next to the axis, by default True
-        
-        Returns
-        -------
-        ax : matplotlib Axes
-            The invisible axes object."""
-        assert keep_ticklabel_space in (False, True, 'x', 'y')
-        assert origin in ('bl', 'tr')
-
-        xticks, xticklabels, yticks, yticklabels = [], [], [], []
-        if origin == 'bl':
-            if keep_ticklabel_space in (True, 'x'):
-                xticks, xticklabels = [0], [self._get_longest_ticklabel_('x')]
-            if keep_ticklabel_space in (True, 'y'):
-                yticks, yticklabels = [0], [self._get_longest_ticklabel_('y')]
-        ax.set(
-            xticks=xticks, xticklabels=xticklabels,
-            yticks=yticks, yticklabels=yticklabels)
-        ax.set(facecolor=COLOR.TRANSPARENT)
-        ax.grid(False)
-        # for spine in ax.spines.values():
-        #     spine.set_visible(False)
-        match keep_ticklabel_space:
-            case True:
-                ax.tick_params(axis='both', colors=COLOR.TRANSPARENT)
-            case 'y':
-                ax.tick_params(axis='y', colors=COLOR.TRANSPARENT)
-            case 'x':
-                ax.tick_params(axis='x', colors=COLOR.TRANSPARENT)
-        return ax
-    
-    def _add_label_axes_(self) -> None:
-        ax = self.figure.add_subplot(1, 1, 1)
-        self.ax_xy = self.invisible_axis(ax, 'bl')
-        
-        ax = self.figure.add_subplot(1, 1, 1)
-        ax.xaxis.tick_top()
-        ax.xaxis.set_label_position('top')
-        ax.yaxis.tick_right()
-        ax.yaxis.set_label_position('right')
-        self.ax_rc = self.invisible_axis(ax, 'tr')
     
     def _title_left_params_(self) -> Dict:
         """Get params to set figure titel on the left side. The title 
@@ -170,8 +97,14 @@ class LabelFacets:
             Use this argument to extend a existing hue legend with a 
             symbolic legend.
         """
+        kw = KW.LEGEND
+        n_shift = 1
+        if self.rows: n_shift += 1
+        if self.row_title: n_shift += 1
+        bbox = kw['bbox_to_anchor']
+        kw['bbox_to_anchor'] = (bbox[0] + n_shift*self.shift_text, bbox[1])
         legend = Legend(
-            self.ax_xy, handles, labels, title=title, **KW.LEGEND)
+            self.plot_axes[0][-1], handles, labels, title=title, **kw)
         if not self.legend:
             self.figure.legends.append(legend)
             self._legend = legend
@@ -181,13 +114,11 @@ class LabelFacets:
     
     def add_xlabel(self) -> None:
         if not self.xlabel: return
-        self.plot_axes[0][0].set_xlabel(' ')
-        self.ax_xy.set_xlabel(self.xlabel)
+        self.figure.text(s=self.xlabel, **KW.XLABEL)
 
     def add_ylabel(self) -> None:
         if not self.ylabel: return
-        self.plot_axes[0][0].set_ylabel(' ')
-        self.ax_xy.set_ylabel(self.ylabel)
+        self.figure.text(s=self.ylabel, **KW.YLABEL)
 
     def add_row_labels(self) -> None:
         """Add row labels and row title"""
@@ -196,7 +127,7 @@ class LabelFacets:
             ax = axs[-1]
             kwds = KW.ROW_LABEL | {'transform': ax.transAxes}
             ax.text(s=label, **kwds)
-        self.ax_rc.set_ylabel(self.row_title, **KW.ROW_TITLE)
+        self.figure.text(s=self.row_title, **KW.ROW_TITLE)
     
     def add_col_labels(self) -> None:
         """Add column labels and column title"""
@@ -204,20 +135,26 @@ class LabelFacets:
         for ax, label in zip(self.plot_axes[0], self.cols):
             kwds = KW.COL_LABEL | {'transform': ax.transAxes}
             ax.text(s=label, **kwds)
-        self.ax_rc.set_xlabel(self.col_title)
+        self.figure.text(s=self.col_title, **KW.COL_TITLE)
 
-    def add_fig_title(self) -> None:
-        """Add figure title at top, aligned with the left side of first 
-        axes. This change should be the very last for the whole figure, 
-        otherwise the alignment is not guaranteed. When this method
-        is called, the figure will be rendered."""
-        if not self.fig_title: return
-        self.figure.suptitle(self.fig_title, **self._title_left_params_())
-
-    def add_sub_title(self) -> None:
-        """Add sub title as axes title of top left axes object"""
-        if not self.sub_title: return
-        self.ax_xy.set_title(self.sub_title, **KW.SUB_TITLE)
+    def add_titles(self) -> None:
+        """Add figure and sub title at top, aligned with the left side 
+        of first axes. This change should be the very last for the whole 
+        figure, otherwise the alignment is not guaranteed. When this 
+        method is called, the figure will be rendered."""
+        if not self.fig_title and not self.sub_title: return
+        dy = 0.05
+        params = self._title_left_params_()
+        kw_fig = KW.FIG_TITLE | params
+        kw_sub = KW.SUB_TITLE | params
+        if self.col_title:
+            kw_sub['y'] = kw_sub['y'] + self.shift_text
+            kw_fig['y'] = kw_fig['y'] + self.shift_text
+        if self.sub_title:
+            kw_fig['y'] = kw_fig['y'] + self.shift_text
+            self.figure.text(s=self.sub_title, **kw_sub)
+        if self.fig_title:
+            self.figure.text(s=self.fig_title, **kw_fig)
     
     def add_info(self) -> None:
         """Inserts an info text in the bottom left-hand corner of the 
@@ -228,7 +165,9 @@ class LabelFacets:
         info_text = f'{STR.TODAY} {STR.USERNAME}'
         if isinstance(self.info, str):
             info_text = f'{info_text}, {self.info}'
-        self.figure.text(s=info_text, **KW.INFO)
+        kwds = KW.INFO
+        if self.xlabel: kwds['y'] = kwds['y'] - self.shift_text
+        self.figure.text(s=info_text, **kwds)
     
     def draw(self) -> None:
         self.add_xlabel()
@@ -237,8 +176,8 @@ class LabelFacets:
         self.add_col_labels()
         for title, (handles, labels) in self._legends.items():
             self.add_legend(handles, labels, title)
-        self.add_sub_title()
-        self.add_fig_title()
+        self.add_info()
+        self.add_titles()
 
 
 class AxesFacets:

@@ -11,6 +11,7 @@ from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
+from .._constants import KW
 from .._constants import COLOR
 from .._constants import CATEGORY
 
@@ -124,7 +125,7 @@ class HueLabelHandler(BaseCategoryLabelHandler):
         return self.categories[:self.n_used]
 
     def handles_labels(self) -> Tuple[Tuple[Patch | Line2D], Tuple[str]]:
-        handles = tuple(Patch(color=c, lw=0) for c in self.colors)
+        handles = tuple(Patch(color=c, **KW.HUE_HANDLES) for c in self.colors)
         return handles, self.labels
 
 
@@ -141,9 +142,8 @@ class ShapeLabelHandler(BaseCategoryLabelHandler):
         return self.categories[:self.n_used]
 
     def handles_labels(self) -> Tuple[Tuple[Patch | Line2D], Tuple[str]]:
-        xy = [[], []]
         handles = tuple(
-            Line2D(*xy, marker=m, c=COLOR.HANDLES) for m in self.markers)
+            Line2D(marker=m, **KW.SHAPE_HANDLES) for m in self.markers)
         return handles, self.labels
 
 
@@ -192,9 +192,8 @@ class SizeLabelHandler(BaseCategoryLabelHandler):
         return (upp - low)/(self._max - self._min)
     
     def handles_labels(self) -> Tuple[Tuple[Patch | Line2D], Tuple[str]]:
-        xy = [[], []]
         handles = tuple(
-            Line2D(*xy, c=COLOR.HANDLES, markersize=s) for s in self.categories)
+            Line2D(markersize=s, **KW.SIZE_HANDLES) for s in self.categories)
         return handles, self.labels
     
     def __getitem__(self, item: int | float | None) -> float:

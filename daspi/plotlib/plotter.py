@@ -18,7 +18,7 @@ from ..statistics.estimation import estimate_kernel_density
 class BasePlotter(ABC):
 
     __slots__ = (
-        'source', 'y', 'x', '_color', 'orientation', 'ax')
+        'source', 'y', 'x', '_color', 'orientation', 'ax', 'kind')
     source: Hashable
     y: str
     s: str
@@ -26,6 +26,7 @@ class BasePlotter(ABC):
     orientation: str
     fig: Figure
     ax: Axes
+    kind: Literal['scatter', 'line']
 
     def __init__(
             self,
@@ -71,6 +72,8 @@ class BasePlotter(ABC):
 
 class Scatter(BasePlotter):
 
+    kind = 'scatter'
+
     def __init__(
             self,
             source: Hashable,
@@ -88,12 +91,16 @@ class Scatter(BasePlotter):
         self.marker = marker
     
     def __call__(self, **kwds):
-        kwds = dict(c=self.color, marker=self.marker, s=self.size) | kwds
+        kwds = dict(
+            c=self.color, marker=self.marker, s=self.size,
+            alpha=COLOR.MARKER_ALPHA) | kwds
         self.ax.scatter(
             self.source[self.x], self.source[self.y], **kwds)
 
 
 class Line(BasePlotter):
+
+    kind = 'line'
 
     def __init__(
             self,
@@ -113,7 +120,8 @@ class Line(BasePlotter):
     
     def __call__(self, **kwds):
         kwds = dict(
-            c=self.color, marker=self.marker, markersize=self.size) | kwds
+            c=self.color, marker=self.marker, markersize=self.size,
+            alpha=COLOR.MARKER_ALPHA) | kwds
         self.ax.plot(self.source[self.x], self.source[self.y], **kwds)
 
 
@@ -142,12 +150,13 @@ class KDE(Line):
         super().__init__(
             data, target, feature, orientation, color, ax)
         
-    def __call__(self, kw_line: dict, **fill_kw):
+    def __call__(self, kw_line: dict, **kw_fill):
         super().plot(**kw_line)
+        kw_fill = {'alpha': COLOR.FILL_ALPHA} | kw_fill
         if self.transposed:
-            self.ax.fill_betweenx(self.y, self.base, self.x, **fill_kw)
+            self.ax.fill_betweenx(self.y, self.base, self.x, **kw_fill)
         else:
-            self.ax.fill_between(self.x, self.base, self.y)
+            self.ax.fill_between(self.x, self.base, self.y, **kw_fill)
 
 
 __all__ = [
