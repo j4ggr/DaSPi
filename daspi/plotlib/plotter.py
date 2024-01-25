@@ -26,7 +26,7 @@ class BasePlotter(ABC):
     orientation: str
     fig: Figure
     ax: Axes
-    kind: Literal['scatter', 'line']
+    kind: Literal['scatter', 'line', 'bar']
 
     def __init__(
             self,
@@ -126,6 +126,8 @@ class Line(BasePlotter):
 
 
 class KDE(Line):
+
+    kind = 'line'
 
     __slots__ = ('base')
     base: float

@@ -32,7 +32,8 @@ class _Kw_:
     @property
     def LEGEND(self) -> dict:
         """Figure legend at right side of figure"""
-        return dict(loc='upper left', bbox_to_anchor=(1, 1.1), alignment='left')
+        return dict(
+            loc='upper left', bbox_to_anchor=(1, 1.15), alignment='left')
     @property
     def SAVE_CHART(self) -> dict:
         """Key word arguments for matplotlib savefig"""
