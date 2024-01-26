@@ -49,7 +49,7 @@ def add_second_axis(# TODO remove if not needed
     return ax2
 
 
-class BaseCategoryLabelHandler(ABC):
+class _CategoryLabelHandler(ABC):
 
     __slots__ = ('_categories', '_default', '_labels', '_n')
     _categories: Tuple
@@ -113,7 +113,7 @@ class BaseCategoryLabelHandler(ABC):
     def handles_labels(self) -> Tuple[Tuple[Patch | Line2D], Tuple[str]]: ...
 
 
-class HueLabelHandler(BaseCategoryLabelHandler):
+class HueLabelHandler(_CategoryLabelHandler):
 
     _categories = CATEGORY.COLORS
 
@@ -129,7 +129,7 @@ class HueLabelHandler(BaseCategoryLabelHandler):
         return handles, self.labels
 
 
-class ShapeLabelHandler(BaseCategoryLabelHandler):
+class ShapeLabelHandler(_CategoryLabelHandler):
 
     _categories = CATEGORY.MARKERS
 
@@ -147,19 +147,17 @@ class ShapeLabelHandler(BaseCategoryLabelHandler):
         return handles, self.labels
 
 
-class SizeLabelHandler(BaseCategoryLabelHandler):
+class SizeLabelHandler(_CategoryLabelHandler):
 
-    __slots__: ('_min', '_max', '_kind')
+    __slots__: ('_min', '_max')
     _categories = CATEGORY.HANDLE_SIZES
     _min: int | float
     _max: int | float
-    _kind: Literal['scatter', 'line']
 
     def __init__(
             self, min_value: int | float, max_value: int | float,
-            kind: Literal['scatter', 'line'] = 'scatter') -> None:
+            ) -> None:
         assert max_value > min_value
-        self.kind = kind
         self._min = min_value
         self._max = max_value
         _int = isinstance(self._min, int) and isinstance(self._max, int)
@@ -171,14 +169,6 @@ class SizeLabelHandler(BaseCategoryLabelHandler):
         else:
             labels = tuple(map(lambda x: f'{x:.3f}', labels))
         super().__init__(labels)
-    
-    @property
-    def kind(self) -> str:
-        return self._kind
-    @kind.setter
-    def kind(self, kind: Literal['scatter', 'line']):
-        assert kind in ['scatter', 'line']
-        self._kind = kind
     
     @property
     def offset(self) -> int:
@@ -203,8 +193,7 @@ class SizeLabelHandler(BaseCategoryLabelHandler):
     def __call__(self, values: ArrayLike) -> np.ndarray:
         """Convert values into size values for markers"""
         sizes = self.factor * (np.array(values) - self._min) + self.offset
-        if self.kind == 'scatter':
-            sizes = np.square(sizes)
+        sizes = np.square(sizes)
         return sizes
 
 

@@ -14,10 +14,10 @@ from .._constants import COLOR
 from ..statistics.estimation import estimate_kernel_density
 
 
-class BasePlotter(ABC):
+class _Plotter(ABC):
 
     __slots__ = (
-        'source', 'y', 'x', '_color', 'target_axis', 'ax', 'kind')
+        'source', 'y', 'x', '_color', 'target_axis', 'ax')
     source: Hashable
     y: str
     s: str
@@ -25,7 +25,6 @@ class BasePlotter(ABC):
     target_axis: str
     fig: Figure
     ax: Axes
-    kind: Literal['scatter', 'line', 'bar']
 
     def __init__(
             self,
@@ -67,9 +66,7 @@ class BasePlotter(ABC):
     def __call__(self):...
 
 
-class Scatter(BasePlotter):
-
-    kind = 'scatter'
+class Scatter(_Plotter):
 
     def __init__(
             self,
@@ -95,9 +92,7 @@ class Scatter(BasePlotter):
             self.source[self.x], self.source[self.y], **kwds)
 
 
-class Line(BasePlotter):
-
-    kind = 'line'
+class Line(_Plotter):
 
     def __init__(
             self,
@@ -108,25 +103,22 @@ class Line(BasePlotter):
             color: str | None = None,
             ax: Axes | None = None,
             marker: str | None = None,
-            size: Iterable[int] | None = None,
             **kwds) -> None:
         super().__init__(
             source, target, feature, target_axis, color, ax)
-        self.size = size
         self.marker = marker
     
     def __call__(self, **kwds):
         kwds = dict(
-            c=self.color, marker=self.marker, markersize=self.size,
-            alpha=COLOR.MARKER_ALPHA) | kwds
+            c=self.color, marker=self.marker, alpha=COLOR.MARKER_ALPHA) | kwds
         self.ax.plot(self.source[self.x], self.source[self.y], **kwds)
 
-
+# TODO: add option to remove density axis
+# TODO: add default density label
 class KDE(Line):
 
     __slots__ = ('base')
     base: float
-    kind = 'line'
 
     def __init__(
             self,
@@ -139,8 +131,7 @@ class KDE(Line):
             ax: Axes | None = None,
             **kwds) -> None:
         self.base = shift
-        self.marker = None,
-        self.markersize = None
+        self.marker = None
         feature = 'kde'
         sequence, estimation = estimate_kernel_density(
             source[target], height, shift)
@@ -148,8 +139,8 @@ class KDE(Line):
         super().__init__(
             data, target, feature, target_axis, color, ax)
         
-    def __call__(self, kw_line: dict, **kw_fill):
-        super().plot(**kw_line)
+    def __call__(self, kw_line: dict = {}, **kw_fill):
+        super().__call__(**kw_line)
         kw_fill = {'alpha': COLOR.FILL_ALPHA} | kw_fill
         if self.target_axis == 'y':
             self.ax.fill_betweenx(
@@ -186,7 +177,7 @@ class Violine(KDE):
             self.ax.fill_between(self.source[self.x], y1, y2, **kw_fill)
 
 __all__ = [
-    BasePlotter.__name__,
+    _Plotter.__name__,
     Scatter.__name__,
     Line.__name__,
     KDE.__name__

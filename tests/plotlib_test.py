@@ -15,11 +15,12 @@ from daspi._constants import CATEGORY
 from daspi.plotlib.utils import HueLabelHandler
 from daspi.plotlib.utils import SizeLabelHandler
 from daspi.plotlib.utils import ShapeLabelHandler
-from daspi.plotlib.chart import Chart
+from daspi.plotlib.chart import XYChart
 from daspi.plotlib.chart import MultipleVariateChart
 from daspi.plotlib.facets import AxesFacets
+from daspi.plotlib.plotter import KDE
+from daspi.plotlib.plotter import Line
 from daspi.plotlib.plotter import Scatter
-
 savedir = Path(__file__).parent/'charts'
 savedir.mkdir(parents=True, exist_ok=True)
 df_affairs = sm.datasets.fair.load_pandas().data
@@ -28,13 +29,12 @@ df_affairs = sm.datasets.fair.load_pandas().data
 class TestCategoryLabelHandler:
     colors = HueLabelHandler(('alpha', 'beta', 'gamma'))
     markers = ShapeLabelHandler(('foo', 'bar', 'bazz'))
-    sizes_s = SizeLabelHandler(1.5, 3.5, 'scatter')
-    sizes_l = SizeLabelHandler(1.5, 3.5, 'line')
+    sizes = SizeLabelHandler(1.5, 3.5)
 
     def test_str(self):
         assert str(self.colors) == 'HueLabelHandler'
         assert str(self.markers) == 'ShapeLabelHandler'
-        assert str(self.sizes_s) == 'SizeLabelHandler'
+        assert str(self.sizes) == 'SizeLabelHandler'
 
     def test_errrors(self):
         with pytest.raises(KeyError) as err:
@@ -59,8 +59,8 @@ class TestCategoryLabelHandler:
         assert len(self.markers.markers) == self.markers.n_used
         assert len(handles) == len(labels)
         
-        handles, labels = self.sizes_s.handles_labels()
-        assert len(self.sizes_s.categories) == self.sizes_s.n_used
+        handles, labels = self.sizes.handles_labels()
+        assert len(self.sizes.categories) == self.sizes.n_used
         assert len(handles) == len(labels)
         assert len(handles) == CATEGORY.N_SIZE_BINS
 
@@ -75,26 +75,14 @@ class TestCategoryLabelHandler:
     
     def test_sizes(self):
         s_min, s_max = CATEGORY.MARKERSIZE_LIMITS
-        assert self.sizes_l[1.5] == s_min
-        assert self.sizes_l[3.5] == s_max
-        assert self.sizes_s[1.5] == s_min**2
-        assert self.sizes_s[3.5] == s_max**2
+        assert self.sizes[1.5] == s_min**2
+        assert self.sizes[3.5] == s_max**2
 
-        sizes = self.sizes_l([1.5, 3.5])
-        assert np.array_equal(sizes, CATEGORY.MARKERSIZE_LIMITS)
 
         values = np.linspace(
-            self.sizes_l._min, self.sizes_l._max, CATEGORY.N_SIZE_BINS)
-        sizes = self.sizes_l(values)
-        assert np.array_equal(sizes, self.sizes_l.categories)
-
-        sizes = self.sizes_l([1.5, 3.5])
-        assert np.array_equal(sizes, CATEGORY.MARKERSIZE_LIMITS)
-
-        values = np.linspace(
-            self.sizes_l._min, self.sizes_l._max, CATEGORY.N_SIZE_BINS)
-        sizes = self.sizes_s(values)
-        assert np.array_equal(sizes, np.square(self.sizes_s.categories))
+            self.sizes._min, self.sizes._max, CATEGORY.N_SIZE_BINS)
+        sizes = self.sizes(values)
+        assert np.array_equal(sizes, np.square(self.sizes.categories))
 
 
 class TestFacets:
@@ -124,11 +112,28 @@ class TestFacets:
 
 
 class TestCharts:
+    
+    def test_line_plot(self):
+
+        file_name = savedir/'line_chart_hue-size.png'
+        chart =XYChart(
+                df_affairs,
+                target = 'affairs',
+                feature = 'educ',
+                hue = 'religious',
+                size = 'age'
+            ).plot(Line
+            ).label(
+                sub_title='Hue Size XY line', xlabel=True, ylabel=True, 
+                info=True, fig_title='Line diagram'
+            ).save(file_name
+            ).close()
+        assert file_name.is_file()
 
     def test_scatter_plot(self):
 
         file_name = savedir/'scatter_chart_simple.png'
-        chart = Chart(
+        chart =XYChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ'
@@ -140,7 +145,7 @@ class TestCharts:
         assert file_name.is_file()
         
         file_name = savedir/'scatter_chart_simple_transposed.png'
-        chart = Chart(
+        chart =XYChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ'
@@ -152,7 +157,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_hue.png'
-        chart = Chart(
+        chart =XYChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ',
@@ -166,7 +171,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_shape.png'
-        chart = Chart(
+        chart =XYChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ',
@@ -180,7 +185,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_size.png'
-        chart = Chart(
+        chart =XYChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ',
@@ -194,7 +199,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_hue-size.png'
-        chart = Chart(
+        chart =XYChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ',
@@ -209,7 +214,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_hue-shape.png'
-        chart = Chart(
+        chart =XYChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ',
@@ -224,7 +229,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_size-shape.png'
-        chart = Chart(
+        chart =XYChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ',
@@ -239,7 +244,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_full.png'
-        chart = Chart(
+        chart =XYChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ',
@@ -254,6 +259,33 @@ class TestCharts:
             ).save(file_name
             ).close()
         assert file_name.is_file()
+
+    def test_kde_plot(self):
+
+        file_name = savedir/'kde_chart_simple.png'
+        chart =XYChart(
+                df_affairs,
+                target = 'affairs'
+            ).plot(KDE
+            ).label(
+                sub_title='Simple KDE'
+            ).save(file_name
+            ).close()
+        assert file_name.is_file()
+
+        file_name = savedir/'kde_chart_multiple.png'
+        chart =XYChart(
+                df_affairs,
+                target = 'affairs',
+                hue = 'religious'
+            ).plot(KDE, target_axis='x'
+            ).label(
+                sub_title='multiple by hue', xlabel=True, ylabel=True, 
+                info=True, fig_title='Kernel Density Estimation'
+            ).save(file_name
+            ).close()
+        assert file_name.is_file()
+
 
     def test_multiple_variate_plot(self):
         file_name = savedir/'multivariate_chart_affairs.png'
