@@ -583,7 +583,7 @@ savefig.bbox:      standard                     # {tight, standard}
 savefig.pad_inches:   0.1                       # Padding to be used when bbox is set to 'tight'
 savefig.transparent: False                      # setting that controls whether figures are saved with a
                                                 # transparent background by default
-savefig.orientation: portrait                   # Orientation of saved figure
+# savefig.target_axis: portrait                   # target_axis of saved figure
 
 ## tk backend params
 #tk.window_focus:   False                        # Maintain shell focus for TkAgg

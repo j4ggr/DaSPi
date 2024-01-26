@@ -56,28 +56,6 @@ class LabelFacets:
         """Get legend box holding title, handles and labels."""
         if not self.legend: return None
         return self.legend.get_children()[0]
-    
-    def _title_left_params_(self) -> Dict:
-        """Get params to set figure titel on the left side. The title 
-        is then adjusted to the first axes left spine. When this method
-        is called, the figure will be rendered.
-        
-        Parameters
-        ----------
-        ax : matplotlib Axes
-            Axes object in the top left corner of figure
-        
-        Returns
-        -------
-        dict: 
-        - 'x': float (as x coordinate for title)
-        - 'ha': 'left'
-        """
-        self.figure.canvas.draw()
-        x_spines_left = self.plot_axes[0][0].spines.left.get_window_extent().x1
-        figure_width = self.figure.get_window_extent().width
-        x_pos = x_spines_left/figure_width
-        return dict(x=x_pos, ha='left')
 
     def add_legend(
             self, handles: List[Patch | Line2D], labels: List[str], title: str
@@ -98,9 +76,9 @@ class LabelFacets:
             symbolic legend.
         """
         kw = KW.LEGEND
-        n_shift = 1
+        n_shift = 0
         if self.rows: n_shift += 1
-        if self.row_title: n_shift += 1
+        if self.row_title: n_shift += 2
         bbox = kw['bbox_to_anchor']
         kw['bbox_to_anchor'] = (bbox[0] + n_shift*self.shift_text, bbox[1])
         legend = Legend(
@@ -138,21 +116,17 @@ class LabelFacets:
         self.figure.text(s=self.col_title, **KW.COL_TITLE)
 
     def add_titles(self) -> None:
-        """Add figure and sub title at top, aligned with the left side 
-        of first axes. This change should be the very last for the whole 
-        figure, otherwise the alignment is not guaranteed. When this 
-        method is called, the figure will be rendered."""
+        """Add figure and sub title at the top."""
         if not self.fig_title and not self.sub_title: return
-        dy = 0.05
-        params = self._title_left_params_()
-        kw_fig = KW.FIG_TITLE | params
-        kw_sub = KW.SUB_TITLE | params
+
+        kw_fig = KW.FIG_TITLE
+        kw_sub = KW.SUB_TITLE
         if self.col_title:
             kw_sub['y'] = kw_sub['y'] + self.shift_text
             kw_fig['y'] = kw_fig['y'] + self.shift_text
         if self.sub_title:
-            kw_fig['y'] = kw_fig['y'] + self.shift_text
             self.figure.text(s=self.sub_title, **kw_sub)
+            kw_fig['y'] = kw_fig['y'] + self.shift_text
         if self.fig_title:
             self.figure.text(s=self.fig_title, **kw_fig)
     
@@ -231,6 +205,7 @@ class AxesFacets:
         self._ax: Axes | None = None
         self._nrows: int = nrows
         self._ncols: int = ncols
+        if self.nrows == self.ncols == 1: self._ax = self.axes[0][0]
 
     @property
     def ax(self) -> Axes:
@@ -276,37 +251,9 @@ class AxesFacets:
     
     def __getitem__(self, index: int):
         return self.axes.flat[index]
-    
 
-class CategoricalAxesFacets(AxesFacets):
-
-    def __init__(
-            self, source: pd.DataFrame, col: str = '', row: str = '') -> None:
-        self.source: pd.DataFrame = source
-        self.row: str = row
-        self.col: str = col
-        self.col_labels: Tuple = self._categorical_labels_(self.col)
-        self.row_labels: Tuple = self._categorical_labels_(self.row)
-
-        super().__init__(
-            nrows=self.nrows, ncols=self.ncols, 
-            sharex='all', sharey='all')
-
-    @property
-    def nrows(self) -> int:
-        return max([1, len(self.row_labels)])
-
-    @property
-    def ncols(self) -> int:
-        return max([1, len(self.col_labels)])
-
-    def _categorical_labels_(self, colname: str) -> Tuple:
-        """Get sorted unique elements of given column in source"""
-        if not colname: return ()
-        return tuple(sorted(np.unique(self.source[colname])))
 
 __all__ = [
     LabelFacets.__name__,
     AxesFacets.__name__,
-    CategoricalAxesFacets.__name__,
 ]

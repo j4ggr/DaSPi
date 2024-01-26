@@ -33,7 +33,7 @@ class _Kw_:
     def LEGEND(self) -> dict:
         """Figure legend at right side of figure"""
         return dict(
-            loc='upper left', bbox_to_anchor=(1, 1.15), alignment='left')
+            loc='upper left', bbox_to_anchor=(1, 1), alignment='left')
     @property
     def SAVE_CHART(self) -> dict:
         """Key word arguments for matplotlib savefig"""
@@ -72,16 +72,16 @@ class _Kw_:
     def FIG_TITLE(self) -> dict:
         """Keyword arguments for Figure.text method used for adding
         figure title on LabelFacets."""
-        return dict(y=1, size='x-large', va='bottom')
+        return dict(x=0.05, y=1, ha='left', size='x-large', va='bottom')
     @property
     def SUB_TITLE(self) -> dict:
         """Keyword arguments for Figure.set_title method used for adding
         sub title at LabelFacets."""
-        return dict(y=1, size='large', va='bottom')
+        return self.FIG_TITLE | dict(size='large')
     @property
     def INFO(self) -> dict:
         """Adding info text at bottom left of figure."""
-        return dict(x=0, y=0, ha='left', va='top', size='x-small')
+        return dict(x=0.05, y=0, ha='left', va='top', size='x-small')
 KW = _Kw_()
 
 

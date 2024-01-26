@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 
 from pytest import approx
 from pathlib import Path
-from numpy.typing import ArrayLike
 
 sys.path.append(Path(__file__).parent.resolve())
 
@@ -16,14 +15,14 @@ from daspi._constants import CATEGORY
 from daspi.plotlib.utils import HueLabelHandler
 from daspi.plotlib.utils import SizeLabelHandler
 from daspi.plotlib.utils import ShapeLabelHandler
+from daspi.plotlib.chart import Chart
 from daspi.plotlib.chart import MultipleVariateChart
 from daspi.plotlib.facets import AxesFacets
-from daspi.plotlib.facets import CategoricalAxesFacets
 from daspi.plotlib.plotter import Scatter
 
 savedir = Path(__file__).parent/'charts'
 savedir.mkdir(parents=True, exist_ok=True)
-affairs = sm.datasets.fair.load_pandas()
+df_affairs = sm.datasets.fair.load_pandas().data
 
 
 class TestCategoryLabelHandler:
@@ -126,29 +125,158 @@ class TestFacets:
 
 class TestCharts:
 
+    def test_scatter_plot(self):
+
+        file_name = savedir/'scatter_chart_simple.png'
+        chart = Chart(
+                df_affairs,
+                target = 'affairs',
+                feature = 'educ'
+            ).plot(Scatter
+            ).label(
+                sub_title='Simple XY scatter', xlabel=False, ylabel=False
+            ).save(file_name
+            ).close()
+        assert file_name.is_file()
+        
+        file_name = savedir/'scatter_chart_simple_transposed.png'
+        chart = Chart(
+                df_affairs,
+                target = 'affairs',
+                feature = 'educ'
+            ).plot(Scatter, target_axis='x'
+            ).label(
+                sub_title='Transposed XY scatter', xlabel=True, ylabel=True
+            ).save(file_name
+            ).close()
+        assert file_name.is_file()
+
+        file_name = savedir/'scatter_chart_hue.png'
+        chart = Chart(
+                df_affairs,
+                target = 'affairs',
+                feature = 'educ',
+                hue = 'religious'
+            ).plot(Scatter
+            ).label(
+                sub_title='Hue XY scatter', xlabel=True, ylabel=True,  
+                info=True
+            ).save(file_name
+            ).close()
+        assert file_name.is_file()
+
+        file_name = savedir/'scatter_chart_shape.png'
+        chart = Chart(
+                df_affairs,
+                target = 'affairs',
+                feature = 'educ',
+                shape = 'children'
+            ).plot(Scatter
+            ).label(
+                sub_title='Shape XY scatter', xlabel=True, ylabel=True, 
+                info=True
+            ).save(file_name
+            ).close()
+        assert file_name.is_file()
+
+        file_name = savedir/'scatter_chart_size.png'
+        chart = Chart(
+                df_affairs,
+                target = 'affairs',
+                feature = 'educ',
+                size = 'age'
+            ).plot(Scatter
+            ).label(
+                sub_title='Size XY scatter', xlabel=True, ylabel=True,
+                info=True
+            ).save(file_name
+            ).close()
+        assert file_name.is_file()
+
+        file_name = savedir/'scatter_chart_hue-size.png'
+        chart = Chart(
+                df_affairs,
+                target = 'affairs',
+                feature = 'educ',
+                hue = 'religious',
+                size = 'age'
+            ).plot(Scatter
+            ).label(
+                sub_title='Hue Size XY scatter', xlabel=True, ylabel=True, 
+                info=True, fig_title='Scatter'
+            ).save(file_name
+            ).close()
+        assert file_name.is_file()
+
+        file_name = savedir/'scatter_chart_hue-shape.png'
+        chart = Chart(
+                df_affairs,
+                target = 'affairs',
+                feature = 'educ',
+                hue = 'religious',
+                shape = 'children'
+            ).plot(Scatter
+            ).label(
+                sub_title='Hue Shape XY scatter', xlabel=True, ylabel=True, 
+                info=True, fig_title='Scatter'
+            ).save(file_name
+            ).close()
+        assert file_name.is_file()
+
+        file_name = savedir/'scatter_chart_size-shape.png'
+        chart = Chart(
+                df_affairs,
+                target = 'affairs',
+                feature = 'educ',
+                size = 'age',
+                shape = 'children'
+            ).plot(Scatter
+            ).label(
+                sub_title='Size Shape XY scatter', xlabel=True, ylabel=True, 
+                info=True, fig_title='Scatter'
+            ).save(file_name
+            ).close()
+        assert file_name.is_file()
+
+        file_name = savedir/'scatter_chart_full.png'
+        chart = Chart(
+                df_affairs,
+                target = 'affairs',
+                feature = 'educ',
+                hue = 'religious',
+                size = 'age',
+                shape = 'children'
+            ).plot(Scatter
+            ).label(
+                sub_title='Size Shape XY scatter', xlabel='User x-axis label', 
+                ylabel='User y-axis label', info='User info message', 
+                fig_title='Scatter'
+            ).save(file_name
+            ).close()
+        assert file_name.is_file()
+
     def test_multiple_variate_plot(self):
-        df = affairs.data
-        df['affairs'] = df['affairs']
+        file_name = savedir/'multivariate_chart_affairs.png'
         chart = MultipleVariateChart(
-            source = df,
-            target = 'affairs',
-            feature = 'yrs_married', 
-            hue = 'rate_marriage',
-            size = 'age',
-            shape = 'educ',
-            col = 'religious',
-            row = 'children'
+                source = df_affairs,
+                target = 'affairs',
+                feature = 'yrs_married', 
+                hue = 'rate_marriage',
+                size = 'age',
+                shape = 'educ',
+                col = 'religious',
+                row = 'children'
+            ).plot(
+                Scatter
+            ).label(
+                fig_title = 'Multiple Variate Chart',
+                sub_title = 'Affairs R Dataset',
+                xlabel = 'Years of marriage',
+                ylabel = 'Amount of affairs',
+                row_title = 'Amount of children',
+                col_title = 'How religious',
+                info = 'pytest figure'
             )
-        chart.plot(Scatter)
-        chart.label(
-            fig_title = 'Multiple Variate Chart',
-            sub_title = 'Affairs R Dataset',
-            xlabel = 'Years of marriage',
-            ylabel = 'Amount of affairs',
-            row_title = 'Amount of children',
-            col_title = 'How religious',
-            info = 'pytest figure'
-        )
         chart.axes[0][0].set(xlim=(0, 25), ylim=(0, 60))
-        chart.save(savedir/'multivariate_chart_mtcars.png')
-        plt.close('all')
+        chart.save(file_name).close()
+        assert file_name.is_file()
