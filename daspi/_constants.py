@@ -15,17 +15,17 @@ class _Kw_:
     @property
     def HUE_HANDLES(self) -> dict:
         """Pathc keyword arguments for genereting handles on 
-        HueLabelHandler"""
+        HueLabel"""
         return dict(alpha=COLOR.FILL_ALPHA)
     @property
     def SHAPE_HANDLES(self) -> dict:
         """Line2D keyword arguments for genereting handles on 
-        SizeLabelHandler"""
+        SizeLabel"""
         return dict(xdata=[], ydata=[], c=COLOR.HANDLES, lw=0)
     @property
     def SIZE_HANDLES(self) -> dict:
         """Line2D keyword arguments for genereting handles on 
-        ShapeLabelHandler"""
+        ShapeLabel"""
         return dict(
             xdata=[], ydata=[], c=COLOR.HANDLES, marker='o', lw=0, 
             alpha=COLOR.MARKER_ALPHA)
@@ -124,6 +124,8 @@ class _Category_:
     MARKERS: Tuple[str] = ('o', 's', '^', 'p', 'D', 'v', 'P', 'X', '*')
     MARKERSIZE_LIMITS: Tuple[int] = (1, 13)
     N_SIZE_BINS: int = 5
+    FEATURE_SPACE: float = 0.8
+    FEATURE_PAD: float = 0.05
     @property
     def SIZE_LIMITS(self) -> Tuple[int]:
         """Used for scatter plots. The area must be specified there 

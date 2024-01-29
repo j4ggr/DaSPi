@@ -12,10 +12,12 @@ from pathlib import Path
 sys.path.append(Path(__file__).parent.resolve())
 
 from daspi._constants import CATEGORY
-from daspi.plotlib.utils import HueLabelHandler
-from daspi.plotlib.utils import SizeLabelHandler
-from daspi.plotlib.utils import ShapeLabelHandler
-from daspi.plotlib.chart import XYChart
+from daspi.plotlib.utils import Dodger
+from daspi.plotlib.utils import HueLabel
+from daspi.plotlib.utils import SizeLabel
+from daspi.plotlib.utils import ShapeLabel
+from daspi.plotlib.chart import SimpleChart
+from daspi.plotlib.chart import RelationalChart
 from daspi.plotlib.chart import MultipleVariateChart
 from daspi.plotlib.facets import AxesFacets
 from daspi.plotlib.plotter import KDE
@@ -26,15 +28,15 @@ savedir.mkdir(parents=True, exist_ok=True)
 df_affairs = sm.datasets.fair.load_pandas().data
 
 
-class TestCategoryLabelHandler:
-    colors = HueLabelHandler(('alpha', 'beta', 'gamma'))
-    markers = ShapeLabelHandler(('foo', 'bar', 'bazz'))
-    sizes = SizeLabelHandler(1.5, 3.5)
+class TestCategoryLabel:
+    colors = HueLabel(('alpha', 'beta', 'gamma'))
+    markers = ShapeLabel(('foo', 'bar', 'bazz'))
+    sizes = SizeLabel(1.5, 3.5)
 
     def test_str(self):
-        assert str(self.colors) == 'HueLabelHandler'
-        assert str(self.markers) == 'ShapeLabelHandler'
-        assert str(self.sizes) == 'SizeLabelHandler'
+        assert str(self.colors) == 'HueLabel'
+        assert str(self.markers) == 'ShapeLabel'
+        assert str(self.sizes) == 'SizeLabel'
 
     def test_errrors(self):
         with pytest.raises(KeyError) as err:
@@ -43,11 +45,11 @@ class TestCategoryLabelHandler:
         
         with pytest.raises(AssertionError) as err:
             n = self.colors.n_allowed
-            HueLabelHandler([i for i in range(n+1)])
-        assert str(err.value) == f'HueLabelHandler can handle {n} categories, got {n+1}'
+            HueLabel([i for i in range(n+1)])
+        assert str(err.value) == f'HueLabel can handle {n} categories, got {n+1}'
 
         with pytest.raises(AssertionError) as err:
-            ShapeLabelHandler(('foo', 'foo', 'bar', 'bazz'))
+            ShapeLabel(('foo', 'foo', 'bar', 'bazz'))
         assert str(err.value) == f'One or more labels occur more than once, only unique labels are allowed'
 
     def test_handles_labels(self):
@@ -85,6 +87,32 @@ class TestCategoryLabelHandler:
         assert np.array_equal(sizes, np.square(self.sizes.categories))
 
 
+class TestDodger:
+
+    def test_getitem(self):
+        dodge = Dodger(('r'), tick_labels=('t', 'e', 's', 't'))
+        assert dodge['r'] == 0
+
+        dodge = Dodger(('r', 'g'), tick_labels=('t', 'e', 's', 't'))
+        assert dodge['r'] == approx(-0.2)
+        assert dodge['g'] == approx(0.2)
+
+        dodge = Dodger(
+            ('r', 'g', 'b', 'y'), tick_labels=('t', 'e', 's', 't'))
+        assert dodge['r'] == approx(-0.3)
+        assert dodge['g'] == approx(-0.1)
+        assert dodge['b'] == approx(0.1)
+        assert dodge['y'] == approx(0.3)
+        
+        dodge = Dodger((), tick_labels=('t', 'e', 's', 't'))
+        assert bool(dodge.dodge) == False
+        assert bool(dodge['r']) == dodge._default
+        
+        dodge = Dodger((), tick_labels=())
+        assert bool(dodge.dodge) == False
+        assert bool(dodge['r']) == dodge._default
+
+
 class TestFacets:
     axs = AxesFacets(
         2, 2, sharex='col', sharey='row', 
@@ -116,7 +144,7 @@ class TestCharts:
     def test_line_plot(self):
 
         file_name = savedir/'line_chart_hue-size.png'
-        chart =XYChart(
+        chart =RelationalChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ',
@@ -133,7 +161,7 @@ class TestCharts:
     def test_scatter_plot(self):
 
         file_name = savedir/'scatter_chart_simple.png'
-        chart =XYChart(
+        chart =RelationalChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ'
@@ -145,7 +173,7 @@ class TestCharts:
         assert file_name.is_file()
         
         file_name = savedir/'scatter_chart_simple_transposed.png'
-        chart =XYChart(
+        chart =RelationalChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ'
@@ -157,7 +185,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_hue.png'
-        chart =XYChart(
+        chart =RelationalChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ',
@@ -171,7 +199,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_shape.png'
-        chart =XYChart(
+        chart =RelationalChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ',
@@ -185,7 +213,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_size.png'
-        chart =XYChart(
+        chart =RelationalChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ',
@@ -199,12 +227,13 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_hue-size.png'
-        chart =XYChart(
+        chart =RelationalChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ',
                 hue = 'religious',
-                size = 'age'
+                size = 'age',
+                dodge = True
             ).plot(Scatter
             ).label(
                 sub_title='Hue Size XY scatter', xlabel=True, ylabel=True, 
@@ -214,12 +243,13 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_hue-shape.png'
-        chart =XYChart(
+        chart =RelationalChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ',
                 hue = 'religious',
-                shape = 'children'
+                shape = 'children',
+                dodge = True
             ).plot(Scatter
             ).label(
                 sub_title='Hue Shape XY scatter', xlabel=True, ylabel=True, 
@@ -229,12 +259,13 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_size-shape.png'
-        chart =XYChart(
+        chart =RelationalChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ',
                 size = 'age',
-                shape = 'children'
+                shape = 'children',
+                dodge = True
             ).plot(Scatter
             ).label(
                 sub_title='Size Shape XY scatter', xlabel=True, ylabel=True, 
@@ -244,13 +275,14 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_full.png'
-        chart =XYChart(
+        chart =RelationalChart(
                 df_affairs,
                 target = 'affairs',
                 feature = 'educ',
                 hue = 'religious',
                 size = 'age',
-                shape = 'children'
+                shape = 'children',
+                dodge = True
             ).plot(Scatter
             ).label(
                 sub_title='Size Shape XY scatter', xlabel='User x-axis label', 
@@ -263,7 +295,7 @@ class TestCharts:
     def test_kde_plot(self):
 
         file_name = savedir/'kde_chart_simple.png'
-        chart =XYChart(
+        chart = SimpleChart(
                 df_affairs,
                 target = 'affairs'
             ).plot(KDE
@@ -274,7 +306,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'kde_chart_multiple.png'
-        chart =XYChart(
+        chart = SimpleChart(
                 df_affairs,
                 target = 'affairs',
                 hue = 'religious'

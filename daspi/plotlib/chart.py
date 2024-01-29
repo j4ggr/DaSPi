@@ -13,9 +13,10 @@ from typing import Tuple
 from typing import Generator
 from pathlib import Path
 
-from .utils import HueLabelHandler
-from .utils import SizeLabelHandler
-from .utils import ShapeLabelHandler
+from .utils import Dodger
+from .utils import HueLabel
+from .utils import SizeLabel
+from .utils import ShapeLabel
 from .facets import LabelFacets
 from .facets import AxesFacets
 from .plotter import _Plotter
@@ -102,11 +103,16 @@ class _Chart(ABC):
 class SimpleChart(_Chart):
 
     def __init__(self, source: pd.DataFrame, target: str, feature: str = '',
-            hue: str = '', **kwds) -> None:
+            hue: str = '', dodge: bool = False, **kwds) -> None:
+        if dodge:
+            assert feature in source, 'Feature must be given if dodge wants to be used'
         self.feature = feature
         self.hue = hue
-        super().__init__(source, target, **kwds)
-        self.coloring = HueLabelHandler(self.get_categorical_labels(self.hue))
+        super().__init__(source=source, target=target, **kwds)
+        self.coloring = HueLabel(self.get_categorical_labels(self.hue))
+        self.dodging = Dodger(
+            self.coloring.labels,
+            self.get_categorical_labels(self.feature) if dodge else ())
         self._variate_names = (self.hue, )
         self._current_variate = {}
         self._last_variate = {}
@@ -120,8 +126,8 @@ class SimpleChart(_Chart):
     @property
     def color(self) -> str:
         """Get color for current variate"""
-        key = self._current_variate.get(self.hue, None)
-        return self.coloring[key]
+        hue_variate = self._current_variate.get(self.hue, None)
+        return self.coloring[hue_variate]
     
     @property
     def legend_handles_labels(self) -> Dict[str, Tuple[tuple]]:
@@ -131,7 +137,7 @@ class SimpleChart(_Chart):
         return {self.hue: self.coloring.handles_labels()}
     
     def get_categorical_labels(self, colname: str) -> Tuple:
-        """Get sorted unique elements of given column in source"""
+        """Get sorted unique elements of given column name is in source"""
         if not colname: return ()
         return tuple(sorted(np.unique(self.source[colname])))
     
@@ -147,13 +153,22 @@ class SimpleChart(_Chart):
         self._last_variate = deepcopy(self._current_variate)
         for key, name in zip(self.variate_names, combination):
             self._current_variate[key] = name
+    
+    def feature_as_ticks(self) -> None:
+        """Converts the feature data to tick positions, taking dodging 
+        into account."""
+        if not self.dodging: return
+        hue_variate = self._current_variate.get(self.hue, None)
+        self._data[self.feature] = self.dodging(
+            self._data[self.feature], hue_variate)
 
     def _data_genenator_(self) -> Generator[Tuple, Self, None]:
         if self.variate_names:
             for combination, data in self.source.groupby(self.variate_names):
-                self.update_variate(combination)
                 self._data = data
-                yield data
+                self.update_variate(combination)
+                self.feature_as_ticks()
+                yield self._data
         else:
             self._data = self.source
             yield self._data
@@ -182,18 +197,20 @@ class SimpleChart(_Chart):
         return self
 
 
-class XYChart(SimpleChart):
+class RelationalChart(SimpleChart):
 
     def __init__(
-            self, source: pd.DataFrame, target: str, feature: str = '',
-            hue: str = '', shape: str = '', size: str = '', **kwds):
+            self, source: pd.DataFrame, target: str, feature: str,
+            hue: str = '', shape: str = '', size: str = '', 
+            dodge: bool = False, **kwds):
         self.shape = shape
         self.size = size
         super().__init__(
-            source=source, target=target, feature=feature, hue=hue, **kwds)
-        self.marking = ShapeLabelHandler(self.get_categorical_labels(self.shape))
+            source=source, target=target, feature=feature, hue=hue, 
+            dodge=dodge, **kwds)
+        self.marking = ShapeLabel(self.get_categorical_labels(self.shape))
         if self.size:
-            self.sizing = SizeLabelHandler(
+            self.sizing = SizeLabel(
                 self.source[self.size].min(), self.source[self.size].max())
         else:
             self.sizing = None
@@ -204,8 +221,8 @@ class XYChart(SimpleChart):
     @property
     def marker(self) -> str:
         """Get marker for current variate"""
-        key = self._current_variate.get(self.shape, None)
-        return self.marking[key]
+        marker_variate = self._current_variate.get(self.shape, None)
+        return self.marking[marker_variate]
 
     @property
     def sizes(self) -> np.ndarray | None:
@@ -235,12 +252,12 @@ class XYChart(SimpleChart):
         return self
 
 
-class MultipleVariateChart(XYChart):
+class MultipleVariateChart(RelationalChart):
 
     def __init__(
             self, source: pd.DataFrame, target: str, feature: str = '',
             hue: str = '', shape: str = '', size: str = '', col: str = '',
-            row: str = ''
+            row: str = '', dodge: bool = False
             ) -> None:
         self.source = source
         self.col = col
@@ -251,7 +268,7 @@ class MultipleVariateChart(XYChart):
         self.ncols = max([1, len(self.col_labels)])
         super().__init__(
             source=self.source, target=target, feature=feature, hue=hue, 
-            shape=shape, size=size, sharex=True, sharey=True)
+            shape=shape, size=size, dodge=dodge, sharex=True, sharey=True)
         self._variate_names = (self.row, self.col, self.hue, self.shape)
         self._reset_variate_()
     
@@ -295,6 +312,6 @@ class MultipleVariateChart(XYChart):
 
 __all__ = [
     SimpleChart.__name__,
-    XYChart.__name__,
+    RelationalChart.__name__,
     MultipleVariateChart.__name__
 ]

@@ -581,7 +581,7 @@ def estimate_distribution(
     return dist, p, params
 
 def estimate_kernel_density(
-        data: ArrayLike, height: float | None = None, shift: float = 0, 
+        data: ArrayLike, height: float | None = None, base: float = 0, 
         n_points: int = KDE.POINTS
         ) -> Tuple[ArrayLike, ArrayLike]:
     """Estimates the kernel density of data and returns values that are 
@@ -605,7 +605,7 @@ def estimate_kernel_density(
         (e.g. a histogram), you can use height to specify the height at 
         the maximum point of the KDE curve. If this value is specified, 
         the area under the curve will not be normalized, by default None
-    shift : float, optional
+    base : float, optional
         The curve is shifted in the estimated direction by the given 
         amount. This is usefull for ridge plots, by default 0
     n_points : int, optional
@@ -624,7 +624,7 @@ def estimate_kernel_density(
     sequence = np.linspace(data.min(), data.max(), n_points)
     estimation = stats.gaussian_kde(data, bw_method='scott')(sequence)
     stretch = 1 if height is None else height/estimation.max()
-    estimation = stretch*estimation + shift
+    estimation = stretch*estimation + base
     return sequence, estimation
 
 __all__ = [

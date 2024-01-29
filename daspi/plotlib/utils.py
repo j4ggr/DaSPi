@@ -1,9 +1,11 @@
 import numpy as np
+import pandas as pd
 
 from abc import ABC
 from abc import abstractmethod
 from typing import Any
 from typing import List
+from typing import Dict
 from typing import Tuple
 from typing import Literal
 from numpy.typing import ArrayLike
@@ -12,7 +14,6 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
 from .._constants import KW
-from .._constants import COLOR
 from .._constants import CATEGORY
 
 
@@ -49,7 +50,7 @@ def add_second_axis(# TODO remove if not needed
     return ax2
 
 
-class _CategoryLabelHandler(ABC):
+class _CategoryLabel(ABC):
 
     __slots__ = ('_categories', '_default', '_labels', '_n')
     _categories: Tuple
@@ -113,9 +114,9 @@ class _CategoryLabelHandler(ABC):
     def handles_labels(self) -> Tuple[Tuple[Patch | Line2D], Tuple[str]]: ...
 
 
-class HueLabelHandler(_CategoryLabelHandler):
+class HueLabel(_CategoryLabel):
 
-    _categories = CATEGORY.COLORS
+    _categories: Tuple[str] = CATEGORY.COLORS
 
     def __init__(self, labels: Tuple[str]) -> None:
         super().__init__(labels)
@@ -129,9 +130,9 @@ class HueLabelHandler(_CategoryLabelHandler):
         return handles, self.labels
 
 
-class ShapeLabelHandler(_CategoryLabelHandler):
+class ShapeLabel(_CategoryLabel):
 
-    _categories = CATEGORY.MARKERS
+    _categories: Tuple[str] = CATEGORY.MARKERS
 
     def __init__(self, labels: Tuple) -> None:
         super().__init__(labels)
@@ -147,10 +148,10 @@ class ShapeLabelHandler(_CategoryLabelHandler):
         return handles, self.labels
 
 
-class SizeLabelHandler(_CategoryLabelHandler):
+class SizeLabel(_CategoryLabel):
 
     __slots__: ('_min', '_max')
-    _categories = CATEGORY.HANDLE_SIZES
+    _categories: Tuple[int] = CATEGORY.HANDLE_SIZES
     _min: int | float
     _max: int | float
 
@@ -196,10 +197,52 @@ class SizeLabelHandler(_CategoryLabelHandler):
         sizes = np.square(sizes)
         return sizes
 
+    
+class Dodger:
+
+    __slots__ = (
+        'categories', 'ticks', 'tick_lables', 'amount', 'width', 'dodge',
+        '_default')
+    categories: Tuple[str]
+    ticks: Tuple[int]
+    tick_lables: Tuple[str]
+    width: float
+    amount: int
+    dodge: Dict[str, float]
+    _default: int
+
+    def __init__(
+            self, categories: Tuple[str], tick_labels: Tuple[str]) -> None:
+        self.categories = categories
+        self.tick_lables = tick_labels
+        self.ticks = np.arange(1, len(tick_labels) + 1)
+        self.amount = max(len(self.categories), 1)
+        space = CATEGORY.FEATURE_SPACE/self.amount
+        self.width = space - CATEGORY.FEATURE_PAD
+
+        offset = (space - CATEGORY.FEATURE_SPACE) / 2
+        _dodge = tuple(i*space + offset for i in range(self.amount))
+        self.dodge = {l: d for l, d in zip(self.categories, _dodge)}
+        self._default = 0
+    
+    def __getitem__(self, category: str | None) -> float | int:
+        if category is None: return self._default
+        return self.dodge.get(category, self._default)
+    
+    def __call__(self, values: pd.Series, category: str) -> pd.Series:
+        """Replace source values to dodged ticks using given category"""
+        if not self: return values
+        ticks = self.ticks + self[category]
+        return values.replace(dict(zip(self.categories, ticks)))
+    
+    def __bool__(self) -> bool:
+        return bool(self.categories) and bool(self.tick_lables)
+
 
 __all__ = [
     add_second_axis.__name__,
-    HueLabelHandler.__name__,
-    ShapeLabelHandler.__name__,
-    SizeLabelHandler.__name__,
+    HueLabel.__name__,
+    ShapeLabel.__name__,
+    SizeLabel.__name__,
+    Dodger.__name__,
     ]
