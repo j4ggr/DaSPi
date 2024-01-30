@@ -82,7 +82,7 @@ class LabelFacets:
         bbox = kw['bbox_to_anchor']
         kw['bbox_to_anchor'] = (bbox[0] + n_shift*self.shift_text, bbox[1])
         legend = Legend(
-            self.plot_axes[0][-1], handles, labels, title=title, **kw)
+            self.plot_axes[0, -1], handles, labels, title=title, **kw)
         if not self.legend:
             self.figure.legends.append(legend)
             self._legend = legend
@@ -205,7 +205,7 @@ class AxesFacets:
         self._ax: Axes | None = None
         self._nrows: int = nrows
         self._ncols: int = ncols
-        if self.nrows == self.ncols == 1: self._ax = self.axes[0][0]
+        if self.nrows == self.ncols == 1: self._ax = self.axes[0, 0]
 
     @property
     def ax(self) -> Axes:

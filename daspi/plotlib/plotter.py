@@ -4,20 +4,25 @@ import matplotlib.pyplot as plt
 
 from abc import ABC
 from abc import abstractmethod
+from typing import Any
+from typing import Self
+from typing import Tuple
 from typing import Literal
 from typing import Hashable
 from typing import Iterable
+from typing import Generator
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 from .._constants import COLOR
+from .._constants import CATEGORY
 from ..statistics.estimation import estimate_kernel_density
 
 
 class _Plotter(ABC):
 
     __slots__ = (
-        'source', 'y', 'x', '_color', 'target_axis', 'ax')
+        'source', 'y', 'x', '_color', 'target_axis', 'fig', 'ax')
     source: Hashable
     y: str
     s: str
@@ -99,70 +104,126 @@ class Line(_Plotter):
             self,
             source: Hashable,
             target: str,
-            feature: str = '', 
+            feature: str = '',
             target_axis: Literal['y', 'x'] = 'y', 
             color: str | None = None,
             ax: Axes | None = None,
-            marker: str | None = None,
             **kwds) -> None:
         super().__init__(
             source=source, target=target, feature=feature,
             target_axis=target_axis, color=color, ax=ax)
-        self.marker = marker
     
-    def __call__(self, **kwds):
-        kwds = dict(
-            c=self.color, marker=self.marker, alpha=COLOR.MARKER_ALPHA) | kwds
+    def __call__(self, marker=None, **kwds):
+        alpha = None if marker is None else COLOR.MARKER_ALPHA
+        kwds = dict(c=self.color, marker=marker, alpha=alpha) | kwds
         self.ax.plot(self.x, self.y, **kwds)
+
+
+class _StripPlotter(_Plotter):
+
+    __slots__ = ('pos', 'target', 'feature')
+    pos: int | float
+    target: str
+    feature: str
+    
+    def __init__(
+            self,
+            source: pd.DataFrame,
+            target: str,
+            feature: str = '',
+            pos: int | float = CATEGORY.STRIP_DEFAULT_POS,
+            target_axis: Literal['y', 'x'] = 'y',
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        self.pos = pos
+        self.target = target
+        self.feature = feature
+        
+        trans_data = pd.DataFrame()
+        for _feature, _target in self.feature_grouped(source):
+            _data = self.transform(_feature, _target)
+            trans_data = pd.concat([trans_data, _data], axis=0)
+
+        super().__init__(
+            source=trans_data, target=target, feature=feature,
+            target_axis=target_axis, color=color, ax=ax)
+    
+    def feature_grouped(
+            self, source: pd.DataFrame) -> Generator[Tuple, Self, None]:
+        if self.feature:
+            grouper = source.groupby(self.feature, sort=True)
+            for i, (name, group) in enumerate(grouper, start=1):
+                pos = name if isinstance(name, (float, int)) else i
+                yield pos, group[self.target]
+        else:
+            self.feature = CATEGORY.STRIP_FEATURE_NAME
+            yield self.pos, source[self.target]
+    
+    @abstractmethod
+    def transform(
+        self, feature_data: pd.DataFrame, target_data: Any) -> pd.DataFrame:
+        ...
+    
+    @abstractmethod
+    def __call__(self): ...
+    
 
 # TODO: add option to remove density axis
 # TODO: add default density label
-class KDE(Line):
+class KDE(_StripPlotter):
 
-    __slots__ = ('base')
-    base: float
+    __slots__ = ('height')
+    height: float
 
     def __init__(
             self,
             source: Hashable,
             target: str,
-            base: float = 0,
             height: float | None = None,
             target_axis: Literal['y', 'x'] = 'x',
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        self.base = base
-        self.marker = None
-        feature = 'kde'
-        sequence, estimation = estimate_kernel_density(
-            source[target], height, base)
-        data = pd.DataFrame({target: sequence, feature: estimation})
+        self.height = height
         super().__init__(
-            source=data, target=target, feature=feature,
-            target_axis=target_axis, color=color, ax=ax)
+            source=source, target=target, target_axis=target_axis, color=color,
+            ax=ax, **kwds)
+        
+    def transform(
+            self, feature_data: pd.DataFrame, target_data: Any) -> pd.DataFrame:
+        sequence, estimation = estimate_kernel_density(
+            target_data, height=self.height, base=feature_data)
+        return pd.DataFrame({self.target: sequence, self.feature: estimation})
         
     def __call__(self, kw_line: dict = {}, **kw_fill):
-        super().__call__(**kw_line)
+        self.ax.plot(self.x, self.y, **kw_line)
         kw_fill = {'alpha': COLOR.FILL_ALPHA} | kw_fill
         if self.target_axis == 'y':
-            self.ax.fill_betweenx(self.y, self.base, self.x, **kw_fill)
+            self.ax.fill_betweenx(self.y, self.pos, self.x, **kw_fill)
         else:
-            self.ax.fill_between(self.x, self.base, self.y, **kw_fill)
+            self.ax.fill_between(self.x, self.pos, self.y, **kw_fill)
 
 
-class Violine(KDE):
+class Violine(_Plotter):
 
     def __init__(
             self,
-            source: Hashable,
+            source: pd.DataFrame,
             target: str,
-            base: float = 0,
+            feature: str = '',
             width: float = 1,
             target_axis: Literal['y', 'x'] = 'y',
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
+        if feature in source:
+            for name, group in enumerate(source.groupby(feature, sort=True)):
+                sequence, estimation = estimate_kernel_density(
+                    group[target], width/2, i+1
+                )
+        _source = pd.DataFrame()
+
         super().__init__(
             source=source, target=target, base=base, height=width/2, 
             target_axis=target_axis, color=color, ax=ax)
@@ -180,5 +241,6 @@ __all__ = [
     _Plotter.__name__,
     Scatter.__name__,
     Line.__name__,
-    KDE.__name__
+    KDE.__name__,
+    Violine.__name__
 ]

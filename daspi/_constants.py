@@ -126,6 +126,9 @@ class _Category_:
     N_SIZE_BINS: int = 5
     FEATURE_SPACE: float = 0.8
     FEATURE_PAD: float = 0.05
+    STRIP_FEATURE_NAME: float = '_transformed_'
+    STRIP_POS_NAME: float = '_pos_'
+    STRIP_DEFAULT_POS: int = 0
     @property
     def SIZE_LIMITS(self) -> Tuple[int]:
         """Used for scatter plots. The area must be specified there 

@@ -10,6 +10,7 @@ from typing import Self
 from typing import Dict
 from typing import List
 from typing import Tuple
+from typing import Literal
 from typing import Generator
 from pathlib import Path
 
@@ -47,31 +48,30 @@ class _Chart(ABC):
         """Get the created axes"""
         return self.axes_facets.axes
     
-    def get_xy_labels(
-            self, xlabel: bool | str = '', ylabel: bool | str = ''
-            ) -> Tuple[str]:
-        """Get x and y axis labels for labels facets.
+    def get_axis_label(self, label: Any, axis: Literal['x', 'y']) -> str:
+        """Get axis label according to given axis.
         
         Parameters
         ----------
-        xlabel, ylabel: bool or str
-            If a string is passed, it will be taken. If True labels of 
-            given feature and target name are used taking into account 
-            the se target_axis attribute. If False, empty string is 
+        label: Any
+            If a string is passed, it will be taken. If True, labels of 
+            given feature or target name are used taking into account 
+            the target_axis attribute. If False or None, empty string is 
             used, by default ''
         
         Returns
         -------
-        xlabel, ylabel: str
-            labels for x and y axis
+        label: str
+            labels for x or y axis
         """
-        if isinstance(xlabel, bool):
-            _xlabel = self.feature if self.target_axis == 'y' else self.target
-            xlabel = _xlabel if xlabel == True else ''
-        if isinstance(ylabel, bool):
-            _ylabel = self.feature if self.target_axis == 'x' else self.target
-            ylabel = _ylabel if ylabel == True else ''
-        return xlabel, ylabel
+        target = self.target_axis != axis
+        match label:
+            case None | False: 
+                return ''
+            case True: 
+                return self.target if target else self.feature
+            case _:
+                return str(label)
     
     @abstractmethod
     def _data_genenator_(self) -> Generator[Tuple, Self, None]:
@@ -187,7 +187,8 @@ class SimpleChart(_Chart):
     def label(
         self, fig_title: str = '', sub_title: str = '', xlabel: bool | str = '',
         ylabel: bool | str = '', info: bool | str = False) -> Self:
-        xlabel, ylabel = self.get_xy_labels(xlabel, ylabel)
+        xlabel = self.get_axis_label(xlabel, 'x')
+        ylabel = self.get_axis_label(ylabel, 'y')
 
         label = LabelFacets(
             figure=self.figure, axes=self.axes, fig_title=fig_title,
@@ -254,6 +255,8 @@ class RelationalChart(SimpleChart):
 
 class MultipleVariateChart(RelationalChart):
 
+    target_axis = 'y'
+
     def __init__(
             self, source: pd.DataFrame, target: str, feature: str = '',
             hue: str = '', shape: str = '', size: str = '', col: str = '',
@@ -299,7 +302,8 @@ class MultipleVariateChart(RelationalChart):
             self, fig_title: str = '', sub_title: str = '', xlabel: str = '',
             ylabel: str = '', row_title: str = '', col_title: str = '',
             info: bool | str = False) -> Self:
-        xlabel, ylabel = self.get_xy_labels(xlabel, ylabel)
+        xlabel = self.get_axis_label(xlabel, 'x')
+        ylabel = self.get_axis_label(ylabel, 'y')
 
         label = LabelFacets(
             figure=self.figure, axes=self.axes, fig_title=fig_title,

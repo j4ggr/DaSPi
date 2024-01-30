@@ -23,9 +23,40 @@ from daspi.plotlib.facets import AxesFacets
 from daspi.plotlib.plotter import KDE
 from daspi.plotlib.plotter import Line
 from daspi.plotlib.plotter import Scatter
+from daspi.plotlib.plotter import Violine
 savedir = Path(__file__).parent/'charts'
 savedir.mkdir(parents=True, exist_ok=True)
-df_affairs = sm.datasets.fair.load_pandas().data
+df_affairs: pd.DataFrame = sm.datasets.fair.load_pandas().data
+
+df_travel: pd.DataFrame = sm.datasets.modechoice.load_pandas().data
+df_travel['mode'] = df_travel['mode'].replace(
+    {1: 'air', 2: 'train', 3: 'bus', 4: 'car'})
+df_travel['choice'] = df_travel['choice'].replace({0: 'no', 1: 'yes'})
+"""
+Number of observations: 840 Observations On 4 Modes for 210 Individuals.
+Number of variables: 8
+Variable name definitions::
+
+    individual = 1 to 210
+    mode =
+        1 - air
+        2 - train
+        3 - bus
+        4 - car
+    choice =
+        0 - no
+        1 - yes
+    ttme = terminal waiting time for plane, train and bus (minutes); 0
+           for car.
+    invc = in vehicle cost for all stages (dollars).
+    invt = travel time (in-vehicle time) for all stages (minutes).
+    gc = generalized cost measure:invc+(invt*value of travel time savings)
+        (dollars).
+    hinc = household income ($1000s).
+    psize = traveling group size in mode chosen (number).
+    
+https://www.statsmodels.org/stable/datasets/generated/modechoice.html
+"""
 
 
 class TestCategoryLabel:
@@ -90,27 +121,37 @@ class TestCategoryLabel:
 class TestDodger:
 
     def test_getitem(self):
-        dodge = Dodger(('r'), tick_labels=('t', 'e', 's', 't'))
+        tick_labels = ('t', 'e', 's', 't')
+        dodge = Dodger(('r'), tick_labels=tick_labels)
         assert dodge['r'] == 0
 
-        dodge = Dodger(('r', 'g'), tick_labels=('t', 'e', 's', 't'))
+        dodge = Dodger(('r', 'g'), tick_labels=tick_labels)
         assert dodge['r'] == approx(-0.2)
         assert dodge['g'] == approx(0.2)
 
-        dodge = Dodger(
-            ('r', 'g', 'b', 'y'), tick_labels=('t', 'e', 's', 't'))
+        dodge = Dodger(('r', 'g', 'b', 'y'), tick_labels=tick_labels)
         assert dodge['r'] == approx(-0.3)
         assert dodge['g'] == approx(-0.1)
         assert dodge['b'] == approx(0.1)
         assert dodge['y'] == approx(0.3)
         
-        dodge = Dodger((), tick_labels=('t', 'e', 's', 't'))
+        dodge = Dodger((), tick_labels=tick_labels)
         assert bool(dodge.dodge) == False
         assert bool(dodge['r']) == dodge._default
         
         dodge = Dodger((), tick_labels=())
         assert bool(dodge.dodge) == False
         assert bool(dodge['r']) == dodge._default
+
+    def test_call(self):
+        tick_labels = ('t', 'e', 's', 't')
+        categories = ('r', 'g', 'b', 'y')
+        dodge = Dodger(categories=categories, tick_labels=tick_labels)
+        old = pd.Series(categories)
+        assert dodge(old, 'r').values == approx(dodge.ticks - 0.3)
+        assert dodge(old, 'g').values == approx(dodge.ticks - 0.1)
+        assert dodge(old, 'b').values == approx(dodge.ticks + 0.1)
+        assert dodge(old, 'y').values == approx(dodge.ticks + 0.3)
 
 
 class TestFacets:
@@ -143,17 +184,34 @@ class TestCharts:
     
     def test_line_plot(self):
 
-        file_name = savedir/'line_chart_hue-size.png'
+        file_name = savedir/'line_chart_hue.png'
         chart =RelationalChart(
-                df_affairs,
-                target = 'affairs',
-                feature = 'educ',
-                hue = 'religious',
-                size = 'age'
+                df_travel,
+                target = 'invc',
+                feature = 'individual',
+                hue = 'mode'
             ).plot(Line
             ).label(
-                sub_title='Hue Size XY line', xlabel=True, ylabel=True, 
-                info=True, fig_title='Line diagram'
+                fig_title='Line diagram', sub_title='Travel Mode Choice',
+                xlabel='Individual', ylabel='In vehicle cost ($)', 
+                info=True, 
+            ).save(file_name
+            ).close()
+        assert file_name.is_file()
+
+        file_name = savedir/'line_chart_hue-size.png'
+        chart =RelationalChart(
+                df_travel,
+                target = 'invc',
+                feature = 'individual',
+                hue = 'mode',
+                size = 'hinc'
+            ).plot(Line
+            ).plot(Scatter
+            ).label(
+                fig_title='Line diagram', sub_title='Travel Mode Choice',
+                xlabel='Individual', ylabel='In vehicle cost ($)', 
+                info=True, 
             ).save(file_name
             ).close()
         assert file_name.is_file()
@@ -162,9 +220,9 @@ class TestCharts:
 
         file_name = savedir/'scatter_chart_simple.png'
         chart =RelationalChart(
-                df_affairs,
-                target = 'affairs',
-                feature = 'educ'
+                df_travel,
+                target = 'invc',
+                feature = 'hinc'
             ).plot(Scatter
             ).label(
                 sub_title='Simple XY scatter', xlabel=False, ylabel=False
@@ -174,9 +232,9 @@ class TestCharts:
         
         file_name = savedir/'scatter_chart_simple_transposed.png'
         chart =RelationalChart(
-                df_affairs,
-                target = 'affairs',
-                feature = 'educ'
+                df_travel,
+                target = 'invc',
+                feature = 'hinc'
             ).plot(Scatter, target_axis='x'
             ).label(
                 sub_title='Transposed XY scatter', xlabel=True, ylabel=True
@@ -186,108 +244,115 @@ class TestCharts:
 
         file_name = savedir/'scatter_chart_hue.png'
         chart =RelationalChart(
-                df_affairs,
-                target = 'affairs',
-                feature = 'educ',
-                hue = 'religious'
+                df_travel,
+                target = 'gc',
+                feature = 'hinc',
+                hue = 'mode'
             ).plot(Scatter
             ).label(
-                sub_title='Hue XY scatter', xlabel=True, ylabel=True,  
-                info=True
+                sub_title='Hue relational chart', xlabel='Houshold income ($)', 
+                ylabel='Generalized cost measure ($)', info=True
             ).save(file_name
             ).close()
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_shape.png'
         chart =RelationalChart(
-                df_affairs,
-                target = 'affairs',
-                feature = 'educ',
-                shape = 'children'
+                df_travel,
+                target = 'gc',
+                feature = 'hinc',
+                shape = 'choice'
             ).plot(Scatter
             ).label(
-                sub_title='Shape XY scatter', xlabel=True, ylabel=True, 
-                info=True
+                sub_title='Shape relational chart', xlabel='Houshold income ($)', 
+                ylabel='Generalized cost measure ($)', info=True
             ).save(file_name
             ).close()
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_size.png'
         chart =RelationalChart(
-                df_affairs,
-                target = 'affairs',
-                feature = 'educ',
-                size = 'age'
+                df_travel,
+                target = 'gc',
+                feature = 'hinc',
+                size = 'invt'
             ).plot(Scatter
             ).label(
-                sub_title='Size XY scatter', xlabel=True, ylabel=True,
-                info=True
+                sub_title='Size relational chart', xlabel='Houshold income ($)', 
+                ylabel='Generalized cost measure ($)', info=True
             ).save(file_name
             ).close()
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_hue-size.png'
         chart =RelationalChart(
-                df_affairs,
-                target = 'affairs',
-                feature = 'educ',
-                hue = 'religious',
-                size = 'age',
-                dodge = True
+                df_travel,
+                target = 'gc',
+                feature = 'hinc',
+                hue = 'mode',
+                size = 'invt'
             ).plot(Scatter
             ).label(
-                sub_title='Hue Size XY scatter', xlabel=True, ylabel=True, 
-                info=True, fig_title='Scatter'
+                sub_title = 'Hue Size relational chart',
+                xlabel = 'Houshold income ($)', 
+                ylabel = 'Generalized cost measure ($)',
+                info = True, 
+                fig_title = 'Scatter diagram'
             ).save(file_name
             ).close()
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_hue-shape.png'
         chart =RelationalChart(
-                df_affairs,
-                target = 'affairs',
-                feature = 'educ',
-                hue = 'religious',
-                shape = 'children',
-                dodge = True
+                df_travel,
+                target = 'gc',
+                feature = 'hinc',
+                hue = 'mode',
+                shape = 'choice'
             ).plot(Scatter
             ).label(
-                sub_title='Hue Shape XY scatter', xlabel=True, ylabel=True, 
-                info=True, fig_title='Scatter'
+                sub_title = 'Hue Shape relational chart',
+                xlabel = 'Houshold income ($)', 
+                ylabel = 'Generalized cost measure ($)',
+                info = True, 
+                fig_title = 'Scatter diagram'
             ).save(file_name
             ).close()
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_size-shape.png'
         chart =RelationalChart(
-                df_affairs,
-                target = 'affairs',
-                feature = 'educ',
-                size = 'age',
-                shape = 'children',
-                dodge = True
+                df_travel,
+                target = 'gc',
+                feature = 'hinc',
+                size = 'invt',
+                shape = 'choice'
             ).plot(Scatter
             ).label(
-                sub_title='Size Shape XY scatter', xlabel=True, ylabel=True, 
-                info=True, fig_title='Scatter'
+                sub_title = 'Size Shape relational chart', 
+                xlabel = 'Houshold income ($)', 
+                ylabel = 'Generalized cost measure ($)',
+                info = True,
+                fig_title = 'Scatter diagram'
             ).save(file_name
             ).close()
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_full.png'
         chart =RelationalChart(
-                df_affairs,
-                target = 'affairs',
-                feature = 'educ',
-                hue = 'religious',
-                size = 'age',
-                shape = 'children',
-                dodge = True
+                df_travel,
+                target = 'gc',
+                feature = 'hinc',
+                hue = 'mode',
+                size = 'invt',
+                shape = 'choice'
             ).plot(Scatter
             ).label(
-                sub_title='Size Shape XY scatter', xlabel='User x-axis label', 
-                ylabel='User y-axis label', info='User info message', 
-                fig_title='Scatter'
+                sub_title = 'Size Shape XY scatter', 
+                xlabel = 'Houshold income ($)', 
+                ylabel = 'Generalized cost measure ($)',
+                info = 'pytest figure', 
+                fig_title = 'Scatter diagram'
             ).save(file_name
             ).close()
         assert file_name.is_file()
@@ -330,8 +395,7 @@ class TestCharts:
                 shape = 'educ',
                 col = 'religious',
                 row = 'children'
-            ).plot(
-                Scatter
+            ).plot(Scatter
             ).label(
                 fig_title = 'Multiple Variate Chart',
                 sub_title = 'Affairs R Dataset',
@@ -339,8 +403,24 @@ class TestCharts:
                 ylabel = 'Amount of affairs',
                 row_title = 'Amount of children',
                 col_title = 'How religious',
-                info = 'pytest figure'
-            )
-        chart.axes[0][0].set(xlim=(0, 25), ylim=(0, 60))
+                info = 'pytest figure')
+        chart.axes[0, 0].set(xlim=(0, 25), ylim=(0, 60))
         chart.save(file_name).close()
         assert file_name.is_file()
+
+    def test_violine_plot(self):
+        file_name = savedir/'violine_chart_simple.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = 'gc',
+                feature = 'mode', 
+            ).plot(Violine
+            ).label(
+                fig_title = 'Violine Chart',
+                sub_title = 'Simple test plot',
+                xlabel = 'Traveler chosen mode', 
+                ylabel = 'Generalized cost measure ($)',
+                info = 'pytest figure'
+            ).save(file_name
+            ).close()
+

@@ -229,6 +229,7 @@ class Dodger:
         if category is None: return self._default
         return self.dodge.get(category, self._default)
     
+    #TODO: does not work yet
     def __call__(self, values: pd.Series, category: str) -> pd.Series:
         """Replace source values to dodged ticks using given category"""
         if not self: return values
