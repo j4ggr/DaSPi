@@ -120,9 +120,10 @@ COLOR = _Color_()
 
 @dataclass(frozen=True)
 class _Plotter_:
+    FEATURE: float = '_feature_'
     TRANSFORMED_FEATURE: float = '_transformed_'
-    TRANSFORMED_POS: float = '_pos_'
-    TRANSFORMED_DEFAULT_POS: int = 0
+    POS: str = '_pos_'
+    DEFAULT_POS: int = 0
 PLOTTER = _Plotter_()
 
 

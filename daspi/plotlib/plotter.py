@@ -16,16 +16,17 @@ from matplotlib.figure import Figure
 
 from .._constants import COLOR
 from .._constants import PLOTTER
+from .._constants import CATEGORY
 from ..statistics.estimation import estimate_kernel_density
 
 
 class _Plotter(ABC):
 
     __slots__ = (
-        'source', 'y', 'x', '_color', 'target_axis', 'fig', 'ax')
+        'source', 'target', 'feature', '_color', 'target_axis', 'fig', 'ax')
     source: Hashable
-    y: str
-    s: str
+    target: str
+    feature: str
     _color: str
     target_axis: str
     fig: Figure
@@ -41,17 +42,14 @@ class _Plotter(ABC):
             ax: Axes | None = None,
             ) -> None:
         assert target_axis in ['y', 'x']
-        self.target_axis = target_axis
         
+        self.target_axis = target_axis
         self.source = source
         if not feature:
-            feature = 'feature'
-            self.source[feature] = range(len(source[target]))
-
-        self.x = self.source[feature]
-        self.y = self.source[target]
-        if not self.target_on_y: 
-            self.x, self.y = self.y, self.x
+            feature = PLOTTER.FEATURE
+            self.source[feature] = np.arange(len(source[target]))
+        self.feature = feature
+        self.target = target
         
         self.fig, self.ax = plt.subplots(1, 1) if ax is None else ax.figure, ax
         self._color = color
@@ -60,6 +58,18 @@ class _Plotter(ABC):
     def target_on_y(self) -> bool:
         """True if target_axis is 'y'"""
         return self.target_axis == 'y'
+    
+    @property
+    def x(self):
+        """Get values used for x axis"""
+        name = self.feature if self.target_on_y else self.target
+        return self.source[name]
+    
+    @property
+    def y(self):
+        """Get values used for y axis"""
+        name = self.target if self.target_on_y else self.feature
+        return self.source[name]
     
     @property
     def color(self) -> str | None:
@@ -121,22 +131,20 @@ class Line(_Plotter):
 
 class _TransformPlotter(_Plotter):
 
-    __slots__ = ('pos', 'target', 'feature')
-    pos: int | float
-    target: str
-    feature: str
+    __slots__ = ('_pos')
+    _pos: int | float
     
     def __init__(
             self,
             source: pd.DataFrame,
             target: str,
             feature: str = '',
-            pos: int | float = PLOTTER.TRANSFORMED_DEFAULT_POS,
+            pos: int | float = PLOTTER.DEFAULT_POS,
             target_axis: Literal['y', 'x'] = 'y',
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        self.pos = pos
+        self._pos = pos
         self.target = target
         self.feature = feature
         
@@ -158,11 +166,12 @@ class _TransformPlotter(_Plotter):
                 yield pos, group[self.target]
         else:
             self.feature = PLOTTER.TRANSFORMED_FEATURE
-            yield self.pos, source[self.target]
+            yield self._pos, source[self.target]
     
     @abstractmethod
     def transform(
-        self, feature_data: pd.DataFrame, target_data: Any) -> pd.DataFrame:
+        self, feature_data: float | int, target_data: pd.Series
+        ) -> pd.DataFrame:
         ...
     
     @abstractmethod
@@ -171,8 +180,8 @@ class _TransformPlotter(_Plotter):
 
 class KDE(_TransformPlotter):
 
-    __slots__ = ('height', 'show_density_axis')
-    height: float
+    __slots__ = ('_height', 'show_density_axis')
+    _height: float
     show_density_axis: bool
 
     def __init__(
@@ -185,26 +194,36 @@ class KDE(_TransformPlotter):
             ax: Axes | None = None,
             show_density_axis: bool = True,
             **kwds) -> None:
-        self.height = height
+        self._height = height
         self.show_density_axis = show_density_axis
-        kwds['feature'] = PLOTTER.TRANSFORMED_FEATURE
+        feature = kwds.pop('feature', PLOTTER.TRANSFORMED_FEATURE)
         super().__init__(
-            source=source, target=target, target_axis=target_axis, color=color, 
-            ax=ax, **kwds)
+            source=source, target=target, feature=feature,
+            target_axis=target_axis, color=color, ax=ax, **kwds)
+        
+    @property
+    def height(self) -> float:
+        """Height of kde curve at its maximum."""
+        return self._height
         
     def transform(
-            self, feature_data: pd.DataFrame, target_data: Any) -> pd.DataFrame:
+            self, feature_data: float | int, target_data: pd.Series
+            ) -> pd.DataFrame:
         sequence, estimation = estimate_kernel_density(
             target_data, height=self.height, base=feature_data)
-        return pd.DataFrame({self.target: sequence, self.feature: estimation})
+        data = pd.DataFrame({
+            self.target: sequence,
+            self.feature: estimation,
+            PLOTTER.POS: feature_data * np.ones(len(sequence))})
+        return data
         
-    def __call__(self, kw_line: dict = {}, **kw_fill):
+    def __call__(self, kw_line: dict = {}, **kw_fill) -> None:
         self.ax.plot(self.x, self.y, **kw_line)
         kw_fill = {'alpha': COLOR.FILL_ALPHA} | kw_fill
         if self.target_on_y:
-            self.ax.fill_betweenx(self.y, self.pos, self.x, **kw_fill)
+            self.ax.fill_betweenx(self.y, self._pos, self.x, **kw_fill)
         else:
-            self.ax.fill_between(self.x, self.pos, self.y, **kw_fill)
+            self.ax.fill_between(self.x, self._pos, self.y, **kw_fill)
         if not self.show_density_axis:
             axis = 'xaxis' if self.target_on_y else 'yaxis'
             spine = 'bottom' if self.target_on_y else 'left'
@@ -212,37 +231,34 @@ class KDE(_TransformPlotter):
             self.ax.spines[spine].set_visible(False)
 
 
-class Violine(_Plotter):
+class Violine(KDE):
 
     def __init__(
             self,
             source: pd.DataFrame,
             target: str,
             feature: str = '',
-            width: float = 1,
+            width: float | None = CATEGORY.FEATURE_SPACE,
             target_axis: Literal['y', 'x'] = 'y',
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        if feature in source:
-            for i, (name, group) in enumerate(source.groupby(feature, sort=True)):
-                sequence, estimation = estimate_kernel_density(
-                    group[target], width/2, i+1
-                )
-        _source = pd.DataFrame()
-
+        self._height = width/2
         super().__init__(
-            source=source, target=target, base=base, height=width/2, 
-            target_axis=target_axis, color=color, ax=ax)
+            source=source, target=target, feature=feature, height=self.height,
+            target_axis=target_axis, color=color, ax=ax,
+            show_density_axis=True, **kwds)
 
-    def __call__(self, **kw_fill):
-        kw_fill = {'alpha': COLOR.FILL_ALPHA} | kw_fill
-        if self.target_axis == 'y':
-            x1 = 2*self.base - self.x
-            self.ax.fill_betweenx(self.y, x1, self.x, **kw_fill)
-        else:
-            y1 = 2*self.base - self.y
-            self.ax.fill_between(self.x, y1, self.y, **kw_fill)
+    def __call__(self, **kwds) -> None:
+        kwds = dict(color=self.color, alpha=COLOR.FILL_ALPHA) | kwds
+        for pos, group in self.source.groupby(PLOTTER.POS):
+            estim_upp = group[self.feature]
+            estim_low = 2*pos - estim_upp
+            sequence = group[self.target]
+            if self.target_on_y:
+                self.ax.fill_betweenx(sequence, estim_low, estim_upp, **kwds)
+            else:
+                self.ax.fill_between(sequence, estim_low, estim_upp, **kwds)
 
 __all__ = [
     _Plotter.__name__,
