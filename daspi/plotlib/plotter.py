@@ -15,7 +15,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 from .._constants import COLOR
-from .._constants import CATEGORY
+from .._constants import PLOTTER
 from ..statistics.estimation import estimate_kernel_density
 
 
@@ -50,16 +50,16 @@ class _Plotter(ABC):
 
         self.x = self.source[feature]
         self.y = self.source[target]
-        if self.transpose: 
+        if not self.target_on_y: 
             self.x, self.y = self.y, self.x
         
         self.fig, self.ax = plt.subplots(1, 1) if ax is None else ax.figure, ax
         self._color = color
         
     @property
-    def transpose(self) -> bool:
-        """True if target_axis is 'x'"""
-        return self.target_axis == 'x'
+    def target_on_y(self) -> bool:
+        """True if target_axis is 'y'"""
+        return self.target_axis == 'y'
     
     @property
     def color(self) -> str | None:
@@ -119,7 +119,7 @@ class Line(_Plotter):
         self.ax.plot(self.x, self.y, **kwds)
 
 
-class _StripPlotter(_Plotter):
+class _TransformPlotter(_Plotter):
 
     __slots__ = ('pos', 'target', 'feature')
     pos: int | float
@@ -131,7 +131,7 @@ class _StripPlotter(_Plotter):
             source: pd.DataFrame,
             target: str,
             feature: str = '',
-            pos: int | float = CATEGORY.STRIP_DEFAULT_POS,
+            pos: int | float = PLOTTER.TRANSFORMED_DEFAULT_POS,
             target_axis: Literal['y', 'x'] = 'y',
             color: str | None = None,
             ax: Axes | None = None,
@@ -151,13 +151,13 @@ class _StripPlotter(_Plotter):
     
     def feature_grouped(
             self, source: pd.DataFrame) -> Generator[Tuple, Self, None]:
-        if self.feature:
+        if self.feature and self.feature != PLOTTER.TRANSFORMED_FEATURE:
             grouper = source.groupby(self.feature, sort=True)
             for i, (name, group) in enumerate(grouper, start=1):
                 pos = name if isinstance(name, (float, int)) else i
                 yield pos, group[self.target]
         else:
-            self.feature = CATEGORY.STRIP_FEATURE_NAME
+            self.feature = PLOTTER.TRANSFORMED_FEATURE
             yield self.pos, source[self.target]
     
     @abstractmethod
@@ -169,12 +169,11 @@ class _StripPlotter(_Plotter):
     def __call__(self): ...
     
 
-# TODO: add option to remove density axis
-# TODO: add default density label
-class KDE(_StripPlotter):
+class KDE(_TransformPlotter):
 
-    __slots__ = ('height')
+    __slots__ = ('height', 'show_density_axis')
     height: float
+    show_density_axis: bool
 
     def __init__(
             self,
@@ -184,10 +183,13 @@ class KDE(_StripPlotter):
             target_axis: Literal['y', 'x'] = 'x',
             color: str | None = None,
             ax: Axes | None = None,
+            show_density_axis: bool = True,
             **kwds) -> None:
         self.height = height
+        self.show_density_axis = show_density_axis
+        kwds['feature'] = PLOTTER.TRANSFORMED_FEATURE
         super().__init__(
-            source=source, target=target, target_axis=target_axis, color=color,
+            source=source, target=target, target_axis=target_axis, color=color, 
             ax=ax, **kwds)
         
     def transform(
@@ -199,10 +201,15 @@ class KDE(_StripPlotter):
     def __call__(self, kw_line: dict = {}, **kw_fill):
         self.ax.plot(self.x, self.y, **kw_line)
         kw_fill = {'alpha': COLOR.FILL_ALPHA} | kw_fill
-        if self.target_axis == 'y':
+        if self.target_on_y:
             self.ax.fill_betweenx(self.y, self.pos, self.x, **kw_fill)
         else:
             self.ax.fill_between(self.x, self.pos, self.y, **kw_fill)
+        if not self.show_density_axis:
+            axis = 'xaxis' if self.target_on_y else 'yaxis'
+            spine = 'bottom' if self.target_on_y else 'left'
+            getattr(self.ax, axis).set_visible(False)
+            self.ax.spines[spine].set_visible(False)
 
 
 class Violine(_Plotter):
@@ -218,7 +225,7 @@ class Violine(_Plotter):
             ax: Axes | None = None,
             **kwds) -> None:
         if feature in source:
-            for name, group in enumerate(source.groupby(feature, sort=True)):
+            for i, (name, group) in enumerate(source.groupby(feature, sort=True)):
                 sequence, estimation = estimate_kernel_density(
                     group[target], width/2, i+1
                 )

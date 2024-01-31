@@ -119,16 +119,23 @@ COLOR = _Color_()
 
 
 @dataclass(frozen=True)
+class _Plotter_:
+    TRANSFORMED_FEATURE: float = '_transformed_'
+    TRANSFORMED_POS: float = '_pos_'
+    TRANSFORMED_DEFAULT_POS: int = 0
+PLOTTER = _Plotter_()
+
+
+@dataclass(frozen=True)
 class _Category_:
-    COLORS: Tuple[str] = tuple(COLOR.PALETTE)
     MARKERS: Tuple[str] = ('o', 's', '^', 'p', 'D', 'v', 'P', 'X', '*')
     MARKERSIZE_LIMITS: Tuple[int] = (1, 13)
     N_SIZE_BINS: int = 5
     FEATURE_SPACE: float = 0.8
     FEATURE_PAD: float = 0.05
-    STRIP_FEATURE_NAME: float = '_transformed_'
-    STRIP_POS_NAME: float = '_pos_'
-    STRIP_DEFAULT_POS: int = 0
+    @property
+    def COLORS(self) -> Tuple[str]:
+        return tuple(COLOR.PALETTE)
     @property
     def SIZE_LIMITS(self) -> Tuple[int]:
         """Used for scatter plots. The area must be specified there 
@@ -160,10 +167,12 @@ class _Distribution_:
         return tuple(d for d in _distn_names if d not in self._ignore_)
 DISTRIBUTION = _Distribution_()
 
+
 __all__ = [
     'KW',
     'KDE',
     'COLOR',
+    'PLOTTER',
     'CATEGORY',
     'DISTRIBUTION',
 ]

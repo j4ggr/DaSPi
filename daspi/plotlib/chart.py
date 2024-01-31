@@ -64,12 +64,12 @@ class _Chart(ABC):
         label: str
             labels for x or y axis
         """
-        target = self.target_axis != axis
+        get_target = self.target_axis == axis
         match label:
             case None | False: 
                 return ''
             case True: 
-                return self.target if target else self.feature
+                return self.target if get_target else self.feature
             case _:
                 return str(label)
     

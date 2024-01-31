@@ -1,5 +1,6 @@
 import sys
 import pytest
+import matplotlib
 
 import numpy as np
 import pandas as pd
@@ -24,6 +25,9 @@ from daspi.plotlib.plotter import KDE
 from daspi.plotlib.plotter import Line
 from daspi.plotlib.plotter import Scatter
 from daspi.plotlib.plotter import Violine
+
+matplotlib.use("Agg")
+
 savedir = Path(__file__).parent/'charts'
 savedir.mkdir(parents=True, exist_ok=True)
 df_affairs: pd.DataFrame = sm.datasets.fair.load_pandas().data
@@ -60,7 +64,7 @@ https://www.statsmodels.org/stable/datasets/generated/modechoice.html
 
 
 class TestCategoryLabel:
-    colors = HueLabel(('alpha', 'beta', 'gamma'))
+    colors = HueLabel(('alpha', 'beta', 'gamma', 'delta'))
     markers = ShapeLabel(('foo', 'bar', 'bazz'))
     sizes = SizeLabel(1.5, 3.5)
 
@@ -101,6 +105,7 @@ class TestCategoryLabel:
         assert self.colors['alpha'] == CATEGORY.COLORS[0]
         assert self.colors['beta'] == CATEGORY.COLORS[1]
         assert self.colors['gamma'] == CATEGORY.COLORS[2]
+        assert self.colors['delta'] == CATEGORY.COLORS[3]
 
         assert self.markers['foo'] == CATEGORY.MARKERS[0]
         assert self.markers['bar'] == CATEGORY.MARKERS[1]
@@ -361,21 +366,21 @@ class TestCharts:
 
         file_name = savedir/'kde_chart_simple.png'
         chart = SimpleChart(
-                df_affairs,
-                target = 'affairs'
+                df_travel,
+                target = 'gc'
             ).plot(KDE
             ).label(
-                sub_title='Simple KDE'
+                sub_title='Simple KDE', xlabel=True, ylabel=True
             ).save(file_name
             ).close()
         assert file_name.is_file()
 
         file_name = savedir/'kde_chart_multiple.png'
         chart = SimpleChart(
-                df_affairs,
-                target = 'affairs',
-                hue = 'religious'
-            ).plot(KDE, target_axis='x'
+                df_travel,
+                target = 'gc',
+                hue = 'mode'
+            ).plot(KDE, target_axis='x', show_density_axis=False
             ).label(
                 sub_title='multiple by hue', xlabel=True, ylabel=True, 
                 info=True, fig_title='Kernel Density Estimation'
