@@ -23,8 +23,11 @@ from .facets import AxesFacets
 from .plotter import _Plotter
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib.ticker import AutoMinorLocator
 
 from .._constants import KW
+from .._constants import COLOR
+from .._constants import PLOTTER
 
 
 class _Chart(ABC):
@@ -158,20 +161,37 @@ class SimpleChart(_Chart):
         for key, name in zip(self.variate_names, combination):
             self._current_variate[key] = name
     
-    def feature_as_ticks(self) -> None:
+    def dodge(self) -> None:
         """Converts the feature data to tick positions, taking dodging 
         into account."""
         if not self.dodging: return
         hue_variate = self._current_variate.get(self.hue, None)
         self._data[self.feature] = self.dodging(
             self._data[self.feature], hue_variate)
+        self._correct_feature_ticks_labels_()
+        
+    def _correct_feature_ticks_labels_(self) -> None:
+        """Correct feature ticks and labels if dodging is uses."""
+        xy = 'x' if self.target_on_y else 'y'
+        _pos = PLOTTER.DEFAULT_POS
+        _ticks = self.dodging.ticks
+        settings = {
+            f'{xy}ticks': self.dodging.ticks,
+            f'{xy}ticklabels': self.dodging.tick_lables,
+            f'{xy}lim': (np.min(_ticks) - 0.5, np.max(_ticks) + 0.5)}
+        self.axes_facets.ax.set(**settings)
+        self.axes_facets.ax.tick_params(which='minor', color=COLOR.TRANSPARENT)
+        axis = getattr(self.axes_facets.ax, f'{xy}axis')
+        axis.set_minor_locator(AutoMinorLocator(2))
+        axis.grid(True, which='minor')
+        axis.grid(False, which='major')
 
     def _data_genenator_(self) -> Generator[Tuple, Self, None]:
         if self.variate_names:
             for combination, data in self.source.groupby(self.variate_names):
                 self._data = data
                 self.update_variate(combination)
-                self.feature_as_ticks()
+                self.dodge()
                 yield self._data
         else:
             self._data = self.source
@@ -182,10 +202,11 @@ class SimpleChart(_Chart):
             self, plotter: _Plotter, target_on_y: bool = True, **kwds) -> Self:
         self.target_on_y = target_on_y
         for data in self:
+            ax = self.axes_facets.ax
             plot = plotter(
                 source=data, target=self.target, feature=self.feature,
                 target_on_y=target_on_y, color=self.color, 
-                ax=self.axes_facets.ax, **kwds)
+                ax=self.axes_facets.ax, width=self.dodging.width, **kwds)
             plot()
         return self
 

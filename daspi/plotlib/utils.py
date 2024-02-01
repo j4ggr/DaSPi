@@ -226,6 +226,7 @@ class Dodger:
         self._default = 0
     
     def __getitem__(self, category: str | None) -> float | int:
+        """Get the dodge value for given category"""
         if category is None: return self._default
         return self.dodge.get(category, self._default)
     
@@ -234,7 +235,7 @@ class Dodger:
         """Replace source values to dodged ticks using given category"""
         if not self: return values
         ticks = self.ticks + self[category]
-        return values.replace(dict(zip(self.categories, ticks)))
+        return values.replace(dict(zip(self.tick_lables, ticks)))
     
     def __bool__(self) -> bool:
         return bool(self.categories) and bool(self.tick_lables)

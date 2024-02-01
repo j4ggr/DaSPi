@@ -401,7 +401,7 @@ class TestCharts:
                 size = 'age',
                 shape = 'educ',
                 col = 'religious',
-                row = 'children'
+                row = 'children',
             ).plot(Scatter
             ).label(
                 fig_title = 'Multiple Variate Chart',
@@ -411,7 +411,6 @@ class TestCharts:
                 row_title = 'Amount of children',
                 col_title = 'How religious',
                 info = 'pytest figure')
-        chart.axes[0, 0].set(xlim=(0, 25), ylim=(0, 60))
         chart.save(file_name).close()
         assert file_name.is_file()
 
