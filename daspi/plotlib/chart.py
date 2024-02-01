@@ -29,6 +29,7 @@ from .._constants import KW
 
 class _Chart(ABC):
 
+    target_on_y: bool = True
     nrows: int = 1
     ncols: int = 1
 
@@ -56,7 +57,7 @@ class _Chart(ABC):
         label: Any
             If a string is passed, it will be taken. If True, labels of 
             given feature or target name are used taking into account 
-            the target_axis attribute. If False or None, empty string is 
+            the target_on_y attribute. If False or None, empty string is 
             used, by default ''
         
         Returns
@@ -64,7 +65,10 @@ class _Chart(ABC):
         label: str
             labels for x or y axis
         """
-        get_target = self.target_axis == axis
+        assert axis in ['x', 'y']
+
+        get_target = ((axis == 'y' and self.target_on_y) or
+                      (axis == 'x' and not self.target_on_y))
         match label:
             case None | False: 
                 return ''
@@ -174,12 +178,13 @@ class SimpleChart(_Chart):
             yield self._data
         self._reset_variate_()
 
-    def plot(self, plotter: _Plotter, target_axis='y', **kwds) -> Self:
-        self.target_axis = target_axis
+    def plot(
+            self, plotter: _Plotter, target_on_y: bool = True, **kwds) -> Self:
+        self.target_on_y = target_on_y
         for data in self:
             plot = plotter(
                 source=data, target=self.target, feature=self.feature,
-                target_axis=target_axis, color=self.color, 
+                target_on_y=target_on_y, color=self.color, 
                 ax=self.axes_facets.ax, **kwds)
             plot()
         return self
@@ -241,12 +246,13 @@ class RelationalChart(SimpleChart):
         titles = (self.hue, self.shape, self.size)
         return {t: h.handles_labels() for t, h in zip(titles, handlers) if t}
 
-    def plot(self, plotter: _Plotter, target_axis='y', **kwds) -> Self:
-        self.target_axis = target_axis
+    def plot(
+            self, plotter: _Plotter, target_on_y: bool = True, **kwds) -> Self:
+        self.target_on_y = target_on_y
         for data in self:
             plot = plotter(
                 source=data, target=self.target, feature=self.feature,
-                target_axis=target_axis, color=self.color, 
+                target_on_y=target_on_y, color=self.color, 
                 ax=self.axes_facets.ax, marker=self.marker, size=self.sizes,
                 **kwds)
             plot()
@@ -255,7 +261,7 @@ class RelationalChart(SimpleChart):
 
 class MultipleVariateChart(RelationalChart):
 
-    target_axis = 'y'
+    target_on_y = True
 
     def __init__(
             self, source: pd.DataFrame, target: str, feature: str = '',
@@ -293,7 +299,7 @@ class MultipleVariateChart(RelationalChart):
             if self.row_or_col_changed or ax is None: ax = next(_ax)
             plot = plotter(
                 source=data, target=self.target, feature=self.feature,
-                target_axis='y', color=self.color, ax=ax, 
+                target_on_y=self.target_on_y, color=self.color, ax=ax, 
                 marker=self.marker, size=self.sizes)
             plot()
         return self

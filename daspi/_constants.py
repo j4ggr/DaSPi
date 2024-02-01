@@ -123,7 +123,7 @@ class _Plotter_:
     FEATURE: float = '_feature_'
     TRANSFORMED_FEATURE: float = '_transformed_'
     POS: str = '_pos_'
-    DEFAULT_POS: int = 0
+    DEFAULT_POS: int = 1
 PLOTTER = _Plotter_()
 
 

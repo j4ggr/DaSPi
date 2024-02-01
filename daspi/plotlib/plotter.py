@@ -23,12 +23,12 @@ from ..statistics.estimation import estimate_kernel_density
 class _Plotter(ABC):
 
     __slots__ = (
-        'source', 'target', 'feature', '_color', 'target_axis', 'fig', 'ax')
+        'source', 'target', 'feature', '_color', 'target_on_y', 'fig', 'ax')
     source: Hashable
     target: str
     feature: str
     _color: str
-    target_axis: str
+    target_on_y: bool
     fig: Figure
     ax: Axes
 
@@ -37,13 +37,11 @@ class _Plotter(ABC):
             source: Hashable,
             target: str,
             feature: str = '',
-            target_axis : Literal['y', 'x'] = 'y',
+            target_on_y : bool = True,
             color: str | None = None,
             ax: Axes | None = None,
             ) -> None:
-        assert target_axis in ['y', 'x']
-        
-        self.target_axis = target_axis
+        self.target_on_y = target_on_y
         self.source = source
         if not feature:
             feature = PLOTTER.FEATURE
@@ -53,11 +51,6 @@ class _Plotter(ABC):
         
         self.fig, self.ax = plt.subplots(1, 1) if ax is None else ax.figure, ax
         self._color = color
-        
-    @property
-    def target_on_y(self) -> bool:
-        """True if target_axis is 'y'"""
-        return self.target_axis == 'y'
     
     @property
     def x(self):
@@ -89,7 +82,7 @@ class Scatter(_Plotter):
             source: Hashable,
             target: str,
             feature: str = '', 
-            target_axis: Literal['y', 'x'] = 'y', 
+            target_on_y: bool = True, 
             color: str | None = None,
             marker: str | None = None,
             size: Iterable[int] | None = None,
@@ -97,7 +90,7 @@ class Scatter(_Plotter):
             **kwds) -> None:
         super().__init__(
             source=source, target=target, feature=feature,
-            target_axis=target_axis, color=color, ax=ax)
+            target_on_y=target_on_y, color=color, ax=ax)
         self.size = size
         self.marker = marker
     
@@ -115,13 +108,13 @@ class Line(_Plotter):
             source: Hashable,
             target: str,
             feature: str = '',
-            target_axis: Literal['y', 'x'] = 'y', 
+            target_on_y: bool = True, 
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         super().__init__(
             source=source, target=target, feature=feature,
-            target_axis=target_axis, color=color, ax=ax)
+            target_on_y=target_on_y, color=color, ax=ax)
     
     def __call__(self, marker=None, **kwds):
         alpha = None if marker is None else COLOR.MARKER_ALPHA
@@ -140,7 +133,7 @@ class _TransformPlotter(_Plotter):
             target: str,
             feature: str = '',
             pos: int | float = PLOTTER.DEFAULT_POS,
-            target_axis: Literal['y', 'x'] = 'y',
+            target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
@@ -155,7 +148,7 @@ class _TransformPlotter(_Plotter):
 
         super().__init__(
             source=trans_data, target=target, feature=feature,
-            target_axis=target_axis, color=color, ax=ax)
+            target_on_y=target_on_y, color=color, ax=ax)
     
     def feature_grouped(
             self, source: pd.DataFrame) -> Generator[Tuple, Self, None]:
@@ -178,7 +171,7 @@ class _TransformPlotter(_Plotter):
     def __call__(self): ...
     
 
-class KDE(_TransformPlotter):
+class GaussianKDE(_TransformPlotter):
 
     __slots__ = ('_height', 'show_density_axis')
     _height: float
@@ -189,17 +182,18 @@ class KDE(_TransformPlotter):
             source: Hashable,
             target: str,
             height: float | None = None,
-            target_axis: Literal['y', 'x'] = 'x',
+            target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
             show_density_axis: bool = True,
             **kwds) -> None:
         self._height = height
         self.show_density_axis = show_density_axis
-        feature = kwds.pop('feature', PLOTTER.TRANSFORMED_FEATURE)
+        if not bool(feature := kwds.pop('feature', '')):
+            feature = PLOTTER.TRANSFORMED_FEATURE
         super().__init__(
             source=source, target=target, feature=feature,
-            target_axis=target_axis, color=color, ax=ax, **kwds)
+            target_on_y=target_on_y, color=color, ax=ax, **kwds)
         
     @property
     def height(self) -> float:
@@ -231,7 +225,7 @@ class KDE(_TransformPlotter):
             self.ax.spines[spine].set_visible(False)
 
 
-class Violine(KDE):
+class Violine(GaussianKDE):
 
     def __init__(
             self,
@@ -239,14 +233,14 @@ class Violine(KDE):
             target: str,
             feature: str = '',
             width: float | None = CATEGORY.FEATURE_SPACE,
-            target_axis: Literal['y', 'x'] = 'y',
+            target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         self._height = width/2
         super().__init__(
             source=source, target=target, feature=feature, height=self.height,
-            target_axis=target_axis, color=color, ax=ax,
+            target_on_y=target_on_y, color=color, ax=ax,
             show_density_axis=True, **kwds)
 
     def __call__(self, **kwds) -> None:
@@ -260,10 +254,39 @@ class Violine(KDE):
             else:
                 self.ax.fill_between(sequence, estim_low, estim_upp, **kwds)
 
+
+class Errorbar(_Plotter):
+    __slots__ = ('lower', 'upper')
+    lower: str
+    upper: str
+
+    def __init__(
+            self,
+            source: Hashable,
+            target: str,
+            lower: str,
+            upper: str,
+            feature: str = '',
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None) -> None:
+        self.lower = lower
+        self.upper = upper
+        if not feature in source:
+            feature = PLOTTER.FEATURE
+            source[feature] = np.arange(len(source[target]))
+        super().__init__(
+            source=source, target=target, feature=feature,
+            target_on_y=target_on_y, color=color, ax=ax)
+    
+    def __call__(self):
+        return super().__call__()
+
+
 __all__ = [
     _Plotter.__name__,
     Scatter.__name__,
     Line.__name__,
-    KDE.__name__,
+    GaussianKDE.__name__,
     Violine.__name__
 ]

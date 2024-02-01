@@ -21,10 +21,10 @@ from daspi.plotlib.chart import SimpleChart
 from daspi.plotlib.chart import RelationalChart
 from daspi.plotlib.chart import MultipleVariateChart
 from daspi.plotlib.facets import AxesFacets
-from daspi.plotlib.plotter import KDE
 from daspi.plotlib.plotter import Line
 from daspi.plotlib.plotter import Scatter
 from daspi.plotlib.plotter import Violine
+from daspi.plotlib.plotter import GaussianKDE
 
 matplotlib.use("Agg")
 
@@ -240,7 +240,7 @@ class TestCharts:
                 df_travel,
                 target = 'invc',
                 feature = 'hinc'
-            ).plot(Scatter, target_axis='x'
+            ).plot(Scatter, target_on_y=False
             ).label(
                 sub_title='Transposed XY scatter', xlabel=True, ylabel=True
             ).save(file_name
@@ -368,7 +368,8 @@ class TestCharts:
         chart = SimpleChart(
                 df_travel,
                 target = 'gc'
-            ).plot(KDE
+            ).plot(
+                GaussianKDE, target_on_y=False
             ).label(
                 sub_title='Simple KDE', xlabel=True, ylabel=True
             ).save(file_name
@@ -380,7 +381,8 @@ class TestCharts:
                 df_travel,
                 target = 'gc',
                 hue = 'mode'
-            ).plot(KDE, target_axis='x', show_density_axis=False
+            ).plot(
+                GaussianKDE, target_on_y=True, show_density_axis=False
             ).label(
                 sub_title='multiple by hue', xlabel=True, ylabel=True, 
                 info=True, fig_title='Kernel Density Estimation'
@@ -420,6 +422,23 @@ class TestCharts:
                 target = 'gc',
                 feature = 'mode', 
             ).plot(Violine
+            ).label(
+                fig_title = 'Violine Chart',
+                sub_title = 'Simple test plot',
+                xlabel = 'Traveler chosen mode', 
+                ylabel = 'Generalized cost measure ($)',
+                info = 'pytest figure'
+            ).save(file_name
+            ).close()
+        
+        file_name = savedir/'violine_chart_multiple.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = 'gc',
+                feature = 'mode', 
+                hue = 'choice',
+                dodge = True
+            ).plot(Violine, target_on_y=False
             ).label(
                 fig_title = 'Violine Chart',
                 sub_title = 'Simple test plot',
