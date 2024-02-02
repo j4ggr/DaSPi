@@ -22,6 +22,7 @@ from daspi.plotlib.chart import RelationalChart
 from daspi.plotlib.chart import MultipleVariateChart
 from daspi.plotlib.facets import AxesFacets
 from daspi.plotlib.plotter import Line
+from daspi.plotlib.plotter import Jitter
 from daspi.plotlib.plotter import Scatter
 from daspi.plotlib.plotter import Violine
 from daspi.plotlib.plotter import GaussianKDE
@@ -414,6 +415,40 @@ class TestCharts:
         chart.save(file_name).close()
         assert file_name.is_file()
 
+    def test_jitter_plot(self):
+        file_name = savedir/'jitter_chart_simple.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = 'gc',
+                feature = 'mode', 
+            ).plot(Jitter
+            ).label(
+                fig_title = 'Violine Chart',
+                sub_title = 'Simple test plot',
+                xlabel = 'Traveler chosen mode', 
+                ylabel = 'Generalized cost measure ($)',
+                info = 'pytest figure'
+            ).save(file_name
+            ).close()
+        
+        file_name = savedir/'jitter_chart_multiple.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = 'gc',
+                feature = 'mode', 
+                hue = 'choice',
+                dodge = True
+            ).plot(Jitter, target_on_y=False
+            ).label(
+                fig_title = 'Jitter Chart',
+                sub_title = 'Simple test plot',
+                xlabel = 'Traveler chosen mode', 
+                ylabel = 'Generalized cost measure ($)',
+                info = 'pytest figure'
+            ).save(file_name
+            ).close()
+
+
     def test_violine_plot(self):
         file_name = savedir/'violine_chart_simple.png'
         chart = SimpleChart(
@@ -446,4 +481,3 @@ class TestCharts:
                 info = 'pytest figure'
             ).save(file_name
             ).close()
-

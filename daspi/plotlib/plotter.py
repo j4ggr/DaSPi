@@ -169,7 +169,41 @@ class _TransformPlotter(_Plotter):
     
     @abstractmethod
     def __call__(self): ...
-    
+
+
+class Jitter(_TransformPlotter):
+
+    __slots__ = ('width')
+    width: float
+
+    def __init__(
+            self,
+            source: pd.DataFrame,
+            target: str,
+            feature: str = '',
+            width: float = CATEGORY.FEATURE_SPACE,
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        self.width = width
+        super().__init__(
+            source=source, target=target, feature=feature,
+            target_on_y=target_on_y, color=color, ax=ax, **kwds)
+        
+    def transform(
+            self, feature_data: float | int, target_data: pd.Series
+            ) -> pd.DataFrame:
+        data = pd.DataFrame({
+            self.target: target_data,
+            self.feature: feature_data + np.random.uniform(
+                -self.width/2, self.width/2, len(target_data))})
+        return data
+
+    def __call__(self, **kwds) -> None:
+        kwds = dict(color=self.color) | kwds
+        self.ax.scatter(self.x, self.y, **kwds)
+
 
 class GaussianKDE(_TransformPlotter):
 
@@ -232,7 +266,7 @@ class Violine(GaussianKDE):
             source: pd.DataFrame,
             target: str,
             feature: str = '',
-            width: float | None = CATEGORY.FEATURE_SPACE,
+            width: float = CATEGORY.FEATURE_SPACE,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -287,6 +321,7 @@ __all__ = [
     _Plotter.__name__,
     Scatter.__name__,
     Line.__name__,
+    Jitter.__name__,
     GaussianKDE.__name__,
     Violine.__name__
 ]

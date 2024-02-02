@@ -14,7 +14,7 @@ class _Kw_:
         return dict(ls=0.8, style='--')
     @property
     def HUE_HANDLES(self) -> dict:
-        """Pathc keyword arguments for genereting handles on 
+        """Patch keyword arguments for genereting handles on 
         HueLabel"""
         return dict(alpha=COLOR.FILL_ALPHA)
     @property
