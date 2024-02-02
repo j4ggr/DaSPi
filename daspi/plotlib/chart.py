@@ -110,16 +110,18 @@ class _Chart(ABC):
 class SimpleChart(_Chart):
 
     def __init__(self, source: pd.DataFrame, target: str, feature: str = '',
-            hue: str = '', dodge: bool = False, **kwds) -> None:
-        if dodge:
-            assert feature in source, 'Feature must be given if dodge wants to be used'
+            hue: str = '', dodge: bool = False, 
+            categorical_features: bool = False, **kwds) -> None:
+        self.categorical_features = categorical_features or dodge
         self.feature = feature
         self.hue = hue
         super().__init__(source=source, target=target, **kwds)
         self.coloring = HueLabel(self.get_categorical_labels(self.hue))
-        self.dodging = Dodger(
-            self.coloring.labels,
-            self.get_categorical_labels(self.feature) if dodge else ())
+        feature_tick_labels = ()
+        if self.categorical_features:
+            assert feature in source
+            feature_tick_labels = self.get_categorical_labels(feature)
+        self.dodging = Dodger(self.coloring.labels,feature_tick_labels)
         self._variate_names = (self.hue, )
         self._current_variate = {}
         self._last_variate = {}
@@ -168,10 +170,9 @@ class SimpleChart(_Chart):
         hue_variate = self._current_variate.get(self.hue, None)
         self._data[self.feature] = self.dodging(
             self._data[self.feature], hue_variate)
-        self._correct_feature_ticks_labels_()
         
     def _correct_feature_ticks_labels_(self) -> None:
-        """Correct feature ticks and labels if dodging is uses."""
+        """Correct feature ticks and labels if according to dodging labels"""
         xy = 'x' if self.target_on_y else 'y'
         _pos = PLOTTER.DEFAULT_POS
         _ticks = self.dodging.ticks
@@ -202,7 +203,6 @@ class SimpleChart(_Chart):
             self, plotter: _Plotter, target_on_y: bool = True, **kwds) -> Self:
         self.target_on_y = target_on_y
         for data in self:
-            ax = self.axes_facets.ax
             plot = plotter(
                 source=data, target=self.target, feature=self.feature,
                 target_on_y=target_on_y, color=self.color, 
@@ -213,6 +213,8 @@ class SimpleChart(_Chart):
     def label(
         self, fig_title: str = '', sub_title: str = '', xlabel: bool | str = '',
         ylabel: bool | str = '', info: bool | str = False) -> Self:
+        if self.categorical_features:
+            self._correct_feature_ticks_labels_()
         xlabel = self.get_axis_label(xlabel, 'x')
         ylabel = self.get_axis_label(ylabel, 'y')
 
@@ -221,6 +223,7 @@ class SimpleChart(_Chart):
             sub_title=sub_title, xlabel=xlabel, ylabel=ylabel,
             info=info, legends=self.legend_handles_labels)
         label.draw()
+
         return self
 
 

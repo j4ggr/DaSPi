@@ -16,13 +16,13 @@ from statsmodels.sandbox.regression.predstd import wls_prediction_std
 norm.rvs()
 
 def mean_ci(
-        x: Iterable, level: float = 0.95, n_groups: int = 1
+        target: Iterable, level: float = 0.95, n_groups: int = 1
         ) -> Tuple[float, float, float]:
     """two sided confidence interval for mean of data
 
     Parameters
     ----------
-    x : array like
+    target : array like
         sample data, Only one-dimensional samples are accepted
     level : float in (0, 1), optional
         confidence level, by default 0.95
@@ -39,20 +39,20 @@ def mean_ci(
         lower and upper confidence level
     """ 
     level = 1 - confidence_to_alpha(level, two_sided=False, n_groups=n_groups)  # adjust ci if Bonferroni method is performed
-    se = np.std(x, ddof=1) / np.sqrt(np.size(x))                                # calculate standard error of the mean, scipy.stats.sem(x) does not work -> returns nan
-    df = len(x)-1
-    x_bar = np.mean(x)
+    se = np.std(target, ddof=1) / np.sqrt(np.size(target))                                # calculate standard error of the mean, scipy.stats.sem(x) does not work -> returns nan
+    df = len(target)-1
+    x_bar = np.mean(target)
     ci_low, ci_upp = t.interval(level, df, loc=x_bar, scale=se)
     return x_bar, ci_low, ci_upp
 
 def variance_ci(
-        x: Iterable, level: float = 0.95, n_groups: int = 1
+        target: Iterable, level: float = 0.95, n_groups: int = 1
         ) -> Tuple[float, float, float]:
     """two sided confidence interval for variance of data
 
     Parameters
     ----------
-    x : array like
+    target : array like
         sample data, Only one-dimensional samples are accepted
     level : float in (0, 1), optional
         confidence level, by default 0.95
@@ -69,21 +69,21 @@ def variance_ci(
         lower and upper confidence level
     """
     alpha = confidence_to_alpha(level, two_sided=True, n_groups=n_groups)
-    n = len(x)
-    s2 = np.var(x, ddof=1) # do not remove ddof=1, default is 0!
+    n = len(target)
+    s2 = np.var(target, ddof=1) # do not remove ddof=1, default is 0!
     df = n - 1
     ci_upp = df * s2 / chi2.ppf(alpha, df)
     ci_low = df * s2 / chi2.ppf(1 - alpha, df)
     return s2, ci_low, ci_upp
 
 def stdev_ci(
-        x: Iterable, level: float = 0.95, n_groups: int = 1
+        target: Iterable, level: float = 0.95, n_groups: int = 1
         ) -> Tuple[float, float, float]:
     """two sided confidence interval for standard deviation of data
 
     Parameters
     ----------
-    x : array like
+    target : array like
         sample data, Only one-dimensional samples are accepted
     level : float in (0, 1), optional
         confidence level, by default 0.95
@@ -99,7 +99,7 @@ def stdev_ci(
     ci_low, ci_upp : float
         lower and upper confidence level
     """
-    s2, ci_low2, ci_upp2 = variance_ci(x, level, n_groups)
+    s2, ci_low2, ci_upp2 = variance_ci(target, level, n_groups)
     s = sqrt(s2)
     ci_low = sqrt(ci_low2)
     ci_upp = sqrt(ci_upp2)
@@ -137,7 +137,7 @@ def proportion_ci(
     return portion, ci_low, ci_upp
 
 def bonferroni_ci(
-        data: pd.DataFrame, x: str, categorical: str, level: float = 0.95, 
+        data: pd.DataFrame, target: str, feature: str, level: float = 0.95, 
         ci_func: Callable = stdev_ci, n_groups: int | None = None, 
         name: str='midpoint') -> pd.DataFrame:
     """Calculate confidence interval after bonferroni correction.
@@ -153,10 +153,10 @@ def bonferroni_ci(
     Parameters
     ----------
     data : pandas.DataFrame
-        data frame containing sample data and categoricals
-    x : str
+        data frame containing target and feature data
+    target : str
         name of sample data column
-    categorical : str
+    feature : str
         name of categorical feature. The confidence intervals are 
         calculated separately for these groups
     level : float in (0, 1), optional
@@ -179,8 +179,8 @@ def bonferroni_ci(
         data containing groups, midpoints and confidence limits
     """
     columns = [name, 'ci_low', 'ci_upp']
-    if not isinstance(categorical, list): categorical = [categorical]
-    groups = data.groupby(categorical)[x]
+    if not isinstance(feature, list): feature = [feature]
+    groups = data.groupby(feature)[target]
     n_groups = n_groups if isinstance(n_groups, int) else groups.ngroups
     df = pd.DataFrame(
             groups.agg(lambda x: ci_func(x, level, n_groups)).dropna().to_list(),
@@ -188,8 +188,8 @@ def bonferroni_ci(
         ).dropna()
     
     cat_values = [groups.indices.keys()]
-    if len(categorical) > 1: cat_values = [list(v) for v in cat_values[0]]
-    df[categorical] = cat_values
+    if len(feature) > 1: cat_values = [list(v) for v in cat_values[0]]
+    df[feature] = cat_values
     
     return df
 
@@ -324,14 +324,14 @@ def prediction_ci(
     return fit_ci_low, fit_ci_upp, pred_ci_low, pred_ci_upp
 
 def dist_prob_fit_ci(
-        x: Iterable, fit: Iterable, dist: str, level: float = 0.95
+        target: Iterable, fit: Iterable, dist: str, level: float = 0.95
         ) -> Tuple[float, float]:
     """Calculate confidence interval for a fitting line when examining a
     distribution probability
     
     Parameters
     ----------
-    x : array like
+    target : array like
         sample data
     fit : array like
         data points of fitting line
@@ -353,19 +353,19 @@ def dist_prob_fit_ci(
     if isinstance(dist, str): 
         dist = getattr(scipy.stats, dist)
     alpha = confidence_to_alpha(level)
-    x = np.asarray(x)
+    target = np.asarray(target)
     fit = np.asarray(fit)
-    x.sort()
+    target.sort()
     fit.sort()
-    n = len(x)
+    n = len(target)
     
-    fit_params = dist.fit(x)
+    fit_params = dist.fit(target)
     shape = fit_params[:-2] if len(fit_params) > 2 else None
-    slope = (fit[-1] - fit[0]) / (x[-1] - x[0])
+    slope = (fit[-1] - fit[0]) / (target[-1] - target[0])
     
     P = _ppoints(n)
     crit = norm.ppf(1 - alpha)
-    pdf = dist.pdf(x) if shape is None else dist.pdf(x, *shape)
+    pdf = dist.pdf(target) if shape is None else dist.pdf(target, *shape)
     se = (slope / pdf) * np.sqrt(P * (1 - P) / n)
     upper = fit + crit * se
     lower = fit - crit * se

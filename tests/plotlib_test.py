@@ -25,7 +25,10 @@ from daspi.plotlib.plotter import Line
 from daspi.plotlib.plotter import Jitter
 from daspi.plotlib.plotter import Scatter
 from daspi.plotlib.plotter import Violine
+from daspi.plotlib.plotter import MeanTest
 from daspi.plotlib.plotter import GaussianKDE
+from daspi.plotlib.plotter import VariationTest
+from daspi.plotlib.plotter import StandardErrorMean
 
 matplotlib.use("Agg")
 
@@ -478,6 +481,83 @@ class TestCharts:
                 sub_title = 'Simple test plot',
                 xlabel = 'Traveler chosen mode', 
                 ylabel = 'Generalized cost measure ($)',
+                info = 'pytest figure'
+            ).save(file_name
+            ).close()
+
+    def test_errorbar_plots(self):
+        file_name = savedir/'errbar_sem_chart.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = 'gc',
+                feature = 'mode',
+                hue = 'choice',
+                dodge = True,
+            ).plot(
+                StandardErrorMean,
+                target_on_y = True
+            ).label(
+                fig_title = 'Errorbar Chart',
+                sub_title = 'Standard error mean',
+                xlabel = 'Traveler chosen mode', 
+                ylabel = 'Generalized cost measure ($)',
+                info = 'pytest figure'
+            ).save(file_name
+            ).close()
+        
+        file_name = savedir/'errbar_mean_test_chart.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = 'gc',
+                feature = 'mode',
+                categorical_features = True,
+            ).plot(
+                MeanTest,
+                target_on_y = False
+            ).label(
+                fig_title = 'Mean Test Plot',
+                sub_title = 'Test mean',
+                ylabel = 'Traveler chosen mode', 
+                xlabel = 'Generalized cost measure ($)',
+                info = 'pytest figure'
+            ).save(file_name
+            ).close()
+        
+        file_name = savedir/'errbar_var_test_chart.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = 'gc',
+                feature = 'mode',
+                categorical_features = True,
+            ).plot(
+                VariationTest,
+                target_on_y = False,
+                kind = 'variance'
+            ).label(
+                fig_title = 'Variation Test Plot',
+                sub_title = 'Test Variance',
+                ylabel = 'Traveler chosen mode', 
+                xlabel = 'Generalized cost measure ($)',
+                info = 'pytest figure'
+            ).save(file_name
+            ).close()
+        
+        file_name = savedir/'errbar_std_test_chart.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = 'gc',
+                feature = 'mode',
+                categorical_features = True,
+            ).plot(
+                VariationTest,
+                target_on_y = False,
+                kind = 'stdev',
+                show_points = False
+            ).label(
+                fig_title = 'Variation Test Plot',
+                sub_title = 'Test Standardeviation',
+                ylabel = 'Traveler chosen mode', 
+                xlabel = 'Generalized cost measure ($)',
                 info = 'pytest figure'
             ).save(file_name
             ).close()

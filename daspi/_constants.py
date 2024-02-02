@@ -82,6 +82,10 @@ class _Kw_:
     def INFO(self) -> dict:
         """Adding info text at bottom left of figure."""
         return dict(x=0.05, y=0, ha='left', va='top', size='x-small')
+    @property
+    def ERROR_BAR(self) -> dict:
+        """Base keyword arguments for error bars"""
+        return dict(color='k', lw=0.5, fmt='none')
 KW = _Kw_()
 
 
@@ -124,6 +128,8 @@ class _Plotter_:
     TRANSFORMED_FEATURE: float = '_transformed_'
     POS: str = '_pos_'
     DEFAULT_POS: int = 1
+    ERR_LOW: str = '_error_lower_'
+    ERR_UPP: str = '_error_upper_'
 PLOTTER = _Plotter_()
 
 

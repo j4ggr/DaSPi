@@ -7,6 +7,7 @@ from abc import abstractmethod
 from typing import Any
 from typing import Self
 from typing import Tuple
+from typing import Callable
 from typing import Literal
 from typing import Hashable
 from typing import Iterable
@@ -14,9 +15,13 @@ from typing import Generator
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
+from .._constants import KW
 from .._constants import COLOR
 from .._constants import PLOTTER
 from .._constants import CATEGORY
+from ..statistics.confidence import mean_ci
+from ..statistics.confidence import stdev_ci
+from ..statistics.confidence import variance_ci
 from ..statistics.estimation import estimate_kernel_density
 
 
@@ -247,7 +252,7 @@ class GaussianKDE(_TransformPlotter):
         
     def __call__(self, kw_line: dict = {}, **kw_fill) -> None:
         self.ax.plot(self.x, self.y, **kw_line)
-        kw_fill = {'alpha': COLOR.FILL_ALPHA} | kw_fill
+        kw_fill = dict(alpha=COLOR.FILL_ALPHA) | kw_fill
         if self.target_on_y:
             self.ax.fill_betweenx(self.y, self._pos, self.x, **kw_fill)
         else:
@@ -289,10 +294,11 @@ class Violine(GaussianKDE):
                 self.ax.fill_between(sequence, estim_low, estim_upp, **kwds)
 
 
-class Errorbar(_Plotter):
-    __slots__ = ('lower', 'upper')
+class Errorbar(_TransformPlotter):
+    __slots__ = ('lower', 'upper', 'show_points', 'sort')
     lower: str
     upper: str
+    show_points: bool
 
     def __init__(
             self,
@@ -301,20 +307,176 @@ class Errorbar(_Plotter):
             lower: str,
             upper: str,
             feature: str = '',
+            show_points: bool = True,
             target_on_y: bool = True,
+            sort: Literal['feature', 'target', None] = None,
             color: str | None = None,
-            ax: Axes | None = None) -> None:
+            ax: Axes | None = None,
+            **kwds) -> None:
+        """
+        sort : {'feature', 'target', None}, optional
+            sort error bars according to target center points or feature
+            values. If 'feature, feature values are sorted 
+            descending if target is on y axis (lowest on top), otherwise 
+            they will be sorted ascending (lowest on left). If 'target' 
+            centers are sorted ascending if target is on y axis 
+            (smallest on left), otherweise centers will be sorted 
+            descending (smallest on top), by default False"""
         self.lower = lower
         self.upper = upper
+        self.show_points = show_points
         if not feature in source:
             feature = PLOTTER.FEATURE
             source[feature] = np.arange(len(source[target]))
+
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
+        
+        if sort == 'target':
+            self.source = self.source.sort_values(
+                self.target, ascending=self.target_on_y)
+        elif sort == 'feature':
+            self.source = self.source.sort_values(
+                self.feature, ascending=not self.target_on_y)
+        
+    def transform(
+            self, feature_data: float | int, target_data: pd.Series
+            ) -> pd.DataFrame:
+        data = pd.DataFrame({
+            self.target: target_data,
+            self.feature: [feature_data]})
+        return data
     
-    def __call__(self):
-        return super().__call__()
+    @property
+    def err(self) -> np.ndarray:
+        """Get errors as 2D array containing absolut values"""
+        lower = self.source[self.target] - self.source[self.lower]
+        upper = self.source[self.target] + self.source[self.upper]
+        return np.array([lower, upper])
+    
+    def __call__(self, kw_points: dict = {}, **kwds):
+        if self.show_points:
+            kw_points = dict(color=self.color) | kw_points
+            self.ax.scatter(self.x, self.y, **kw_points)
+        kwds = KW.ERROR_BAR | kwds
+        if self.target_on_y:
+            self.ax.errorbar(self.x, self.y, yerr=self.err, **kwds)
+        else:
+            self.ax.errorbar(self.x, self.y, xerr=self.err, **kwds)
+
+
+class StandardErrorMean(Errorbar):
+
+    def __init__(
+            self,
+            source: Hashable,
+            target: str,
+            feature: str = '',
+            show_points: bool = True,
+            target_on_y: bool = True,
+            sort: Literal['feature', 'target'] | None = None,
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        
+        super().__init__(
+            source=source, target=target, lower=PLOTTER.ERR_LOW,
+            upper=PLOTTER.ERR_UPP, feature=feature, show_points=show_points,
+            target_on_y=target_on_y, sort=sort, color=color, ax=ax)
+
+    def transform(
+            self, feature_data: float | int, target_data: pd.Series
+            ) -> pd.DataFrame:
+        data = pd.DataFrame({
+            self.target: target_data.mean(),
+            self.feature: [feature_data],
+            self.lower: target_data.sem(),
+            self.upper: target_data.sem()})
+        return data
+
+
+class DistinctionTest(Errorbar):
+
+    __slots__ = ('confidence_level', 'ci_func', 'n_groups')
+    confidence_level: float
+    ci_func: Callable
+    n_groups: int
+
+    def __init__(
+            self,
+            source: Hashable,
+            target: str,
+            feature: str = '',
+            show_points: bool = True,
+            target_on_y: bool = True,
+            confidence_level: float = 0.95,
+            ci_func: Callable = mean_ci,
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        self.confidence_level = confidence_level
+        self.ci_func = ci_func
+        self.n_groups = pd.Series(source[feature]).nunique() if feature else 1
+        
+        super().__init__(
+            source=source, target=target, lower=PLOTTER.ERR_LOW,
+            upper=PLOTTER.ERR_UPP, feature=feature, show_points=show_points,
+            target_on_y=target_on_y, sort='target', color=color, ax=ax)
+    
+    def transform(
+            self, feature_data: float | int, target_data: pd.Series
+            ) -> pd.DataFrame:
+        center, lower, upper = self.ci_func(
+            target_data, self.confidence_level, self.n_groups)
+        data = pd.DataFrame({
+            self.target: [center],
+            self.feature: [feature_data],
+            self.lower: lower,
+            self.upper: upper})
+        return data
+
+
+class MeanTest(DistinctionTest):
+
+    def __init__(
+            self,
+            source: Hashable,
+            target: str,
+            feature: str = '',
+            show_points: bool = True,
+            target_on_y: bool = True,
+            confidence_level: float = 0.95,
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        super().__init__(
+            source=source, target=target, feature=feature,
+            show_points=show_points, target_on_y=target_on_y,
+            confidence_level=confidence_level, ci_func=mean_ci, color=color,
+            ax=ax)
+
+
+class VariationTest(DistinctionTest):
+
+    def __init__(
+            self,
+            source: Hashable,
+            target: str,
+            feature: str = '',
+            show_points: bool = True,
+            target_on_y: bool = True,
+            confidence_level: float = 0.95,
+            kind: Literal['stdev', 'variance'] = 'stdev',
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        ci_func = stdev_ci if kind == 'stdev' else variance_ci
+        super().__init__(
+            source=source, target=target, feature=feature,
+            show_points=show_points, target_on_y=target_on_y,
+            confidence_level=confidence_level, ci_func=stdev_ci, color=color,
+            ax=ax)
 
 
 __all__ = [
@@ -323,5 +485,10 @@ __all__ = [
     Line.__name__,
     Jitter.__name__,
     GaussianKDE.__name__,
-    Violine.__name__
-]
+    Violine.__name__,
+    Errorbar.__name__,
+    StandardErrorMean.__name__,
+    DistinctionTest.__name__,
+    MeanTest.__name__,
+    VariationTest.__name__,
+    ]

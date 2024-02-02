@@ -238,7 +238,7 @@ class Dodger:
         return values.replace(dict(zip(self.tick_lables, ticks)))
     
     def __bool__(self) -> bool:
-        return bool(self.categories) and bool(self.tick_lables)
+        return len(self.categories) > 1
 
 
 __all__ = [
