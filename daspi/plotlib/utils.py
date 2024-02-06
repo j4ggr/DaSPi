@@ -8,6 +8,7 @@ from typing import List
 from typing import Dict
 from typing import Tuple
 from typing import Literal
+from numpy.typing import NDArray
 from numpy.typing import ArrayLike
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
@@ -191,7 +192,7 @@ class SizeLabel(_CategoryLabel):
         if item is None: return self.default
         return self([item])[0]
     
-    def __call__(self, values: ArrayLike) -> np.ndarray:
+    def __call__(self, values: ArrayLike) -> NDArray:
         """Convert values into size values for markers"""
         sizes = self.factor * (np.array(values) - self._min) + self.offset
         sizes = np.square(sizes)
@@ -239,7 +240,6 @@ class Dodger:
     
     def __bool__(self) -> bool:
         return len(self.categories) > 1
-
 
 __all__ = [
     add_second_axis.__name__,

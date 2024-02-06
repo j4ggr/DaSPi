@@ -22,6 +22,7 @@ from daspi.plotlib.chart import RelationalChart
 from daspi.plotlib.chart import MultipleVariateChart
 from daspi.plotlib.facets import AxesFacets
 from daspi.plotlib.plotter import Line
+from daspi.plotlib.plotter import Ridge
 from daspi.plotlib.plotter import Jitter
 from daspi.plotlib.plotter import Scatter
 from daspi.plotlib.plotter import Violine
@@ -368,10 +369,12 @@ class TestCharts:
 
     def test_kde_plot(self):
 
+        
+
         file_name = savedir/'kde_chart_simple.png'
         chart = SimpleChart(
                 df_travel,
-                target = 'gc'
+                target = 'gc',
             ).plot(
                 GaussianKDE, target_on_y=False
             ).label(
@@ -387,6 +390,21 @@ class TestCharts:
                 hue = 'mode'
             ).plot(
                 GaussianKDE, target_on_y=True, show_density_axis=False
+            ).label(
+                sub_title='multiple by hue', xlabel=True, ylabel=True, 
+                info=True, fig_title='Kernel Density Estimation'
+            ).save(file_name
+            ).close()
+        assert file_name.is_file()
+
+        file_name = savedir/'kde_chart_ridge.png'
+        chart = SimpleChart(
+                df_travel,
+                target = 'gc',
+                feature = 'mode',
+                categorical_features = True,
+            ).plot(
+                Ridge, target_on_y=False,
             ).label(
                 sub_title='multiple by hue', xlabel=True, ylabel=True, 
                 info=True, fig_title='Kernel Density Estimation'
@@ -424,6 +442,7 @@ class TestCharts:
                 source = df_travel,
                 target = 'gc',
                 feature = 'mode', 
+                categorical_features = True,
             ).plot(Jitter
             ).label(
                 fig_title = 'Violine Chart',

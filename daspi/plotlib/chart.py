@@ -13,6 +13,7 @@ from typing import Tuple
 from typing import Literal
 from typing import Generator
 from pathlib import Path
+from numpy.typing import NDArray
 
 from .utils import Dodger
 from .utils import HueLabel
@@ -48,7 +49,7 @@ class _Chart(ABC):
         return self.axes_facets.figure
     
     @property
-    def axes(self) -> np.ndarray:
+    def axes(self) -> NDArray:
         """Get the created axes"""
         return self.axes_facets.axes
     
@@ -119,9 +120,10 @@ class SimpleChart(_Chart):
         self.coloring = HueLabel(self.get_categorical_labels(self.hue))
         feature_tick_labels = ()
         if self.categorical_features:
-            assert feature in source
+            assert feature in source, 'To be able to use the "categorical_features" attribute, features must be present'
             feature_tick_labels = self.get_categorical_labels(feature)
-        self.dodging = Dodger(self.coloring.labels,feature_tick_labels)
+        dodge_categories = self.coloring.labels if dodge else ()
+        self.dodging = Dodger(dodge_categories, feature_tick_labels)
         self._variate_names = (self.hue, )
         self._current_variate = {}
         self._last_variate = {}
@@ -183,8 +185,8 @@ class SimpleChart(_Chart):
         self.axes_facets.ax.set(**settings)
         self.axes_facets.ax.tick_params(which='minor', color=COLOR.TRANSPARENT)
         axis = getattr(self.axes_facets.ax, f'{xy}axis')
-        axis.set_minor_locator(AutoMinorLocator(2))
-        axis.grid(True, which='minor')
+        # axis.set_minor_locator(AutoMinorLocator(2))
+        # axis.grid(True, which='minor')
         axis.grid(False, which='major')
 
     def _data_genenator_(self) -> Generator[Tuple, Self, None]:
@@ -244,7 +246,7 @@ class RelationalChart(SimpleChart):
                 self.source[self.size].min(), self.source[self.size].max())
         else:
             self.sizing = None
-        self._sizes: np.ndarray | None = None
+        self._sizes: NDArray | None = None
         self._variate_names = (self.hue, self.shape)
         self._reset_variate_()
     
@@ -255,7 +257,7 @@ class RelationalChart(SimpleChart):
         return self.marking[marker_variate]
 
     @property
-    def sizes(self) -> np.ndarray | None:
+    def sizes(self) -> NDArray | None:
         """Get sizes for current variate, is set in grouped data 
         generator."""
         if not self.size: return None
@@ -281,6 +283,27 @@ class RelationalChart(SimpleChart):
                 **kwds)
             plot()
         return self
+
+
+class MultiplotChart(_Chart):
+
+    def __init__(
+            self,
+            source: pd.DataFrame,
+            target: str,
+            nrows: int,
+            ncols: int,
+            sharex: bool | str = False,
+            sharey: bool | str = False,
+            width_ratios: List[float] | None = None,
+            height_ratios: List[float] | None = None,
+            **kwds):
+
+        super().__init__(
+            source=source, target=target, nrows=nrows, ncols=ncols,
+            sharex=sharex, sharey=sharey, width_ratios=width_ratios,
+            height_ratios=height_ratios, **kwds)
+
 
 
 class MultipleVariateChart(RelationalChart):

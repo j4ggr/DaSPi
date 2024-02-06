@@ -12,6 +12,7 @@ from typing import Literal
 from typing import Hashable
 from typing import Iterable
 from typing import Generator
+from numpy.typing import NDArray
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
@@ -196,13 +197,17 @@ class Jitter(_TransformPlotter):
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
         
+    def jitter(self, loc: float, size: int) -> NDArray:
+        scale = self.width / 6 # 6 sigma ~ 99.7 %
+        jiiter = np.random.normal(loc=loc, scale=scale, size=size)
+        return jiiter
+        
     def transform(
             self, feature_data: float | int, target_data: pd.Series
             ) -> pd.DataFrame:
         data = pd.DataFrame({
             self.target: target_data,
-            self.feature: feature_data + np.random.uniform(
-                -self.width/2, self.width/2, len(target_data))})
+            self.feature: self.jitter(feature_data, target_data.size)})
         return data
 
     def __call__(self, **kwds) -> None:
@@ -249,6 +254,12 @@ class GaussianKDE(_TransformPlotter):
             self.feature: estimation,
             PLOTTER.POS: feature_data * np.ones(len(sequence))})
         return data
+    
+    def hide_density_axis(self) -> None:
+        axis = 'xaxis' if self.target_on_y else 'yaxis'
+        spine = 'bottom' if self.target_on_y else 'left'
+        getattr(self.ax, axis).set_visible(False)
+        self.ax.spines[spine].set_visible(False)
         
     def __call__(self, kw_line: dict = {}, **kw_fill) -> None:
         self.ax.plot(self.x, self.y, **kw_line)
@@ -258,11 +269,7 @@ class GaussianKDE(_TransformPlotter):
         else:
             self.ax.fill_between(self.x, self._pos, self.y, **kw_fill)
         if not self.show_density_axis:
-            axis = 'xaxis' if self.target_on_y else 'yaxis'
-            spine = 'bottom' if self.target_on_y else 'left'
-            getattr(self.ax, axis).set_visible(False)
-            self.ax.spines[spine].set_visible(False)
-
+            self.hide_density_axis()
 
 class Violine(GaussianKDE):
 
@@ -292,6 +299,52 @@ class Violine(GaussianKDE):
                 self.ax.fill_betweenx(sequence, estim_low, estim_upp, **kwds)
             else:
                 self.ax.fill_between(sequence, estim_low, estim_upp, **kwds)
+
+
+class Ridge(GaussianKDE):
+
+    __slots__ = ('stretch')
+    stretch: float
+
+    def __init__(
+            self,
+            source: Hashable,
+            target: str,
+            feature: str,
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        _, estim = estimate_kernel_density(source[target])
+        self.stretch = 1/np.max(estim)
+        super().__init__(
+            source=source, target=target, feature=feature,
+            target_on_y=target_on_y, color=color, ax=ax,
+            show_density_axis=True, **kwds)
+
+    def transform(
+            self, feature_data: float | int, target_data: pd.Series
+            ) -> pd.DataFrame:
+        base = feature_data+PLOTTER.RIDGE_SHIFT
+        sequence, estimation = estimate_kernel_density(
+            target_data, stretch=self.stretch, base=base)
+        data = pd.DataFrame({
+            self.target: sequence,
+            self.feature: estimation,
+            PLOTTER.POS: base * np.ones(len(sequence))})
+        return data
+    
+    def __call__(self, **kwds) -> None:
+        kwds = dict(color=self.color, alpha=COLOR.FILL_ALPHA) | kwds
+        for pos, group in self.source.groupby(PLOTTER.POS):
+            estimation = group[self.feature]
+            sequence = group[self.target]
+            if self.target_on_y:
+                self.ax.plot(estimation, sequence, c=COLOR.WHITE_TRANSPARENT)
+                self.ax.fill_betweenx(sequence, pos, estimation, **kwds)
+            else:
+                self.ax.plot(sequence, estimation, c=COLOR.WHITE_TRANSPARENT)
+                self.ax.fill_between(sequence, pos, estimation, **kwds)
 
 
 class Errorbar(_TransformPlotter):
@@ -349,7 +402,7 @@ class Errorbar(_TransformPlotter):
         return data
     
     @property
-    def err(self) -> np.ndarray:
+    def err(self) -> NDArray:
         """Get errors as 2D array containing absolut values"""
         lower = self.source[self.target] - self.source[self.lower]
         upper = self.source[self.target] + self.source[self.upper]
@@ -486,6 +539,7 @@ __all__ = [
     Jitter.__name__,
     GaussianKDE.__name__,
     Violine.__name__,
+    Ridge.__name__,
     Errorbar.__name__,
     StandardErrorMean.__name__,
     DistinctionTest.__name__,

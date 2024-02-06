@@ -19,7 +19,7 @@ from .hypothesis import skew_test
 from .hypothesis import kurtosis_test
 from .hypothesis import variance_stability_test
 from .hypothesis import kolmogorov_smirnov_test
-from .._constants import KDE
+from .._constants import PLOTTER
 from .._constants import DISTRIBUTION
 
 
@@ -581,8 +581,8 @@ def estimate_distribution(
     return dist, p, params
 
 def estimate_kernel_density(
-        data: ArrayLike, height: float | None = None, base: float = 0, 
-        n_points: int = KDE.POINTS
+        data: ArrayLike, stretch: float = 1, height: float | None = None, 
+        base: float = 0, n_points: int = PLOTTER.KD_SEQUENCE_LEN
         ) -> Tuple[ArrayLike, ArrayLike]:
     """Estimates the kernel density of data and returns values that are 
     useful for a plot. If those values are plotted in combination with 
@@ -600,6 +600,9 @@ def estimate_kernel_density(
     ----------
     data : array_like
         1-D array of datapoints to estimate from.
+    stretch : float, optional
+        Stretch the distribution estimate by the given factor, is only 
+        considered if "height" is None, by default 1
     height : float or None, optional
         If the KDE curve is plotted in combination with other data 
         (e.g. a histogram), you can use height to specify the height at 
@@ -610,7 +613,7 @@ def estimate_kernel_density(
         amount. This is usefull for ridge plots, by default 0
     n_points : int, optional
         Number of points the estimation and sequence should have,
-        by default KDE_POINTS (defined in constants.py)
+        by default KD_SEQUENCE_LEN (defined in constants.py)
 
     Returns
     -------
@@ -623,7 +626,7 @@ def estimate_kernel_density(
     data = np.array(data)[~np.isnan(data)]
     sequence = np.linspace(data.min(), data.max(), n_points)
     estimation = stats.gaussian_kde(data, bw_method='scott')(sequence)
-    stretch = 1 if height is None else height/estimation.max()
+    stretch = stretch if height is None else height/estimation.max()
     estimation = stretch*estimation + base
     return sequence, estimation
 

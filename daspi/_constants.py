@@ -8,6 +8,7 @@ from scipy.stats._continuous_distns import _distn_names
 
 
 class _Kw_:
+    _x: float = 0.035 # X position for fig title, subtitle and info
     @property
     def LINE(self):
         """Base kwds for horizontal or vertical lines"""
@@ -72,7 +73,7 @@ class _Kw_:
     def FIG_TITLE(self) -> dict:
         """Keyword arguments for Figure.text method used for adding
         figure title on LabelFacets."""
-        return dict(x=0.05, y=1, ha='left', size='x-large', va='bottom')
+        return dict(x=self._x, y=1, ha='left', size='x-large', va='bottom')
     @property
     def SUB_TITLE(self) -> dict:
         """Keyword arguments for Figure.set_title method used for adding
@@ -81,19 +82,12 @@ class _Kw_:
     @property
     def INFO(self) -> dict:
         """Adding info text at bottom left of figure."""
-        return dict(x=0.05, y=0, ha='left', va='top', size='x-small')
+        return dict(x=self._x, y=0, ha='left', va='top', size='x-small')
     @property
     def ERROR_BAR(self) -> dict:
         """Base keyword arguments for error bars"""
         return dict(color='k', lw=0.5, fmt='none')
 KW = _Kw_()
-
-
-@dataclass(frozen=True)
-class _Kde_:
-    POINTS: int = 300
-    PADDING: float = 0.5
-KDE = _Kde_()
 
 
 @dataclass(frozen=True)
@@ -104,6 +98,7 @@ class _Color_:
     PERCENTIL: str = '#303030'
     HANDLES: str = '#202020'
     TRANSPARENT: str = '#ffffff00'
+    WHITE_TRANSPARENT: str = '#ffffffaa'
     MARKER_ALPHA: float = 0.5
     FILL_ALPHA: float = 0.5
     @property
@@ -127,9 +122,11 @@ class _Plotter_:
     FEATURE: float = '_feature_'
     TRANSFORMED_FEATURE: float = '_transformed_'
     POS: str = '_pos_'
-    DEFAULT_POS: int = 1
+    DEFAULT_POS: int = 0
     ERR_LOW: str = '_error_lower_'
     ERR_UPP: str = '_error_upper_'
+    RIDGE_SHIFT: float = -0.3
+    KD_SEQUENCE_LEN: int = 300
 PLOTTER = _Plotter_()
 
 

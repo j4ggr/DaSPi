@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -8,7 +9,7 @@ from typing import Dict
 from typing import Tuple
 from typing import Literal
 from typing import Generator
-from numpy.typing import ArrayLike
+from numpy.typing import NDArray
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.figure import Figure
@@ -22,10 +23,10 @@ from .._constants import KW
 
 class LabelFacets:
 
-    shift_text: float = 0.06
+    _shift_text_base: float = 0.25
 
     def __init__(
-            self, figure: Figure, axes: np.ndarray, fig_title: str = '', 
+            self, figure: Figure, axes: NDArray, fig_title: str = '', 
             sub_title: str = '', xlabel: str | Tuple[str] = '',
             ylabel: str | Tuple[str] = '', info: bool | str = False,
             rows: Tuple[str] = (), cols: Tuple[str] = (),
@@ -46,6 +47,16 @@ class LabelFacets:
         self._legends = legends
         self._legend: Legend | None = None
     
+    @property
+    def shift_text_y(self):
+        """Get offset to move text based on the fig height"""
+        return self._shift_text_base / self.figure.get_figheight()
+    
+    @property
+    def shift_text_x(self):
+        """Get offset to move text based on the fig width"""
+        return self._shift_text_base / self.figure.get_figwidth()
+
     @property
     def legend(self) -> Legend | None:
         """Get legend added to figure."""
@@ -80,7 +91,7 @@ class LabelFacets:
         if self.rows: n_shift += 1
         if self.row_title: n_shift += 2
         bbox = kw['bbox_to_anchor']
-        kw['bbox_to_anchor'] = (bbox[0] + n_shift*self.shift_text, bbox[1])
+        kw['bbox_to_anchor'] = (bbox[0] + n_shift*self.shift_text_x, bbox[1])
         legend = Legend(
             self.plot_axes[0, -1], handles, labels, title=title, **kw)
         if not self.legend:
@@ -122,11 +133,11 @@ class LabelFacets:
         kw_fig = KW.FIG_TITLE
         kw_sub = KW.SUB_TITLE
         if self.col_title:
-            kw_sub['y'] = kw_sub['y'] + self.shift_text
-            kw_fig['y'] = kw_fig['y'] + self.shift_text
+            kw_sub['y'] = kw_sub['y'] + self.shift_text_y
+            kw_fig['y'] = kw_fig['y'] + self.shift_text_y
         if self.sub_title:
             self.figure.text(s=self.sub_title, **kw_sub)
-            kw_fig['y'] = kw_fig['y'] + self.shift_text
+            kw_fig['y'] = kw_fig['y'] + self.shift_text_y
         if self.fig_title:
             self.figure.text(s=self.fig_title, **kw_fig)
     
@@ -140,7 +151,7 @@ class LabelFacets:
         if isinstance(self.info, str):
             info_text = f'{info_text}, {self.info}'
         kwds = KW.INFO
-        if self.xlabel: kwds['y'] = kwds['y'] - self.shift_text
+        if self.xlabel: kwds['y'] = kwds['y'] - self.shift_text_y
         self.figure.text(s=info_text, **kwds)
     
     def draw(self) -> None:
@@ -158,7 +169,7 @@ class AxesFacets:
 
     def __init__(
             self, nrows: int = 1, ncols: int = 1, sharex: str = 'none', 
-            sharey: str = 'none', **kwds
+            sharey: str = 'none', stretch_figsize: bool = True, **kwds
             ) -> None:
         """
         Parameters
@@ -167,41 +178,53 @@ class AxesFacets:
             Number of rows/columns of the subplot grid.
 
         sharex, sharey : bool or {'none', 'all', 'row', 'col'}, default: False
-            Controls sharing of properties among x (*sharex*) or y (*sharey*)
-            axes:
+            Controls sharing of properties among x (*sharex*) or y 
+            (*sharey*) axes:
 
-            - True or 'all': x- or y-axis will be shared among all subplots.
-            - False or 'none': each subplot x- or y-axis will be independent.
+            - True or 'all': x- or y-axis will be shared among all 
+            subplots.
+            - False or 'none': each subplot x- or y-axis will be 
+            independent.
             - 'row': each subplot row will share an x- or y-axis.
             - 'col': each subplot column will share an x- or y-axis.
 
-            When subplots have a shared x-axis along a column, only the x tick
-            labels of the bottom subplot are created. Similarly, when subplots
-            have a shared y-axis along a row, only the y tick labels of the first
-            column subplot are created. To later turn other subplots' ticklabels
-            on, use `~matplotlib.axes.Axes.tick_params`.
+            When subplots have a shared x-axis along a column, only the 
+            x tick labels of the bottom subplot are created. Similarly,
+            when subplots have a shared y-axis along a row, only the 
+            y tick labels of the first column subplot are created. To 
+            later turn other subplots' ticklabels on, use 
+            `~matplotlib.axes.Axes.tick_params`.
 
             When subplots have a shared axis that has units, calling
-            `~matplotlib.axis.Axis.set_units` will update each axis with the
-            new units.
+            `~matplotlib.axis.Axis.set_units` will update each axis with
+            the new units.
 
         width_ratios : array-like of length *ncols*, optional
-            Defines the relative widths of the columns. Each column gets a
-            relative width of ``width_ratios[i] / sum(width_ratios)``.
-            If not given, all columns will have the same width.  Equivalent
-            to ``gridspec_kw={'width_ratios': [...]}``.
+            Defines the relative widths of the columns. Each column gets
+            a relative width of ``width_ratios[i] / sum(width_ratios)``.
+            If not given, all columns will have the same width. 
+            Equivalent to ``gridspec_kw={'width_ratios': [...]}``.
 
         height_ratios : array-like of length *nrows*, optional
             Defines the relative heights of the rows. Each row gets a
             relative height of ``height_ratios[i] / sum(height_ratios)``.
-            If not given, all rows will have the same height. Convenience
-            for ``gridspec_kw={'height_ratios': [...]}``.
+            If not given, all rows will have the same height.
+            Convenience for ``gridspec_kw={'height_ratios': [...]}``.
+
+        stretch_figsize : bool, optional
+            If true, stretch the figure height and width based on the 
+            number of rows and columns, by default True
         """
+        figsize = kwds.pop('figsize', plt.rcParams['figure.figsize'])
+        if stretch_figsize:
+            figsize = ((1 + math.log(ncols, math.e)) * figsize[0],
+                       (1 + math.log(nrows, math.e)) * figsize[1])
+        self.figsize = figsize
         fig, axes = plt.subplots(
             nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey, 
-            squeeze=False, **kwds)
+            squeeze=False, figsize=self.figsize, **kwds)
         self.figure: Figure = fig
-        self.axes: np.ndarray = axes
+        self.axes: NDArray = axes
         self._ax: Axes | None = None
         self._nrows: int = nrows
         self._ncols: int = ncols
