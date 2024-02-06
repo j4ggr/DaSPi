@@ -18,6 +18,7 @@ from daspi.plotlib.utils import HueLabel
 from daspi.plotlib.utils import SizeLabel
 from daspi.plotlib.utils import ShapeLabel
 from daspi.plotlib.chart import SimpleChart
+from daspi.plotlib.chart import JointChart
 from daspi.plotlib.chart import RelationalChart
 from daspi.plotlib.chart import MultipleVariateChart
 from daspi.plotlib.facets import AxesFacets
@@ -369,7 +370,26 @@ class TestCharts:
 
     def test_kde_plot(self):
 
-        
+        file_name = savedir/'kde_chart_multiaxes.png'
+        chart = JointChart(
+                df_travel,
+                target = 'gc',
+                feature = 'mode',
+                hue = 'choice',
+                ncols = 1,
+                nrows = 3,
+                sharex = True,
+            ).plot(
+                [(GaussianKDE, dict(target_on_y=False, show_density_axis=False)),
+                 (Ridge, dict(target_on_y=False, categorical_features=True)), 
+                 (Violine, dict(target_on_y=False, categorical_features=True))]
+            )
+        chart.label(
+                # xlabel=True, ylabel=True
+                xlabel=[True]*3, ylabel=[True]*3
+            ).save(file_name
+            ).close()
+        assert file_name.is_file()
 
         file_name = savedir/'kde_chart_simple.png'
         chart = SimpleChart(

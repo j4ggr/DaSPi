@@ -233,8 +233,10 @@ class GaussianKDE(_TransformPlotter):
             **kwds) -> None:
         self._height = height
         self.show_density_axis = show_density_axis
-        if not bool(feature := kwds.pop('feature', '')):
-            feature = PLOTTER.TRANSFORMED_FEATURE
+        feature = PLOTTER.TRANSFORMED_FEATURE
+        _feature = kwds.pop('feature', '')
+        if type(self) != GaussianKDE and _feature:
+            feature = _feature
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
@@ -270,6 +272,7 @@ class GaussianKDE(_TransformPlotter):
             self.ax.fill_between(self.x, self._pos, self.y, **kw_fill)
         if not self.show_density_axis:
             self.hide_density_axis()
+
 
 class Violine(GaussianKDE):
 

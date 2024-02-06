@@ -31,7 +31,7 @@ class LabelFacets:
             ylabel: str | Tuple[str] = '', info: bool | str = False,
             rows: Tuple[str] = (), cols: Tuple[str] = (),
             row_title: str = '', col_title: str = '',
-            legends: Dict[str, List] = {}
+            axes_titles: Tuple[str] = (), legends: Dict[str, List] = {}
             ) -> None:
         self.figure = figure
         self.plot_axes = axes
@@ -44,18 +44,31 @@ class LabelFacets:
         self.row_title = row_title
         self.col_title = col_title
         self.info = info
+        self.axes_titles = axes_titles
         self._legends = legends
         self._legend: Legend | None = None
     
     @property
-    def shift_text_y(self):
+    def shift_text_y(self) -> float:
         """Get offset to move text based on the fig height"""
         return self._shift_text_base / self.figure.get_figheight()
     
     @property
-    def shift_text_x(self):
+    def shift_text_x(self) -> float:
         """Get offset to move text based on the fig width"""
         return self._shift_text_base / self.figure.get_figwidth()
+    
+    @property
+    def shift_fig_title(self) -> float:
+        """Get offset for fig title"""
+        n = sum(map(bool, (self.axes_titles, self.col_title, self.sub_title)))
+        return n * self.shift_text_y
+    
+    @property
+    def shift_sub_title(self) -> float:
+        """Get offset for sub title"""
+        n = sum(map(bool, (self.axes_titles, self.col_title)))
+        return n * self.shift_text_y
 
     @property
     def legend(self) -> Legend | None:
@@ -103,11 +116,23 @@ class LabelFacets:
     
     def add_xlabel(self) -> None:
         if not self.xlabel: return
-        self.figure.text(s=self.xlabel, **KW.XLABEL)
+        if isinstance(self.xlabel, str):
+            self.figure.text(s=self.xlabel, **KW.XLABEL)
+        else:
+            for ax, xlabel in zip(self.plot_axes.flat, self.xlabel):
+                if (len(ax.xaxis._get_shared_axis()) == 1 
+                    or ax in self.plot_axes[-1]): 
+                    ax.set(xlabel=xlabel)
 
     def add_ylabel(self) -> None:
         if not self.ylabel: return
-        self.figure.text(s=self.ylabel, **KW.YLABEL)
+        if isinstance(self.xlabel, str):
+            self.figure.text(s=self.ylabel, **KW.YLABEL)
+        else:
+            for ax, ylabel in zip(self.plot_axes.flat, self.ylabel):
+                if (len(ax.yaxis._get_shared_axis()) == 1 
+                    or ax in self.plot_axes.T[-1]): 
+                    ax.set(ylabel=ylabel)
 
     def add_row_labels(self) -> None:
         """Add row labels and row title"""
@@ -125,6 +150,12 @@ class LabelFacets:
             kwds = KW.COL_LABEL | {'transform': ax.transAxes}
             ax.text(s=label, **kwds)
         self.figure.text(s=self.col_title, **KW.COL_TITLE)
+    
+    def add_axes_titles(self) -> None:
+        """Add given titles to each axes."""
+        if not self.axes_titles: return
+        for ax, title in zip(self.plot_axes.flat, self.axes_titles):
+            ax.set(title=title)
 
     def add_titles(self) -> None:
         """Add figure and sub title at the top."""
@@ -132,12 +163,10 @@ class LabelFacets:
 
         kw_fig = KW.FIG_TITLE
         kw_sub = KW.SUB_TITLE
-        if self.col_title:
-            kw_sub['y'] = kw_sub['y'] + self.shift_text_y
-            kw_fig['y'] = kw_fig['y'] + self.shift_text_y
+        kw_sub['y'] = kw_sub['y'] + self.shift_sub_title
+        kw_fig['y'] = kw_fig['y'] + self.shift_fig_title
         if self.sub_title:
             self.figure.text(s=self.sub_title, **kw_sub)
-            kw_fig['y'] = kw_fig['y'] + self.shift_text_y
         if self.fig_title:
             self.figure.text(s=self.fig_title, **kw_fig)
     
