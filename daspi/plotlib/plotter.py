@@ -408,10 +408,13 @@ class Errorbar(_TransformPlotter):
     
     @property
     def err(self) -> NDArray:
-        """Get errors as 2D array containing absolut values"""
-        lower = self.source[self.target] - self.source[self.lower]
-        upper = self.source[self.target] + self.source[self.upper]
-        return np.array([lower, upper])
+        """Get separated error lengths as 2D array. 
+        First row contains the lower errors, the second row contains the 
+        upper errors."""
+        err = np.array([
+            self.source[self.target] - self.source[self.lower],
+            self.source[self.upper] - self.source[self.target]])
+        return err
     
     def __call__(self, kw_points: dict = {}, **kwds):
         if self.show_points:
@@ -446,11 +449,13 @@ class StandardErrorMean(Errorbar):
     def transform(
             self, feature_data: float | int, target_data: Series
             ) -> pd.DataFrame:
+        center = target_data.mean()
+        err = target_data.sem()
         data = pd.DataFrame({
-            self.target: target_data.mean(),
+            self.target: [center],
             self.feature: [feature_data],
-            self.lower: target_data.sem(),
-            self.upper: target_data.sem()})
+            self.lower: [center - err],
+            self.upper: [center + err]})
         return data
 
 

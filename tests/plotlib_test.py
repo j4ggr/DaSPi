@@ -380,6 +380,7 @@ class TestCharts:
                 ncols = 1,
                 nrows = 3,
                 sharex = True,
+                categorical_features = (False, True, True)
             ).plot(
                 [(GaussianKDE, dict(target_on_y=False, show_density_axis=False)),
                  (Ridge, dict(target_on_y=False, categorical_features=True)), 
