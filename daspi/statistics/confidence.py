@@ -5,8 +5,15 @@ import pandas as pd
 
 from math import sqrt
 from numpy import ndarray
-from typing import Callable, Tuple, Iterable
-from scipy.stats import t, f, chi2, sem, norm
+from typing import Tuple
+from typing import Iterable
+from typing import Callable
+from scipy.stats import t
+from scipy.stats import f
+from scipy.stats import chi2
+from scipy.stats import sem
+from scipy.stats import norm
+from pandas.core.frame import DataFrame
 from statsmodels.stats.proportion import proportion_confint
 from statsmodels.stats.proportion import confint_proportions_2indep
 from statsmodels.regression.linear_model import RegressionResults
@@ -137,7 +144,7 @@ def proportion_ci(
     return portion, ci_low, ci_upp
 
 def bonferroni_ci(
-        data: pd.DataFrame, target: str, feature: str, level: float = 0.95, 
+        data: DataFrame, target: str, feature: str, level: float = 0.95, 
         ci_func: Callable = stdev_ci, n_groups: int | None = None, 
         name: str='midpoint') -> pd.DataFrame:
     """Calculate confidence interval after bonferroni correction.
@@ -175,7 +182,7 @@ def bonferroni_ci(
 
     Returns
     -------
-    df : pd.DataFrame
+    df : DataFrame
         data containing groups, midpoints and confidence limits
     """
     columns = [name, 'ci_low', 'ci_upp']

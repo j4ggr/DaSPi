@@ -13,6 +13,8 @@ from typing import Hashable
 from typing import Iterable
 from typing import Generator
 from numpy.typing import NDArray
+from pandas.core.series import Series
+from pandas.core.frame import DataFrame
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
@@ -135,7 +137,7 @@ class _TransformPlotter(_Plotter):
     
     def __init__(
             self,
-            source: pd.DataFrame,
+            source: DataFrame,
             target: str,
             feature: str = '',
             pos: int | float = PLOTTER.DEFAULT_POS,
@@ -157,7 +159,7 @@ class _TransformPlotter(_Plotter):
             target_on_y=target_on_y, color=color, ax=ax)
     
     def feature_grouped(
-            self, source: pd.DataFrame) -> Generator[Tuple, Self, None]:
+            self, source: DataFrame) -> Generator[Tuple, Self, None]:
         if self.feature and self.feature != PLOTTER.TRANSFORMED_FEATURE:
             grouper = source.groupby(self.feature, sort=True)
             for i, (name, group) in enumerate(grouper, start=1):
@@ -169,7 +171,7 @@ class _TransformPlotter(_Plotter):
     
     @abstractmethod
     def transform(
-        self, feature_data: float | int, target_data: pd.Series
+        self, feature_data: float | int, target_data: Series
         ) -> pd.DataFrame:
         ...
     
@@ -184,7 +186,7 @@ class Jitter(_TransformPlotter):
 
     def __init__(
             self,
-            source: pd.DataFrame,
+            source: DataFrame,
             target: str,
             feature: str = '',
             width: float = CATEGORY.FEATURE_SPACE,
@@ -203,7 +205,7 @@ class Jitter(_TransformPlotter):
         return jiiter
         
     def transform(
-            self, feature_data: float | int, target_data: pd.Series
+            self, feature_data: float | int, target_data: Series
             ) -> pd.DataFrame:
         data = pd.DataFrame({
             self.target: target_data,
@@ -247,7 +249,7 @@ class GaussianKDE(_TransformPlotter):
         return self._height
         
     def transform(
-            self, feature_data: float | int, target_data: pd.Series
+            self, feature_data: float | int, target_data: Series
             ) -> pd.DataFrame:
         sequence, estimation = estimate_kernel_density(
             target_data, height=self.height, base=feature_data)
@@ -278,7 +280,7 @@ class Violine(GaussianKDE):
 
     def __init__(
             self,
-            source: pd.DataFrame,
+            source: DataFrame,
             target: str,
             feature: str = '',
             width: float = CATEGORY.FEATURE_SPACE,
@@ -326,7 +328,7 @@ class Ridge(GaussianKDE):
             show_density_axis=True, **kwds)
 
     def transform(
-            self, feature_data: float | int, target_data: pd.Series
+            self, feature_data: float | int, target_data: Series
             ) -> pd.DataFrame:
         base = feature_data+PLOTTER.RIDGE_SHIFT
         sequence, estimation = estimate_kernel_density(
@@ -397,7 +399,7 @@ class Errorbar(_TransformPlotter):
                 self.feature, ascending=not self.target_on_y)
         
     def transform(
-            self, feature_data: float | int, target_data: pd.Series
+            self, feature_data: float | int, target_data: Series
             ) -> pd.DataFrame:
         data = pd.DataFrame({
             self.target: target_data,
@@ -442,7 +444,7 @@ class StandardErrorMean(Errorbar):
             target_on_y=target_on_y, sort=sort, color=color, ax=ax)
 
     def transform(
-            self, feature_data: float | int, target_data: pd.Series
+            self, feature_data: float | int, target_data: Series
             ) -> pd.DataFrame:
         data = pd.DataFrame({
             self.target: target_data.mean(),
@@ -481,7 +483,7 @@ class DistinctionTest(Errorbar):
             target_on_y=target_on_y, sort='target', color=color, ax=ax)
     
     def transform(
-            self, feature_data: float | int, target_data: pd.Series
+            self, feature_data: float | int, target_data: Series
             ) -> pd.DataFrame:
         center, lower, upper = self.ci_func(
             target_data, self.confidence_level, self.n_groups)

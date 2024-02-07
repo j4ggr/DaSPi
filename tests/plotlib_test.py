@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 from pytest import approx
 from pathlib import Path
+from pandas.core.frame import DataFrame
 
 sys.path.append(Path(__file__).parent.resolve())
 
@@ -36,9 +37,9 @@ matplotlib.use("Agg")
 
 savedir = Path(__file__).parent/'charts'
 savedir.mkdir(parents=True, exist_ok=True)
-df_affairs: pd.DataFrame = sm.datasets.fair.load_pandas().data
+df_affairs: DataFrame = sm.datasets.fair.load_pandas().data
 
-df_travel: pd.DataFrame = sm.datasets.modechoice.load_pandas().data
+df_travel: DataFrame = sm.datasets.modechoice.load_pandas().data
 df_travel['mode'] = df_travel['mode'].replace(
     {1: 'air', 2: 'train', 3: 'bus', 4: 'car'})
 df_travel['choice'] = df_travel['choice'].replace({0: 'no', 1: 'yes'})

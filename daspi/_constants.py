@@ -118,6 +118,14 @@ COLOR = _Color_()
 
 
 @dataclass(frozen=True)
+class _Label_:
+    SHIFT_BASE: float = 0.25
+    AXES_PADDING: float = 0.2
+    LABEL_PADDING: float = 0.2
+LABEL = _Label_()
+
+
+@dataclass(frozen=True)
 class _Plotter_:
     FEATURE: float = '_feature_'
     TRANSFORMED_FEATURE: float = '_transformed_'
@@ -176,6 +184,7 @@ __all__ = [
     'KW',
     'KDE',
     'COLOR',
+    'LABEL',
     'PLOTTER',
     'CATEGORY',
     'DISTRIBUTION',

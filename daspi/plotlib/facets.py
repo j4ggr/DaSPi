@@ -19,11 +19,10 @@ from matplotlib.patches import Patch
 
 from .._strings import STR
 from .._constants import KW
+from .._constants import LABEL
 
 
 class LabelFacets:
-
-    _shift_text_base: float = 0.25
 
     def __init__(
             self, figure: Figure, axes: NDArray, fig_title: str = '', 
@@ -51,24 +50,38 @@ class LabelFacets:
     @property
     def shift_text_y(self) -> float:
         """Get offset to move text based on the fig height"""
-        return self._shift_text_base / self.figure.get_figheight()
+        return LABEL.SHIFT_BASE / self.figure.get_figheight()
     
     @property
     def shift_text_x(self) -> float:
         """Get offset to move text based on the fig width"""
-        return self._shift_text_base / self.figure.get_figwidth()
+        return LABEL.SHIFT_BASE / self.figure.get_figwidth()
     
     @property
     def shift_fig_title(self) -> float:
-        """Get offset for fig title"""
-        n = sum(map(bool, (self.axes_titles, self.col_title, self.sub_title)))
+        """Get offset in y direction for fig title"""
+        labels = (self.axes_titles, self.col_title, self.sub_title)
+        n = (LABEL.AXES_PADDING
+             + sum(map(bool, labels)))
         return n * self.shift_text_y
     
     @property
     def shift_sub_title(self) -> float:
-        """Get offset for sub title"""
-        n = sum(map(bool, (self.axes_titles, self.col_title)))
+        """Get offset in y direction for sub title"""
+        labels = (self.col_title, self.axes_titles)
+        n = (LABEL.AXES_PADDING
+             + LABEL.LABEL_PADDING * int(any(map(bool, labels)))
+             + sum(map(bool, labels)))
         return n * self.shift_text_y
+    
+    @property
+    def shift_legend(self) -> float:
+        """Get offset in x direction for legend"""
+        labels = (self.row_title, self.rows)
+        n = (LABEL.AXES_PADDING 
+             + LABEL.LABEL_PADDING * sum(map(bool, labels))
+             + sum(map(bool, labels)))
+        return n * self.shift_text_x
 
     @property
     def legend(self) -> Legend | None:
@@ -100,11 +113,8 @@ class LabelFacets:
             symbolic legend.
         """
         kw = KW.LEGEND
-        n_shift = 0
-        if self.rows: n_shift += 1
-        if self.row_title: n_shift += 2
         bbox = kw['bbox_to_anchor']
-        kw['bbox_to_anchor'] = (bbox[0] + n_shift*self.shift_text_x, bbox[1])
+        kw['bbox_to_anchor'] = (bbox[0] + self.shift_legend, bbox[1])
         legend = Legend(
             self.plot_axes[0, -1], handles, labels, title=title, **kw)
         if not self.legend:
@@ -117,7 +127,9 @@ class LabelFacets:
     def add_xlabel(self) -> None:
         if not self.xlabel: return
         if isinstance(self.xlabel, str):
-            self.figure.text(s=self.xlabel, **KW.XLABEL)
+            kw = KW.XLABEL
+            kw['y'] = kw['y'] - LABEL.AXES_PADDING * self.shift_text_y
+            self.figure.text(s=self.xlabel, **kw)
         else:
             for ax, xlabel in zip(self.plot_axes.flat, self.xlabel):
                 if (len(ax.xaxis._get_shared_axis()) == 1 
@@ -127,7 +139,9 @@ class LabelFacets:
     def add_ylabel(self) -> None:
         if not self.ylabel: return
         if isinstance(self.xlabel, str):
-            self.figure.text(s=self.ylabel, **KW.YLABEL)
+            kw = KW.YLABEL
+            kw['x'] = kw['x'] - LABEL.AXES_PADDING * self.shift_text_x
+            self.figure.text(s=self.ylabel, **kw)
         else:
             for ax, ylabel in zip(self.plot_axes.flat, self.ylabel):
                 if (len(ax.yaxis._get_shared_axis()) == 1 

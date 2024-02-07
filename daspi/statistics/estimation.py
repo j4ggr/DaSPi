@@ -8,6 +8,7 @@ from typing import Tuple
 from typing import Literal
 from typing import Optional
 from numpy.typing import ArrayLike
+from pandas.core.series import Series
 from scipy.stats._distn_infrastructure import rv_continuous
 
 from scipy import stats
@@ -29,8 +30,8 @@ class Estimator:
         '_data', '_filtered', '_n_samples', '_n_missing', '_mean', '_median', 
         '_std', '_excess', '_p_excess', '_skew', '_p_skew', '_dist', '_p_dist',
         '_dist_params', 'possible_dists')
-    _data: pd.Series
-    _filtered: pd.Series
+    _data: Series
+    _filtered: Series
     _n_samples: int | None
     _n_missing: int | None
     _mean: float | None

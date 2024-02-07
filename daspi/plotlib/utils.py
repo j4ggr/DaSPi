@@ -10,6 +10,7 @@ from typing import Tuple
 from typing import Literal
 from numpy.typing import NDArray
 from numpy.typing import ArrayLike
+from pandas.core.series import Series
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
@@ -232,7 +233,7 @@ class Dodger:
         return self.dodge.get(category, self._default)
     
     #TODO: does not work yet
-    def __call__(self, values: pd.Series, category: str) -> pd.Series:
+    def __call__(self, values: Series, category: str) -> pd.Series:
         """Replace source values to dodged ticks using given category"""
         if not self: return values
         ticks = self.ticks + self[category]

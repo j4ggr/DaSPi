@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 
 from abc import ABC
@@ -11,10 +10,10 @@ from typing import Dict
 from typing import List
 from typing import Tuple
 from typing import Literal
-from typing import Optional
 from typing import Generator
 from pathlib import Path
 from numpy.typing import NDArray
+from pandas.core.frame import DataFrame
 
 from .utils import Dodger
 from .utils import HueLabel
@@ -29,25 +28,34 @@ from matplotlib.ticker import AutoMinorLocator
 
 from .._constants import KW
 from .._constants import COLOR
-from .._constants import PLOTTER
 
 
 class _Chart(ABC):
 
-    target_on_y: bool = True
-    nrows: int = 1
-    ncols: int = 1
+    __slots__ = (
+        'source', 'target', 'target_on_y', 'axes_facets', 'nrows', 'ncols',
+        '_data')
+    source: DataFrame
+    target: str
+    target_on_y: bool
+    axes_facets: AxesFacets
+    nrows: int
+    ncols: int
+    _data: DataFrame
 
     def __init__(
-            self, source: pd.DataFrame, target: str,
+            self, source: DataFrame, target: str, target_on_y: bool = True,
             axes_facets: AxesFacets | None = None, **kwds) -> None:
         self.source = source
         self.target = target
+        self.target_on_y = target_on_y
+        self.nrows = kwds.pop('nrows', 1)
+        self.ncols = kwds.pop('ncols', 1)
         if axes_facets is None:
             self.axes_facets = AxesFacets(self.nrows, self.ncols, **kwds)
         else:
             self.axes_facets = axes_facets
-        self._data: pd.DataFrame | None = None
+        self._data: DataFrame | None = None
 
     @property
     def figure(self) -> Figure:
@@ -116,7 +124,18 @@ class _Chart(ABC):
 
 class SimpleChart(_Chart):
 
-    def __init__(self, source: pd.DataFrame, target: str, feature: str = '',
+    __slots__ = (
+        'feature', 'hue', 'categorical_features', 'coloring',
+        'dodging', '_variate_names', '_current_variate', '_last_variate')
+    feature: str
+    hue: str
+    categorical_features: bool
+    coloring: HueLabel
+    dodging: Dodger
+    _current_variate: dict
+    _last_variate: dict
+
+    def __init__(self, source: DataFrame, target: str, feature: str = '',
             hue: str = '', dodge: bool = False, 
             categorical_features: bool = False, **kwds) -> None:
         self.categorical_features = categorical_features or dodge
@@ -182,7 +201,6 @@ class SimpleChart(_Chart):
     def _correct_feature_ticks_labels_(self) -> None:
         """Correct feature ticks and labels if according to dodging labels"""
         xy = 'x' if self.target_on_y else 'y'
-        _pos = PLOTTER.DEFAULT_POS
         _ticks = self.dodging.ticks
         settings = {
             f'{xy}ticks': self.dodging.ticks,
@@ -208,12 +226,12 @@ class SimpleChart(_Chart):
         self._reset_variate_()
 
     def plot(
-            self, plotter: _Plotter, target_on_y: bool = True, **kwds) -> Self:
-        self.target_on_y = target_on_y
+            self, plotter: _Plotter, **kwds) -> Self:
+        self.target_on_y = kwds.pop('target_on_y', self.target_on_y)
         for data in self:
             plot = plotter(
                 source=data, target=self.target, feature=self.feature,
-                target_on_y=target_on_y, color=self.color, 
+                target_on_y=self.target_on_y, color=self.color, 
                 ax=self.axes_facets.ax, width=self.dodging.width, **kwds)
             plot()
         return self
@@ -237,8 +255,15 @@ class SimpleChart(_Chart):
 
 class RelationalChart(SimpleChart):
 
+    __slots__ = ('shape', 'size', 'marking', 'sizing', '_sizes')
+    shape: str
+    size: str
+    marking: ShapeLabel
+    sizing: SizeLabel
+    _sizes: NDArray
+
     def __init__(
-            self, source: pd.DataFrame, target: str, feature: str,
+            self, source: DataFrame, target: str, feature: str,
             hue: str = '', shape: str = '', size: str = '', 
             dodge: bool = False, **kwds):
         self.shape = shape
@@ -279,12 +304,12 @@ class RelationalChart(SimpleChart):
         return {t: h.handles_labels() for t, h in zip(titles, handlers) if t}
 
     def plot(
-            self, plotter: _Plotter, target_on_y: bool = True, **kwds) -> Self:
-        self.target_on_y = target_on_y
+            self, plotter: _Plotter, **kwds) -> Self:
+        self.target_on_y = kwds.pop('target_on_y', self.target_on_y)
         for data in self:
             plot = plotter(
                 source=data, target=self.target, feature=self.feature,
-                target_on_y=target_on_y, color=self.color, 
+                target_on_y=self.target_on_y, color=self.color, 
                 ax=self.axes_facets.ax, marker=self.marker, size=self.sizes,
                 **kwds)
             plot()
@@ -293,9 +318,12 @@ class RelationalChart(SimpleChart):
 
 class JointChart(_Chart):
 
+    __slots__ = ('charts')
+    charts: List[RelationalChart]
+
     def __init__(
             self,
-            source: pd.DataFrame,
+            source: DataFrame,
             target: str,
             feature: str | Tuple[str],
             nrows: int,
@@ -312,12 +340,10 @@ class JointChart(_Chart):
             stretch_figsize: bool = True,
             **kwds) -> None:
 
-        self.nrows = nrows
-        self.ncols = ncols
         super().__init__(
             source=source, target=target, sharex=sharex, sharey=sharey,
             width_ratios=width_ratios, height_ratios=height_ratios, 
-            stretch_figsize=stretch_figsize, **kwds)
+            stretch_figsize=stretch_figsize, nrows=nrows, ncols=ncols, **kwds)
 
         self.charts = []
         charts_data = dict(
@@ -382,7 +408,7 @@ class JointChart(_Chart):
             if plotter is None:
                 if hide_none: ax.set_axis_off()
                 continue
-            chart.plot(plotter, kwds)
+            chart.plot(plotter, **kwds)
         return self
     
     def label(
@@ -404,23 +430,29 @@ class JointChart(_Chart):
 
 class MultipleVariateChart(RelationalChart):
 
-    target_on_y = True
+    __slots__ = ('col', 'row', 'row_labels', 'col_labels')
+    col: str
+    row: str
+    row_labels: tuple
+    col_labels: tuple
 
     def __init__(
-            self, source: pd.DataFrame, target: str, feature: str = '',
+            self, source: DataFrame, target: str, feature: str = '',
             hue: str = '', shape: str = '', size: str = '', col: str = '',
             row: str = '', dodge: bool = False
             ) -> None:
+        self.target_on_y = True
         self.source = source
         self.col = col
         self.row = row
         self.row_labels = self.get_categorical_labels(self.row)
         self.col_labels = self.get_categorical_labels(self.col)
-        self.nrows = max([1, len(self.row_labels)])
-        self.ncols = max([1, len(self.col_labels)])
+        nrows = max([1, len(self.row_labels)])
+        ncols = max([1, len(self.col_labels)])
         super().__init__(
             source=self.source, target=target, feature=feature, hue=hue, 
-            shape=shape, size=size, dodge=dodge, sharex=True, sharey=True)
+            shape=shape, size=size, dodge=dodge, sharex=True, sharey=True,
+            nrows=nrows, ncols=ncols)
         self._variate_names = (self.row, self.col, self.hue, self.shape)
         self._reset_variate_()
     
@@ -435,7 +467,6 @@ class MultipleVariateChart(RelationalChart):
         return False
 
     def plot(self, plotter: _Plotter) -> Self:
-        self.plotter = plotter
         ax = None
         _ax = iter(self.axes_facets)
         for data in self:
