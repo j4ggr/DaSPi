@@ -18,6 +18,7 @@ from scipy.stats import kurtosis
 
 from .hypothesis import skew_test
 from .hypothesis import kurtosis_test
+from .hypothesis import anderson_darling_test
 from .hypothesis import variance_stability_test
 from .hypothesis import kolmogorov_smirnov_test
 from .._constants import PLOTTER
@@ -29,7 +30,7 @@ class Estimator:
     __slots__ = (
         '_data', '_filtered', '_n_samples', '_n_missing', '_mean', '_median', 
         '_std', '_excess', '_p_excess', '_skew', '_p_skew', '_dist', '_p_dist',
-        '_dist_params', 'possible_dists')
+        '_p_ad', '_dist_params', 'possible_dists')
     _data: Series
     _filtered: Series
     _n_samples: int | None
@@ -43,6 +44,7 @@ class Estimator:
     _p_skew: float | None
     _dist: rv_continuous | None
     _p_dist: float | None
+    _p_ad: float | None
     _dist_params: tuple | None
     possible_dists: Tuple[str | rv_continuous]
 
@@ -61,6 +63,7 @@ class Estimator:
         self._p_skew = None
         self._dist = None
         self._p_dist = None
+        self._p_ad = None
         self._dist_params = None
         self.possible_dists = possible_dists
         self._filtered = pd.Series()
@@ -165,6 +168,14 @@ class Estimator:
         if self._p_skew is None:
             self._p_skew = skew_test(self.filtered)[0]
         return self._p_skew
+    
+    @property
+    def p_ad(self) -> float:
+        """Get the probability that the filtered samples are subject of
+        the normal distribution by performing a Anderson-Darling test."""
+        if self._p_ad is None:
+            self._p_ad = anderson_darling_test(self.filtered)[0]
+        return self._p_ad
 
     @property
     def dist(self) -> rv_continuous | None:
@@ -175,7 +186,7 @@ class Estimator:
     @property
     def p_dist(self) -> float | None:
         """Get probability of fitted distribution. None if method 
-        distribution  has not been called."""
+        distribution has not been called."""
         return self._p_dist
     
     @property
@@ -218,24 +229,40 @@ class Estimator:
         p, L = variance_stability_test(self.filtered, n_sections=n_sections)
         return p > alpha
     
-    def follows_norm_curve(self, alpha: float = 0.05) -> bool:
-        """Two sided hypothesis whether the skew or the excess 
-        (kurtosis) is different from the normal distribution.
+    def follows_norm_curve(
+            self, alpha: float = 0.05, excess_test: bool = True,
+            skew_test: bool = True, ad_test: bool = True) -> bool:
+        """Checks whether the sample data is subject to normal 
+        distribution by performing one or more of the following tests 
+        (depending on the input):
+        - Skewness test
+        - Bulge test
+        - Anderson-Darling test
         
         Parameters
         ----------
         alpha : float
             Alpha risk of hypothesis tests. If a p-value is below this 
             limit, the null hypothesis is rejected
+        skew_test : bool, optional
+            If true, an skew test will also be carried out, by default 
+            True
+        ad_test : bool, optional
+            If true, an excess test will also be carried out, by default True
+        ad_test : bool, optional
+            If true, an Anderson Darling test will also be carried out,
+            by default True
             
         Returns
         -------
         remain_h0 : bool
-            True if both p-values > alpha, otherwise False
+            True if all p-values of the tests performed are greater than 
+            alpha, otherwise False
         """
         remain_h0 = [
-            self.p_excess > alpha,
-            self.p_skew > alpha]
+            (self.p_excess > alpha) if excess_test else True,
+            (self.p_skew > alpha) if skew_test else True,
+            (self.p_ad > alpha) if ad_test else True]
         return all(remain_h0)
 
 
@@ -243,16 +270,19 @@ class ProcessEstimator(Estimator):
 
     __slots__ = (
         '_lsl', '_usl', '_n_ok', '_n_nok', '_error_values', '_n_errors', 
-        '_cp', '_cpk', '_control_limits', '_tolerance', '_q_low', '_q_upp')
-    lsl: float | None
-    usl: float | None
+        '_cp', '_cpk', '_lcl', '_ucl', '_strategy_control_limits', '_tolerance',
+        '_q_low', '_q_upp')
+    _lsl: float | None
+    _usl: float | None
     _n_ok: int | None
     _n_nok: int | None
     _error_values: Tuple[float]
     _n_errrors: int
     _cp: int | None
     _cpk: int | None
-    _control_limits: str
+    _lcl: str | None
+    _ucl: str | None
+    _strategy_control_limits: str
     _tolerance: int
     _q_low: float | None
     _q_upp: float | None
@@ -262,7 +292,7 @@ class ProcessEstimator(Estimator):
             lsl: Optional[float] = None, 
             usl: Optional[float] = None, 
             error_values: Tuple[float] = (),
-            control_limits : Literal['eval', 'fit', 'norm', 'data'] = 'eval',
+            strategy_control_limits: Literal['eval', 'fit', 'norm', 'data'] = 'eval',
             tolerance: float | int = 6, 
             possible_dists: Tuple[str | rv_continuous] = DISTRIBUTION.COMMON
             ) -> None:
@@ -277,9 +307,9 @@ class ProcessEstimator(Estimator):
             If the process data may contain coded values for measurement 
             errors or similar, they can be specified here, 
             by default [].
-        control_limits : {'eval', 'fit', 'norm', 'data'}, optional
+        strategy_control_limits : {'eval', 'fit', 'norm', 'data'}, optional
             Which strategy should be used to determine the control 
-            limits for process variation:
+            limits (process spread):
             - eval: The strategy is determined according to the given 
             flowchart
             - fit: First, the distribution is searched for that best 
@@ -311,7 +341,6 @@ class ProcessEstimator(Estimator):
         assert usl > lsl if None not in (lsl, usl) else True
         if isinstance(tolerance, int): assert tolerance > 1
         if isinstance(tolerance, float): assert 0 < tolerance < 1
-        assert control_limits in ['eval', 'fit', 'norm', 'data']
         self._n_ok = None
         self._n_nok = None
         self._n_errors = None
@@ -324,7 +353,7 @@ class ProcessEstimator(Estimator):
         self._error_values = error_values
         self._lsl = lsl
         self._usl = usl
-        self._control_limits = control_limits
+        self.strategy_control_limits = strategy_control_limits
         self.tolerance = tolerance
         self._reset_capabilty_values_()
         super().__init__(data, possible_dists)
@@ -338,7 +367,7 @@ class ProcessEstimator(Estimator):
                 & self.data.notna()]
         return self._filtered
     
-    @property # TODO
+    @property
     def n_ok(self) -> int:
         if self._n_ok is None:
             self._n_ok = (self.n_samples
@@ -347,7 +376,7 @@ class ProcessEstimator(Estimator):
                           - self.n_missing)
         return self._n_ok
     
-    @property # TODO
+    @property
     def n_nok(self) -> int:
         if self._n_nok is None:
             self._n_nok = (
@@ -356,16 +385,16 @@ class ProcessEstimator(Estimator):
         return self.n_nok
     
     @property
-    def p_ok(self):
+    def p_ok(self) -> float:
         """Get amount of OK-values as percent"""
         return 100*self.n_ok/self.n_samples
     
     @property
-    def p_nok(self):
+    def p_nok(self) -> float:
         """Get amount of NOK-values as percent"""
         return 100*self.n_nok/self.n_samples
     
-    @property # TODO
+    @property
     def n_errors(self) -> int:
         if self._n_errors is None:
             self._n_errors = self.data.isin(self._error_values).sum()
@@ -377,8 +406,9 @@ class ProcessEstimator(Estimator):
         return self._lsl
     @lsl.setter
     def lsl(self, lsl: float):
-        self._lsl = lsl
-        self._reset_capabilty_values_()
+        if self._lsl != lsl:
+            self._lsl = lsl
+            self._reset_capabilty_values_()
 
     @property
     def usl(self):
@@ -386,8 +416,19 @@ class ProcessEstimator(Estimator):
         return self._lsl
     @usl.setter
     def usl(self, usl: float):
-        self._usl = usl
-        self._reset_capabilty_values_()
+        if self._usl != usl:
+            self._usl = usl
+            self._reset_capabilty_values_()
+    
+    @property
+    def strategy_control_limits(self) -> str:
+        return self._strategy_control_limits
+    @strategy_control_limits.setter
+    def strategy_control_limits(self, strategy_control_limits: str):
+        assert strategy_control_limits in ['eval', 'fit', 'norm', 'data']
+        if self._strategy_control_limits != strategy_control_limits:
+            self._strategy_control_limits = strategy_control_limits
+            self._reset_capabilty_values_()
 
     @property
     def q_low(self) -> float:
@@ -453,8 +494,9 @@ class ProcessEstimator(Estimator):
     def tolerance(self, tolerance: int | float):
         if isinstance(tolerance, float):
             tolerance = round(stats.norm.ppf((1 + tolerance)/2), 4) * 2
-        self._tolerance = tolerance
-        self._reset_capabilty_values_()
+        if self._tolerance != tolerance:
+            self._tolerance = tolerance
+            self._reset_capabilty_values_()
     
     @property
     def cp(self) -> float | None:
@@ -507,23 +549,25 @@ class ProcessEstimator(Estimator):
         cpu = pos_upp/width_upp
         return min([cpl, cpu])
     
-    def _calculate_control_limits_(self, strategy):
-        if strategy == 'eval':
-            pass # TODO implement control limits eval strategy
-        elif strategy == 'fit':
-            self.distribution()
-            if self.dist.name == 'norm':
-                lcl, ucl = self._calculate_control_limits_('norm')
-            else:
-                lcl = self.dist.ppf(self.q_low, **self.dist_params)
-                ucl = self.dist.ppf(self.q_upp, **self.dist_params)
-        elif strategy == 'norm':
-            k = self.tolerance/2
-            lcl = self.mean - k*self.std
-            ucl = self.mean + k*self.std
-        elif strategy == 'data':
-            lcl = np.quantile(self.filtered, self.q_low)
-            ucl = np.quantile(self.filtered, self.q_upp)
+    def _calculate_control_limits_(self):
+        match self.strategy_control_limits:
+            case 'eval': # TODO implement control limits eval strategy
+                raise NotImplementedError
+            case 'fit':
+                self.distribution()
+                if self.dist.name == 'norm':
+                    self.strategy_control_limits = 'norm'
+                    lcl, ucl = self._calculate_control_limits_()
+                else:
+                    lcl = self.dist.ppf(self.q_low, **self.dist_params)
+                    ucl = self.dist.ppf(self.q_upp, **self.dist_params)
+            case 'norm':
+                k = self.tolerance/2
+                lcl = self.mean - k * self.std
+                ucl = self.mean + k * self.std
+            case 'data':
+                lcl = np.quantile(self.filtered, self.q_low)
+                ucl = np.quantile(self.filtered, self.q_upp)
         return lcl, ucl
 
     def _reset_capabilty_values_(self):
