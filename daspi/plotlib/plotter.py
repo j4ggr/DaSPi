@@ -200,8 +200,28 @@ class Jitter(_TransformPlotter):
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
         
     def jitter(self, loc: float, size: int) -> NDArray:
-        scale = self.width / 6 # 6 sigma ~ 99.7 %
-        jiiter = np.random.normal(loc=loc, scale=scale, size=size)
+        """Generates normally distributed jitter values. The standard 
+        deviation is selected so that +- 6 sigma corresponds to the 
+        permissible width. To ensure the width, values that lie outside 
+        this range are restricted to the limits.
+        
+        Parameters
+        ----------
+        loc : float
+            Center position (feature axis) of the jitted values.
+        size : int
+            Amount of valaues to generate
+        
+        Returns
+        -------
+        jitter : 1D array
+            Normally distributed values, but not wider than the given 
+            width
+        """
+        jiiter = np.clip(
+            np.random.normal(loc=loc, scale=self.width/6, size=size),
+            a_min = loc - self.width/2,
+            a_max = loc + self.width/2)
         return jiiter
         
     def transform(
@@ -538,7 +558,7 @@ class VariationTest(DistinctionTest):
         super().__init__(
             source=source, target=target, feature=feature,
             show_points=show_points, target_on_y=target_on_y,
-            confidence_level=confidence_level, ci_func=stdev_ci, color=color,
+            confidence_level=confidence_level, ci_func=ci_func, color=color,
             ax=ax)
 
 
