@@ -4,20 +4,25 @@ import matplotlib.pyplot as plt
 
 from abc import ABC
 from abc import abstractmethod
-from typing import Any
+
 from typing import Self
+from typing import List
 from typing import Tuple
 from typing import Callable
 from typing import Literal
 from typing import Hashable
 from typing import Iterable
 from typing import Generator
+
 from numpy.typing import NDArray
-from numpy.typing import ArrayLike
-from pandas.core.series import Series
-from pandas.core.frame import DataFrame
+
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib.container import BarContainer
+
+from pandas.api.types import is_numeric_dtype
+from pandas.core.frame import DataFrame
+from pandas.core.series import Series
 
 from .._constants import KW
 from .._constants import COLOR
@@ -103,7 +108,7 @@ class Scatter(_Plotter):
         self.size = size
         self.marker = marker
     
-    def __call__(self, **kwds):
+    def __call__(self, **kwds) -> None:
         kwds = dict(
             c=self.color, marker=self.marker, s=self.size,
             alpha=COLOR.MARKER_ALPHA) | kwds
@@ -125,7 +130,7 @@ class Line(_Plotter):
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
     
-    def __call__(self, marker=None, **kwds):
+    def __call__(self, marker=None, **kwds) -> None:
         alpha = None if marker is None else COLOR.MARKER_ALPHA
         kwds = dict(c=self.color, marker=marker, alpha=alpha) | kwds
         self.ax.plot(self.x, self.y, **kwds)
@@ -133,42 +138,63 @@ class Line(_Plotter):
 
 class Bar(_Plotter):
 
-    __slots__ = ('base', 'width')
-    base: str
+    __slots__ = ('stack', 'width', 'feature_ticks')
+    stack: bool
     width: float
+    feature_ticks: NDArray
 
     def __init__(
             self,
             source: Hashable,
             target: str,
             feature: str,
-            base: Any = None,
+            stack: bool = True,
             width: float = CATEGORY.FEATURE_SPACE,
             target_on_y: bool = True,
             color: str | None = None,
-            ax: Axes | None = None) -> None:
-        source = pd.DataFrame(source).copy()
-        if base is None: base = 0
-        if isinstance(base, str):
-            self.base = base
-        else:
-            self.base = PLOTTER.BASE
-            source[self.base] = base
+            ax: Axes | None = None,
+            **kwds) -> None:
+        self.stack = stack
         self.width = width
-            
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
+        ticks = np.array(self.source[self.feature])
+        if not is_numeric_dtype(ticks):
+            ticks = np.arange(len(ticks))
+        self.feature_ticks = ticks
 
-    def __call__(self, **kwds):
+    @property
+    def bars(self) -> List[BarContainer]:
+        return [c for c in self.ax.containers if isinstance(c, BarContainer)]
+    
+    @property
+    def base(self) -> NDArray:
+        base = np.zeros(len(self.feature_ticks))
+        if not self.stack: 
+            return base
+
+        boxs = [p.get_bbox() for p in bar.patches]
+        for bar in self.bars:
+            if self.target_on_y:
+                low = [b.x0 for b in boxs]
+                upp = [b.x1 for b in boxs]
+            else:
+                low = [b.y0 for b in boxs]
+                upp = [b.y1 for b in boxs]
+            res = (np.greater(self.feature_ticks, low)
+                   & np.less(self.feature_ticks, upp))
+            if all(res) and any(np.greater(bar.datavalues, base)):
+                base = bar.datavalues
+        return base
+
+    def __call__(self, **kwds) -> None:
         if self.target_on_y:
             self.ax.bar(
-                self.x, self.y, width=self.width, bottom=self.source[self.base],
-                **kwds)
+                self.x, self.y, width=self.width, bottom=self.base, **kwds)
         else:
             self.ax.barh(
-                self.y, self.x, height=self.width, left=self.source[self.base],
-                **kwds)
+                self.y, self.x, height=self.width, left=self.base, **kwds)
 
 
 class _TransformPlotter(_Plotter):
