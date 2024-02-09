@@ -49,7 +49,8 @@ class Estimator:
     possible_dists: Tuple[str | rv_continuous]
 
     def __init__(
-            self, data: ArrayLike, 
+            self,
+            data: ArrayLike, 
             possible_dists: Tuple[str | rv_continuous] = DISTRIBUTION.COMMON
             ) -> None:
         self._n_samples = len(data)
@@ -79,7 +80,7 @@ class Estimator:
     def filtered(self) -> pd.Series:
         """Get the data without error values and no missing value"""
         if self._filtered.empty:
-            self._filtered = self.data[self.data.notna()]
+            self._filtered = pd.to_numeric(self.data[self.data.notna()])
         return self._filtered
     
     @property
@@ -270,8 +271,8 @@ class ProcessEstimator(Estimator):
 
     __slots__ = (
         '_lsl', '_usl', '_n_ok', '_n_nok', '_error_values', '_n_errors', 
-        '_cp', '_cpk', '_lcl', '_ucl', '_strategy_control_limits', '_tolerance',
-        '_q_low', '_q_upp')
+        '_cp', '_cpk', '_lcl', '_ucl', '_strategy', '_tolerance',
+        '_q_low', '_q_upp', '_k')
     _lsl: float | None
     _usl: float | None
     _n_ok: int | None
@@ -282,17 +283,19 @@ class ProcessEstimator(Estimator):
     _cpk: int | None
     _lcl: str | None
     _ucl: str | None
-    _strategy_control_limits: str
+    _strategy: str
     _tolerance: int
     _q_low: float | None
     _q_upp: float | None
+    _k: float
 
     def __init__(
-            self, data: ArrayLike,
+            self,
+            data: ArrayLike,
             lsl: Optional[float] = None, 
             usl: Optional[float] = None, 
             error_values: Tuple[float] = (),
-            strategy_control_limits: Literal['eval', 'fit', 'norm', 'data'] = 'eval',
+            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             tolerance: float | int = 6, 
             possible_dists: Tuple[str | rv_continuous] = DISTRIBUTION.COMMON
             ) -> None:
@@ -307,7 +310,7 @@ class ProcessEstimator(Estimator):
             If the process data may contain coded values for measurement 
             errors or similar, they can be specified here, 
             by default [].
-        strategy_control_limits : {'eval', 'fit', 'norm', 'data'}, optional
+        strategy : {'eval', 'fit', 'norm', 'data'}, optional
             Which strategy should be used to determine the control 
             limits (process spread):
             - eval: The strategy is determined according to the given 
@@ -320,17 +323,18 @@ class ProcessEstimator(Estimator):
             tolerance * standard deviation
             - data: The quantiles for the process variation tolerance 
             are read directly from the data.
+            by default 'norm'
         tolerance : float or int, optional
             Specify the tolerated process variation for which the 
             control limits are to be calculated. 
             - If int, the spread is determined using the normal 
             distribution tolerance*sigma, 
-            e.g. tolerance = 6 -> 6*sigma ~ covers 99.75% of the data. 
+            e.g. tolerance = 6 -> 6*sigma ~ covers 99.75 % of the data. 
             The upper and lower permissible quantiles are then 
             calculated from this.
-            - If float, the value must be between 0 and 1. This value is 
-            then used directly to calculate the upper and lower 
-            allowable quantiles
+            - If float, the value must be between 0 and 1.This value is
+            then interpreted as the acceptable proportion for the 
+            spread, e.g. 0.9973 (which corresponds to ~ 6 sigma)
             by default 6
         possible_dists : tuple of strings or rv_continous, optional
             Distributions to which the data may be subject. Only 
@@ -339,8 +343,6 @@ class ProcessEstimator(Estimator):
 
         """# TODO link docstring
         assert usl > lsl if None not in (lsl, usl) else True
-        if isinstance(tolerance, int): assert tolerance > 1
-        if isinstance(tolerance, float): assert 0 < tolerance < 1
         self._n_ok = None
         self._n_nok = None
         self._n_errors = None
@@ -353,7 +355,10 @@ class ProcessEstimator(Estimator):
         self._error_values = error_values
         self._lsl = lsl
         self._usl = usl
-        self.strategy_control_limits = strategy_control_limits
+        self._strategy = 'norm'
+        self.strategy = strategy
+        self._tolerance = 6
+        self._k = self._tolerance/2
         self.tolerance = tolerance
         self._reset_capabilty_values_()
         super().__init__(data, possible_dists)
@@ -362,9 +367,10 @@ class ProcessEstimator(Estimator):
     def filtered(self) -> pd.Series:
         """Get the data without error values and no missing value"""
         if self._filtered.empty:
-            self._filtered = self.data[
-                ~self.data.isin(self._error_values)
-                & self.data.notna()]
+            self._filtered = pd.to_numeric(
+                self.data[
+                    ~ self.data.isin(self._error_values)
+                    & self.data.notna()])
         return self._filtered
     
     @property
@@ -413,7 +419,7 @@ class ProcessEstimator(Estimator):
     @property
     def usl(self):
         """Get upper specification limit"""
-        return self._lsl
+        return self._usl
     @usl.setter
     def usl(self, usl: float):
         if self._usl != usl:
@@ -421,13 +427,49 @@ class ProcessEstimator(Estimator):
             self._reset_capabilty_values_()
     
     @property
-    def strategy_control_limits(self) -> str:
-        return self._strategy_control_limits
-    @strategy_control_limits.setter
-    def strategy_control_limits(self, strategy_control_limits: str):
-        assert strategy_control_limits in ['eval', 'fit', 'norm', 'data']
-        if self._strategy_control_limits != strategy_control_limits:
-            self._strategy_control_limits = strategy_control_limits
+    def strategy(self) -> Literal['eval', 'fit', 'norm', 'data']:
+        """Strategy used to determine the control limits (can also be 
+        interpreted as the process range).
+
+        Set strategy as one of {'eval', 'fit', 'norm', 'data'}
+            - eval: The strategy is determined according to the given 
+            flowchart
+            - fit: First, the distribution is searched for that best 
+            represents the process data and then the process variation 
+            tolerance is calculated
+            - norm: it is assumed that the data is subject to normal 
+            distribution. The variation tolerance is then calculated as 
+            tolerance * standard deviation
+            - data: The quantiles for the process variation tolerance 
+            are read directly from the data."""
+        return self._strategy
+    @strategy.setter
+    def strategy(self, strategy: Literal['eval', 'fit', 'norm', 'data']):
+        assert strategy in ['eval', 'fit', 'norm', 'data']
+        if self._strategy != strategy:
+            self._strategy = strategy
+            self._reset_capabilty_values_()
+
+    @property
+    def tolerance(self) -> int | float:
+        """Get the multiplier of the sigma tolerance for Cp and Cpk 
+        value (default 6). By setting this value the cp and cpk values
+        are resetted to None.
+        
+        If setting tolerance by giving the percentile, enter the 
+        acceptable proportion for the spread, e.g. 0.9973 
+        (which corresponds to ~ 6 sigma)"""
+        return self._tolerance
+    @tolerance.setter
+    def tolerance(self, tolerance: int | float):
+        if isinstance(tolerance, int): 
+            assert tolerance > 1
+            self._k = self.tolerance / 2
+        else:
+            assert 0 < tolerance < 1
+            self._k = stats.norm.ppf((1 + tolerance)/2)
+        if self._tolerance != tolerance:
+            self._tolerance = tolerance
             self._reset_capabilty_values_()
 
     @property
@@ -437,8 +479,11 @@ class ProcessEstimator(Estimator):
         tolerance is given as 6, this value corresponds to the 0.135 % 
         quantile (6 sigma ~ 99.73 % of the data)."""
         if self._q_low is None:
-            self._q_low = 1 - self.q_upp
-        return self._q_upp
+            if isinstance(self.tolerance, int):
+                self._q_low = stats.norm.cdf(-self.tolerance/2)
+            else:
+                self._q_low = (1 - self.tolerance)/2
+        return self._q_low
 
     @property
     def q_upp(self) -> float:
@@ -447,10 +492,7 @@ class ProcessEstimator(Estimator):
         tolerance is given as 6, this value corresponds to the Q_0.99865
         (0.99865-quantile or 99.865-percentile)."""
         if self._q_upp is None:
-            if isinstance(self.tolerance, int):
-                self._q_upp = 1 - stats.norm.cdf(self.tolerance / 2)
-            else:
-                self._q_upp = (1 + self.tolerance)/2
+            self._q_upp = 1 - self.q_low
         return self._q_upp
     
     @property
@@ -478,38 +520,24 @@ class ProcessEstimator(Estimator):
     def control_limits(self) -> Tuple[float | None]:
         """Get lower and upper control limits."""
         return (self.lcl, self.ucl)
-
+    
     @property
-    def tolerance(self) -> int | float:
-        """Get the multiplier of the sigma tolerance for Cp and Cpk 
-        value (default 6). By setting this value the cp and cpk values
-        are resetted to None.
-        
-        If setting tolerance by giving the percentile, the percentage 
-        point function is used to calculate back. The tolerance is then 
-        rounded to the 4th decimal place, so that 0.9973 results in a 
-        tolerance of 6 (6*sigma ~ 99.73%)."""
-        return self._tolerance
-    @tolerance.setter
-    def tolerance(self, tolerance: int | float):
-        if isinstance(tolerance, float):
-            tolerance = round(stats.norm.ppf((1 + tolerance)/2), 4) * 2
-        if self._tolerance != tolerance:
-            self._tolerance = tolerance
-            self._reset_capabilty_values_()
+    def cp_tol(self) -> float:
+        return 2*self._k
     
     @property
     def cp(self) -> float | None:
         """Cp is a measure of process capability. Cp is the ratio of the 
         specification width (usl - lsl) to the process variation 
-        (cp_tol*sigma). The location is not taken into account by the 
+        (tolerance*sigma). The location is not taken into account by the 
         Cp value. This value therefore only indicates the potential for 
         the Cpk value.
         This value cannot be calculated unless an upper and lower 
         specification limit is given. In this case, None is returned."""
         if None in self.limits: return None
         if self._cp is None:
-            self._cp = np.abs(np.diff(self.limits))/(self.cp_tol*self.std)
+            tolerance = 2 * self._k
+            self._cp = np.abs(np.diff(self.limits))/(tolerance*self.std)
         return self._cp
     
     @property
@@ -518,9 +546,9 @@ class ProcessEstimator(Estimator):
         of the distance between the process mean and the lower 
         specification limit and the lower spread of the process.
         Returns inf if no lower specification limit is specified."""
-        pos = float('inf') if self.lsl is None else self.mean - self.lsl
-        width = self.mean - self.q_low
-        return pos/width
+        space = float('inf') if self.lsl is None else self.mean - self.lsl
+        spread = self.mean - self.lcl
+        return space/spread
     
     @property
     def cpu(self) -> float:
@@ -528,9 +556,9 @@ class ProcessEstimator(Estimator):
         of the distance between the process mean and the upper 
         specification limit and the upper spread of the process.
         Returns inf if no upper specification limit is specified."""
-        pos = float('inf') if self.usl is None else self.usl - self.mean
-        width = self.q_upp - self.mean
-        return pos/width
+        space = float('inf') if self.usl is None else self.usl - self.mean
+        spread = self.ucl - self.mean
+        return space/spread
     
     @property
     def cpk(self) -> float | None:
@@ -541,30 +569,23 @@ class ProcessEstimator(Estimator):
         In general, higher Cpk values indicate a more capable process. 
         Lower Cpk values indicate that the process may need improvement."""
         if self.limits == (None, None): return None
-        pos_low = float('inf') if self.lsl is None else self.mean - self.lsl
-        pos_upp = float('inf') if self.usl is None else self.usl - self.mean
-        width_low = self.mean - self.q_low
-        width_upp = self.q_upp - self.mean
-        cpl = pos_low/width_low
-        cpu = pos_upp/width_upp
-        return min([cpl, cpu])
+        return min([self.cpl, self.cpu])
     
     def _calculate_control_limits_(self):
-        match self.strategy_control_limits:
+        match self.strategy:
             case 'eval': # TODO implement control limits eval strategy
                 raise NotImplementedError
             case 'fit':
                 self.distribution()
                 if self.dist.name == 'norm':
-                    self.strategy_control_limits = 'norm'
+                    self.strategy = 'norm'
                     lcl, ucl = self._calculate_control_limits_()
                 else:
                     lcl = self.dist.ppf(self.q_low, **self.dist_params)
                     ucl = self.dist.ppf(self.q_upp, **self.dist_params)
             case 'norm':
-                k = self.tolerance/2
-                lcl = self.mean - k * self.std
-                ucl = self.mean + k * self.std
+                lcl = self.mean - self._k * self.std
+                ucl = self.mean + self._k * self.std
             case 'data':
                 lcl = np.quantile(self.filtered, self.q_low)
                 ucl = np.quantile(self.filtered, self.q_upp)
