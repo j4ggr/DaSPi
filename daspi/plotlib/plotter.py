@@ -13,6 +13,7 @@ from typing import Hashable
 from typing import Iterable
 from typing import Generator
 from numpy.typing import NDArray
+from numpy.typing import ArrayLike
 from pandas.core.series import Series
 from pandas.core.frame import DataFrame
 from matplotlib.axes import Axes
@@ -130,22 +131,62 @@ class Line(_Plotter):
         self.ax.plot(self.x, self.y, **kwds)
 
 
+class Bar(_Plotter):
+
+    __slots__ = ('base', 'width')
+    base: str
+    width: float
+
+    def __init__(
+            self,
+            source: Hashable,
+            target: str,
+            feature: str,
+            base: Any = None,
+            width: float = CATEGORY.FEATURE_SPACE,
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None) -> None:
+        source = pd.DataFrame(source).copy()
+        if base is None: base = 0
+        if isinstance(base, str):
+            self.base = base
+        else:
+            self.base = PLOTTER.BASE
+            source[self.base] = base
+        self.width = width
+            
+        super().__init__(
+            source=source, target=target, feature=feature,
+            target_on_y=target_on_y, color=color, ax=ax)
+
+    def __call__(self, **kwds):
+        if self.target_on_y:
+            self.ax.bar(
+                self.x, self.y, width=self.width, bottom=self.source[self.base],
+                **kwds)
+        else:
+            self.ax.barh(
+                self.y, self.x, height=self.width, left=self.source[self.base],
+                **kwds)
+
+
 class _TransformPlotter(_Plotter):
 
-    __slots__ = ('_pos')
-    _pos: int | float
+    __slots__ = ('_base')
+    _base: int | float
     
     def __init__(
             self,
             source: DataFrame,
             target: str,
             feature: str = '',
-            pos: int | float = PLOTTER.DEFAULT_POS,
+            base: int | float = PLOTTER.DEFAULT_BASE,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        self._pos = pos
+        self._base = base
         self.target = target
         self.feature = feature
         
@@ -163,11 +204,11 @@ class _TransformPlotter(_Plotter):
         if self.feature and self.feature != PLOTTER.TRANSFORMED_FEATURE:
             grouper = source.groupby(self.feature, sort=True)
             for i, (name, group) in enumerate(grouper, start=1):
-                pos = name if isinstance(name, (float, int)) else i
-                yield pos, group[self.target]
+                base = name if isinstance(name, (float, int)) else i
+                yield base, group[self.target]
         else:
             self.feature = PLOTTER.TRANSFORMED_FEATURE
-            yield self._pos, source[self.target]
+            yield self._base, source[self.target]
     
     @abstractmethod
     def transform(
@@ -256,7 +297,7 @@ class GaussianKDE(_TransformPlotter):
         data = pd.DataFrame({
             self.target: sequence,
             self.feature: estimation,
-            PLOTTER.POS: feature_data * np.ones(len(sequence))})
+            PLOTTER.BASE: feature_data * np.ones(len(sequence))})
         return data
     
     def hide_density_axis(self) -> None:
@@ -269,9 +310,9 @@ class GaussianKDE(_TransformPlotter):
         self.ax.plot(self.x, self.y, **kw_line)
         kw_fill = dict(alpha=COLOR.FILL_ALPHA) | kw_fill
         if self.target_on_y:
-            self.ax.fill_betweenx(self.y, self._pos, self.x, **kw_fill)
+            self.ax.fill_betweenx(self.y, self._base, self.x, **kw_fill)
         else:
-            self.ax.fill_between(self.x, self._pos, self.y, **kw_fill)
+            self.ax.fill_between(self.x, self._base, self.y, **kw_fill)
         if not self.show_density_axis:
             self.hide_density_axis()
 
@@ -296,9 +337,9 @@ class Violine(GaussianKDE):
 
     def __call__(self, **kwds) -> None:
         kwds = dict(color=self.color, alpha=COLOR.FILL_ALPHA) | kwds
-        for pos, group in self.source.groupby(PLOTTER.POS):
+        for base, group in self.source.groupby(PLOTTER.BASE):
             estim_upp = group[self.feature]
-            estim_low = 2*pos - estim_upp
+            estim_low = 2*base - estim_upp
             sequence = group[self.target]
             if self.target_on_y:
                 self.ax.fill_betweenx(sequence, estim_low, estim_upp, **kwds)
@@ -336,20 +377,20 @@ class Ridge(GaussianKDE):
         data = pd.DataFrame({
             self.target: sequence,
             self.feature: estimation,
-            PLOTTER.POS: base * np.ones(len(sequence))})
+            PLOTTER.BASE: base * np.ones(len(sequence))})
         return data
     
     def __call__(self, **kwds) -> None:
         kwds = dict(color=self.color, alpha=COLOR.FILL_ALPHA) | kwds
-        for pos, group in self.source.groupby(PLOTTER.POS):
+        for base, group in self.source.groupby(PLOTTER.BASE):
             estimation = group[self.feature]
             sequence = group[self.target]
             if self.target_on_y:
                 self.ax.plot(estimation, sequence, c=COLOR.WHITE_TRANSPARENT)
-                self.ax.fill_betweenx(sequence, pos, estimation, **kwds)
+                self.ax.fill_betweenx(sequence, base, estimation, **kwds)
             else:
                 self.ax.plot(sequence, estimation, c=COLOR.WHITE_TRANSPARENT)
-                self.ax.fill_between(sequence, pos, estimation, **kwds)
+                self.ax.fill_between(sequence, base, estimation, **kwds)
 
 
 class Errorbar(_TransformPlotter):

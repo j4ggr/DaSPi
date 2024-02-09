@@ -133,7 +133,7 @@ class TestCategoryLabel:
 class TestDodger:
 
     def test_getitem(self):
-        tick_labels = ('t', 'e', 's', 't')
+        tick_labels = ('a', 'b', 'c', 'd')
         dodge = Dodger(('r'), tick_labels=tick_labels)
         assert dodge['r'] == 0
 
@@ -156,10 +156,10 @@ class TestDodger:
         assert bool(dodge['r']) == dodge._default
 
     def test_call(self):
-        tick_labels = ('t', 'e', 's', 't')
+        tick_labels = ('a', 'b', 'c', 'd')
         categories = ('r', 'g', 'b', 'y')
         dodge = Dodger(categories=categories, tick_labels=tick_labels)
-        old = pd.Series(categories)
+        old = pd.Series(tick_labels)
         assert dodge(old, 'r').values == approx(dodge.ticks - 0.3)
         assert dodge(old, 'g').values == approx(dodge.ticks - 0.1)
         assert dodge(old, 'b').values == approx(dodge.ticks + 0.1)
