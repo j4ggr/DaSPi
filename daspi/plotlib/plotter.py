@@ -159,7 +159,7 @@ class Bar(_Plotter):
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
-        ticks = np.array(self.source[self.feature])
+        ticks = np.array(self.source[self.feature].unique())
         if not is_numeric_dtype(ticks):
             ticks = np.arange(len(ticks))
         self.feature_ticks = ticks
@@ -174,17 +174,15 @@ class Bar(_Plotter):
         if not self.stack: 
             return base
 
-        boxs = [p.get_bbox() for p in bar.patches]
         for bar in self.bars:
+            boxs = [p.get_bbox() for p in bar.patches]
             if self.target_on_y:
-                low = [b.x0 for b in boxs]
-                upp = [b.x1 for b in boxs]
+                low, upp = map(tuple, zip(*[(b.x0, b.x1) for b in boxs]))
             else:
-                low = [b.y0 for b in boxs]
-                upp = [b.y1 for b in boxs]
-            res = (np.greater(self.feature_ticks, low)
-                   & np.less(self.feature_ticks, upp))
-            if all(res) and any(np.greater(bar.datavalues, base)):
+                low, upp = map(tuple, zip(*[(b.y0, b.y1) for b in boxs]))
+            if (all(np.greater(self.feature_ticks, low))
+                and all(np.less(self.feature_ticks, upp))
+                and any(np.greater(bar.datavalues, base))):
                 base = bar.datavalues
         return base
 
@@ -633,6 +631,7 @@ __all__ = [
     _Plotter.__name__,
     Scatter.__name__,
     Line.__name__,
+    Bar.__name__,
     Jitter.__name__,
     GaussianKDE.__name__,
     Violine.__name__,

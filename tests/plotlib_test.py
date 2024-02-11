@@ -23,6 +23,7 @@ from daspi.plotlib.chart import JointChart
 from daspi.plotlib.chart import RelationalChart
 from daspi.plotlib.chart import MultipleVariateChart
 from daspi.plotlib.facets import AxesFacets
+from daspi.plotlib.plotter import Bar
 from daspi.plotlib.plotter import Line
 from daspi.plotlib.plotter import Ridge
 from daspi.plotlib.plotter import Jitter
@@ -589,9 +590,9 @@ class TestCharts:
                 target = 'gc',
                 feature = 'mode',
                 categorical_features = True,
+                target_on_y = False,
             ).plot(
                 VariationTest,
-                target_on_y = False,
                 kind = 'stdev',
                 show_points = False
             ).label(
@@ -602,3 +603,22 @@ class TestCharts:
                 info = 'pytest figure'
             ).save(file_name
             ).close()
+
+    def test_bar_plots(self):
+        file_name = savedir/'bar_chart.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = 'gc',
+                feature = 'mode',
+                hue = 'choice',
+                categorical_features = True,
+            ).plot(Bar
+            ).label(
+                fig_title = 'Bar Plot',
+                sub_title = 'Tast Stacking',
+                ylabel = 'Traveler chosen mode', 
+                xlabel = 'Generalized cost measure ($)',
+                info = 'pytest figure'
+            ).save(file_name
+            ).close()
+        
