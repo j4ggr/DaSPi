@@ -135,6 +135,25 @@ class _Plotter_:
     ERR_UPP: str = '_error_upper_'
     RIDGE_SHIFT: float = -0.3
     KD_SEQUENCE_LEN: int = 300
+    FITTED_VALUES_NAME: str = '_fitted_values_'
+    FIT_CI_LOW: str = '_fit_ci_low_'
+    FIT_CI_UPP: str = '_fit_ci_upp_'
+    PRED_CI_LOW: str = '_fit_ci_low_'
+    PRED_CI_LOW: str = '_fit_ci_low_'
+    FIT_LINE_ZORDER: float = 2.3
+    FIT_CI_ZORDER: float = 2.2
+    PRED_CI_ZORDER: float = 2.1
+    @property
+    def REGRESSION_CI_NAMES(self) -> Tuple[str]:
+        """Get names for regression confidences in order
+        - lower confidence level of fitted values
+        - upper confidence level of fitted values
+        - lower confidence level of predicted values
+        - upper confidence level of predicted values"""
+        names = (
+            self.FIT_CI_LOW, self.FIT_CI_UPP,
+            self.PRED_CI_LOW, self.PRED_CI_UPP)
+        return names
 PLOTTER = _Plotter_()
 
 

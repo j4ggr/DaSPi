@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import statsmodels.api as sm
 import matplotlib.pyplot as plt
 
 from abc import ABC
@@ -20,6 +21,9 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.container import BarContainer
 
+from statsmodels.graphics.gofplots import ProbPlot
+from statsmodels.regression.linear_model import RegressionResults
+
 from pandas.api.types import is_scalar
 from pandas.api.types import is_numeric_dtype
 from pandas.core.frame import DataFrame
@@ -32,6 +36,7 @@ from .._constants import CATEGORY
 from ..statistics.confidence import mean_ci
 from ..statistics.confidence import stdev_ci
 from ..statistics.confidence import variance_ci
+from ..statistics.confidence import prediction_ci
 from ..statistics.estimation import estimate_kernel_density
 
 
@@ -135,6 +140,72 @@ class Line(_Plotter):
         alpha = None if marker is None else COLOR.MARKER_ALPHA
         kwds = dict(c=self.color, marker=marker, alpha=alpha) | kwds
         self.ax.plot(self.x, self.y, **kwds)
+            
+
+class LinearRegression(_Plotter):
+
+    __slots__ = ('model', 'target_fit')
+    model: RegressionResults
+    target_fit: str
+
+    def __init__(
+            self,
+            source: Hashable,
+            target: str,
+            feature: str,
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        self.target_fit = PLOTTER.FITTED_VALUES_NAME
+        df = source if isinstance(source, DataFrame) else pd.DataFrame(source)
+        df = (df
+            .sort_values(feature)
+            [[feature, target]]
+            .dropna(axis=0, how='any')
+            .reset_index(drop=True))
+        self.model: RegressionResults = sm.OLS(df[target], sm.add_constant(df[feature])).fit()
+        df[self.target_fit] = self.model.fittedvalues
+        ci_data = pd.DataFrame(
+            prediction_ci(self.model), columns=PLOTTER.REGRESSION_CI_NAMES)
+        df = pd.concat([df, ci_data], axis=1)
+        super().__init__(
+            source=df, target=target, feature=feature, target_on_y=target_on_y,
+            color=color, ax=ax)
+    
+    def __call__(
+            self, show_points: bool = True, show_fit_ci: bool = False,
+            show_pred_ci: bool = False, kw_fit_ci: dict = {},
+            kw_pred_ci: dict = {}, **kwds):
+        kwds = {'zorder': PLOTTER.FIT_LINE_ZORDER} | kwds
+        kw_fit_ci = {'zorder': PLOTTER.FIT_CI_ZORDER} | kw_fit_ci
+        kw_pred_ci = {'zorder': PLOTTER.PRED_CI_ZORDER_ZORDER} | kw_pred_ci
+        
+        x, y = self.source[self.feature], self.source[self.target_fit]
+        if not self.target_on_y: x, y = y, x
+        self.ax.plot(x, y, color=self.color, **kwds)
+        
+        if show_points:
+            self.ax.scatter(self.x, self.y, color=self.color)
+        
+        if show_fit_ci:
+            lower = self.source[PLOTTER.FIT_CI_LOW]
+            upper = self.source[PLOTTER.FIT_CI_UPP]
+            if self.target_on_y:
+                self.ax.fill_between(self.x, lower, upper, **kw_fit_ci)
+            else:
+                self.ax.fill_betweenx(self.y, lower, upper, **kw_fit_ci)
+        
+        if show_pred_ci:
+            lower = self.source[PLOTTER.PRED_CI_LOW]
+            upper = self.source[PLOTTER.PRED_CI_UPP]
+            if self.target_on_y:
+                x0, y0 = self.x, lower
+                x1, y1 = self.x, upper
+            else:
+                x0, y0 = lower, self.y
+                x1, y1 = upper, self.y
+            self.ax.plot(x0, y0, x1, y1, **kw_pred_ci)
 
 
 class _TransformPlotter(_Plotter):

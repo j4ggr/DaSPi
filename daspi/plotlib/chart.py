@@ -33,7 +33,7 @@ class _Chart(ABC):
 
     __slots__ = (
         'source', 'target', 'feature', 'target_on_y', 'axes_facets', 'nrows',
-        'ncols', '_data', '_xlabel', '_ylabel')
+        'ncols', '_data', '_xlabel', '_ylabel', '_plots')
     source: DataFrame
     target: str
     feature: str
@@ -44,6 +44,7 @@ class _Chart(ABC):
     _data: DataFrame
     _xlabel: str
     _ylabel: str
+    _plots: List[_Plotter]
 
     def __init__(
             self, source: DataFrame, target: str, feature: str = '',
@@ -62,6 +63,7 @@ class _Chart(ABC):
         self._data: DataFrame | None = None
         self._xlabel = ''
         self._ylabel = ''
+        self._plots = []
 
     @property
     def figure(self) -> Figure:
@@ -87,6 +89,11 @@ class _Chart(ABC):
     def ylabel(self) -> str:
         """Get label for y axis, set with `set_axis_label` method"""
         return self._ylabel
+    
+    @property
+    def plots(self) -> List[_Plotter]:
+        """Get plotter objects used in `plot` method"""
+        return self._plots
     
     def set_axis_label(
             self, label: Any, is_target: bool) -> str:
@@ -295,6 +302,7 @@ class SimpleChart(_Chart):
                 ax=self.axes_facets.ax, marker=self.marker, size=self.sizes,
                 width=self.dodging.width, **kwds)
             plot()
+            self._plots.append(plot)
         return self
 
     def label(
@@ -458,6 +466,7 @@ class JointChart(_Chart):
                 if hide_none: ax.set_axis_off()
                 continue
             chart.plot(plotter, **kwds)
+            self._plots.extend(chart.plots)
         return self
     
     def label(
@@ -492,9 +501,17 @@ class MultipleVariateChart(SimpleChart):
     col_labels: tuple
 
     def __init__(
-            self, source: DataFrame, target: str, feature: str = '',
-            hue: str = '', shape: str = '', size: str = '', col: str = '',
-            row: str = '', dodge: bool = False
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str = '',
+            hue: str = '',
+            shape: str = '',
+            size: str = '',
+            col: str = '',
+            row: str = '',
+            dodge: bool = False,
+            stretch_figsize: bool = True,
             ) -> None:
         self.target_on_y = True
         self.source = source
@@ -507,7 +524,7 @@ class MultipleVariateChart(SimpleChart):
         super().__init__(
             source=self.source, target=target, feature=feature, hue=hue, 
             shape=shape, size=size, dodge=dodge, sharex=True, sharey=True,
-            nrows=nrows, ncols=ncols)
+            nrows=nrows, ncols=ncols, stretch_figsize=stretch_figsize)
         self._variate_names = (self.row, self.col, self.hue, self.shape)
         self._reset_variate_()
     
@@ -531,6 +548,7 @@ class MultipleVariateChart(SimpleChart):
                 target_on_y=self.target_on_y, color=self.color, ax=ax, 
                 marker=self.marker, size=self.sizes)
             plot()
+            self._plots.append(plot)
         return self
                 
     def label(
