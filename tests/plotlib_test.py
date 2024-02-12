@@ -20,7 +20,7 @@ from daspi.plotlib.utils import SizeLabel
 from daspi.plotlib.utils import ShapeLabel
 from daspi.plotlib.chart import SimpleChart
 from daspi.plotlib.chart import JointChart
-from daspi.plotlib.chart import RelationalChart
+from daspi.plotlib.chart import SimpleChart
 from daspi.plotlib.chart import MultipleVariateChart
 from daspi.plotlib.facets import AxesFacets
 from daspi.plotlib.plotter import Bar
@@ -198,7 +198,7 @@ class TestCharts:
     def test_line_plot(self):
 
         file_name = savedir/'line_chart_hue.png'
-        chart =RelationalChart(
+        chart =SimpleChart(
                 df_travel,
                 target = 'invc',
                 feature = 'individual',
@@ -215,7 +215,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'line_chart_hue-size.png'
-        chart =RelationalChart(
+        chart =SimpleChart(
                 df_travel,
                 target = 'invc',
                 feature = 'individual',
@@ -236,7 +236,7 @@ class TestCharts:
     def test_scatter_plot(self):
 
         file_name = savedir/'scatter_chart_simple.png'
-        chart =RelationalChart(
+        chart =SimpleChart(
                 df_travel,
                 target = 'invc',
                 feature = 'hinc'
@@ -250,7 +250,7 @@ class TestCharts:
         assert file_name.is_file()
         
         file_name = savedir/'scatter_chart_simple_transposed.png'
-        chart =RelationalChart(
+        chart =SimpleChart(
                 df_travel,
                 target = 'invc',
                 feature = 'hinc'
@@ -264,7 +264,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_hue.png'
-        chart =RelationalChart(
+        chart =SimpleChart(
                 df_travel,
                 target = 'gc',
                 feature = 'hinc',
@@ -280,7 +280,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_shape.png'
-        chart =RelationalChart(
+        chart =SimpleChart(
                 df_travel,
                 target = 'gc',
                 feature = 'hinc',
@@ -296,7 +296,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_size.png'
-        chart =RelationalChart(
+        chart =SimpleChart(
                 df_travel,
                 target = 'gc',
                 feature = 'hinc',
@@ -312,7 +312,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_hue-size.png'
-        chart =RelationalChart(
+        chart =SimpleChart(
                 df_travel,
                 target = 'gc',
                 feature = 'hinc',
@@ -330,7 +330,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_hue-shape.png'
-        chart =RelationalChart(
+        chart =SimpleChart(
                 df_travel,
                 target = 'gc',
                 feature = 'hinc',
@@ -348,7 +348,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_size-shape.png'
-        chart =RelationalChart(
+        chart =SimpleChart(
                 df_travel,
                 target = 'gc',
                 feature = 'hinc',
@@ -366,7 +366,7 @@ class TestCharts:
         assert file_name.is_file()
 
         file_name = savedir/'scatter_chart_full.png'
-        chart =RelationalChart(
+        chart =SimpleChart(
                 df_travel,
                 target = 'gc',
                 feature = 'hinc',

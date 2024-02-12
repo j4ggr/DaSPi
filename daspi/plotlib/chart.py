@@ -147,20 +147,36 @@ class _Chart(ABC):
 class SimpleChart(_Chart):
 
     __slots__ = (
-        'hue', 'categorical_features', 'coloring', 'dodging', '_variate_names',
-        '_current_variate', '_last_variate')
+        'hue', 'shape', 'size', 'marking', 'sizing', '_sizes', 
+        'categorical_features', 'coloring', 'dodging', '_variate_names',
+        '_current_variate', '_last_variate', )
     hue: str
+    shape: str
+    size: str
+    marking: ShapeLabel
+    sizing: SizeLabel
+    _sizes: NDArray
     categorical_features: bool
     coloring: HueLabel
     dodging: Dodger
     _current_variate: dict
     _last_variate: dict
 
-    def __init__(self, source: DataFrame, target: str, feature: str = '',
-            hue: str = '', dodge: bool = False, 
-            categorical_features: bool = False, **kwds) -> None:
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str = '',
+            hue: str = '',
+            dodge: bool = False,
+            shape: str = '',
+            size: str = '', 
+            categorical_features: bool = False,
+            **kwds) -> None:
         self.categorical_features = categorical_features or dodge
         self.hue = hue
+        self.shape = shape
+        self.size = size
         super().__init__(source=source, target=target, feature=feature, **kwds)
         self.coloring = HueLabel(self.get_categorical_labels(self.hue))
         feature_tick_labels = ()
@@ -170,7 +186,14 @@ class SimpleChart(_Chart):
             feature_tick_labels = self.get_categorical_labels(feature)
         dodge_categories = self.coloring.labels if dodge else ()
         self.dodging = Dodger(dodge_categories, feature_tick_labels)
-        self._variate_names = (self.hue, )
+        self.marking = ShapeLabel(self.get_categorical_labels(self.shape))
+        if self.size:
+            self.sizing = SizeLabel(
+                self.source[self.size].min(), self.source[self.size].max())
+        else:
+            self.sizing = None
+        self._sizes: NDArray | None = None
+        self._variate_names = (self.hue, self.shape)
         self._current_variate = {}
         self._last_variate = {}
         self._reset_variate_()
@@ -187,11 +210,26 @@ class SimpleChart(_Chart):
         return self.coloring[hue_variate]
     
     @property
+    def marker(self) -> str:
+        """Get marker for current variate"""
+        marker_variate = self._current_variate.get(self.shape, None)
+        return self.marking[marker_variate]
+
+    @property
+    def sizes(self) -> NDArray | None:
+        """Get sizes for current variate, is set in grouped data 
+        generator."""
+        if not self.size: return None
+        return self.sizing(self._data[self.size])
+    
+    @property
     def legend_handles_labels(self) -> Dict[str, Tuple[tuple]]:
         """Get dictionary of handles and labels
         - keys: titles as str
         - values: handles and labels as tuple of tuples"""
-        return {self.hue: self.coloring.handles_labels()}
+        handlers = (self.coloring, self.marking, self.sizing)
+        titles = (self.hue, self.shape, self.size)
+        return {t: h.handles_labels() for t, h in zip(titles, handlers) if t}
     
     def get_categorical_labels(self, colname: str) -> Tuple:
         """Get sorted unique elements of given column name is in source"""
@@ -254,7 +292,8 @@ class SimpleChart(_Chart):
             plot = plotter(
                 source=data, target=self.target, feature=self.feature,
                 target_on_y=self.target_on_y, color=self.color, 
-                ax=self.axes_facets.ax, width=self.dodging.width, **kwds)
+                ax=self.axes_facets.ax, marker=self.marker, size=self.sizes,
+                width=self.dodging.width, **kwds)
             plot()
         return self
 
@@ -276,73 +315,10 @@ class SimpleChart(_Chart):
         return self
 
 
-class RelationalChart(SimpleChart):
-
-    __slots__ = ('shape', 'size', 'marking', 'sizing', '_sizes')
-    shape: str
-    size: str
-    marking: ShapeLabel
-    sizing: SizeLabel
-    _sizes: NDArray
-
-    def __init__(
-            self, source: DataFrame, target: str, feature: str,
-            hue: str = '', shape: str = '', size: str = '', 
-            dodge: bool = False, **kwds):
-        self.shape = shape
-        self.size = size
-        super().__init__(
-            source=source, target=target, feature=feature, hue=hue, 
-            dodge=dodge, **kwds)
-        self.marking = ShapeLabel(self.get_categorical_labels(self.shape))
-        if self.size:
-            self.sizing = SizeLabel(
-                self.source[self.size].min(), self.source[self.size].max())
-        else:
-            self.sizing = None
-        self._sizes: NDArray | None = None
-        self._variate_names = (self.hue, self.shape)
-        self._reset_variate_()
-    
-    @property
-    def marker(self) -> str:
-        """Get marker for current variate"""
-        marker_variate = self._current_variate.get(self.shape, None)
-        return self.marking[marker_variate]
-
-    @property
-    def sizes(self) -> NDArray | None:
-        """Get sizes for current variate, is set in grouped data 
-        generator."""
-        if not self.size: return None
-        return self.sizing(self._data[self.size])
-    
-    @property
-    def legend_handles_labels(self) -> Dict[str, Tuple[tuple]]:
-        """Get dictionary of handles and labels
-        - keys: titles as str
-        - values: handles and labels as tuple of tuples"""
-        handlers = (self.coloring, self.marking, self.sizing)
-        titles = (self.hue, self.shape, self.size)
-        return {t: h.handles_labels() for t, h in zip(titles, handlers) if t}
-
-    def plot(
-            self, plotter: _Plotter, **kwds) -> Self:
-        self.target_on_y = kwds.pop('target_on_y', self.target_on_y)
-        for data in self:
-            plot = plotter(
-                source=data, target=self.target, feature=self.feature,
-                target_on_y=self.target_on_y, color=self.color, 
-                ax=self.axes_facets.ax, marker=self.marker, size=self.sizes,
-                **kwds)
-            plot()
-        return self
-
-
 class JointChart(_Chart):
 
     __slots__ = ('charts')
-    charts: List[RelationalChart]
+    charts: List[SimpleChart]
     hue: str | Tuple[str]
     shape: str | Tuple[str]
     size: str | Tuple[str]
@@ -388,7 +364,7 @@ class JointChart(_Chart):
             axes_facets=self.axes_facets)
         for values in zip(*charts_data.values()):
             _kw = kw | {k: v for k, v in zip(charts_data.keys(), values)}
-            self.charts.append(RelationalChart(**_kw))
+            self.charts.append(SimpleChart(**_kw))
     
     @property
     def _idx(self) -> int:
@@ -507,7 +483,7 @@ class JointChart(_Chart):
         return self
 
 
-class MultipleVariateChart(RelationalChart):
+class MultipleVariateChart(SimpleChart):
 
     __slots__ = ('col', 'row', 'row_labels', 'col_labels')
     col: str
@@ -576,7 +552,7 @@ class MultipleVariateChart(RelationalChart):
 
 __all__ = [
     SimpleChart.__name__,
-    RelationalChart.__name__,
+    SimpleChart.__name__,
     JointChart.__name__,
     MultipleVariateChart.__name__
 ]
