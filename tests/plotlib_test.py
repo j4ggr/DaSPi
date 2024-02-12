@@ -205,9 +205,11 @@ class TestCharts:
                 hue = 'mode'
             ).plot(Line
             ).label(
-                fig_title='Line diagram', sub_title='Travel Mode Choice',
-                xlabel='Individual', ylabel='In vehicle cost ($)', 
-                info=True, 
+                fig_title = 'Line diagram',
+                sub_title = 'Travel Mode Choice',
+                feature_label = 'Individual',
+                target_label = 'In vehicle cost ($)', 
+                info = True, 
             ).save(file_name
             ).close()
         assert file_name.is_file()
@@ -222,9 +224,11 @@ class TestCharts:
             ).plot(Line
             ).plot(Scatter
             ).label(
-                fig_title='Line diagram', sub_title='Travel Mode Choice',
-                xlabel='Individual', ylabel='In vehicle cost ($)', 
-                info=True, 
+                fig_title = 'Line diagram',
+                sub_title = 'Travel Mode Choice',
+                feature_label = 'Individual',
+                target_label = 'In vehicle cost ($)', 
+                info = True, 
             ).save(file_name
             ).close()
         assert file_name.is_file()
@@ -238,7 +242,9 @@ class TestCharts:
                 feature = 'hinc'
             ).plot(Scatter
             ).label(
-                sub_title='Simple XY scatter', xlabel=False, ylabel=False
+                sub_title='Simple XY scatter',
+                feature_label = False,
+                target_label = False
             ).save(file_name
             ).close()
         assert file_name.is_file()
@@ -250,7 +256,9 @@ class TestCharts:
                 feature = 'hinc'
             ).plot(Scatter, target_on_y=False
             ).label(
-                sub_title='Transposed XY scatter', xlabel=True, ylabel=True
+                sub_title='Transposed XY scatter',
+                feature_label = True,
+                target_label = True
             ).save(file_name
             ).close()
         assert file_name.is_file()
@@ -263,8 +271,10 @@ class TestCharts:
                 hue = 'mode'
             ).plot(Scatter
             ).label(
-                sub_title='Hue relational chart', xlabel='Houshold income ($)', 
-                ylabel='Generalized cost measure ($)', info=True
+                sub_title='Hue relational chart',
+                feature_label = 'Houshold income ($)', 
+                target_label = 'Generalized cost measure ($)',
+                info = True
             ).save(file_name
             ).close()
         assert file_name.is_file()
@@ -277,8 +287,10 @@ class TestCharts:
                 shape = 'choice'
             ).plot(Scatter
             ).label(
-                sub_title='Shape relational chart', xlabel='Houshold income ($)', 
-                ylabel='Generalized cost measure ($)', info=True
+                sub_title='Shape relational chart',
+                feature_label = 'Houshold income ($)', 
+                target_label = 'Generalized cost measure ($)',
+                info=True
             ).save(file_name
             ).close()
         assert file_name.is_file()
@@ -291,8 +303,10 @@ class TestCharts:
                 size = 'invt'
             ).plot(Scatter
             ).label(
-                sub_title='Size relational chart', xlabel='Houshold income ($)', 
-                ylabel='Generalized cost measure ($)', info=True
+                sub_title='Size relational chart',
+                feature_label = 'Houshold income ($)', 
+                target_label = 'Generalized cost measure ($)',
+                info = True
             ).save(file_name
             ).close()
         assert file_name.is_file()
@@ -307,8 +321,8 @@ class TestCharts:
             ).plot(Scatter
             ).label(
                 sub_title = 'Hue Size relational chart',
-                xlabel = 'Houshold income ($)', 
-                ylabel = 'Generalized cost measure ($)',
+                feature_label = 'Houshold income ($)', 
+                target_label = 'Generalized cost measure ($)',
                 info = True, 
                 fig_title = 'Scatter diagram'
             ).save(file_name
@@ -325,8 +339,8 @@ class TestCharts:
             ).plot(Scatter
             ).label(
                 sub_title = 'Hue Shape relational chart',
-                xlabel = 'Houshold income ($)', 
-                ylabel = 'Generalized cost measure ($)',
+                feature_label = 'Houshold income ($)', 
+                target_label = 'Generalized cost measure ($)',
                 info = True, 
                 fig_title = 'Scatter diagram'
             ).save(file_name
@@ -343,8 +357,8 @@ class TestCharts:
             ).plot(Scatter
             ).label(
                 sub_title = 'Size Shape relational chart', 
-                xlabel = 'Houshold income ($)', 
-                ylabel = 'Generalized cost measure ($)',
+                feature_label = 'Houshold income ($)', 
+                target_label = 'Generalized cost measure ($)',
                 info = True,
                 fig_title = 'Scatter diagram'
             ).save(file_name
@@ -362,8 +376,8 @@ class TestCharts:
             ).plot(Scatter
             ).label(
                 sub_title = 'Size Shape XY scatter', 
-                xlabel = 'Houshold income ($)', 
-                ylabel = 'Generalized cost measure ($)',
+                feature_label = 'Houshold income ($)', 
+                target_label = 'Generalized cost measure ($)',
                 info = 'pytest figure', 
                 fig_title = 'Scatter diagram'
             ).save(file_name
@@ -384,12 +398,12 @@ class TestCharts:
                 categorical_features = (False, True, True)
             ).plot(
                 [(GaussianKDE, dict(target_on_y=False, show_density_axis=False)),
-                 (Ridge, dict(target_on_y=False, categorical_features=True)), 
-                 (Violine, dict(target_on_y=False, categorical_features=True))]
+                 (Ridge, dict(target_on_y=False)), 
+                 (Violine, dict(target_on_y=False))]
             )
         chart.label(
-                # xlabel=True, ylabel=True
-                xlabel=[True]*3, ylabel=[True]*3
+                feature_label = [True]*3,
+                target_label = [True]*3
             ).save(file_name
             ).close()
         assert file_name.is_file()
@@ -401,7 +415,9 @@ class TestCharts:
             ).plot(
                 GaussianKDE, target_on_y=False
             ).label(
-                sub_title='Simple KDE', xlabel=True, ylabel=True
+                sub_title='Simple KDE',
+                feature_label = True,
+                target_label = True
             ).save(file_name
             ).close()
         assert file_name.is_file()
@@ -414,8 +430,11 @@ class TestCharts:
             ).plot(
                 GaussianKDE, target_on_y=True, show_density_axis=False
             ).label(
-                sub_title='multiple by hue', xlabel=True, ylabel=True, 
-                info=True, fig_title='Kernel Density Estimation'
+                fig_title = 'Kernel Density Estimation',
+                sub_title = 'multiple by hue',
+                feature_label = True,
+                target_label = True, 
+                info = True
             ).save(file_name
             ).close()
         assert file_name.is_file()
@@ -429,8 +448,11 @@ class TestCharts:
             ).plot(
                 Ridge, target_on_y=False,
             ).label(
-                sub_title='multiple by hue', xlabel=True, ylabel=True, 
-                info=True, fig_title='Kernel Density Estimation'
+                fig_title = 'Kernel Density Estimation',
+                sub_title = 'Ridge',
+                feature_label = True,
+                target_label = True, 
+                info = True
             ).save(file_name
             ).close()
         assert file_name.is_file()
@@ -451,8 +473,8 @@ class TestCharts:
             ).label(
                 fig_title = 'Multiple Variate Chart',
                 sub_title = 'Affairs R Dataset',
-                xlabel = 'Years of marriage',
-                ylabel = 'Amount of affairs',
+                feature_label = 'Years of marriage',
+                target_label = 'Amount of affairs',
                 row_title = 'Amount of children',
                 col_title = 'How religious',
                 info = 'pytest figure')
@@ -470,8 +492,8 @@ class TestCharts:
             ).label(
                 fig_title = 'Violine Chart',
                 sub_title = 'Simple test plot',
-                xlabel = 'Traveler chosen mode', 
-                ylabel = 'Generalized cost measure ($)',
+                feature_label = 'Traveler chosen mode', 
+                target_label = 'Generalized cost measure ($)',
                 info = 'pytest figure'
             ).save(file_name
             ).close()
@@ -487,8 +509,8 @@ class TestCharts:
             ).label(
                 fig_title = 'Jitter Chart',
                 sub_title = 'Simple test plot',
-                xlabel = 'Traveler chosen mode', 
-                ylabel = 'Generalized cost measure ($)',
+                feature_label = 'Traveler chosen mode', 
+                target_label = 'Generalized cost measure ($)',
                 info = 'pytest figure'
             ).save(file_name
             ).close()
@@ -504,8 +526,8 @@ class TestCharts:
             ).label(
                 fig_title = 'Violine Chart',
                 sub_title = 'Simple test plot',
-                xlabel = 'Traveler chosen mode', 
-                ylabel = 'Generalized cost measure ($)',
+                feature_label = 'Traveler chosen mode', 
+                target_label = 'Generalized cost measure ($)',
                 info = 'pytest figure'
             ).save(file_name
             ).close()
@@ -521,8 +543,8 @@ class TestCharts:
             ).label(
                 fig_title = 'Violine Chart',
                 sub_title = 'Simple test plot',
-                xlabel = 'Traveler chosen mode', 
-                ylabel = 'Generalized cost measure ($)',
+                feature_label = 'Traveler chosen mode', 
+                target_label = 'Generalized cost measure ($)',
                 info = 'pytest figure'
             ).save(file_name
             ).close()
@@ -541,8 +563,8 @@ class TestCharts:
             ).label(
                 fig_title = 'Errorbar Chart',
                 sub_title = 'Standard error mean',
-                xlabel = 'Traveler chosen mode', 
-                ylabel = 'Generalized cost measure ($)',
+                feature_label = 'Traveler chosen mode', 
+                target_label = 'Generalized cost measure ($)',
                 info = 'pytest figure'
             ).save(file_name
             ).close()
@@ -559,8 +581,8 @@ class TestCharts:
             ).label(
                 fig_title = 'Mean Test Plot',
                 sub_title = 'Test mean',
-                ylabel = 'Traveler chosen mode', 
-                xlabel = 'Generalized cost measure ($)',
+                feature_label = 'Traveler chosen mode', 
+                target_label = 'Generalized cost measure ($)',
                 info = 'pytest figure'
             ).save(file_name
             ).close()
@@ -578,8 +600,8 @@ class TestCharts:
             ).label(
                 fig_title = 'Variation Test Plot',
                 sub_title = 'Test Variance',
-                ylabel = 'Traveler chosen mode', 
-                xlabel = 'Generalized cost measure ($)',
+                feature_label = 'Traveler chosen mode', 
+                target_label = 'Generalized cost measure ($)',
                 info = 'pytest figure'
             ).save(file_name
             ).close()
@@ -598,8 +620,8 @@ class TestCharts:
             ).label(
                 fig_title = 'Variation Test Plot',
                 sub_title = 'Test Standardeviation',
-                ylabel = 'Traveler chosen mode', 
-                xlabel = 'Generalized cost measure ($)',
+                feature_label = 'Traveler chosen mode', 
+                target_label = 'Generalized cost measure ($)',
                 info = 'pytest figure'
             ).save(file_name
             ).close()
@@ -616,8 +638,8 @@ class TestCharts:
             ).label(
                 fig_title = 'Bar Plot',
                 sub_title = 'Tast Stacking',
-                ylabel = 'Traveler chosen mode', 
-                xlabel = 'Generalized cost measure ($)',
+                feature_label = 'Traveler chosen mode', 
+                target_label = 'Generalized cost measure ($)',
                 info = 'pytest figure'
             ).save(file_name
             ).close()

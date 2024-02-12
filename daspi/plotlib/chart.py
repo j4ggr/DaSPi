@@ -9,7 +9,6 @@ from typing import Self
 from typing import Dict
 from typing import List
 from typing import Tuple
-from typing import Literal
 from typing import Generator
 from pathlib import Path
 from numpy.typing import NDArray
@@ -33,21 +32,26 @@ from .._constants import COLOR
 class _Chart(ABC):
 
     __slots__ = (
-        'source', 'target', 'target_on_y', 'axes_facets', 'nrows', 'ncols',
-        '_data')
+        'source', 'target', 'feature', 'target_on_y', 'axes_facets', 'nrows',
+        'ncols', '_data', '_xlabel', '_ylabel')
     source: DataFrame
     target: str
+    feature: str
     target_on_y: bool
     axes_facets: AxesFacets
     nrows: int
     ncols: int
     _data: DataFrame
+    _xlabel: str
+    _ylabel: str
 
     def __init__(
-            self, source: DataFrame, target: str, target_on_y: bool = True,
-            axes_facets: AxesFacets | None = None, **kwds) -> None:
+            self, source: DataFrame, target: str, feature: str = '',
+            target_on_y: bool = True, axes_facets: AxesFacets | None = None,
+            **kwds) -> None:
         self.source = source
         self.target = target
+        self.feature = feature
         self.nrows = kwds.pop('nrows', 1)
         self.ncols = kwds.pop('ncols', 1)
         if axes_facets is None:
@@ -56,6 +60,8 @@ class _Chart(ABC):
             self.axes_facets = axes_facets
         self.target_on_y = target_on_y
         self._data: DataFrame | None = None
+        self._xlabel = ''
+        self._ylabel = ''
 
     @property
     def figure(self) -> Figure:
@@ -71,9 +77,21 @@ class _Chart(ABC):
     def n_axes(self) -> int:
         """Get amount of axes"""
         return self.ncols * self.nrows
+
+    @property
+    def xlabel(self) -> str:
+        """Get label for x axis, set with `set_axis_label` method"""
+        return self._xlabel
     
-    def get_axis_label(self, label: Any, axis: Literal['x', 'y']) -> str:
-        """Get axis label according to given axis.
+    @property
+    def ylabel(self) -> str:
+        """Get label for y axis, set with `set_axis_label` method"""
+        return self._ylabel
+    
+    def set_axis_label(
+            self, label: Any, is_target: bool) -> str:
+        """Set axis label according to given kind of label, taking into
+        account the `target_on_y` attribute.
         
         Parameters
         ----------
@@ -82,26 +100,23 @@ class _Chart(ABC):
             given feature or target name are used taking into account 
             the target_on_y attribute. If False or None, empty string is 
             used, by default ''
-        axis : {'x', 'y'}
-            Which Axis the label is for.
-        
-        Returns
-        -------
-        label: str
-            labels for x or y axis
+        is_target : Bool
+            Set True if the label is for the target axis
         """
-        assert axis in ['x', 'y']
 
-        get_target = ((axis == 'y' and self.target_on_y) or
-                      (axis == 'x' and not self.target_on_y))
         match label:
             case None | False: 
-                return ''
+                _label = ''
             case True: 
-                return self.target if get_target else self.feature
+                _label = self.target if is_target else self.feature
             case _:
-                return str(label)
-    
+                _label = str(label)
+        
+        if is_target == self.target_on_y:
+            self._ylabel = _label
+        else:
+            self._xlabel = _label
+        
     @abstractmethod
     def _data_genenator_(self) -> Generator[Tuple, Self, None]:
         """Implement the data generator and add the currently yielded 
@@ -132,9 +147,8 @@ class _Chart(ABC):
 class SimpleChart(_Chart):
 
     __slots__ = (
-        'feature', 'hue', 'categorical_features', 'coloring',
-        'dodging', '_variate_names', '_current_variate', '_last_variate')
-    feature: str
+        'hue', 'categorical_features', 'coloring', 'dodging', '_variate_names',
+        '_current_variate', '_last_variate')
     hue: str
     categorical_features: bool
     coloring: HueLabel
@@ -146,9 +160,8 @@ class SimpleChart(_Chart):
             hue: str = '', dodge: bool = False, 
             categorical_features: bool = False, **kwds) -> None:
         self.categorical_features = categorical_features or dodge
-        self.feature = feature
         self.hue = hue
-        super().__init__(source=source, target=target, **kwds)
+        super().__init__(source=source, target=target, feature=feature, **kwds)
         self.coloring = HueLabel(self.get_categorical_labels(self.hue))
         feature_tick_labels = ()
         if self.categorical_features:
@@ -245,16 +258,17 @@ class SimpleChart(_Chart):
         return self
 
     def label(
-        self, fig_title: str = '', sub_title: str = '', xlabel: bool | str = '',
-        ylabel: bool | str = '', info: bool | str = False) -> Self:
+        self, fig_title: str = '', sub_title: str = '',
+        feature_label: bool | str = '', target_label: bool | str = '',
+        info: bool | str = False) -> Self:
         if self.categorical_features:
             self._correct_feature_ticks_labels_()
-        xlabel = self.get_axis_label(xlabel, 'x')
-        ylabel = self.get_axis_label(ylabel, 'y')
+        self.set_axis_label(feature_label, is_target=False)
+        self.set_axis_label(target_label, is_target=True)
 
         label = LabelFacets(
             figure=self.figure, axes=self.axes, fig_title=fig_title,
-            sub_title=sub_title, xlabel=xlabel, ylabel=ylabel,
+            sub_title=sub_title, xlabel=self._xlabel, ylabel=self._ylabel,
             info=info, legends=self.legend_handles_labels)
         label.draw()
 
@@ -355,9 +369,10 @@ class JointChart(_Chart):
 
         self.charts = []
         super().__init__(
-            source=source, target=target, sharex=sharex, sharey=sharey,
-            width_ratios=width_ratios, height_ratios=height_ratios, 
-            stretch_figsize=stretch_figsize, nrows=nrows, ncols=ncols, **kwds)
+            source=source, target=target, feature=feature, sharex=sharex,
+            sharey=sharey, width_ratios=width_ratios,
+            height_ratios=height_ratios, stretch_figsize=stretch_figsize,
+            nrows=nrows, ncols=ncols, **kwds)
         
         charts_data = dict(
             feature = self.ensure_tuple(feature),
@@ -368,7 +383,8 @@ class JointChart(_Chart):
             categorical_features = self.ensure_tuple(categorical_features),
             target_on_y = self.ensure_tuple(target_on_y))
         kw = dict(
-            source=self.source, target=self.target, axes_facets=self.axes_facets)
+            source=self.source, target=self.target,
+            axes_facets=self.axes_facets)
         for values in zip(*charts_data.values()):
             _kw = kw | {k: v for k, v in zip(charts_data.keys(), values)}
             self.charts.append(RelationalChart(**_kw))
@@ -395,16 +411,35 @@ class JointChart(_Chart):
             chart.target_on_y = toy
     
     @property
-    def legend_handles_labels(self) -> dict:
+    def legend_handles_labels(self) -> Dict:
         legend_hl = {}
         for chart in self.charts:
             legend_hl = legend_hl | chart.legend_handles_labels
         return legend_hl
     
-    def ensure_tuple(self, attribute: Any) -> tuple:
-        """Stellt sicher, dass das angegebene Attribut ein Tupel mit der
-        gleichen Nummer wie die Achsen ist. Wird nur ein Wert angegeben,
-        wird dieser entsprechend kopiert."""
+    @property
+    def xlabel(self) -> str | Tuple[str]:
+        if not self._xlabel:
+            self._xlabel = tuple((c.xlabel for c in self.charts))
+        return self._xlabel
+    
+    @property
+    def ylabel(self) -> str | Tuple[str]:
+        if not self._ylabel: 
+            self._ylabel = tuple((c.ylabel for c in self.charts))
+        return self._ylabel
+    
+    def itercharts(self):
+        """Iter over charts simultaneosly iters over axes of 
+        `axes_facets`. That ensures that the current Axes to which the 
+        current chart belongs is set."""
+        for _, chart in zip(self.axes_facets, self.charts):
+            yield chart
+    
+    def ensure_tuple(self, attribute: Any) -> Tuple:
+        """Ensures that the specified attribute is a tuple with the same
+        length as the axes. If only one value is specified, it will be
+        copied accordingly."""
         if isinstance(attribute, tuple):
             new_attribute = attribute
         elif isinstance(attribute, list):
@@ -414,14 +449,13 @@ class JointChart(_Chart):
         assert len(new_attribute) == self.n_axes, f'{attribute} does not have enough values, needed {self.n_axes}'
         return new_attribute
 
-    def get_axis_label(
-            self, label: Any, axis: Literal['x', 'y']) -> str | Tuple[str]:
+    def set_axis_label(
+            self, label: Any, is_target: bool) -> None:
         if label and isinstance(label, str):
-            return label
-        labels = tuple(map(
-            lambda chart, _label: chart.get_axis_label(_label, axis), 
-            self.charts, self.ensure_tuple(label)))
-        return labels
+            super().set_axis_label(label, is_target=is_target)
+        else:
+            for _label, chart in zip(self.ensure_tuple(label), self.charts):
+                chart.set_axis_label(_label, is_target=is_target)
     
     def _data_genenator_(self) -> Generator[Tuple, Self, None]:
         return super()._data_genenator_()
@@ -430,7 +464,7 @@ class JointChart(_Chart):
             self, plotters_kwds: List[Tuple[_Plotter | None, Dict]],
             hide_none: bool = True) -> Self:
         _axs = iter(self.axes_facets)
-        for chart, (plotter, kwds) in zip(self.charts, plotters_kwds):
+        for chart, (plotter, kwds) in zip(self.itercharts(), plotters_kwds):
             ax = next(_axs)
             if plotter is None:
                 if hide_none: ax.set_axis_off()
@@ -440,15 +474,21 @@ class JointChart(_Chart):
     
     def label(
             self, fig_title: str = '', sub_title: str = '',
-            xlabel: str | Tuple[str] = '', ylabel: str | Tuple[str] = '', 
-            row_title: str = '', col_title: str = '',
-            info: bool | str = False) -> Self:
-        xlabel = self.get_axis_label(xlabel, 'x')
-        ylabel = self.get_axis_label(ylabel, 'y')
+            feature_label: str | bool | Tuple = '', 
+            target_label: str | bool | Tuple = '', 
+            row_title: str = '', col_title: str = '', info: bool | str = False
+            ) -> Self:
+        for chart in self.itercharts():
+            if not chart.categorical_features: continue
+            chart._correct_feature_ticks_labels_()
+        self._xlabel = ''
+        self._ylabel = ''
+        self.set_axis_label(feature_label, is_target=False)
+        self.set_axis_label(target_label, is_target=True)
 
         label = LabelFacets(
             figure=self.figure, axes=self.axes, fig_title=fig_title,
-            sub_title=sub_title, xlabel=xlabel, ylabel=ylabel,
+            sub_title=sub_title, xlabel=self.xlabel, ylabel=self.ylabel,
             info=info, row_title=row_title, col_title=col_title,
             legends=self.legend_handles_labels)
         label.draw()
@@ -506,15 +546,16 @@ class MultipleVariateChart(RelationalChart):
         return self
                 
     def label(
-            self, fig_title: str = '', sub_title: str = '', xlabel: str = '',
-            ylabel: str = '', row_title: str = '', col_title: str = '',
-            info: bool | str = False) -> Self:
-        xlabel = self.get_axis_label(xlabel, 'x')
-        ylabel = self.get_axis_label(ylabel, 'y')
+            self, feature_label: str, target_label: str,
+            fig_title: str = '', sub_title: str = '', row_title: str = '',
+            col_title: str = '', info: bool | str = False
+            ) -> Self:
+        self.set_axis_label(feature_label, is_target=False)
+        self.set_axis_label(target_label, is_target=True)
 
         label = LabelFacets(
             figure=self.figure, axes=self.axes, fig_title=fig_title,
-            sub_title=sub_title, xlabel=xlabel, ylabel=ylabel,
+            sub_title=sub_title, xlabel=self.xlabel, ylabel=self.ylabel,
             rows=self.row_labels, cols=self.col_labels,
             info=info, row_title=row_title, col_title=col_title,
             legends=self.legend_handles_labels)

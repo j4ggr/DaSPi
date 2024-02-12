@@ -25,12 +25,20 @@ from .._constants import LABEL
 class LabelFacets:
 
     def __init__(
-            self, figure: Figure, axes: NDArray, fig_title: str = '', 
-            sub_title: str = '', xlabel: str | Tuple[str] = '',
-            ylabel: str | Tuple[str] = '', info: bool | str = False,
-            rows: Tuple[str] = (), cols: Tuple[str] = (),
-            row_title: str = '', col_title: str = '',
-            axes_titles: Tuple[str] = (), legends: Dict[str, List] = {}
+            self,
+            figure: Figure,
+            axes: NDArray,
+            fig_title: str = '', 
+            sub_title: str = '',
+            xlabel: str | Tuple[str] = '',
+            ylabel: str | Tuple[str] = '',
+            info: bool | str = False,
+            rows: Tuple[str] = (),
+            cols: Tuple[str] = (),
+            row_title: str = '',
+            col_title: str = '',
+            axes_titles: Tuple[str] = (),
+            legends: Dict[str, List] = {}
             ) -> None:
         self.figure = figure
         self.plot_axes = axes
