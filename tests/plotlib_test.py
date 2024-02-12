@@ -627,20 +627,28 @@ class TestCharts:
             ).close()
 
     def test_bar_plots(self):
+        
         file_name = savedir/'bar_chart.png'
-        chart = SimpleChart(
+        chart = JointChart(
                 source = df_travel,
                 target = 'gc',
                 feature = 'mode',
+                nrows = 2,
+                ncols = 1,
                 hue = 'choice',
                 categorical_features = True,
-            ).plot(Bar
+                target_on_y = (False, False),
+                dodge = (False, True)
+            ).plot([
+                (Bar, dict(method='count')),
+                (Bar, dict(method='sum'))]
             ).label(
                 fig_title = 'Bar Plot',
                 sub_title = 'Tast Stacking',
                 feature_label = 'Traveler chosen mode', 
-                target_label = 'Generalized cost measure ($)',
+                target_label = (
+                    'Generalized cost measure count ($)',
+                    'Generalized cost measure sum ($)'),
                 info = 'pytest figure'
             ).save(file_name
             ).close()
-        

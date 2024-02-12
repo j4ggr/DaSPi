@@ -20,6 +20,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.container import BarContainer
 
+from pandas.api.types import is_scalar
 from pandas.api.types import is_numeric_dtype
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
@@ -136,81 +137,22 @@ class Line(_Plotter):
         self.ax.plot(self.x, self.y, **kwds)
 
 
-class Bar(_Plotter):
-
-    __slots__ = ('stack', 'width', 'feature_ticks')
-    stack: bool
-    width: float
-    feature_ticks: NDArray
-
-    def __init__(
-            self,
-            source: Hashable,
-            target: str,
-            feature: str,
-            stack: bool = True,
-            width: float = CATEGORY.FEATURE_SPACE,
-            target_on_y: bool = True,
-            color: str | None = None,
-            ax: Axes | None = None,
-            **kwds) -> None:
-        self.stack = stack
-        self.width = width
-        super().__init__(
-            source=source, target=target, feature=feature,
-            target_on_y=target_on_y, color=color, ax=ax)
-        ticks = np.array(self.source[self.feature].unique())
-        if not is_numeric_dtype(ticks):
-            ticks = np.arange(len(ticks))
-        self.feature_ticks = ticks
-
-    @property
-    def bars(self) -> List[BarContainer]:
-        return [c for c in self.ax.containers if isinstance(c, BarContainer)]
-    
-    @property
-    def base(self) -> NDArray:
-        base = np.zeros(len(self.feature_ticks))
-        if not self.stack: 
-            return base
-
-        for bar in self.bars:
-            boxs = [p.get_bbox() for p in bar.patches]
-            if self.target_on_y:
-                low, upp = map(tuple, zip(*[(b.x0, b.x1) for b in boxs]))
-            else:
-                low, upp = map(tuple, zip(*[(b.y0, b.y1) for b in boxs]))
-            if (all(np.greater(self.feature_ticks, low))
-                and all(np.less(self.feature_ticks, upp))
-                and any(np.greater(bar.datavalues, base))):
-                base = bar.datavalues
-        return base
-
-    def __call__(self, **kwds) -> None:
-        if self.target_on_y:
-            self.ax.bar(
-                self.x, self.y, width=self.width, bottom=self.base, **kwds)
-        else:
-            self.ax.barh(
-                self.y, self.x, height=self.width, left=self.base, **kwds)
-
-
 class _TransformPlotter(_Plotter):
 
-    __slots__ = ('_base')
-    _base: int | float
+    __slots__ = ('_f_base')
+    _f_base: int | float
     
     def __init__(
             self,
             source: DataFrame,
             target: str,
             feature: str = '',
-            base: int | float = PLOTTER.DEFAULT_BASE,
+            f_base: int | float = PLOTTER.DEFAULT_F_BASE,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        self._base = base
+        self._f_base = f_base
         self.target = target
         self.feature = feature
         
@@ -227,21 +169,104 @@ class _TransformPlotter(_Plotter):
             self, source: DataFrame) -> Generator[Tuple, Self, None]:
         if self.feature and self.feature != PLOTTER.TRANSFORMED_FEATURE:
             grouper = source.groupby(self.feature, sort=True)
-            for i, (name, group) in enumerate(grouper, start=1):
-                base = name if isinstance(name, (float, int)) else i
-                yield base, group[self.target]
+            for i, (f_value, group) in enumerate(grouper, start=1):
+                f_base = f_value if isinstance(f_value, (float, int)) else i
+                yield f_base, group[self.target]
         else:
             self.feature = PLOTTER.TRANSFORMED_FEATURE
-            yield self._base, source[self.target]
+            yield self._f_base, source[self.target]
     
     @abstractmethod
     def transform(
-        self, feature_data: float | int, target_data: Series
-        ) -> pd.DataFrame:
+        self, feature_data: float | int, target_data: Series) -> DataFrame:
         ...
     
     @abstractmethod
     def __call__(self): ...
+
+
+class Bar(_TransformPlotter):
+
+    __slots__ = ('method', 'kw_method', 'stack', 'width')
+    method: str | None
+    kw_method: dict
+    stack: bool
+    width: float
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str,
+            stack: bool = True,
+            width: float = CATEGORY.FEATURE_SPACE,
+            method: str | None = None,
+            kw_method: dict = {},
+            f_base: int | float = PLOTTER.DEFAULT_F_BASE,
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        self.stack = stack
+        self.width = width
+        self.method = method
+        self.kw_method = kw_method
+        super().__init__(
+            source=source, target=target, feature=feature, f_base=f_base,
+            target_on_y=target_on_y, color=color, ax=ax, **kwds)
+
+        if self.method is not None:
+            target = f'{self.target} {self.method}'
+            self.source = self.source.rename(columns={self.target: target})
+            self.target = target
+
+    @property
+    def bars(self) -> List[BarContainer]:
+        return [c for c in self.ax.containers if isinstance(c, BarContainer)]
+    
+    @property
+    def t_base(self) -> NDArray:
+        feature_ticks = self.source[self.feature]
+        t_base = np.zeros(len(feature_ticks))
+        if not self.stack: 
+            return t_base
+
+        for bar in self.bars:
+            boxs = [p.get_bbox() for p in bar.patches]
+            if self.target_on_y:
+                low, upp = map(tuple, zip(*[(b.x0, b.x1) for b in boxs]))
+            else:
+                low, upp = map(tuple, zip(*[(b.y0, b.y1) for b in boxs]))
+            if (all(np.greater(feature_ticks, low))
+                and all(np.less(feature_ticks, upp))
+                and any(np.greater(bar.datavalues, t_base))):
+                t_base = bar.datavalues
+        return t_base
+    
+    def transform(
+            self, feature_data: float | int, target_data: Series) -> DataFrame:
+        if self.method is not None:
+            t_value = getattr(target_data, self.method)(**self.kw_method)
+            assert is_scalar(t_value), (
+                f'{self.method} does not return a scalar')
+            t_value = [t_value]
+        else:
+            t_value = target_data
+            assert len(t_value) <= 1, (
+                'Each feature level must contain only one target value')
+        
+        data = pd.DataFrame({
+            self.target: t_value,
+            self.feature: [feature_data]})
+        return data
+
+    def __call__(self, **kwds) -> None:
+        if self.target_on_y:
+            self.ax.bar(
+                self.x, self.y, width=self.width, bottom=self.t_base, **kwds)
+        else:
+            self.ax.barh(
+                self.y, self.x, height=self.width, left=self.t_base, **kwds)
 
 
 class Jitter(_TransformPlotter):
@@ -290,8 +315,7 @@ class Jitter(_TransformPlotter):
         return jiiter
         
     def transform(
-            self, feature_data: float | int, target_data: Series
-            ) -> pd.DataFrame:
+            self, feature_data: float | int, target_data: Series) -> DataFrame:
         data = pd.DataFrame({
             self.target: target_data,
             self.feature: self.jitter(feature_data, target_data.size)})
@@ -334,14 +358,13 @@ class GaussianKDE(_TransformPlotter):
         return self._height
         
     def transform(
-            self, feature_data: float | int, target_data: Series
-            ) -> pd.DataFrame:
+            self, feature_data: float | int, target_data: Series) -> DataFrame:
         sequence, estimation = estimate_kernel_density(
             target_data, height=self.height, base=feature_data)
         data = pd.DataFrame({
             self.target: sequence,
             self.feature: estimation,
-            PLOTTER.BASE: feature_data * np.ones(len(sequence))})
+            PLOTTER.F_BASE_NAME: feature_data * np.ones(len(sequence))})
         return data
     
     def hide_density_axis(self) -> None:
@@ -354,9 +377,9 @@ class GaussianKDE(_TransformPlotter):
         self.ax.plot(self.x, self.y, **kw_line)
         kw_fill = dict(alpha=COLOR.FILL_ALPHA) | kw_fill
         if self.target_on_y:
-            self.ax.fill_betweenx(self.y, self._base, self.x, **kw_fill)
+            self.ax.fill_betweenx(self.y, self._f_base, self.x, **kw_fill)
         else:
-            self.ax.fill_between(self.x, self._base, self.y, **kw_fill)
+            self.ax.fill_between(self.x, self._f_base, self.y, **kw_fill)
         if not self.show_density_axis:
             self.hide_density_axis()
 
@@ -381,9 +404,9 @@ class Violine(GaussianKDE):
 
     def __call__(self, **kwds) -> None:
         kwds = dict(color=self.color, alpha=COLOR.FILL_ALPHA) | kwds
-        for base, group in self.source.groupby(PLOTTER.BASE):
+        for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME):
             estim_upp = group[self.feature]
-            estim_low = 2*base - estim_upp
+            estim_low = 2*f_base - estim_upp
             sequence = group[self.target]
             if self.target_on_y:
                 self.ax.fill_betweenx(sequence, estim_low, estim_upp, **kwds)
@@ -413,28 +436,27 @@ class Ridge(GaussianKDE):
             show_density_axis=True, **kwds)
 
     def transform(
-            self, feature_data: float | int, target_data: Series
-            ) -> pd.DataFrame:
-        base = feature_data+PLOTTER.RIDGE_SHIFT
+            self, feature_data: float | int, target_data: Series) -> DataFrame:
+        f_base = feature_data + PLOTTER.RIDGE_SHIFT
         sequence, estimation = estimate_kernel_density(
-            target_data, stretch=self.stretch, base=base)
+            target_data, stretch=self.stretch, base=f_base)
         data = pd.DataFrame({
             self.target: sequence,
             self.feature: estimation,
-            PLOTTER.BASE: base * np.ones(len(sequence))})
+            PLOTTER.F_BASE_NAME: f_base * np.ones(len(sequence))})
         return data
     
     def __call__(self, **kwds) -> None:
         kwds = dict(color=self.color, alpha=COLOR.FILL_ALPHA) | kwds
-        for base, group in self.source.groupby(PLOTTER.BASE):
+        for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME):
             estimation = group[self.feature]
             sequence = group[self.target]
             if self.target_on_y:
                 self.ax.plot(estimation, sequence, c=COLOR.WHITE_TRANSPARENT)
-                self.ax.fill_betweenx(sequence, base, estimation, **kwds)
+                self.ax.fill_betweenx(sequence, f_base, estimation, **kwds)
             else:
                 self.ax.plot(sequence, estimation, c=COLOR.WHITE_TRANSPARENT)
-                self.ax.fill_between(sequence, base, estimation, **kwds)
+                self.ax.fill_between(sequence, f_base, estimation, **kwds)
 
 
 class Errorbar(_TransformPlotter):
@@ -484,8 +506,7 @@ class Errorbar(_TransformPlotter):
                 self.feature, ascending=not self.target_on_y)
         
     def transform(
-            self, feature_data: float | int, target_data: Series
-            ) -> pd.DataFrame:
+            self, feature_data: float | int, target_data: Series) -> DataFrame:
         data = pd.DataFrame({
             self.target: target_data,
             self.feature: [feature_data]})
@@ -532,8 +553,7 @@ class StandardErrorMean(Errorbar):
             target_on_y=target_on_y, sort=sort, color=color, ax=ax)
 
     def transform(
-            self, feature_data: float | int, target_data: Series
-            ) -> pd.DataFrame:
+            self, feature_data: float | int, target_data: Series) -> DataFrame:
         center = target_data.mean()
         err = target_data.sem()
         data = pd.DataFrame({

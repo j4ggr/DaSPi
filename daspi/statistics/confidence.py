@@ -401,7 +401,8 @@ def confidence_to_alpha(
     alpha : float
         significance level as alpha risk
     """
-    assert 0 <= confidence_level <= 1, f'Confidence level {confidence_level} not in (0, 1)'
+    assert 0 <= confidence_level <= 1, (
+        f'Confidence level {confidence_level} not in (0, 1)')
     sides = 2 if two_sided else 1
     alpha = (1 - confidence_level)/(sides * n_groups)
     return alpha

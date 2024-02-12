@@ -165,7 +165,8 @@ class SimpleChart(_Chart):
         self.coloring = HueLabel(self.get_categorical_labels(self.hue))
         feature_tick_labels = ()
         if self.categorical_features:
-            assert feature in source, 'To be able to use the "categorical_features" attribute, features must be present'
+            assert feature in source, (
+                'categorical_features is True, but features is not present')
             feature_tick_labels = self.get_categorical_labels(feature)
         dodge_categories = self.coloring.labels if dodge else ()
         self.dodging = Dodger(dodge_categories, feature_tick_labels)
@@ -409,6 +410,11 @@ class JointChart(_Chart):
     def target_on_y(self, target_on_y: bool | List[bool] | Tuple[bool]) -> None:
         for toy, chart in zip(self.ensure_tuple(target_on_y), self.charts):
             chart.target_on_y = toy
+
+    @property
+    def same_target_on_y(self) -> bool:
+        """True if all target_on_y have the same boolean value."""
+        return all(toy == self.target_on_y[0] for toy in self.target_on_y)
     
     @property
     def legend_handles_labels(self) -> Dict:
@@ -446,13 +452,19 @@ class JointChart(_Chart):
             new_attribute = tuple(attribute)
         else:
             new_attribute = tuple(attribute for _ in range(self.n_axes))
-        assert len(new_attribute) == self.n_axes, f'{attribute} does not have enough values, needed {self.n_axes}'
+        assert len(new_attribute) == self.n_axes, (
+            f'{attribute} does not have enough values, needed {self.n_axes}')
         return new_attribute
 
     def set_axis_label(
             self, label: Any, is_target: bool) -> None:
         if label and isinstance(label, str):
-            super().set_axis_label(label, is_target=is_target)
+            assert self.same_target_on_y, (
+                'For a single label, all axes must have the same orientation')
+            if is_target == all(self.target_on_y):
+                self._ylabel = label
+            else:
+                self._xlabel = label
         else:
             for _label, chart in zip(self.ensure_tuple(label), self.charts):
                 chart.set_axis_label(_label, is_target=is_target)

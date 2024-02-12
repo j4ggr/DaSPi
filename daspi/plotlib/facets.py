@@ -146,7 +146,7 @@ class LabelFacets:
 
     def add_ylabel(self) -> None:
         if not self.ylabel: return
-        if isinstance(self.xlabel, str):
+        if isinstance(self.ylabel, str):
             kw = KW.YLABEL
             kw['x'] = kw['x'] - LABEL.AXES_PADDING * self.shift_text_x
             self.figure.text(s=self.ylabel, **kw)

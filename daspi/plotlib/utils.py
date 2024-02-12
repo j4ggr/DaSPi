@@ -81,8 +81,10 @@ class _CategoryLabel(ABC):
         return self._labels
     @labels.setter
     def labels(self, labels: Tuple):
-        assert self.n_used <= self.n_allowed, f'{self} can handle {self.n_allowed} categories, got {len(labels)}'
-        assert self.n_used == len(set(labels)), f'One or more labels occur more than once, only unique labels are allowed'
+        assert self.n_used <= self.n_allowed, (
+            f'{self} can handle {self.n_allowed} categories, got {len(labels)}')
+        assert self.n_used == len(set(labels)), (
+            f'Labels occur more than once, only unique labels are allowed')
         self._labels = labels
 
     @property
@@ -100,7 +102,8 @@ class _CategoryLabel(ABC):
             try:
                 idx = self.labels.index(label)
             except ValueError:
-                raise KeyError(f"Can't get category for label '{label}', got {self.labels}")
+                raise KeyError(
+                    f"Can't get category for label '{label}', got {self.labels}")
             item = self.categories[idx]
         else:
             item = self.default
@@ -152,7 +155,7 @@ class ShapeLabel(_CategoryLabel):
 
 class SizeLabel(_CategoryLabel):
 
-    __slots__: ('_min', '_max')
+    __slots__ = ('_min', '_max')
     _categories: Tuple[int] = CATEGORY.HANDLE_SIZES
     _min: int | float
     _max: int | float

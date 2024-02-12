@@ -129,8 +129,8 @@ LABEL = _Label_()
 class _Plotter_:
     FEATURE: float = '_feature_'
     TRANSFORMED_FEATURE: float = '_transformed_'
-    BASE: str = '_base_'
-    DEFAULT_BASE: int = 0
+    F_BASE_NAME: str = '_base_'
+    DEFAULT_F_BASE: int = 0
     ERR_LOW: str = '_error_lower_'
     ERR_UPP: str = '_error_upper_'
     RIDGE_SHIFT: float = -0.3
