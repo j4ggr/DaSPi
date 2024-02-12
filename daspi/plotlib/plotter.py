@@ -179,7 +179,7 @@ class LinearRegression(_Plotter):
             kw_pred_ci: dict = {}, **kwds):
         kwds = {'zorder': PLOTTER.FIT_LINE_ZORDER} | kwds
         kw_fit_ci = {'zorder': PLOTTER.FIT_CI_ZORDER} | kw_fit_ci
-        kw_pred_ci = {'zorder': PLOTTER.PRED_CI_ZORDER_ZORDER} | kw_pred_ci
+        kw_pred_ci = {'zorder': PLOTTER.PRED_CI_ZORDER} | kw_pred_ci
         
         x, y = self.source[self.feature], self.source[self.target_fit]
         if not self.target_on_y: x, y = y, x
@@ -722,6 +722,7 @@ __all__ = [
     _Plotter.__name__,
     Scatter.__name__,
     Line.__name__,
+    LinearRegression.__name__,
     Bar.__name__,
     Jitter.__name__,
     GaussianKDE.__name__,

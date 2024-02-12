@@ -47,9 +47,9 @@ class _Chart(ABC):
     _plots: List[_Plotter]
 
     def __init__(
-            self, source: DataFrame, target: str, feature: str = '',
-            target_on_y: bool = True, axes_facets: AxesFacets | None = None,
-            **kwds) -> None:
+            self, source: DataFrame, target: str | Tuple[str], 
+            feature: str | Tuple[str]= '', target_on_y: bool = True, 
+            axes_facets: AxesFacets | None = None, **kwds) -> None:
         self.source = source
         self.target = target
         self.feature = feature
@@ -325,7 +325,7 @@ class SimpleChart(_Chart):
 
 class JointChart(_Chart):
 
-    __slots__ = ('charts')
+    __slots__ = ('charts', '_target', '_feature')
     charts: List[SimpleChart]
     hue: str | Tuple[str]
     shape: str | Tuple[str]
@@ -353,14 +353,19 @@ class JointChart(_Chart):
             **kwds) -> None:
 
         self.charts = []
+        self.ncols = ncols
+        self.nrows = nrows
+        target = self.ensure_tuple(target)
+        feature = self.ensure_tuple(feature)
         super().__init__(
-            source=source, target=target, feature=feature, sharex=sharex,
-            sharey=sharey, width_ratios=width_ratios,
+            source=source, target=target, feature=feature, 
+            sharex=sharex, sharey=sharey, width_ratios=width_ratios,
             height_ratios=height_ratios, stretch_figsize=stretch_figsize,
             nrows=nrows, ncols=ncols, **kwds)
         
         charts_data = dict(
-            feature = self.ensure_tuple(feature),
+            target = self._target,
+            feature = self._feature,
             hue = self.ensure_tuple(hue),
             shape = self.ensure_tuple(shape),
             size = self.ensure_tuple(size),
@@ -368,8 +373,7 @@ class JointChart(_Chart):
             categorical_features = self.ensure_tuple(categorical_features),
             target_on_y = self.ensure_tuple(target_on_y))
         kw = dict(
-            source=self.source, target=self.target,
-            axes_facets=self.axes_facets)
+            source=self.source, axes_facets=self.axes_facets)
         for values in zip(*charts_data.values()):
             _kw = kw | {k: v for k, v in zip(charts_data.keys(), values)}
             self.charts.append(SimpleChart(**_kw))
@@ -381,6 +385,20 @@ class JointChart(_Chart):
             if self.axes_facets.ax == ax:
                 return idx
         return 0
+    
+    @property
+    def feature(self) -> str:
+        return self._feature[self._idx]
+    @feature.setter
+    def feature(self, feature: str | Tuple[str]) -> None:
+        self._feature: Tuple[str] = self.ensure_tuple(feature)
+    
+    @property
+    def target(self) -> str:
+        return self._target[self._idx]
+    @target.setter
+    def target(self, target: str | Tuple[str]) -> None:
+        self._target: Tuple[str] = self.ensure_tuple(target)
     
     @property
     def target_on_y(self) -> List[bool]:

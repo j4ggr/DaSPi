@@ -138,8 +138,8 @@ class _Plotter_:
     FITTED_VALUES_NAME: str = '_fitted_values_'
     FIT_CI_LOW: str = '_fit_ci_low_'
     FIT_CI_UPP: str = '_fit_ci_upp_'
-    PRED_CI_LOW: str = '_fit_ci_low_'
-    PRED_CI_LOW: str = '_fit_ci_low_'
+    PRED_CI_LOW: str = '_pred_ci_low_'
+    PRED_CI_UPP: str = '_pred_ci_upp_'
     FIT_LINE_ZORDER: float = 2.3
     FIT_CI_ZORDER: float = 2.2
     PRED_CI_ZORDER: float = 2.1

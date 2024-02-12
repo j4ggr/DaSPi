@@ -32,6 +32,7 @@ from daspi.plotlib.plotter import Violine
 from daspi.plotlib.plotter import MeanTest
 from daspi.plotlib.plotter import GaussianKDE
 from daspi.plotlib.plotter import VariationTest
+from daspi.plotlib.plotter import LinearRegression
 from daspi.plotlib.plotter import StandardErrorMean
 
 matplotlib.use("Agg")
@@ -626,7 +627,7 @@ class TestCharts:
             ).save(file_name
             ).close()
 
-    def test_bar_plots(self):
+    def test_bar_plots(self) -> None:
         
         file_name = savedir/'bar_chart.png'
         chart = JointChart(
@@ -652,3 +653,27 @@ class TestCharts:
                 info = 'pytest figure'
             ).save(file_name
             ).close()
+
+    def test_joint_chart(self) -> None:
+
+        file_name = savedir/'joint_chart.png'
+        chart = JointChart(
+                source = df_travel,
+                target = ('invc', '', 'invt', 'invt'),
+                feature = ('', '', 'invc', ''),
+                target_on_y = [False, False, True, True],
+                hue = 'mode',
+                nrows = 2,
+                ncols = 2,
+                sharex = 'col',
+                sharey = 'row',
+                width_ratios = [5, 1],
+                height_ratios = [1, 5]
+        ).plot([
+            (GaussianKDE, {}),
+            (None, {}),
+            (LinearRegression, dict(show_points=True, show_fit_ci=True, show_pred_ci=True)),
+            (GaussianKDE, {})]
+        ).label(
+        ).save(file_name
+        ).close()
