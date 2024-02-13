@@ -9,10 +9,12 @@ from scipy.stats._continuous_distns import _distn_names
 
 class _Kw_:
     _x: float = 0.035 # X position for fig title, subtitle and info
+    _lw: float = 0.8 # line width for special lines
+    _dashed: str = '--'
     @property
     def LINE(self):
         """Base kwds for horizontal or vertical lines"""
-        return dict(ls=0.8, style='--')
+        return dict(lw=self._lw, ls=self._dashed)
     @property
     def HUE_HANDLES(self) -> dict:
         """Patch keyword arguments for genereting handles on 
@@ -87,6 +89,21 @@ class _Kw_:
     def ERROR_BAR(self) -> dict:
         """Base keyword arguments for error bars"""
         return dict(color='k', lw=0.5, fmt='none')
+    @property
+    def FIT_LINE(self) -> dict:
+        """Keyword arguments for confidence interval area for fit"""
+        kw = dict(zorder=2.3, alpha=0.8)
+        return kw
+    @property
+    def FIT_CI(self) -> dict:
+        """Keyword arguments for confidence interval area for fit"""
+        kw = dict(zorder=2.2, alpha=0.3, lw=0)
+        return kw
+    @property
+    def PRED_CI(self) -> dict:
+        """Keyword arguments for confidence interval area for fit"""
+        kw = dict(zorder=2.1, alpha=0.8, lw=self._lw, ls=self._dashed)
+        return kw
 KW = _Kw_()
 
 
@@ -140,9 +157,6 @@ class _Plotter_:
     FIT_CI_UPP: str = '_fit_ci_upp_'
     PRED_CI_LOW: str = '_pred_ci_low_'
     PRED_CI_UPP: str = '_pred_ci_upp_'
-    FIT_LINE_ZORDER: float = 2.3
-    FIT_CI_ZORDER: float = 2.2
-    PRED_CI_ZORDER: float = 2.1
     @property
     def REGRESSION_CI_NAMES(self) -> Tuple[str]:
         """Get names for regression confidences in order

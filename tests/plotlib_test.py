@@ -85,16 +85,19 @@ class TestCategoryLabel:
     def test_errrors(self):
         with pytest.raises(KeyError) as err:
             self.colors['psi']
-        assert str(err.value) == f"\"Can't get category for label 'psi', got {self.colors.labels}\""
+        assert str(err.value) == (
+            f"\"Can't get category for label 'psi', got {self.colors.labels}\"")
         
         with pytest.raises(AssertionError) as err:
             n = self.colors.n_allowed
             HueLabel([i for i in range(n+1)])
-        assert str(err.value) == f'HueLabel can handle {n} categories, got {n+1}'
+        assert str(err.value) == (
+            f'HueLabel can handle {n} categories, got {n+1}')
 
         with pytest.raises(AssertionError) as err:
             ShapeLabel(('foo', 'foo', 'bar', 'bazz'))
-        assert str(err.value) == f'One or more labels occur more than once, only unique labels are allowed'
+        assert str(err.value) == (
+            f'Labels occur more than once, only unique labels are allowed')
 
     def test_handles_labels(self):
         handles, labels = self.colors.handles_labels()
@@ -654,9 +657,9 @@ class TestCharts:
             ).save(file_name
             ).close()
 
-    def test_joint_chart(self) -> None:
+    def test_regression_joint_chart(self) -> None:
 
-        file_name = savedir/'joint_chart.png'
+        file_name = savedir/'regression_joint_chart.png'
         chart = JointChart(
                 source = df_travel,
                 target = ('invc', '', 'invt', 'invt'),
@@ -668,12 +671,13 @@ class TestCharts:
                 sharex = 'col',
                 sharey = 'row',
                 width_ratios = [5, 1],
-                height_ratios = [1, 5]
+                height_ratios = [1, 5],
+                stretch_figsize = False
         ).plot([
-            (GaussianKDE, {}),
+            (GaussianKDE, {'show_density_axis': False}),
             (None, {}),
             (LinearRegression, dict(show_points=True, show_fit_ci=True, show_pred_ci=True)),
-            (GaussianKDE, {})]
+            (GaussianKDE, {'show_density_axis': False})]
         ).label(
         ).save(file_name
         ).close()

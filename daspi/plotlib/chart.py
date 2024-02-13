@@ -60,6 +60,8 @@ class _Chart(ABC):
         else:
             self.axes_facets = axes_facets
         self.target_on_y = target_on_y
+        for ax in self.axes.flat:
+            getattr(ax, f'set_{"x" if self.target_on_y else "y"}margin')(0)
         self._data: DataFrame | None = None
         self._xlabel = ''
         self._ylabel = ''

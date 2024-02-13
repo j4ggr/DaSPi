@@ -25,7 +25,6 @@ from statsmodels.graphics.gofplots import ProbPlot
 from statsmodels.regression.linear_model import RegressionResults
 
 from pandas.api.types import is_scalar
-from pandas.api.types import is_numeric_dtype
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
@@ -144,9 +143,13 @@ class Line(_Plotter):
 
 class LinearRegression(_Plotter):
 
-    __slots__ = ('model', 'target_fit')
+    __slots__ = (
+        'model', 'target_fit', 'show_points', 'show_fit_ci', 'show_pred_ci')
     model: RegressionResults
     target_fit: str
+    show_points: bool
+    show_fit_ci: bool
+    show_pred_ci: bool
 
     def __init__(
             self,
@@ -156,8 +159,14 @@ class LinearRegression(_Plotter):
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
+            show_points: bool = True,
+            show_fit_ci: bool = False,
+            show_pred_ci: bool = False,
             **kwds) -> None:
         self.target_fit = PLOTTER.FITTED_VALUES_NAME
+        self.show_points = show_points
+        self.show_fit_ci = show_fit_ci
+        self.show_pred_ci = show_pred_ci
         df = source if isinstance(source, DataFrame) else pd.DataFrame(source)
         df = (df
             .sort_values(feature)
@@ -167,28 +176,29 @@ class LinearRegression(_Plotter):
         self.model: RegressionResults = sm.OLS(df[target], sm.add_constant(df[feature])).fit()
         df[self.target_fit] = self.model.fittedvalues
         ci_data = pd.DataFrame(
-            prediction_ci(self.model), columns=PLOTTER.REGRESSION_CI_NAMES)
+            data = np.array(prediction_ci(self.model)).T, 
+            columns = PLOTTER.REGRESSION_CI_NAMES)
         df = pd.concat([df, ci_data], axis=1)
         super().__init__(
             source=df, target=target, feature=feature, target_on_y=target_on_y,
             color=color, ax=ax)
     
     def __call__(
-            self, show_points: bool = True, show_fit_ci: bool = False,
-            show_pred_ci: bool = False, kw_fit_ci: dict = {},
+            self, kw_scatter: dict = {}, kw_fit_ci: dict = {},
             kw_pred_ci: dict = {}, **kwds):
-        kwds = {'zorder': PLOTTER.FIT_LINE_ZORDER} | kwds
-        kw_fit_ci = {'zorder': PLOTTER.FIT_CI_ZORDER} | kw_fit_ci
-        kw_pred_ci = {'zorder': PLOTTER.PRED_CI_ZORDER} | kw_pred_ci
+        _color = {'color': self.color}
         
         x, y = self.source[self.feature], self.source[self.target_fit]
         if not self.target_on_y: x, y = y, x
-        self.ax.plot(x, y, color=self.color, **kwds)
+        kwds = KW.FIT_LINE | _color | kwds
+        self.ax.plot(x, y, **kwds)
         
-        if show_points:
-            self.ax.scatter(self.x, self.y, color=self.color)
+        if self.show_points:
+            kw_scatter = _color | kw_scatter
+            self.ax.scatter(self.x, self.y, **kw_scatter)
         
-        if show_fit_ci:
+        if self.show_fit_ci:
+            kw_fit_ci = KW.FIT_CI | _color | kw_fit_ci
             lower = self.source[PLOTTER.FIT_CI_LOW]
             upper = self.source[PLOTTER.FIT_CI_UPP]
             if self.target_on_y:
@@ -196,7 +206,8 @@ class LinearRegression(_Plotter):
             else:
                 self.ax.fill_betweenx(self.y, lower, upper, **kw_fit_ci)
         
-        if show_pred_ci:
+        if self.show_pred_ci:
+            kw_pred_ci = KW.PRED_CI | _color | kw_pred_ci
             lower = self.source[PLOTTER.PRED_CI_LOW]
             upper = self.source[PLOTTER.PRED_CI_UPP]
             if self.target_on_y:
@@ -399,9 +410,10 @@ class Jitter(_TransformPlotter):
 
 class GaussianKDE(_TransformPlotter):
 
-    __slots__ = ('_height', 'show_density_axis')
+    __slots__ = ('_height', 'show_density_axis', 'base_on_zero')
     _height: float
     show_density_axis: bool
+    base_on_zero: bool
 
     def __init__(
             self,
@@ -412,9 +424,11 @@ class GaussianKDE(_TransformPlotter):
             color: str | None = None,
             ax: Axes | None = None,
             show_density_axis: bool = True,
+            base_on_zero: bool = True,
             **kwds) -> None:
         self._height = height
         self.show_density_axis = show_density_axis
+        self.base_on_zero = base_on_zero
         feature = PLOTTER.TRANSFORMED_FEATURE
         _feature = kwds.pop('feature', '')
         if type(self) != GaussianKDE and _feature:
@@ -453,6 +467,9 @@ class GaussianKDE(_TransformPlotter):
             self.ax.fill_between(self.x, self._f_base, self.y, **kw_fill)
         if not self.show_density_axis:
             self.hide_density_axis()
+        if self.base_on_zero:
+            xy = 'x' if self.target_on_y else 'y'
+            getattr(self.ax, f'set_{xy}margin')(0)
 
 
 class Violine(GaussianKDE):
@@ -471,7 +488,7 @@ class Violine(GaussianKDE):
         super().__init__(
             source=source, target=target, feature=feature, height=self.height,
             target_on_y=target_on_y, color=color, ax=ax,
-            show_density_axis=True, **kwds)
+            show_density_axis=True, base_on_zero=False, **kwds)
 
     def __call__(self, **kwds) -> None:
         kwds = dict(color=self.color, alpha=COLOR.FILL_ALPHA) | kwds
@@ -504,7 +521,7 @@ class Ridge(GaussianKDE):
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax,
-            show_density_axis=True, **kwds)
+            show_density_axis=True, base_on_zero=False, **kwds)
 
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
