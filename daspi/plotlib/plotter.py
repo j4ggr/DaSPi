@@ -21,6 +21,9 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.container import BarContainer
 
+from scipy import stats
+from scipy.stats._distn_infrastructure import rv_continuous
+
 from statsmodels.graphics.gofplots import ProbPlot
 from statsmodels.regression.linear_model import RegressionResults
 
@@ -32,10 +35,12 @@ from .._constants import KW
 from .._constants import COLOR
 from .._constants import PLOTTER
 from .._constants import CATEGORY
+from ..statistics.confidence import fit_ci
 from ..statistics.confidence import mean_ci
 from ..statistics.confidence import stdev_ci
 from ..statistics.confidence import variance_ci
 from ..statistics.confidence import prediction_ci
+from ..statistics.confidence import dist_prob_fit_ci
 from ..statistics.estimation import estimate_kernel_density
 
 
@@ -175,13 +180,21 @@ class LinearRegression(_Plotter):
             .reset_index(drop=True))
         self.model: RegressionResults = sm.OLS(df[target], sm.add_constant(df[feature])).fit()
         df[self.target_fit] = self.model.fittedvalues
-        ci_data = pd.DataFrame(
-            data = np.array(prediction_ci(self.model)).T, 
-            columns = PLOTTER.REGRESSION_CI_NAMES)
-        df = pd.concat([df, ci_data], axis=1)
+        df = pd.concat([df, self.ci_data()], axis=1)
         super().__init__(
             source=df, target=target, feature=feature, target_on_y=target_on_y,
             color=color, ax=ax)
+    
+    def ci_data(self) -> pd.DataFrame:
+        """Get confidence interval for prediction and fitted line as 
+        DataFrame."""
+        data = (
+            *fit_ci(self.model),
+            *prediction_ci(self.model))
+        ci_data = pd.DataFrame(
+            data = np.array(data).T, 
+            columns = PLOTTER.REGRESSION_CI_NAMES)
+        return ci_data
     
     def __call__(
             self, kw_scatter: dict = {}, kw_fit_ci: dict = {},
@@ -219,6 +232,74 @@ class LinearRegression(_Plotter):
             self.ax.plot(x0, y0, x1, y1, **kw_pred_ci)
 
 
+class Probability(LinearRegression):
+
+    __slots__ = ('dist', 'kind', 'prob_fit')
+    dist: rv_continuous
+    kind: Literal['qq', 'pp', 'sq', 'sp']
+    prob_fit: ProbPlot
+
+    def __init__(
+            self,
+            source: Hashable,
+            target: str,
+            dist: str | rv_continuous = 'norm',
+            kind: Literal['qq', 'pp', 'sq', 'sp'] = 'sq',
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None,
+            show_points: bool = True,
+            show_fit_ci: bool = False,
+            show_pred_ci: bool = False,
+            **kwds) -> None:
+        assert kind in ('qq', 'pp', 'sq', 'sp'), (
+            f'kind must be one of {"qq", "pp", "sq", "sp"}, got {kind}')
+
+        self.kind = kind
+        self.prob_fit = ProbPlot(source[target], dist, fit=True)
+        self.dist = dist if not isinstance(dist, str) else getattr(stats, dist)
+        
+        feature_kind = 'quantiles' if self.kind[1] == "q" else 'percentiles'
+        feature = f'{self.dist.name}_{feature_kind}'
+        df = pd.DataFrame({
+            target: self.sample_data,
+            feature: self.theoretical_data})
+
+        super().__init__(
+            source=df, target=target, feature=feature,
+            target_on_y=target_on_y, color=color, ax=ax, 
+            show_points=show_points, show_fit_ci=show_fit_ci,
+            show_pred_ci=show_pred_ci, **kwds)
+    
+    @property
+    def sample_data(self):
+        """Get fitted samples (target date) according to given kind"""
+        match self.kind[0]:
+            case 'q': data = self.prob_fit.sample_percentiles
+            case 'p': data = self.prob_fit.sample_percentiles
+            case 's': data = self.prob_fit.sorted_data
+        return data
+
+    @property
+    def theoretical_data(self):
+        match self.kind[1]:
+            case 'q': data = self.prob_fit.theoretical_quantiles
+            case 'p': data = self.prob_fit.theoretical_percentiles
+        return data
+    
+    def ci_data(self) -> pd.DataFrame:
+        """Get confidence interval for prediction and fitted line as 
+        DataFrame."""
+        data = (
+            *dist_prob_fit_ci(
+                self.prob_fit.sorted_data, self.model.fittedvalues, self.dist),
+            *prediction_ci(self.model))
+        ci_data = pd.DataFrame(
+            data = np.array(data).T, 
+            columns = PLOTTER.REGRESSION_CI_NAMES)
+        return ci_data
+            
+
 class _TransformPlotter(_Plotter):
 
     __slots__ = ('_f_base')
@@ -238,13 +319,13 @@ class _TransformPlotter(_Plotter):
         self.target = target
         self.feature = feature
         
-        trans_data = pd.DataFrame()
+        df = pd.DataFrame()
         for _feature, _target in self.feature_grouped(source):
             _data = self.transform(_feature, _target)
-            trans_data = pd.concat([trans_data, _data], axis=0)
+            df = pd.concat([df, _data], axis=0)
 
         super().__init__(
-            source=trans_data, target=target, feature=feature,
+            source=df, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
     
     def feature_grouped(

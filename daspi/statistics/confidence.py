@@ -292,12 +292,11 @@ def delta_proportions_ci(
     
     return delta, ci_low, ci_upp
 
-def prediction_ci(
+def fit_ci(
         results: RegressionResults, level: float = 0.95
-        ) -> Tuple[ndarray, ndarray, ndarray, ndarray]:
-    """calculate confidence interval for fitted line and prediction
-    to observe outliers. Applies to fitted WLS and OLS models, not to 
-    general GLS
+        ) -> Tuple[ndarray, ndarray]:
+    """calculate confidence interval fitted line. Applies to fitted WLS 
+    and OLS models, not to general GLS
     
     Parameters
     ----------
@@ -310,8 +309,6 @@ def prediction_ci(
     -------
     fit_ci_low, fit_ci_upp : numpy ndarray
         lower and upper confidence limits of fitted line
-    pred_ci_low, pred_ci_upp : numpy ndarray
-        lower and upper confidence limits of prediction
     
     Notes
     -----
@@ -327,8 +324,29 @@ def prediction_ci(
     fit_se = np.sqrt(influence.hat_matrix_diag * results.mse_resid)             # standard error for predicted mean (fitted line)
     fit_ci_low = results.fittedvalues - tppf * fit_se
     fit_ci_upp = results.fittedvalues + tppf * fit_se
+    return fit_ci_low, fit_ci_upp
+
+def prediction_ci(
+        results: RegressionResults, level: float = 0.95
+        ) -> Tuple[ndarray, ndarray]:
+    """calculate confidence interval for prediction and to observe 
+    outliers. Applies to fitted WLS and OLS models, not to general GLS.
+    
+    Parameters
+    ----------
+    results : statsmodels RegressionResults
+        fitted OLS or WLS model
+    level : float in (0, 1), optional
+        confidence level, by default 0.95
+    
+    Returns
+    -------
+    pred_ci_low, pred_ci_upp : numpy ndarray
+        lower and upper confidence limits of prediction
+    """
+    alpha = confidence_to_alpha(level)
     pred_ci_low, pred_ci_upp = wls_prediction_std(results, alpha=alpha)[1:]     # standard error for predicted observation
-    return fit_ci_low, fit_ci_upp, pred_ci_low, pred_ci_upp
+    return pred_ci_low, pred_ci_upp
 
 def dist_prob_fit_ci(
         target: Iterable, fit: Iterable, dist: str, level: float = 0.95
@@ -443,6 +461,7 @@ __all__ = [
     delta_mean_ci.__name__,
     delta_variance_ci.__name__,
     delta_proportions_ci.__name__,
+    fit_ci.__name__,
     prediction_ci.__name__,
     dist_prob_fit_ci.__name__,
     confidence_to_alpha.__name__,
