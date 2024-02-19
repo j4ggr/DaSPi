@@ -92,9 +92,9 @@ class TestSimpleChart:
     feature: str = 'hinc'
     kind: str = ''
     info_msg: str = 'Pytest figure, additional info message'
-    hue = 'mode'
+    cat1 = 'mode'
+    cat2 ='choice'
     size = 'invt'
-    shape ='choice'
 
     @property
     def sub_title(self) -> str:
@@ -109,7 +109,7 @@ class TestSimpleChart:
                 df_travel,
                 target = 'invc',
                 feature = 'individual',
-                hue = self.hue
+                hue = self.cat1
             ).plot(Line
             ).label(
                 fig_title = self.fig_title,
@@ -125,7 +125,7 @@ class TestSimpleChart:
         assert file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 2
-        assert legend_artists[0].get_children()[0].get_text() == self.hue
+        assert legend_artists[0].get_children()[0].get_text() == self.cat1
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == 'invc'
@@ -141,7 +141,7 @@ class TestSimpleChart:
                 df_travel,
                 target = 'invc',
                 feature = 'individual',
-                hue = self.hue,
+                hue = self.cat1,
                 size = self.size
             ).plot(Line
             ).plot(Scatter
@@ -160,7 +160,7 @@ class TestSimpleChart:
         assert file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 4
-        assert legend_artists[0].get_children()[0].get_text() == self.hue
+        assert legend_artists[0].get_children()[0].get_text() == self.cat1
         assert legend_artists[2].get_children()[0].get_text() == self.size
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
@@ -220,7 +220,7 @@ class TestSimpleChart:
                 df_travel,
                 target = self.target,
                 feature = self.feature,
-                hue = self.hue
+                hue = self.cat1
             ).plot(Scatter
             ).label(
                 sub_title = self.sub_title,
@@ -235,7 +235,7 @@ class TestSimpleChart:
         assert file_name.is_file()
         assert len(texts) == 4
         assert len(legend_artists) == 2
-        assert legend_artists[0].get_children()[0].get_text() == self.hue
+        assert legend_artists[0].get_children()[0].get_text() == self.cat1
         assert texts[0].get_text() == self.sub_title
         assert texts[1].get_text() == self.target_label
         assert texts[2].get_text() == self.feature_label
@@ -250,7 +250,7 @@ class TestSimpleChart:
                 df_travel,
                 target = self.target,
                 feature = self.feature,
-                shape = self.shape
+                shape = self.cat2
             ).plot(Scatter
             ).label(
                 sub_title = self.sub_title,
@@ -265,7 +265,7 @@ class TestSimpleChart:
         assert file_name.is_file()
         assert len(texts) == 4
         assert len(legend_artists) == 2
-        assert legend_artists[0].get_children()[0].get_text() == self.shape
+        assert legend_artists[0].get_children()[0].get_text() == self.cat2
         assert texts[0].get_text() == self.sub_title
         assert texts[1].get_text() == self.target_label
         assert texts[2].get_text() == self.feature_label
@@ -310,7 +310,7 @@ class TestSimpleChart:
                 df_travel,
                 target = self.target,
                 feature = self.feature,
-                hue = self.hue,
+                hue = self.cat1,
                 size = self.size
             ).plot(Scatter
             ).label(
@@ -327,7 +327,7 @@ class TestSimpleChart:
         assert file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 4
-        assert legend_artists[0].get_children()[0].get_text() == self.hue
+        assert legend_artists[0].get_children()[0].get_text() == self.cat1
         assert legend_artists[2].get_children()[0].get_text() == self.size
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
@@ -344,8 +344,8 @@ class TestSimpleChart:
                 df_travel,
                 target = self.target,
                 feature = self.feature,
-                hue = self.hue,
-                shape = self.shape
+                hue = self.cat1,
+                shape = self.cat2
             ).plot(Scatter
             ).label(
                 fig_title = self.fig_title,
@@ -361,8 +361,8 @@ class TestSimpleChart:
         assert file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 4
-        assert legend_artists[0].get_children()[0].get_text() == self.hue
-        assert legend_artists[2].get_children()[0].get_text() == self.shape
+        assert legend_artists[0].get_children()[0].get_text() == self.cat1
+        assert legend_artists[2].get_children()[0].get_text() == self.cat2
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target_label
@@ -379,7 +379,7 @@ class TestSimpleChart:
                 target = self.target,
                 feature = self.feature,
                 size = self.size,
-                shape = self.shape
+                shape = self.cat2
             ).plot(Scatter
             ).label(
                 fig_title = self.fig_title,
@@ -395,7 +395,7 @@ class TestSimpleChart:
         assert file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 4
-        assert legend_artists[0].get_children()[0].get_text() == self.shape
+        assert legend_artists[0].get_children()[0].get_text() == self.cat2
         assert legend_artists[2].get_children()[0].get_text() == self.size
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
@@ -412,9 +412,9 @@ class TestSimpleChart:
                 df_travel,
                 target = self.target,
                 feature = self.feature,
-                hue = self.hue,
+                hue = self.cat1,
                 size = self.size,
-                shape = self.shape
+                shape = self.cat2
             ).plot(Scatter
             ).label(
                 fig_title = self.fig_title,
@@ -430,8 +430,8 @@ class TestSimpleChart:
         assert file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 6
-        assert legend_artists[0].get_children()[0].get_text() == self.hue
-        assert legend_artists[2].get_children()[0].get_text() == self.shape
+        assert legend_artists[0].get_children()[0].get_text() == self.cat1
+        assert legend_artists[2].get_children()[0].get_text() == self.cat2
         assert legend_artists[4].get_children()[0].get_text() == self.size
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
@@ -471,7 +471,7 @@ class TestSimpleChart:
         chart = SimpleChart(
                 df_travel,
                 target = self.target,
-                hue = self.hue,
+                hue = self.cat1,
                 target_on_y = True
             ).plot(
                 GaussianKDE, show_density_axis=False
@@ -488,7 +488,7 @@ class TestSimpleChart:
         info_msg = texts[-1].get_text()
         assert file_name.is_file()
         assert len(texts) == 4 # feature label should not appear
-        assert legend_artists[0].get_children()[0].get_text() == self.hue
+        assert legend_artists[0].get_children()[0].get_text() == self.cat1
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target
@@ -501,7 +501,7 @@ class TestSimpleChart:
         chart = SimpleChart(
                 df_travel,
                 target = self.target,
-                feature = self.hue,
+                feature = self.cat1,
                 categorical_features = True,
                 target_on_y = False
             ).plot(
@@ -522,12 +522,227 @@ class TestSimpleChart:
         assert chart.label_facets.legend_box is None
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
-        assert texts[2].get_text() == self.hue
+        assert texts[2].get_text() == self.cat1
         assert texts[3].get_text() == self.target
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg not in info_msg
-        assert yticklabels == sorted(df_travel[self.hue].unique())
+        assert yticklabels == sorted(df_travel[self.cat1].unique())
+    
+    def test_jitter_plot(self):
+        base = f'{self.fig_title}_jitter'
+
+        self.kind = 'simple'
+        file_name = savedir/f'{base}_{self.kind}.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = self.target,
+                feature = self.cat1, 
+                categorical_features = True,
+            ).plot(Jitter
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = self.target_label,    
+                info = self.info_msg
+            ).save(file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert file_name.is_file()
+        assert len(texts) == 5
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+        
+        self.kind = 'multiple'
+        file_name = savedir/f'{base}_{self.kind}.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = self.target,
+                feature = self.cat1, 
+                hue = self.cat2,
+                dodge = True
+            ).plot(Jitter, target_on_y=False
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = self.target_label,    
+                info = self.info_msg
+            ).save(file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert file_name.is_file()
+        assert len(texts) == 5
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+
+
+    def test_violine_plot(self):
+        base = f'{self.fig_title}_violine'
+
+        self.kind = 'simple'
+        file_name = savedir/f'{base}_{self.kind}.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = self.target,
+                feature = self.cat1, 
+            ).plot(Violine
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = self.target_label,    
+                info = self.info_msg
+            ).save(file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert file_name.is_file()
+        assert len(texts) == 5
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+        
+        self.kind = 'multiple'
+        file_name = savedir/f'{base}_{self.kind}.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = self.target,
+                feature = self.cat1, 
+                hue = self.cat2,
+                dodge = True
+            ).plot(Violine, target_on_y=False
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = self.target_label,    
+                info = self.info_msg
+            ).save(file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert file_name.is_file()
+        assert len(texts) == 5
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+
+    def test_errorbar_plots(self):
+        base = f'{self.fig_title}_violine'
+
+        self.kind = 'sem'
+        file_name = savedir/f'{base}_{self.kind}.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = self.target,
+                feature = self.cat1, 
+                hue = self.cat2,
+                dodge = True,
+                target_on_y = True
+            ).plot(
+                StandardErrorMean
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = self.target_label,    
+                info = self.info_msg
+            ).save(file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert file_name.is_file()
+        assert len(texts) == 5
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+        
+        self.kind = 'mean-test'
+        file_name = savedir/f'{base}_{self.kind}.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = 'gc',
+                feature = 'mode',
+                categorical_features = True,
+                target_on_y = False
+            ).plot(
+                MeanTest
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = self.target_label,    
+                info = self.info_msg
+            ).save(file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert file_name.is_file()
+        assert len(texts) == 5
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+        
+        self.kind = 'var-test'
+        file_name = savedir/f'{base}_{self.kind}.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = 'gc',
+                feature = 'mode',
+                categorical_features = True,
+                target_on_y = False
+            ).plot(
+                VariationTest,
+                kind = 'variance'
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = self.target_label,    
+                info = self.info_msg
+            ).save(file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert file_name.is_file()
+        assert len(texts) == 5
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+        
+        self.kind = 'std-test'
+        file_name = savedir/f'{base}_{self.kind}.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = 'gc',
+                feature = 'mode',
+                categorical_features = True,
+                target_on_y = False,
+            ).plot(
+                VariationTest,
+                kind = 'stdev',
+                show_points = False
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = self.target_label,    
+                info = self.info_msg
+            ).save(file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert file_name.is_file()
+        assert len(texts) == 5
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
 
 
 class TestJointChart:
@@ -656,7 +871,7 @@ class TestJointChart:
         file_name = savedir/f'{base}_{self.kind}.png'
         target = df_dist25.columns.to_list()[1:]
         target_labels = tuple(f'{d} quantiles' for d in target)
-        feature_labels = tuple(['theoretical quantiles']*len(target))
+        feature_label = 'theoretical quantiles'
         chart = JointChart(
                 df_dist25,
                 target = target,
@@ -667,18 +882,113 @@ class TestJointChart:
                 (Probability, dict(dist=d, kind='qq')) for d in target]
             ).label(
                 fig_title = self.fig_title,
-                sub_title = 'samples-Q for different distributions',
+                sub_title = 'QQ for different distributions',
                 target_label = target_labels,
-                feature_label = feature_labels
+                feature_label = feature_label,
+                info = self.info_msg
             ).save(file_name
             ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert file_name.is_file()
+        assert len(texts) == 4
+        for ax, ylabel in zip(chart.axes.flat, target_labels):
+            assert ax.get_xlabel() == ''
+            assert ax.get_ylabel() == ylabel
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == 'QQ for different distributions'
+        assert texts[2].get_text() == feature_label
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+
+    def test_regression_joint(self):
+        base = f'{self.fig_title}_probability'
+
+        self.kind = 'kde'
+        file_name = savedir/f'{base}_{self.kind}.png'
+        chart = JointChart(
+                source = df_travel,
+                target = ('invc', '', 'invt', 'invt'),
+                feature = ('', '', 'invc', ''),
+                target_on_y = [False, False, True, True],
+                hue = self.cat1,
+                nrows = 2,
+                ncols = 2,
+                sharex = 'col',
+                sharey = 'row',
+                width_ratios = [5, 1],
+                height_ratios = [1, 5],
+                stretch_figsize = False
+        ).plot([
+            (GaussianKDE, {'show_density_axis': False}),
+            (None, {}),
+            (LinearRegression, dict(show_points=True, show_fit_ci=True, show_pred_ci=True)),
+            (GaussianKDE, {'show_density_axis': False})]
+        ).label(
+        ).save(file_name
+        ).close()
+        assert file_name.is_file()
+
+    def test_bar_plots(self) -> None:
+        base = f'{self.fig_title}_bar'
+
+        self.kind = 'stacking'
+        file_name = savedir/f'{base}_{self.kind}.png'
+        target_labels = (
+            'Generalized cost measure count ($)',
+            'Generalized cost measure sum ($)')
+        feature_label = 'Traveler chosen mode'
+        chart = JointChart(
+                source = df_travel,
+                target = self.target,
+                feature = 'mode',
+                nrows = 2,
+                ncols = 1,
+                hue = 'choice',
+                categorical_features = True,
+                target_on_y = (False, False),
+                dodge = (False, True)
+            ).plot([
+                (Bar, dict(method='count')),
+                (Bar, dict(method='sum'))]
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = feature_label, 
+                target_label = target_labels,
+                info = self.info_msg
+            ).save(file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert file_name.is_file()
+        assert len(texts) == 4
+        for ax, xlabel in zip(chart.axes.flat, target_labels):
+            assert ax.get_xlabel() == xlabel
+            assert ax.get_ylabel() == ''
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == self.sub_title
+        assert texts[2].get_text() == feature_label
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
 
 
-class TestCharts:
+class TestMultipleVariateChart:
 
+    fig_title: str = 'MultipleVariateChart'
+    _sub_title: str = 'Traveling Mode Dataset'
 
-    def test_multiple_variate_plot(self):
-        file_name = savedir/'multivariate_chart_affairs.png'
+    @property
+    def sub_title(self) -> str:
+        return f'{self._sub_title}: {self.kind}'
+
+    def test_full(self):
+        base = f'{self.fig_title}_full'
+
+        self.kind = 'kde'
+        file_name = savedir/f'{base}_{self.kind}.png'
         chart = MultipleVariateChart(
                 source = df_affairs,
                 target = 'affairs',
@@ -700,199 +1010,3 @@ class TestCharts:
         chart.save(file_name).close()
         assert file_name.is_file()
 
-    def test_jitter_plot(self):
-        file_name = savedir/'jitter_chart_simple.png'
-        chart = SimpleChart(
-                source = df_travel,
-                target = 'gc',
-                feature = 'mode', 
-                categorical_features = True,
-            ).plot(Jitter
-            ).label(
-                fig_title = 'Violine Chart',
-                sub_title = 'Simple test plot',
-                feature_label = 'Traveler chosen mode', 
-                target_label = 'Generalized cost measure ($)',
-                info = 'pytest figure'
-            ).save(file_name
-            ).close()
-        
-        file_name = savedir/'jitter_chart_multiple.png'
-        chart = SimpleChart(
-                source = df_travel,
-                target = 'gc',
-                feature = 'mode', 
-                hue = 'choice',
-                dodge = True
-            ).plot(Jitter, target_on_y=False
-            ).label(
-                fig_title = 'Jitter Chart',
-                sub_title = 'Simple test plot',
-                feature_label = 'Traveler chosen mode', 
-                target_label = 'Generalized cost measure ($)',
-                info = 'pytest figure'
-            ).save(file_name
-            ).close()
-
-
-    def test_violine_plot(self):
-        file_name = savedir/'violine_chart_simple.png'
-        chart = SimpleChart(
-                source = df_travel,
-                target = 'gc',
-                feature = 'mode', 
-            ).plot(Violine
-            ).label(
-                fig_title = 'Violine Chart',
-                sub_title = 'Simple test plot',
-                feature_label = 'Traveler chosen mode', 
-                target_label = 'Generalized cost measure ($)',
-                info = 'pytest figure'
-            ).save(file_name
-            ).close()
-        
-        file_name = savedir/'violine_chart_multiple.png'
-        chart = SimpleChart(
-                source = df_travel,
-                target = 'gc',
-                feature = 'mode', 
-                hue = 'choice',
-                dodge = True
-            ).plot(Violine, target_on_y=False
-            ).label(
-                fig_title = 'Violine Chart',
-                sub_title = 'Simple test plot',
-                feature_label = 'Traveler chosen mode', 
-                target_label = 'Generalized cost measure ($)',
-                info = 'pytest figure'
-            ).save(file_name
-            ).close()
-
-    def test_errorbar_plots(self):
-        file_name = savedir/'errbar_sem_chart.png'
-        chart = SimpleChart(
-                source = df_travel,
-                target = 'gc',
-                feature = 'mode',
-                hue = 'choice',
-                dodge = True,
-            ).plot(
-                StandardErrorMean,
-                target_on_y = True
-            ).label(
-                fig_title = 'Errorbar Chart',
-                sub_title = 'Standard error mean',
-                feature_label = 'Traveler chosen mode', 
-                target_label = 'Generalized cost measure ($)',
-                info = 'pytest figure'
-            ).save(file_name
-            ).close()
-        
-        file_name = savedir/'errbar_mean_test_chart.png'
-        chart = SimpleChart(
-                source = df_travel,
-                target = 'gc',
-                feature = 'mode',
-                categorical_features = True,
-            ).plot(
-                MeanTest,
-                target_on_y = False
-            ).label(
-                fig_title = 'Mean Test Plot',
-                sub_title = 'Test mean',
-                feature_label = 'Traveler chosen mode', 
-                target_label = 'Generalized cost measure ($)',
-                info = 'pytest figure'
-            ).save(file_name
-            ).close()
-        
-        file_name = savedir/'errbar_var_test_chart.png'
-        chart = SimpleChart(
-                source = df_travel,
-                target = 'gc',
-                feature = 'mode',
-                categorical_features = True,
-            ).plot(
-                VariationTest,
-                target_on_y = False,
-                kind = 'variance'
-            ).label(
-                fig_title = 'Variation Test Plot',
-                sub_title = 'Test Variance',
-                feature_label = 'Traveler chosen mode', 
-                target_label = 'Generalized cost measure ($)',
-                info = 'pytest figure'
-            ).save(file_name
-            ).close()
-        
-        file_name = savedir/'errbar_std_test_chart.png'
-        chart = SimpleChart(
-                source = df_travel,
-                target = 'gc',
-                feature = 'mode',
-                categorical_features = True,
-                target_on_y = False,
-            ).plot(
-                VariationTest,
-                kind = 'stdev',
-                show_points = False
-            ).label(
-                fig_title = 'Variation Test Plot',
-                sub_title = 'Test Standardeviation',
-                feature_label = 'Traveler chosen mode', 
-                target_label = 'Generalized cost measure ($)',
-                info = 'pytest figure'
-            ).save(file_name
-            ).close()
-
-    def test_bar_plots(self) -> None:
-        
-        file_name = savedir/'bar_chart.png'
-        chart = JointChart(
-                source = df_travel,
-                target = 'gc',
-                feature = 'mode',
-                nrows = 2,
-                ncols = 1,
-                hue = 'choice',
-                categorical_features = True,
-                target_on_y = (False, False),
-                dodge = (False, True)
-            ).plot([
-                (Bar, dict(method='count')),
-                (Bar, dict(method='sum'))]
-            ).label(
-                fig_title = 'Bar Plot',
-                sub_title = 'Tast Stacking',
-                feature_label = 'Traveler chosen mode', 
-                target_label = (
-                    'Generalized cost measure count ($)',
-                    'Generalized cost measure sum ($)'),
-                info = 'pytest figure'
-            ).save(file_name
-            ).close()
-
-    def test_regression_joint_chart(self) -> None:
-
-        file_name = savedir/'regression_joint_chart.png'
-        chart = JointChart(
-                source = df_travel,
-                target = ('invc', '', 'invt', 'invt'),
-                feature = ('', '', 'invc', ''),
-                target_on_y = [False, False, True, True],
-                hue = self.hue,
-                nrows = 2,
-                ncols = 2,
-                sharex = 'col',
-                sharey = 'row',
-                width_ratios = [5, 1],
-                height_ratios = [1, 5],
-                stretch_figsize = False
-        ).plot([
-            (GaussianKDE, {'show_density_axis': False}),
-            (None, {}),
-            (LinearRegression, dict(show_points=True, show_fit_ci=True, show_pred_ci=True)),
-            (GaussianKDE, {'show_density_axis': False})]
-        ).label(
-        ).save(file_name
-        ).close()
