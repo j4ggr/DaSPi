@@ -19,6 +19,7 @@ from numpy.typing import NDArray
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib.ticker import PercentFormatter
 from matplotlib.container import BarContainer
 
 from scipy import stats
@@ -249,15 +250,15 @@ class Probability(LinearRegression):
             color: str | None = None,
             ax: Axes | None = None,
             show_points: bool = True,
-            show_fit_ci: bool = False,
-            show_pred_ci: bool = False,
+            show_fit_ci: bool = True,
+            show_pred_ci: bool = True,
             **kwds) -> None:
         assert kind in ('qq', 'pp', 'sq', 'sp'), (
             f'kind must be one of {"qq", "pp", "sq", "sp"}, got {kind}')
 
         self.kind = kind
-        self.prob_fit = ProbPlot(source[target], dist, fit=True)
         self.dist = dist if not isinstance(dist, str) else getattr(stats, dist)
+        self.prob_fit = ProbPlot(source[target], self.dist, fit=True)
         
         feature_kind = 'quantiles' if self.kind[1] == "q" else 'percentiles'
         feature = f'{self.dist.name}_{feature_kind}'
@@ -269,7 +270,31 @@ class Probability(LinearRegression):
             source=df, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax, 
             show_points=show_points, show_fit_ci=show_fit_ci,
-            show_pred_ci=show_pred_ci, **kwds)
+            show_pred_ci=show_pred_ci)
+    
+    def _xy_scale_(self) -> Tuple[str, str]:
+        """If given distribution is exponential or logaritmic, change axis
+        scale for samples or quantiles (not for percentiles) from 'linear' 
+        to 'log'."""
+        xscale, yscale = 'linear', 'linear'
+        if self.dist.name in ('expon', 'log', 'lognorm'):
+            if self.kind[1] == 'q': 
+                xscale = 'log'
+            if self.kind[0] == 'q': 
+                yscale = 'log'
+        if not self.target_on_y:
+            xscale, yscale = yscale, xscale
+        return xscale, yscale
+        
+    def format_axis(self):
+        xscale, yscale = self._xy_scale_()
+        self.ax.set(xscale=xscale, yscale=yscale)
+        if self.kind[0] == 'p':
+            axis = self.ax.yaxis if self.target_on_y else self.ax.xaxis
+            axis.set_major_formatter(PercentFormatter(xmax=1.0, symbol='%'))
+        if self.kind[1] == 'p':
+            axis = self.ax.xaxis if self.target_on_y else self.ax.yaxis
+            axis.set_major_formatter(PercentFormatter(xmax=1.0, symbol='%'))
     
     @property
     def sample_data(self):
@@ -287,18 +312,12 @@ class Probability(LinearRegression):
             case 'p': data = self.prob_fit.theoretical_percentiles
         return data
     
-    def ci_data(self) -> pd.DataFrame:
-        """Get confidence interval for prediction and fitted line as 
-        DataFrame."""
-        data = (
-            *dist_prob_fit_ci(
-                self.prob_fit.sorted_data, self.model.fittedvalues, self.dist),
-            *prediction_ci(self.model))
-        ci_data = pd.DataFrame(
-            data = np.array(data).T, 
-            columns = PLOTTER.REGRESSION_CI_NAMES)
-        return ci_data
-            
+    def __call__(
+            self, kw_scatter: dict = {}, kw_fit_ci: dict = {},
+            kw_pred_ci: dict = {}, **kwds) -> None:
+        super().__call__(kw_scatter, kw_fit_ci, kw_pred_ci, **kwds)
+        self.format_axis()
+
 
 class _TransformPlotter(_Plotter):
 
@@ -821,6 +840,7 @@ __all__ = [
     Scatter.__name__,
     Line.__name__,
     LinearRegression.__name__,
+    Probability.__name__,
     Bar.__name__,
     Jitter.__name__,
     GaussianKDE.__name__,

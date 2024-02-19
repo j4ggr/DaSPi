@@ -32,13 +32,15 @@ from .._constants import COLOR
 class _Chart(ABC):
 
     __slots__ = (
-        'source', 'target', 'feature', 'target_on_y', 'axes_facets', 'nrows',
-        'ncols', '_data', '_xlabel', '_ylabel', '_plots')
+        'source', 'target', 'feature', 'target_on_y', 'axes_facets',
+        'label_facets', 'nrows', 'ncols', '_data', '_xlabel', '_ylabel', 
+        '_plots')
     source: DataFrame
     target: str
     feature: str
     target_on_y: bool
     axes_facets: AxesFacets
+    label_facets: LabelFacets | None
     nrows: int
     ncols: int
     _data: DataFrame
@@ -59,6 +61,7 @@ class _Chart(ABC):
             self.axes_facets = AxesFacets(self.nrows, self.ncols, **kwds)
         else:
             self.axes_facets = axes_facets
+        self.label_facets = None
         self.target_on_y = target_on_y
         for ax in self.axes.flat:
             getattr(ax, f'set_{"x" if self.target_on_y else "y"}margin')(0)
@@ -148,9 +151,10 @@ class _Chart(ABC):
         self.figure.savefig(file_name, **kw)
         return self
 
-    def close(self):
+    def close(self) -> Self:
         """"Close figure"""
         plt.close(self.figure)
+        return self
 
 
 class SimpleChart(_Chart):
@@ -316,11 +320,11 @@ class SimpleChart(_Chart):
         self.set_axis_label(feature_label, is_target=False)
         self.set_axis_label(target_label, is_target=True)
 
-        label = LabelFacets(
+        self.label_facets = LabelFacets(
             figure=self.figure, axes=self.axes, fig_title=fig_title,
             sub_title=sub_title, xlabel=self._xlabel, ylabel=self._ylabel,
             info=info, legends=self.legend_handles_labels)
-        label.draw()
+        self.label_facets.draw()
 
         return self
 
@@ -503,12 +507,12 @@ class JointChart(_Chart):
         self.set_axis_label(feature_label, is_target=False)
         self.set_axis_label(target_label, is_target=True)
 
-        label = LabelFacets(
+        self.label_facets = LabelFacets(
             figure=self.figure, axes=self.axes, fig_title=fig_title,
             sub_title=sub_title, xlabel=self.xlabel, ylabel=self.ylabel,
             info=info, row_title=row_title, col_title=col_title,
             legends=self.legend_handles_labels)
-        label.draw()
+        self.label_facets.draw()
         return self
 
 
@@ -579,17 +583,16 @@ class MultipleVariateChart(SimpleChart):
         self.set_axis_label(feature_label, is_target=False)
         self.set_axis_label(target_label, is_target=True)
 
-        label = LabelFacets(
+        self.label_facets = LabelFacets(
             figure=self.figure, axes=self.axes, fig_title=fig_title,
             sub_title=sub_title, xlabel=self.xlabel, ylabel=self.ylabel,
             rows=self.row_labels, cols=self.col_labels,
             info=info, row_title=row_title, col_title=col_title,
             legends=self.legend_handles_labels)
-        label.draw()
+        self.label_facets.draw()
         return self
 
 __all__ = [
-    SimpleChart.__name__,
     SimpleChart.__name__,
     JointChart.__name__,
     MultipleVariateChart.__name__

@@ -388,7 +388,7 @@ class ProcessEstimator(Estimator):
             self._n_nok = (
                 (self.filtered >= self.usl).sum() if self.usl else 0
                 + (self.filtered <= self.lsl).sum() if self.lsl else 0)
-        return self.n_nok
+        return self._n_nok
     
     @property
     def p_ok(self) -> float:

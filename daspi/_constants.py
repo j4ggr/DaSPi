@@ -104,6 +104,11 @@ class _Kw_:
         """Keyword arguments for confidence interval area for fit"""
         kw = dict(zorder=2.1, alpha=0.8, lw=self._lw, ls=self._dashed)
         return kw
+    @property
+    def PROB_PC_FORMAT(self) -> dict:
+        """Keyword arguments for percentage formatter used at 
+        Probability Plotter."""
+        kw = dict(xmax=1.0, decimals=None, symbol='%')
 KW = _Kw_()
 
 
