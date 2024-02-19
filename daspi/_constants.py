@@ -162,6 +162,10 @@ class _Plotter_:
     FIT_CI_UPP: str = '_fit_ci_upp_'
     PRED_CI_LOW: str = '_pred_ci_low_'
     PRED_CI_UPP: str = '_pred_ci_upp_'
+    LCL: str = '_lcl_'
+    UCL: str = '_ucl_'
+    MEAN: str = '_mean_'
+    MEDIAN: str = '_median_'
     @property
     def REGRESSION_CI_NAMES(self) -> Tuple[str]:
         """Get names for regression confidences in order

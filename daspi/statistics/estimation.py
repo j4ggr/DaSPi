@@ -29,8 +29,9 @@ class Estimator:
 
     __slots__ = (
         '_data', '_filtered', '_n_samples', '_n_missing', '_mean', '_median', 
-        '_std', '_excess', '_p_excess', '_skew', '_p_skew', '_dist', '_p_dist',
-        '_p_ad', '_dist_params', 'possible_dists')
+        '_std', '_lcl', '_ucl', '_strategy', '_tolerance', '_excess', 
+        '_p_excess', '_skew', '_p_skew', '_dist', '_p_dist', '_p_ad', 
+        '_dist_params', 'possible_dists', '_k')
     _data: Series
     _filtered: Series
     _n_samples: int | None
@@ -38,6 +39,8 @@ class Estimator:
     _mean: float | None
     _median: float | None
     _std: float | None
+    _lcl: str | None
+    _ucl: str | None
     _excess: float | None
     _p_excess: float | None
     _skew: float | None
@@ -46,11 +49,16 @@ class Estimator:
     _p_dist: float | None
     _p_ad: float | None
     _dist_params: tuple | None
+    _strategy: str
+    _tolerance: int
     possible_dists: Tuple[str | rv_continuous]
+    _k: float
 
     def __init__(
             self,
             data: ArrayLike, 
+            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
+            tolerance: float | int = 6, 
             possible_dists: Tuple[str | rv_continuous] = DISTRIBUTION.COMMON
             ) -> None:
         self._n_samples = len(data)
@@ -58,6 +66,8 @@ class Estimator:
         self._mean = None
         self._median = None
         self._std = None
+        self._lcl = None
+        self._ucl = None
         self._excess = None
         self._p_excess = None
         self._skew = None
@@ -69,6 +79,11 @@ class Estimator:
         self.possible_dists = possible_dists
         self._filtered = pd.Series()
         self._data = data if isinstance(data, pd.Series) else pd.Series(data)
+        self._strategy = 'norm'
+        self.strategy = strategy
+        self._tolerance = 6
+        self._k = self._tolerance/2
+        self.tolerance = tolerance
         
     @property
     def data(self) -> pd.Series:
@@ -115,6 +130,22 @@ class Estimator:
         if self._std is None:
             self._std = self.filtered.std()
         return self._std
+    
+    @property
+    def lcl(self):
+        """Get lower control limit according to given strategy and 
+        tolerance."""
+        if self._lcl is None:
+            self._lcl, self._ucl = self._calculate_control_limits_()
+        return self._lcl
+    
+    @property
+    def ucl(self):
+        """Get upper control limit according to given strategy and 
+        tolerance."""
+        if self._ucl is None:
+            self._lcl, self._ucl = self._calculate_control_limits_()
+        return self._ucl
     
     @property
     def excess(self) -> float:
@@ -196,6 +227,52 @@ class Estimator:
         distribution has not been called."""
         return self._dist_params
     
+    @property
+    def strategy(self) -> Literal['eval', 'fit', 'norm', 'data']:
+        """Strategy used to determine the control limits (can also be 
+        interpreted as the process range).
+
+        Set strategy as one of {'eval', 'fit', 'norm', 'data'}
+            - eval: The strategy is determined according to the given 
+            flowchart
+            - fit: First, the distribution is searched for that best 
+            represents the process data and then the process variation 
+            tolerance is calculated
+            - norm: it is assumed that the data is subject to normal 
+            distribution. The variation tolerance is then calculated as 
+            tolerance * standard deviation
+            - data: The quantiles for the process variation tolerance 
+            are read directly from the data."""
+        return self._strategy
+    @strategy.setter
+    def strategy(self, strategy: Literal['eval', 'fit', 'norm', 'data']):
+        assert strategy in ['eval', 'fit', 'norm', 'data']
+        if self._strategy != strategy:
+            self._strategy = strategy
+            self._reset_control_limits_()
+
+    @property
+    def tolerance(self) -> int | float:
+        """Get the multiplier of the sigma tolerance for Cp and Cpk 
+        value (default 6). By setting this value the cp and cpk values
+        are resetted to None.
+        
+        If setting tolerance by giving the percentile, enter the 
+        acceptable proportion for the spread, e.g. 0.9973 
+        (which corresponds to ~ 6 sigma)"""
+        return self._tolerance
+    @tolerance.setter
+    def tolerance(self, tolerance: int | float):
+        if isinstance(tolerance, int): 
+            assert tolerance > 1
+            self._k = self.tolerance / 2
+        else:
+            assert 0 < tolerance < 1
+            self._k = stats.norm.ppf((1 + tolerance)/2)
+        if self._tolerance != tolerance:
+            self._tolerance = tolerance
+            self._reset_control_limits_()
+    
     def distribution(self):
         """First, the p-score is calculated by performing a 
         Kolmogorov-Smirnov test to determine how well each distribution fits
@@ -265,14 +342,42 @@ class Estimator:
             (self.p_skew > alpha) if skew_test else True,
             (self.p_ad > alpha) if ad_test else True]
         return all(remain_h0)
+    
+    def _calculate_control_limits_(self):
+        match self.strategy:
+            case 'eval': # TODO implement control limits eval strategy
+                raise NotImplementedError
+            case 'fit':
+                self.distribution()
+                if self.dist.name == 'norm':
+                    self.strategy = 'norm'
+                    lcl, ucl = self._calculate_control_limits_()
+                else:
+                    lcl = self.dist.ppf(self.q_low, **self.dist_params)
+                    ucl = self.dist.ppf(self.q_upp, **self.dist_params)
+            case 'norm':
+                lcl = self.mean - self._k * self.std
+                ucl = self.mean + self._k * self.std
+            case 'data':
+                lcl = np.quantile(self.filtered, self.q_low)
+                ucl = np.quantile(self.filtered, self.q_upp)
+        return lcl, ucl
+
+    def _reset_control_limits_(self):
+        """Set all values relevant to process capability to None. This 
+        function is called when one of the values relevant to the 
+        calculation of capability values is adjusted (specification 
+        limits or tolerance for the control limits). This ensures that 
+        the process capability values are recalculated."""
+        self._lcl = None
+        self._ucl = None
 
 
 class ProcessEstimator(Estimator):
 
     __slots__ = (
         '_lsl', '_usl', '_n_ok', '_n_nok', '_error_values', '_n_errors', 
-        '_cp', '_cpk', '_lcl', '_ucl', '_strategy', '_tolerance',
-        '_q_low', '_q_upp', '_k')
+        '_cp', '_cpk', '_q_low', '_q_upp')
     _lsl: float | None
     _usl: float | None
     _n_ok: int | None
@@ -281,13 +386,8 @@ class ProcessEstimator(Estimator):
     _n_errrors: int
     _cp: int | None
     _cpk: int | None
-    _lcl: str | None
-    _ucl: str | None
-    _strategy: str
-    _tolerance: int
     _q_low: float | None
     _q_upp: float | None
-    _k: float
 
     def __init__(
             self,
@@ -346,8 +446,6 @@ class ProcessEstimator(Estimator):
         self._n_ok = None
         self._n_nok = None
         self._n_errors = None
-        self._lcl = None
-        self._ucl = None
         self._cp = None
         self._cpk = None
         self._q_low = None
@@ -355,13 +453,8 @@ class ProcessEstimator(Estimator):
         self._error_values = error_values
         self._lsl = lsl
         self._usl = usl
-        self._strategy = 'norm'
-        self.strategy = strategy
-        self._tolerance = 6
-        self._k = self._tolerance/2
-        self.tolerance = tolerance
         self._reset_capabilty_values_()
-        super().__init__(data, possible_dists)
+        super().__init__(data, strategy, tolerance, possible_dists)
         
     @property
     def filtered(self) -> pd.Series:
@@ -425,52 +518,6 @@ class ProcessEstimator(Estimator):
         if self._usl != usl:
             self._usl = usl
             self._reset_capabilty_values_()
-    
-    @property
-    def strategy(self) -> Literal['eval', 'fit', 'norm', 'data']:
-        """Strategy used to determine the control limits (can also be 
-        interpreted as the process range).
-
-        Set strategy as one of {'eval', 'fit', 'norm', 'data'}
-            - eval: The strategy is determined according to the given 
-            flowchart
-            - fit: First, the distribution is searched for that best 
-            represents the process data and then the process variation 
-            tolerance is calculated
-            - norm: it is assumed that the data is subject to normal 
-            distribution. The variation tolerance is then calculated as 
-            tolerance * standard deviation
-            - data: The quantiles for the process variation tolerance 
-            are read directly from the data."""
-        return self._strategy
-    @strategy.setter
-    def strategy(self, strategy: Literal['eval', 'fit', 'norm', 'data']):
-        assert strategy in ['eval', 'fit', 'norm', 'data']
-        if self._strategy != strategy:
-            self._strategy = strategy
-            self._reset_capabilty_values_()
-
-    @property
-    def tolerance(self) -> int | float:
-        """Get the multiplier of the sigma tolerance for Cp and Cpk 
-        value (default 6). By setting this value the cp and cpk values
-        are resetted to None.
-        
-        If setting tolerance by giving the percentile, enter the 
-        acceptable proportion for the spread, e.g. 0.9973 
-        (which corresponds to ~ 6 sigma)"""
-        return self._tolerance
-    @tolerance.setter
-    def tolerance(self, tolerance: int | float):
-        if isinstance(tolerance, int): 
-            assert tolerance > 1
-            self._k = self.tolerance / 2
-        else:
-            assert 0 < tolerance < 1
-            self._k = stats.norm.ppf((1 + tolerance)/2)
-        if self._tolerance != tolerance:
-            self._tolerance = tolerance
-            self._reset_capabilty_values_()
 
     @property
     def q_low(self) -> float:
@@ -494,22 +541,6 @@ class ProcessEstimator(Estimator):
         if self._q_upp is None:
             self._q_upp = 1 - self.q_low
         return self._q_upp
-    
-    @property
-    def lcl(self):
-        """Get lower control limit according to given strategy and 
-        tolerance."""
-        if self._lcl is None:
-            self._lcl, self._ucl = self._calculate_control_limits_()
-        return self._lcl
-    
-    @property
-    def ucl(self):
-        """Get upper control limit according to given strategy and 
-        tolerance."""
-        if self._ucl is None:
-            self._lcl, self._ucl = self._calculate_control_limits_()
-        return self._ucl
 
     @property
     def limits(self) -> Tuple[float | None]:
@@ -570,26 +601,6 @@ class ProcessEstimator(Estimator):
         Lower Cpk values indicate that the process may need improvement."""
         if self.limits == (None, None): return None
         return min([self.cpl, self.cpu])
-    
-    def _calculate_control_limits_(self):
-        match self.strategy:
-            case 'eval': # TODO implement control limits eval strategy
-                raise NotImplementedError
-            case 'fit':
-                self.distribution()
-                if self.dist.name == 'norm':
-                    self.strategy = 'norm'
-                    lcl, ucl = self._calculate_control_limits_()
-                else:
-                    lcl = self.dist.ppf(self.q_low, **self.dist_params)
-                    ucl = self.dist.ppf(self.q_upp, **self.dist_params)
-            case 'norm':
-                lcl = self.mean - self._k * self.std
-                ucl = self.mean + self._k * self.std
-            case 'data':
-                lcl = np.quantile(self.filtered, self.q_low)
-                ucl = np.quantile(self.filtered, self.q_upp)
-        return lcl, ucl
 
     def _reset_capabilty_values_(self):
         """Set all values relevant to process capability to None. This 
@@ -597,11 +608,10 @@ class ProcessEstimator(Estimator):
         calculation of capability values is adjusted (specification 
         limits or tolerance for the control limits). This ensures that 
         the process capability values are recalculated."""
+        super()._reset_control_limits_()
         self._n_ok = None
         self._n_nok = None
         self._n_errors = None
-        self._lcl = None
-        self._ucl = None
         self._cp = None
         self._cpk = None
         self._q_low = None

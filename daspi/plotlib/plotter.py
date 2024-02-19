@@ -36,6 +36,7 @@ from .._constants import KW
 from .._constants import COLOR
 from .._constants import PLOTTER
 from .._constants import CATEGORY
+from .._constants import DISTRIBUTION
 from ..statistics.confidence import fit_ci
 from ..statistics.confidence import mean_ci
 from ..statistics.confidence import stdev_ci
@@ -43,6 +44,7 @@ from ..statistics.confidence import variance_ci
 from ..statistics.confidence import prediction_ci
 from ..statistics.confidence import dist_prob_fit_ci
 from ..statistics.estimation import estimate_kernel_density
+from ..statistics.estimation import Estimator
 
 
 class _Plotter(ABC):
@@ -835,6 +837,57 @@ class VariationTest(DistinctionTest):
             ax=ax)
 
 
+class StatisticLines(_TransformPlotter):
+
+    __slots__ = ('strategy', 'tolerance', 'possible_dists', 'sample_color')
+    strategy: str
+    tolerance: int
+    possible_dists: Tuple[str | rv_continuous]
+    sample_color: bool
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
+            tolerance: float | int = 6,
+            possible_dists: Tuple[str | rv_continuous] = DISTRIBUTION.COMMON,
+            sample_color: bool = False,
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        self.strategy = strategy
+        self.tolerance = tolerance
+        self.possible_dists = possible_dists
+        self.sample_color = sample_color
+        super().__init__(
+            source=source, target=target, target_on_y=target_on_y, color=color,
+            ax=ax)
+        
+    def transform(
+            self, feature_data: float | int, target_data: Series) -> DataFrame:
+        estimation = Estimator(
+            data=target_data, strategy=self.strategy, tolerance=self.tolerance,
+            possible_dists=self.possible_dists)
+        data = pd.DataFrame({
+            PLOTTER.MEAN: [estimation.mean],
+            PLOTTER.LCL: [estimation.lcl],
+            PLOTTER.UCL: [estimation.ucl]})
+        return data
+    
+    def __call__(self, **kwds):
+        kwds = KW.LINE | kwds
+        colors = [self.color]*3 if self.sample_color else COLOR.STATISTIC_LINES
+        names = (PLOTTER.LCL, PLOTTER.UCL, PLOTTER.MEAN)
+        for color, name in zip(colors, names):
+            value = self.source[name][0]
+            kwds = {'color': color} | kwds
+            if self.target_on_y:
+                 self.ax.axhline(value, **kwds)
+            else:
+                self.ax.axvline(value, **kwds)
+                
 __all__ = [
     _Plotter.__name__,
     Scatter.__name__,
@@ -851,4 +904,5 @@ __all__ = [
     DistinctionTest.__name__,
     MeanTest.__name__,
     VariationTest.__name__,
+    StatisticLines.__name__,
     ]
