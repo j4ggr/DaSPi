@@ -20,6 +20,7 @@ from .utils import Dodger
 from .utils import HueLabel
 from .utils import SizeLabel
 from .utils import ShapeLabel
+from .utils import LineDrawer
 from .facets import LabelFacets
 from .facets import AxesFacets
 from .plotter import _Plotter
@@ -35,13 +36,14 @@ from .._constants import COLOR
 class _Chart(ABC):
 
     __slots__ = (
-        'source', 'target', 'feature', 'target_on_y', 'axes_facets',
-        'label_facets', 'nrows', 'ncols', '_data', '_xlabel', '_ylabel', 
-        '_plots')
+        'source', 'target', 'feature', 'target_on_y', 'axes_facets'
+        'label_facets', 'line_drawer', 'nrows', 'ncols', '_data', '_xlabel',
+        '_ylabel', '_plots')
     source: DataFrame
     target: str
     feature: str
     target_on_y: bool
+    line_drawer: LineDrawer | None
     axes_facets: AxesFacets
     label_facets: LabelFacets | None
     nrows: int
@@ -145,6 +147,9 @@ class _Chart(ABC):
     
     @abstractmethod
     def plot(self, plotter: _Plotter): ...
+
+    @abstractmethod
+    def lines(self, **lines): ...
 
     @abstractmethod
     def label(self, **labels): ...
@@ -321,6 +326,12 @@ class SimpleChart(_Chart):
             possible_dists: Tuple[str | rv_continuous] = DIST.COMMON,
             tolerance: float | int = 6) -> Self:
         
+        self.line_drawer = LineDrawer(
+            target=self.source[self.target], mean=mean, median=median,
+            control_limits=control_limits, spec_limits=spec_limits,
+            strategy=strategy, possible_dists=possible_dists,
+            tolerance=tolerance)
+        self.line_drawer.draw()
         return self
 
     def label(
