@@ -7,6 +7,7 @@ from typing import List
 from typing import Tuple
 from typing import Literal
 from typing import Optional
+from typing import Callable
 from numpy.typing import ArrayLike
 from pandas.core.series import Series
 from scipy.stats._distn_infrastructure import rv_continuous
@@ -18,27 +19,29 @@ from scipy.stats import kurtosis
 
 from .hypothesis import skew_test
 from .hypothesis import kurtosis_test
+from .hypothesis import mean_stability_test
 from .hypothesis import anderson_darling_test
 from .hypothesis import variance_stability_test
 from .hypothesis import kolmogorov_smirnov_test
+from .._constants import DIST
 from .._constants import PLOTTER
-from .._constants import DISTRIBUTION
 
 
 class Estimator:
 
     __slots__ = (
-        '_data', '_filtered', '_n_samples', '_n_missing', '_mean', '_median', 
-        '_std', '_lcl', '_ucl', '_strategy', '_tolerance', '_excess', 
+        '_samples', '_filtered', '_n_samples', '_n_missing', '_mean', '_median', 
+        '_std', '_sem', '_lcl', '_ucl', '_strategy', '_tolerance', '_excess', 
         '_p_excess', '_skew', '_p_skew', '_dist', '_p_dist', '_p_ad', 
-        '_dist_params', 'possible_dists', '_k')
-    _data: Series
+        '_dist_params', 'possible_dists', '_k', '_evaluate', '_q_low', '_q_upp')
+    _samples: Series
     _filtered: Series
     _n_samples: int | None
     _n_missing: int | None
     _mean: float | None
     _median: float | None
     _std: float | None
+    _sem: float | None
     _lcl: str | None
     _ucl: str | None
     _excess: float | None
@@ -53,21 +56,74 @@ class Estimator:
     _tolerance: int
     possible_dists: Tuple[str | rv_continuous]
     _k: float
+    _evaluate: Callable | None
+    _q_low: float | None
+    _q_upp: float | None
 
     def __init__(
             self,
-            data: ArrayLike, 
+            samples: ArrayLike, 
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             tolerance: float | int = 6, 
-            possible_dists: Tuple[str | rv_continuous] = DISTRIBUTION.COMMON
+            possible_dists: Tuple[str | rv_continuous] = DIST.COMMON,
+            evaluate: Callable | None = None
             ) -> None:
-        self._n_samples = len(data)
+        """An object for various statistical estimators
+        
+        The attributes are calculated lazily. After the class is 
+        instantiated, all attributes are set to None. As soon as an 
+        attribute (actually Property) is called, the value is calculated
+        and stored so that the calculation is only performed once
+        
+        Parameters
+        ----------
+        samples : array like (1d)
+            sample data
+        strategy : {'eval', 'fit', 'norm', 'data'}, optional
+            Which strategy should be used to determine the control 
+            limits (process spread):
+            - `eval`: The strategy is determined according to the given 
+            flowchart
+            - `fit`: First, the distribution is searched for that best 
+            represents the process data and then the process variation 
+            tolerance is calculated
+            - `norm`: it is assumed that the data is subject to normal 
+            distribution. The variation tolerance is then calculated as 
+            tolerance * standard deviation
+            - `data`: The quantiles for the process variation tolerance 
+            are read directly from the data.
+            by default 'norm'
+        tolerance : float or int, optional
+            Specify the tolerated process variation for which the 
+            control limits are to be calculated. 
+            - If int, the spread is determined using the normal 
+            distribution tolerance*sigma, 
+            e.g. tolerance = 6 -> 6*sigma ~ covers 99.75 % of the data. 
+            The upper and lower permissible quantiles are then 
+            calculated from this.
+            - If float, the value must be between 0 and 1.This value is
+            then interpreted as the acceptable proportion for the 
+            spread, e.g. 0.9973 (which corresponds to ~ 6 sigma)
+            by default 6
+        possible_dists : tuple of strings or rv_continous, optional
+            Distributions to which the data may be subject. Only 
+            continuous distributions of scipy.stats are allowed,
+            by default `DIST.COMMON`
+        evaluate : callable or None, optional
+            Function that takes this instance as argument and returns
+            one of the allowed strategy {'eval', 'fit', 'norm', 'data'},
+            by default None   
+        """
+        self._n_samples = len(samples)
         self._n_missing = None
         self._mean = None
         self._median = None
         self._std = None
+        self._sem = None
         self._lcl = None
         self._ucl = None
+        self._q_low = None
+        self._q_upp = None
         self._excess = None
         self._p_excess = None
         self._skew = None
@@ -78,58 +134,68 @@ class Estimator:
         self._dist_params = None
         self.possible_dists = possible_dists
         self._filtered = pd.Series()
-        self._data = data if isinstance(data, pd.Series) else pd.Series(data)
+        if not isinstance(samples, pd.Series):
+            samples = pd.Series(samples)
+        self._samples = samples 
         self._strategy = 'norm'
         self.strategy = strategy
         self._tolerance = 6
         self._k = self._tolerance/2
         self.tolerance = tolerance
+        self._evaluate = evaluate
         
     @property
-    def data(self) -> pd.Series:
-        """Get the raw data as it was given during instantiation as
-        pandas Series."""
-        return self._data
+    def samples(self) -> pd.Series:
+        """Get the raw samples as it was given during instantiation
+        as pandas Series."""
+        return self._samples
         
     @property
     def filtered(self) -> pd.Series:
-        """Get the data without error values and no missing value"""
+        """Get the samples without error values and no missing value"""
         if self._filtered.empty:
-            self._filtered = pd.to_numeric(self.data[self.data.notna()])
+            self._filtered = pd.to_numeric(self.samples[self.samples.notna()])
         return self._filtered
     
     @property
     def n_samples(self):
-        """Get sample size of unfiltered data"""
+        """Get sample size of unfiltered samples"""
         return self._n_samples
     
     @property
     def n_missing(self):
         """Get amount of missing values"""
         if self._n_missing is None:
-            self._n_missing = self.data.isna().sum()
+            self._n_missing = self.samples.isna().sum()
         return self._n_missing
 
     @property
     def mean(self) -> float:
-        """Get mean of filtered data"""
+        """Get mean of filtered samples"""
         if self._mean is None:
             self._mean = self.filtered.mean()
         return self._mean
 
     @property
     def median(self) -> float:
-        """Get median of filtered data"""
+        """Get median of filtered samples"""
         if self._median is None:
             self._median = self.filtered.median()
         return self._median
     
     @property
     def std(self) -> float:
-        """Get standard deviation of filtered data"""
+        """Get standard deviation of filtered samples"""
         if self._std is None:
             self._std = self.filtered.std()
         return self._std
+    
+    @property
+    def sem(self) -> float:
+        """Get standard error mean of filtered samples"""
+        if self._sem is None:
+            self._sem = self.filtered.sem()
+        return self._sem
     
     @property
     def lcl(self):
@@ -146,10 +212,33 @@ class Estimator:
         if self._ucl is None:
             self._lcl, self._ucl = self._calculate_control_limits_()
         return self._ucl
+
+    @property
+    def q_low(self) -> float:
+        """Get quantil for lower control limit according to given 
+        tolerance. If the samples is subject to normal distribution and 
+        the tolerance is given as 6, this value corresponds to the 0.135 % 
+        quantile (6 sigma ~ 99.73 % of the samples)."""
+        if self._q_low is None:
+            if isinstance(self.tolerance, int):
+                self._q_low = stats.norm.cdf(-self.tolerance/2)
+            else:
+                self._q_low = (1 - self.tolerance)/2
+        return self._q_low
+
+    @property
+    def q_upp(self) -> float:
+        """Get quantil for upper control limit according to given 
+        tolerance. If the sample data is subject to normal distribution 
+        and the tolerance is given as 6, this value corresponds to the 
+        Q_0.99865 (0.99865-quantile or 99.865-percentile)."""
+        if self._q_upp is None:
+            self._q_upp = 1 - self.q_low
+        return self._q_upp
     
     @property
     def excess(self) -> float:
-        """Get the Fisher kurtosis (excess) of the filtered data.
+        """Get the Fisher kurtosis (excess) of filtered samples.
         Calculations are corrected for statistical bias.
         The curvature of the distribution corresponds to the 
         curvature of a normal distribution when the excess is close to 
@@ -179,7 +268,7 @@ class Estimator:
     
     @property
     def skew(self) -> Tuple[float]:
-        """Get the sample skewness of the filtered data.
+        """Get the skewness of the filtered samples.
         Calculations are corrected for statistical bias.
         For normally distributed data, the skewness should be about zero. 
         For unimodal continuous distributions, a skewness value greater 
@@ -233,8 +322,8 @@ class Estimator:
         interpreted as the process range).
 
         Set strategy as one of {'eval', 'fit', 'norm', 'data'}
-            - eval: The strategy is determined according to the given 
-            flowchart
+            - eval: If no evaluate function is given, the strategy is 
+            determined according to the internal evaluate method. 
             - fit: First, the distribution is searched for that best 
             represents the process data and then the process variation 
             tolerance is calculated
@@ -242,14 +331,14 @@ class Estimator:
             distribution. The variation tolerance is then calculated as 
             tolerance * standard deviation
             - data: The quantiles for the process variation tolerance 
-            are read directly from the data."""
+            are read directly from the samples."""
         return self._strategy
     @strategy.setter
     def strategy(self, strategy: Literal['eval', 'fit', 'norm', 'data']):
         assert strategy in ['eval', 'fit', 'norm', 'data']
         if self._strategy != strategy:
             self._strategy = strategy
-            self._reset_control_limits_()
+            self._reset_values_()
 
     @property
     def tolerance(self) -> int | float:
@@ -271,23 +360,23 @@ class Estimator:
             self._k = stats.norm.ppf((1 + tolerance)/2)
         if self._tolerance != tolerance:
             self._tolerance = tolerance
-            self._reset_control_limits_()
+            self._reset_values_()
     
     def distribution(self):
         """First, the p-score is calculated by performing a 
-        Kolmogorov-Smirnov test to determine how well each distribution fits
-        the data. Whatever has the highest P-score is considered the most
-        accurate. This is because a higher p-score means the hypothesis is
-        closest to reality.""" # TODO link docstring
+        Kolmogorov-Smirnov test to determine how well each distribution 
+        fits the samples. Whatever has the highest P-score is considered
+        the most accurate. This is because a higher p-score means the 
+        hypothesis is closest to reality."""
         self._dist, self._p_dist, self._dist_params = estimate_distribution(
             self.filtered, self.possible_dists)
     
     def stable_variance(
             self, alpha: float = 0.05, n_sections : int = 3) -> bool:
-        """Test whether the variance remains stable across the data. 
+        """Test whether the variance remains stable across the samples. 
         
-        The data is divided into 5 subgroups and the variances of their 
-        sections are checked using the Levene test.
+        The sample data is divided into subgroups and the variances of
+        their sections are checked using the Levene test.
         
         Parameters
         ----------
@@ -295,7 +384,8 @@ class Estimator:
             Alpha risk of hypothesis tests. If a p-value is below this 
             limit, the null hypothesis is rejected
         n_sections : int, optional
-            Amount of sections to divide the data into, by default 5
+            Amount of sections to divide the filtered samples into, 
+            by default 3
         
         Returns
         -------
@@ -304,12 +394,38 @@ class Estimator:
         """
         assert isinstance(n_sections, int)
         assert  1 < n_sections < len(self.filtered)
-        p, L = variance_stability_test(self.filtered, n_sections=n_sections)
+        p, _ = variance_stability_test(self.filtered, n_sections=n_sections)
+        return p > alpha
+    
+    def stable_mean(
+            self, alpha: float = 0.05, n_sections : int = 3) -> bool:
+        """Test whether the mean remains stable across the samples. 
+        
+        The sample data is divided into subgroups and the mean of their 
+        sections are checked using the F test.
+        
+        Parameters
+        ----------
+        alpha : float
+            Alpha risk of hypothesis tests. If a p-value is below this 
+            limit, the null hypothesis is rejected
+        n_sections : int, optional
+            Amount of sections to divide the filtered samples into, 
+            by default 3
+        
+        Returns
+        -------
+        stable : bool
+            True if the p-value > alpha
+        """
+        assert isinstance(n_sections, int)
+        assert  1 < n_sections < len(self.filtered)
+        p, _ = variance_stability_test(self.filtered, n_sections=n_sections)
         return p > alpha
     
     def follows_norm_curve(
             self, alpha: float = 0.05, excess_test: bool = True,
-            skew_test: bool = True, ad_test: bool = True) -> bool:
+            skew_test: bool = True, ad_test: bool = False) -> bool:
         """Checks whether the sample data is subject to normal 
         distribution by performing one or more of the following tests 
         (depending on the input):
@@ -329,7 +445,7 @@ class Estimator:
             If true, an excess test will also be carried out, by default True
         ad_test : bool, optional
             If true, an Anderson Darling test will also be carried out,
-            by default True
+            by default False
             
         Returns
         -------
@@ -343,18 +459,68 @@ class Estimator:
             (self.p_ad > alpha) if ad_test else True]
         return all(remain_h0)
     
+    def evaluate(self) -> Literal['fit', 'norm', 'data']:
+        """Evaluate strategy to calculate control limits. If no evaluate
+        function is given the strategy is evaluated as follows:
+        
+        1. If variance is not stable within the samples
+        -> strategy = 'data'
+        2. If variance and mean is stable and samples follow a normal 
+        curve -> strategy = 'norm'
+        3. If variance and mean is stable but samples don't follow a
+        normal curve -> strategy = 'fit'
+        4. If variance is stable but mean not and samples follow a 
+        normal curve -> strategy = 'norm'
+        5. If variance is stable but mean not and samples don't follow a 
+        normal curve -> strategy = 'data'
+
+        Returns
+        -------
+        strategy : {'fit', 'norm', 'data'}
+            Evaluated strategy to calculate control limits
+        """
+        if self._evaluate is not None:
+            strategy = self._evaluate(self)
+            assert strategy in ('fit', 'norm', 'data'), (
+                f'Given evaluate function returned {strategy}, '
+                '"fit", "norm" or "data" is required')
+            return strategy
+        
+        if not self.stable_variance():
+            strategy = 'data'
+        elif self.stable_mean():
+            strategy = 'norm' if self.follows_norm_curve() else 'fit'
+        else:
+            strategy = 'norm' if self.follows_norm_curve() else 'data'
+        return strategy
+    
     def _calculate_control_limits_(self):
+        """Calculate the control limits according to given strategy
+        
+        - `eval`: first evaluate the strategy according to evaluate 
+            method. Then the limits are calculated using one of the 
+            following points.
+        - `fit`: first fit samples to a distribution and then calculate
+            quantile for this distribution according to given tolerance.
+        - `norm`: The control limits are calculated from the mean plus 
+            and minus the standard deviation multiplied by the expansion 
+            factor k.
+        - `data`: The quantiles are calculated directly from the sample
+            according the given tolerance
+
+        Returns
+        -------
+        lcl, ucl : float
+            control limits also known as process range.
+        """
         match self.strategy:
-            case 'eval': # TODO implement control limits eval strategy
-                raise NotImplementedError
+            case 'eval':
+                self.strategy = self.evaluate()
+                lcl, ucl = self._calculate_control_limits_()
             case 'fit':
                 self.distribution()
-                if self.dist.name == 'norm':
-                    self.strategy = 'norm'
-                    lcl, ucl = self._calculate_control_limits_()
-                else:
-                    lcl = self.dist.ppf(self.q_low, **self.dist_params)
-                    ucl = self.dist.ppf(self.q_upp, **self.dist_params)
+                lcl = self.dist.ppf(self.q_low, **self.dist_params)
+                ucl = self.dist.ppf(self.q_upp, **self.dist_params)
             case 'norm':
                 lcl = self.mean - self._k * self.std
                 ucl = self.mean + self._k * self.std
@@ -363,21 +529,22 @@ class Estimator:
                 ucl = np.quantile(self.filtered, self.q_upp)
         return lcl, ucl
 
-    def _reset_control_limits_(self):
-        """Set all values relevant to process capability to None. This 
-        function is called when one of the values relevant to the 
-        calculation of capability values is adjusted (specification 
-        limits or tolerance for the control limits). This ensures that 
-        the process capability values are recalculated."""
+    def _reset_values_(self):
+        """Set the control limits and quantiles to None. This function 
+        is called when one of the values relevant to the calculation of
+        those limits is adjusted (strategy or tolerance for the control
+        limits)."""
         self._lcl = None
         self._ucl = None
+        self._q_low = None
+        self._q_upp = None
 
 
 class ProcessEstimator(Estimator):
 
     __slots__ = (
         '_lsl', '_usl', '_n_ok', '_n_nok', '_error_values', '_n_errors', 
-        '_cp', '_cpk', '_q_low', '_q_upp')
+        '_cp', '_cpk')
     _lsl: float | None
     _usl: float | None
     _n_ok: int | None
@@ -386,23 +553,30 @@ class ProcessEstimator(Estimator):
     _n_errrors: int
     _cp: int | None
     _cpk: int | None
-    _q_low: float | None
-    _q_upp: float | None
 
     def __init__(
             self,
-            data: ArrayLike,
+            samples: ArrayLike,
             lsl: Optional[float] = None, 
             usl: Optional[float] = None, 
             error_values: Tuple[float] = (),
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             tolerance: float | int = 6, 
-            possible_dists: Tuple[str | rv_continuous] = DISTRIBUTION.COMMON
+            possible_dists: Tuple[str | rv_continuous] = DIST.COMMON
             ) -> None:
-        """"
+        """"An object for various statistical estimators. This class 
+        extends the estimator with process-specific statistics such as 
+        specification limits, Cp and Cpk values
+        
+        The attributes are calculated lazily. After the class is 
+        instantiated, all attributes are set to None. As soon as an 
+        attribute (actually Property) is called, the value is calculated
+        and stored so that the calculation is only performed once
+
+
         Parameters
         ----------
-        data : array like
+        samples : array like
             1D array of process data.
         lsl, usl : float
             Lower and upper specification limit for process data.
@@ -439,31 +613,28 @@ class ProcessEstimator(Estimator):
         possible_dists : tuple of strings or rv_continous, optional
             Distributions to which the data may be subject. Only 
             continuous distributions of scipy.stats are allowed,
-            by default DISTRIBUTION.COMMON
-
-        """# TODO link docstring
+            by default DIST.COMMON
+        """
         assert usl > lsl if None not in (lsl, usl) else True
         self._n_ok = None
         self._n_nok = None
         self._n_errors = None
         self._cp = None
         self._cpk = None
-        self._q_low = None
-        self._q_upp = None
         self._error_values = error_values
         self._lsl = lsl
         self._usl = usl
-        self._reset_capabilty_values_()
-        super().__init__(data, strategy, tolerance, possible_dists)
+        self._reset_values_()
+        super().__init__(samples, strategy, tolerance, possible_dists)
         
     @property
     def filtered(self) -> pd.Series:
         """Get the data without error values and no missing value"""
         if self._filtered.empty:
             self._filtered = pd.to_numeric(
-                self.data[
-                    ~ self.data.isin(self._error_values)
-                    & self.data.notna()])
+                self.samples[
+                    ~ self.samples.isin(self._error_values)
+                    & self.samples.notna()])
         return self._filtered
     
     @property
@@ -496,7 +667,7 @@ class ProcessEstimator(Estimator):
     @property
     def n_errors(self) -> int:
         if self._n_errors is None:
-            self._n_errors = self.data.isin(self._error_values).sum()
+            self._n_errors = self.samples.isin(self._error_values).sum()
         return self._n_errors
 
     @property
@@ -507,7 +678,7 @@ class ProcessEstimator(Estimator):
     def lsl(self, lsl: float):
         if self._lsl != lsl:
             self._lsl = lsl
-            self._reset_capabilty_values_()
+            self._reset_values_()
 
     @property
     def usl(self):
@@ -517,30 +688,7 @@ class ProcessEstimator(Estimator):
     def usl(self, usl: float):
         if self._usl != usl:
             self._usl = usl
-            self._reset_capabilty_values_()
-
-    @property
-    def q_low(self) -> float:
-        """Get quantil for lower control limit according to given 
-        tolerance. If the data is subject to normal distribution and the 
-        tolerance is given as 6, this value corresponds to the 0.135 % 
-        quantile (6 sigma ~ 99.73 % of the data)."""
-        if self._q_low is None:
-            if isinstance(self.tolerance, int):
-                self._q_low = stats.norm.cdf(-self.tolerance/2)
-            else:
-                self._q_low = (1 - self.tolerance)/2
-        return self._q_low
-
-    @property
-    def q_upp(self) -> float:
-        """Get quantil for upper control limit according to given 
-        tolerance. If the data is subject to normal distribution and the 
-        tolerance is given as 6, this value corresponds to the Q_0.99865
-        (0.99865-quantile or 99.865-percentile)."""
-        if self._q_upp is None:
-            self._q_upp = 1 - self.q_low
-        return self._q_upp
+            self._reset_values_()
 
     @property
     def limits(self) -> Tuple[float | None]:
@@ -602,25 +750,22 @@ class ProcessEstimator(Estimator):
         if self.limits == (None, None): return None
         return min([self.cpl, self.cpu])
 
-    def _reset_capabilty_values_(self):
+    def _reset_values_(self):
         """Set all values relevant to process capability to None. This 
         function is called when one of the values relevant to the 
         calculation of capability values is adjusted (specification 
         limits or tolerance for the control limits). This ensures that 
         the process capability values are recalculated."""
-        super()._reset_control_limits_()
+        super()._reset_values_()
         self._n_ok = None
         self._n_nok = None
         self._n_errors = None
         self._cp = None
         self._cpk = None
-        self._q_low = None
-        self._q_upp = None
-
 
 def estimate_distribution(
         data: ArrayLike,
-        dists: Tuple[str|rv_continuous] = DISTRIBUTION.COMMON
+        dists: Tuple[str|rv_continuous] = DIST.COMMON
         ) -> Tuple[rv_continuous, float, Tuple[float]]:
     """First, the p-score is calculated by performing a 
     Kolmogorov-Smirnov test to determine how well each distribution fits
@@ -635,7 +780,7 @@ def estimate_distribution(
     dists : tuple of strings or rv_continous, optional
         Distributions to which the data may be subject. Only 
         continuous distributions of scipy.stats are allowed,
-        by default DISTRIBUTION.COMMON
+        by default DIST.COMMON
     
     Returns
     -------

@@ -103,7 +103,7 @@ class TestEstimator:
         N_nan = 2
         data = np.concatenate((np.random.randn(N-2), N_nan*[np.nan], [.1, -.1]))
         estimate = Estimator(data)
-        assert len(estimate.data) == N + N_nan
+        assert len(estimate.samples) == N + N_nan
         assert estimate._filtered.empty
         assert len(estimate.filtered) == N
         assert not estimate._filtered.empty

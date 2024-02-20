@@ -9,10 +9,12 @@ from typing import Self
 from typing import Dict
 from typing import List
 from typing import Tuple
+from typing import Literal
 from typing import Generator
 from pathlib import Path
 from numpy.typing import NDArray
 from pandas.core.frame import DataFrame
+from scipy.stats._distn_infrastructure import rv_continuous
 
 from .utils import Dodger
 from .utils import HueLabel
@@ -26,6 +28,7 @@ from matplotlib.figure import Figure
 from matplotlib.ticker import AutoMinorLocator
 
 from .._constants import KW
+from .._constants import DIST
 from .._constants import COLOR
 
 
@@ -309,6 +312,15 @@ class SimpleChart(_Chart):
                 width=self.dodging.width, **kwds)
             plot()
             self._plots.append(plot)
+        return self
+    
+    def lines(
+            self, mean: bool = False, median: bool = False,
+            control_limits: bool = False, spec_limits: Tuple[float] = (), 
+            strategy: Literal['fit', 'eval', 'norm', 'data'] = 'norm', 
+            possible_dists: Tuple[str | rv_continuous] = DIST.COMMON,
+            tolerance: float | int = 6) -> Self:
+        
         return self
 
     def label(

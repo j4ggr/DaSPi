@@ -16,6 +16,7 @@ from scipy.stats import chi2
 from scipy.stats import kstest
 from scipy.stats import levene
 from scipy.stats import ansari
+from scipy.stats import f_oneway
 from scipy.stats import anderson
 from scipy.stats import ranksums
 from scipy.stats import wilcoxon
@@ -154,7 +155,7 @@ def levene_test(
     L, p = levene(x1, x2, center=center)
     return p, L
 
-def variance_stability_test(x: ArrayLike, n_sections: int = 5):
+def variance_stability_test(x: ArrayLike, n_sections: int = 3):
     """Perform Levene test for equal variances within one sample.
     
     Divides the data into the number of n_sections. A Levene test is 
@@ -166,7 +167,7 @@ def variance_stability_test(x: ArrayLike, n_sections: int = 5):
     x : ArrayLike
         The sample data, nan values are ignored
     n_sections : int, optional
-        Amount of sections to divide the data into, by default 5
+        Amount of sections to divide the data into, by default 3
 
     Returns
     -------
@@ -178,6 +179,31 @@ def variance_stability_test(x: ArrayLike, n_sections: int = 5):
     xs = np.array_split(x, n_sections)
     L, p = levene(*xs, center='median')
     return p, L
+
+def mean_stability_test(x: ArrayLike, n_sections: int = 3):
+    """Perform one-way ANOVA for equal means within one sample.
+    
+    Divides the data into the number of n_sections. A f_oneway test is 
+    then performed between these intercepts to check whether the 
+    mean remains stable
+    
+    Parameters
+    ----------
+    x : ArrayLike
+        The sample data, nan values are ignored
+    n_sections : int, optional
+        Amount of sections to divide the data into, by default 3
+
+    Returns
+    -------
+    p : float
+        p-value for the test
+    statistic : float
+        The computed F statistic of the test.
+    """
+    xs = np.array_split(x, n_sections)
+    statistic, p = f_oneway(*xs)
+    return p, statistic
 
 def position_test(
         x1: ArrayLike, x2: ArrayLike, equal_var: bool=True, 
@@ -381,6 +407,7 @@ __all__ = [
     f_test.__name__,
     levene_test.__name__,
     variance_stability_test.__name__,
+    mean_stability_test.__name__,
     position_test.__name__,
     variance_test.__name__,
     proportions_test.__name__,

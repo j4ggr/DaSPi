@@ -727,7 +727,7 @@ class TestSimpleChart:
             ).plot(
                 VariationTest,
                 kind = 'stdev',
-                show_points = False
+                show_center = False
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,
@@ -923,7 +923,7 @@ class TestJointChart:
         ).plot([
             (GaussianKDE, {'show_density_axis': False}),
             (None, {}),
-            (LinearRegression, dict(show_points=True, show_fit_ci=True, show_pred_ci=True)),
+            (LinearRegression, dict(show_center=True, show_fit_ci=True, show_pred_ci=True)),
             (GaussianKDE, {'show_density_axis': False})]
         ).label(
         ).save(file_name

@@ -33,18 +33,17 @@ from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
 from .._constants import KW
+from .._constants import DIST
 from .._constants import COLOR
 from .._constants import PLOTTER
 from .._constants import CATEGORY
-from .._constants import DISTRIBUTION
 from ..statistics.confidence import fit_ci
 from ..statistics.confidence import mean_ci
 from ..statistics.confidence import stdev_ci
+from ..statistics.estimation import Estimator
 from ..statistics.confidence import variance_ci
 from ..statistics.confidence import prediction_ci
-from ..statistics.confidence import dist_prob_fit_ci
 from ..statistics.estimation import estimate_kernel_density
-from ..statistics.estimation import Estimator
 
 
 class _Plotter(ABC):
@@ -152,10 +151,10 @@ class Line(_Plotter):
 class LinearRegression(_Plotter):
 
     __slots__ = (
-        'model', 'target_fit', 'show_points', 'show_fit_ci', 'show_pred_ci')
+        'model', 'target_fit', 'show_center', 'show_fit_ci', 'show_pred_ci')
     model: RegressionResults
     target_fit: str
-    show_points: bool
+    show_center: bool
     show_fit_ci: bool
     show_pred_ci: bool
 
@@ -167,12 +166,12 @@ class LinearRegression(_Plotter):
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
-            show_points: bool = True,
+            show_center: bool = True,
             show_fit_ci: bool = False,
             show_pred_ci: bool = False,
             **kwds) -> None:
         self.target_fit = PLOTTER.FITTED_VALUES_NAME
-        self.show_points = show_points
+        self.show_center = show_center
         self.show_fit_ci = show_fit_ci
         self.show_pred_ci = show_pred_ci
         df = source if isinstance(source, DataFrame) else pd.DataFrame(source)
@@ -209,7 +208,7 @@ class LinearRegression(_Plotter):
         kwds = KW.FIT_LINE | _color | kwds
         self.ax.plot(x, y, **kwds)
         
-        if self.show_points:
+        if self.show_center:
             kw_scatter = _color | kw_scatter
             self.ax.scatter(self.x, self.y, **kw_scatter)
         
@@ -251,7 +250,7 @@ class Probability(LinearRegression):
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
-            show_points: bool = True,
+            show_center: bool = True,
             show_fit_ci: bool = True,
             show_pred_ci: bool = True,
             **kwds) -> None:
@@ -271,7 +270,7 @@ class Probability(LinearRegression):
         super().__init__(
             source=df, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax, 
-            show_points=show_points, show_fit_ci=show_fit_ci,
+            show_center=show_center, show_fit_ci=show_fit_ci,
             show_pred_ci=show_pred_ci)
     
     def _xy_scale_(self) -> Tuple[str, str]:
@@ -650,10 +649,10 @@ class Ridge(GaussianKDE):
 
 
 class Errorbar(_TransformPlotter):
-    __slots__ = ('lower', 'upper', 'show_points', 'sort')
+    __slots__ = ('lower', 'upper', 'show_center')
     lower: str
     upper: str
-    show_points: bool
+    show_center: bool
 
     def __init__(
             self,
@@ -662,24 +661,14 @@ class Errorbar(_TransformPlotter):
             lower: str,
             upper: str,
             feature: str = '',
-            show_points: bool = True,
+            show_center: bool = True,
             target_on_y: bool = True,
-            sort: Literal['feature', 'target', None] = None,
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        """
-        sort : {'feature', 'target', None}, optional
-            sort error bars according to target center points or feature
-            values. If 'feature, feature values are sorted 
-            descending if target is on y axis (lowest on top), otherwise 
-            they will be sorted ascending (lowest on left). If 'target' 
-            centers are sorted ascending if target is on y axis 
-            (smallest on left), otherweise centers will be sorted 
-            descending (smallest on top), by default False"""
         self.lower = lower
         self.upper = upper
-        self.show_points = show_points
+        self.show_center = show_center
         if not feature in source:
             feature = PLOTTER.FEATURE
             source[feature] = np.arange(len(source[target]))
@@ -687,13 +676,6 @@ class Errorbar(_TransformPlotter):
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
-        
-        if sort == 'target':
-            self.source = self.source.sort_values(
-                self.target, ascending=self.target_on_y)
-        elif sort == 'feature':
-            self.source = self.source.sort_values(
-                self.feature, ascending=not self.target_on_y)
         
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
@@ -713,7 +695,7 @@ class Errorbar(_TransformPlotter):
         return err
     
     def __call__(self, kw_points: dict = {}, **kwds):
-        if self.show_points:
+        if self.show_center:
             kw_points = dict(color=self.color) | kw_points
             self.ax.scatter(self.x, self.y, **kw_points)
         kwds = KW.ERROR_BAR | kwds
@@ -730,28 +712,72 @@ class StandardErrorMean(Errorbar):
             source: Hashable,
             target: str,
             feature: str = '',
-            show_points: bool = True,
+            show_center: bool = True,
             target_on_y: bool = True,
-            sort: Literal['feature', 'target'] | None = None,
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         
         super().__init__(
             source=source, target=target, lower=PLOTTER.ERR_LOW,
-            upper=PLOTTER.ERR_UPP, feature=feature, show_points=show_points,
-            target_on_y=target_on_y, sort=sort, color=color, ax=ax)
+            upper=PLOTTER.ERR_UPP, feature=feature, show_center=show_center,
+            target_on_y=target_on_y, color=color, ax=ax)
 
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
-        center = target_data.mean()
-        err = target_data.sem()
+        estimation = Estimator(target_data)
         data = pd.DataFrame({
-            self.target: [center],
+            self.target: [estimation.mean],
             self.feature: [feature_data],
-            self.lower: [center - err],
-            self.upper: [center + err]})
+            self.lower: [estimation.mean - estimation.sem],
+            self.upper: [estimation.mean + estimation.sem]})
         return data
+
+
+class ProcessRange(Errorbar):
+
+    __slots__ = ('strategy', 'tolerance', 'possible_dists')
+    strategy: str
+    tolerance: int
+    possible_dists: Tuple[str | rv_continuous]
+
+    def __init__(
+            self,
+            source: Hashable,
+            target: str,
+            feature: str = '',
+            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
+            tolerance: float | int = 6,
+            possible_dists: Tuple[str | rv_continuous] = DIST.COMMON,
+            show_center: bool = True,
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        self.strategy = strategy
+        self.tolerance = tolerance
+        self.possible_dists = possible_dists
+        
+        super().__init__(
+            source=source, target=target, lower=PLOTTER.ERR_LOW,
+            upper=PLOTTER.ERR_UPP, feature=feature, show_center=show_center,
+            target_on_y=target_on_y, color=color, ax=ax)
+
+    def transform(
+            self, feature_data: float | int, target_data: Series) -> DataFrame:
+        estimation = Estimator(
+            samples=target_data, strategy=self.strategy, tolerance=self.tolerance,
+            possible_dists=self.possible_dists)
+        data = pd.DataFrame({
+            self.target: [estimation.median],
+            self.feature: [feature_data],
+            self.lower: [estimation.lcl],
+            self.upper: [estimation.ucl]})
+        return data
+    
+    def __call__(self, kw_points: dict = {}, **kwds):
+        kw_points = dict(marker= '_' if self.target_on_y else '|') | kw_points
+        return super().__call__(kw_points, **kwds)
 
 
 class DistinctionTest(Errorbar):
@@ -766,7 +792,7 @@ class DistinctionTest(Errorbar):
             source: Hashable,
             target: str,
             feature: str = '',
-            show_points: bool = True,
+            show_center: bool = True,
             target_on_y: bool = True,
             confidence_level: float = 0.95,
             ci_func: Callable = mean_ci,
@@ -779,8 +805,8 @@ class DistinctionTest(Errorbar):
         
         super().__init__(
             source=source, target=target, lower=PLOTTER.ERR_LOW,
-            upper=PLOTTER.ERR_UPP, feature=feature, show_points=show_points,
-            target_on_y=target_on_y, sort='target', color=color, ax=ax)
+            upper=PLOTTER.ERR_UPP, feature=feature, show_center=show_center,
+            target_on_y=target_on_y, color=color, ax=ax)
     
     def transform(
             self, feature_data: float | int, target_data: Series
@@ -802,7 +828,7 @@ class MeanTest(DistinctionTest):
             source: Hashable,
             target: str,
             feature: str = '',
-            show_points: bool = True,
+            show_center: bool = True,
             target_on_y: bool = True,
             confidence_level: float = 0.95,
             color: str | None = None,
@@ -810,7 +836,7 @@ class MeanTest(DistinctionTest):
             **kwds) -> None:
         super().__init__(
             source=source, target=target, feature=feature,
-            show_points=show_points, target_on_y=target_on_y,
+            show_center=show_center, target_on_y=target_on_y,
             confidence_level=confidence_level, ci_func=mean_ci, color=color,
             ax=ax)
 
@@ -822,7 +848,7 @@ class VariationTest(DistinctionTest):
             source: Hashable,
             target: str,
             feature: str = '',
-            show_points: bool = True,
+            show_center: bool = True,
             target_on_y: bool = True,
             confidence_level: float = 0.95,
             kind: Literal['stdev', 'variance'] = 'stdev',
@@ -832,61 +858,11 @@ class VariationTest(DistinctionTest):
         ci_func = stdev_ci if kind == 'stdev' else variance_ci
         super().__init__(
             source=source, target=target, feature=feature,
-            show_points=show_points, target_on_y=target_on_y,
+            show_center=show_center, target_on_y=target_on_y,
             confidence_level=confidence_level, ci_func=ci_func, color=color,
             ax=ax)
 
 
-class StatisticLines(_TransformPlotter):
-
-    __slots__ = ('strategy', 'tolerance', 'possible_dists', 'sample_color')
-    strategy: str
-    tolerance: int
-    possible_dists: Tuple[str | rv_continuous]
-    sample_color: bool
-
-    def __init__(
-            self,
-            source: DataFrame,
-            target: str,
-            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
-            tolerance: float | int = 6,
-            possible_dists: Tuple[str | rv_continuous] = DISTRIBUTION.COMMON,
-            sample_color: bool = False,
-            target_on_y: bool = True,
-            color: str | None = None,
-            ax: Axes | None = None,
-            **kwds) -> None:
-        self.strategy = strategy
-        self.tolerance = tolerance
-        self.possible_dists = possible_dists
-        self.sample_color = sample_color
-        super().__init__(
-            source=source, target=target, target_on_y=target_on_y, color=color,
-            ax=ax)
-        
-    def transform(
-            self, feature_data: float | int, target_data: Series) -> DataFrame:
-        estimation = Estimator(
-            data=target_data, strategy=self.strategy, tolerance=self.tolerance,
-            possible_dists=self.possible_dists)
-        data = pd.DataFrame({
-            PLOTTER.MEAN: [estimation.mean],
-            PLOTTER.LCL: [estimation.lcl],
-            PLOTTER.UCL: [estimation.ucl]})
-        return data
-    
-    def __call__(self, **kwds):
-        kwds = KW.LINE | kwds
-        colors = [self.color]*3 if self.sample_color else COLOR.STATISTIC_LINES
-        names = (PLOTTER.LCL, PLOTTER.UCL, PLOTTER.MEAN)
-        for color, name in zip(colors, names):
-            value = self.source[name][0]
-            kwds = {'color': color} | kwds
-            if self.target_on_y:
-                 self.ax.axhline(value, **kwds)
-            else:
-                self.ax.axvline(value, **kwds)
                 
 __all__ = [
     _Plotter.__name__,
@@ -904,5 +880,4 @@ __all__ = [
     DistinctionTest.__name__,
     MeanTest.__name__,
     VariationTest.__name__,
-    StatisticLines.__name__,
     ]

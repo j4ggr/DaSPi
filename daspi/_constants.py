@@ -10,7 +10,10 @@ from scipy.stats._continuous_distns import _distn_names
 class _Kw_:
     _x: float = 0.035 # X position for fig title, subtitle and info
     _lw: float = 0.8 # line width for special lines
-    _dashed: str = '--'
+    _solid: tuple = (0, ())
+    _dotted: tuple = (0, (1, 1))
+    _dashed: tuple = (0, (5, 5))
+    _dashdot: tuple = (0, (3, 5, 1, 5))
     @property
     def LINE(self):
         """Base kwds for horizontal or vertical lines"""
@@ -109,6 +112,23 @@ class _Kw_:
         """Keyword arguments for percentage formatter used at 
         Probability Plotter."""
         kw = dict(xmax=1.0, decimals=None, symbol='%')
+        return kw
+    @property
+    def MEAN_LINE(self) -> dict:
+        """Keyword arguments for control limit line"""
+        return dict(lw=self._lw, ls=self._solid, color=COLOR.MEAN)
+    @property
+    def MEDIAN_LINE(self) -> dict:
+        """Keyword arguments for control limit line"""
+        return dict(lw=self._lw, ls=self._dotted, color=COLOR.MEDIAN)
+    @property
+    def CONTROL_LINE(self) -> dict:
+        """Keyword arguments for control limit line"""
+        return dict(lw=self._lw, ls=self._dashed, color=COLOR.PERCENTIL)
+    @property
+    def SECIFICATION_LINE(self) -> dict:
+        """Keyword arguments for specification limit line"""
+        return dict(lw=self._lw, ls=self._dashdot, color=COLOR.BAD)
 KW = _Kw_()
 
 
@@ -117,6 +137,7 @@ class _Color_:
     GOOD: str = '#2ca02c'
     BAD: str = '#d62728'
     MEAN: str = '#101010'
+    MEDIAN: str = '#202020'
     PERCENTIL: str = '#303030'
     HANDLES: str = '#202020'
     TRANSPARENT: str = '#ffffff00'
@@ -219,15 +240,20 @@ class _Distribution_:
     def POSSIBLE(self) -> Tuple[str]:
         """Get all possible continous distributions coming from scipy"""
         return tuple(d for d in _distn_names if d not in self._ignore_)
-DISTRIBUTION = _Distribution_()
+    @property
+    def COMMON_NOT_NORM(self) -> Tuple[str]:
+        """Get all common distributions but norm, usefull to fit if norm
+        tests fail."""
+        return self.COMMON[1:]
+DIST = _Distribution_()
 
 
 __all__ = [
     'KW',
     'KDE',
+    'DIST',
     'COLOR',
     'LABEL',
     'PLOTTER',
     'CATEGORY',
-    'DISTRIBUTION',
 ]

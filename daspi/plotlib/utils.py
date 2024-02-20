@@ -8,15 +8,19 @@ from typing import List
 from typing import Dict
 from typing import Tuple
 from typing import Literal
+from typing import Iterable
 from numpy.typing import NDArray
 from numpy.typing import ArrayLike
 from pandas.core.series import Series
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from scipy.stats._distn_infrastructure import rv_continuous
 
 from .._constants import KW
+from .._constants import DIST
 from .._constants import CATEGORY
+from ..statistics.estimation import Estimator
 
 
 def add_second_axis(# TODO remove if not needed
@@ -244,6 +248,144 @@ class Dodger:
     
     def __bool__(self) -> bool:
         return len(self.categories) > 1
+
+
+class Line:
+
+    __slots__ = (
+        'estimation', 'mean', 'median', 'control_limits', 'spec_limits')
+    estimation: Estimator
+    mean: bool
+    median: bool
+    control_limits: bool
+    spec_limits: Tuple[float | int]
+    
+    def __init__(
+        self,
+        target: Iterable,
+        mean: bool = False,
+        median: bool = False,
+        control_limits: bool = False,
+        spec_limits: Tuple[float | int] = (), 
+        strategy: Literal['fit', 'eval', 'norm', 'data'] = 'norm', 
+        possible_dists: Tuple[str | rv_continuous] = DIST.COMMON,
+        tolerance: float | int = 6
+        ) -> None:
+        self.estimation = Estimator(data=target, strategy=strategy)
+    
+
+    # __slots__ = (
+    #     'strategy', 'tolerance', 'possible_dists', 'sample_color', '_mask',
+    #     '_n', '_k', '_q_low', '_q_upp')
+    # strategy: str
+    # tolerance: int
+    # possible_dists: Tuple[str | rv_continuous]
+    # sample_color: bool
+    # _mask: Tuple[bool]
+    # _n: int
+    # _k: int | None
+    # _q_low: float | None
+    # _q_upp: float | None
+
+    # def __init__(
+    #         self,
+    #         source: DataFrame,
+    #         target: str,
+    #         strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
+    #         tolerance: float | int = 6,
+    #         possible_dists: Tuple[str | rv_continuous] = DIST.COMMON,
+    #         show_mean: bool = True,
+    #         show_median: bool = True,
+    #         show_climits: bool = True,
+    #         sample_color: bool = False,
+    #         target_on_y: bool = True,
+    #         color: str | None = None,
+    #         ax: Axes | None = None,
+    #         **kwds) -> None:
+    #     self.strategy = strategy
+    #     self.tolerance = tolerance
+    #     self.possible_dists = possible_dists
+    #     self.sample_color = sample_color
+    #     self._mask = (show_mean, show_median, show_climits, show_climits)
+    #     self._n = 100
+    #     self._k = None
+    #     self._q_low = None
+    #     self._q_upp = None
+    #     super().__init__(
+    #         source=source, target=target, target_on_y=target_on_y, color=color,
+    #         ax=ax)
+    
+    # @property
+    # def _d(self) -> int:
+    #     """Get decimals to format labels"""
+    #     if self._n > 50: return 1
+    #     if self._n > 5: return 2
+    #     if self._n > 0.5: return 3
+    #     return 4
+
+    # @property
+    # def kwds(self) -> Tuple[dict]:
+    #     """Get keyword arguments for all lines that are plotted"""
+    #     kwds = self._filter(
+    #         (KW.MEAN_LINE, KW.MEDIAN_LINE, KW.CONTROL_LINE, KW.CONTROL_LINE))
+    #     if self.sample_color:
+    #         kwds = (kw | {'color': self.color} for kw in kwds)
+    #     return kwds
+    
+    # @property
+    # def names(self) -> Tuple[str]:
+    #     """Get the column names for all lines that are plotted"""
+    #     names = self._filter(
+    #         (PLOTTER.MEAN, PLOTTER.MEDIAN, PLOTTER.LCL, PLOTTER.UCL))
+    #     return names
+    
+    # @property
+    # def attrs(self) -> Tuple[str]:
+    #     attrs = self._filter(('mean', 'median', 'lcl', 'ucl'))
+    #     return attrs
+    
+    # @property
+    # def labels(self) -> Tuple[str]:
+    #     """Get labels for lines"""
+    #     if self.strategy == 'norm':
+    #         lcl = r'\bar x-' + f'{self._k}' + r'\sigma'
+    #         ucl = r'\bar x+' + f'{self._k}' + r'\sigma'
+    #     else:
+    #         lcl = r'x_{' + f'{self._q_low:.4f}' + '}'
+    #         ucl = r'x_{' + f'{self._q_upp:.4f}' + '}'
+    #     labels = self._filter((r'\bar x', r'x_{0.5}', lcl, ucl))
+    #     if len(self.source) == 1:
+    #         values = self._filter(tuple(self.source.loc[0, list(self.names)]))
+    #         labels = (f'{l}={v:.{self._d}}' for l, v in zip(labels, values))
+    #     labels = tuple(f'${l}$' for l in labels)
+    #     return labels
+    
+    # def _filter(self, values: tuple) -> tuple:
+    #     """Filter given values according to self._mask"""
+    #     return tuple(v for v, m in zip(values, self._mask) if m)
+
+    # def transform(
+    #         self, feature_data: float | int, target_data: Series) -> DataFrame:
+    #     estimation = Estimator(
+    #         data=target_data, strategy=self.strategy, tolerance=self.tolerance,
+    #         possible_dists=self.possible_dists)
+    #     if estimation.n_samples < self._n: self._n = estimation.n_samples
+    #     if self._k is None: self._k = int(estimation._k)
+    #     if self._q_low is None: self._q_low = estimation.q_low
+    #     if self._q_upp is None: self._q_low = estimation.q_upp
+        
+    #     data = pd.DataFrame(
+    #         {self.feature: [feature_data]} | {
+    #         n: [getattr(estimation, a)] for n, a in zip(self.names, self.attrs)})
+    #     return data
+    
+    # def __call__(self):
+    #     for kwds, name in zip(self.kwds, self.names):
+    #         value = self.source[name][0]
+    #         if self.target_on_y:
+    #              self.ax.axhline(value, **kwds)
+    #         else:
+    #             self.ax.axvline(value, **kwds)
 
 __all__ = [
     add_second_axis.__name__,
