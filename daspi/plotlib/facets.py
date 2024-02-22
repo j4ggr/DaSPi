@@ -21,7 +21,7 @@ from .._strings import STR
 from .._constants import KW
 from .._constants import DIST
 from .._constants import LABEL
-from ..statistics.estimation import Estimator
+from ..statistics.estimation import ProcessEstimator
 
 
 class LabelFacets:
@@ -332,11 +332,10 @@ class AxesFacets:
 class StripesFacets:
 
     __slots__ = (
-        'estimation', 'mean', 'median', 'control_limits', 'spec_limits')
-    estimation: Estimator
-    mean: bool
-    median: bool
-    control_limits: bool
+        'estimation', 'mask', 'confidence', 'spec_limits')
+    estimation: ProcessEstimator
+    mask: Tuple[bool]
+    confidence: float | None
     spec_limits: Tuple[float | int]
     
     def __init__(
@@ -345,18 +344,19 @@ class StripesFacets:
         mean: bool = False,
         median: bool = False,
         control_limits: bool = False,
-        spec_limits: Tuple[float | int] = (), 
-        strategy: Literal['fit', 'eval', 'norm', 'data'] = 'norm', 
-        possible_dists: Tuple[str | rv_continuous] = DIST.COMMON,
-        agreement: float | int = 6
-        ) -> None:
-        self.mean = mean
-        self.median = median
-        self.control_limits = control_limits
+        spec_limits: Tuple[float | int | None] = (None, None),
+        confidence: float | None = None,
+        **kwds) -> None:
+        assert len(spec_limits) == 2, (
+            'Specification limits must contain 2 values, '
+            'Set None for limits that do not exist')
         self.spec_limits = spec_limits
-        self.estimation = Estimator(
-            samples=target, strategy=strategy, agreement=agreement, 
-            possible_dists=possible_dists)
+        self.confidence = confidence
+        self.mask = (
+            mean, median, *[control_limits]*2,
+            *list(map(lambda l: l is not None, self.spec_limits)))
+        self.estimation = ProcessEstimator(
+            samples=target, lsl=spec_limits[0], usl=spec_limits[1], **kwds)
     
     @property
     def _d(self) -> int:
@@ -405,10 +405,7 @@ class StripesFacets:
     
     def _filter(self, values: tuple | list) -> tuple:
         """Filter given values according to given boolean attributes"""
-        mask = (
-            self.mean, self.median, self.control_limits, self.control_limits,
-            *list(map(lambda l: l is not None, self.spec_limits)))
-        return tuple(v for v, m in zip(values, mask) if m)
+        return tuple(v for v, m in zip(values, self.mask) if m)
     
     def handles_labels(self) -> Tuple[Tuple[Patch | Line2D], Tuple[str]]:
         handles = tuple(

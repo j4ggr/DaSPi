@@ -17,6 +17,8 @@ from scipy.stats import sem
 from scipy.stats import skew
 from scipy.stats import kurtosis
 
+from .confidence import mean_ci
+from .confidence import stdev_ci
 from .hypothesis import skew_test
 from .hypothesis import kurtosis_test
 from .hypothesis import mean_stability_test
@@ -32,7 +34,7 @@ class Estimator:
     __slots__ = (
         '_samples', '_filtered', '_n_samples', '_n_missing', '_mean', '_median', 
         '_std', '_sem', '_lcl', '_ucl', '_strategy', '_agreement', '_excess', 
-        '_p_excess', '_skew', '_p_skew', '_dist', '_p_dist', '_p_ad', 
+        '_p_excess', '_skew', '_p_skew', '_dist', '_p_dist', '_p_ad',
         '_dist_params', 'possible_dists', '_k', '_evaluate', '_q_low', '_q_upp')
     _samples: Series
     _filtered: Series
@@ -83,10 +85,11 @@ class Estimator:
             Which strategy should be used to determine the control 
             limits (process spread):
             - `eval`: The strategy is determined according to the given 
-            flowchart
-            - `fit`: First, the distribution is searched for that best 
-            represents the process data and then the process variation 
-            agreement is calculated
+            evaluate function. If none is given, the internal `evaluate`
+            method is used.
+            - `fit`: First, the distribution that best represents the 
+            process data is searched for and then the agreed process 
+            spread is calculated
             - `norm`: it is assumed that the data is subject to normal 
             distribution. The variation tolerance is then calculated as 
             agreement * standard deviation
@@ -168,6 +171,11 @@ class Estimator:
         if self._n_missing is None:
             self._n_missing = self.samples.isna().sum()
         return self._n_missing
+    
+    @property
+    def dof(self) -> int:
+        """Get degree of freedom for filtered samples"""
+        return len(self.filtered)-1
 
     @property
     def mean(self) -> float:
@@ -361,6 +369,39 @@ class Estimator:
         if self._agreement != agreement:
             self._agreement = agreement
             self._reset_values_()
+
+    def mean_ci(self, level: float = 0.95) -> Tuple[float, float]:
+        """Two sided confidence interval for mean of filtered data
+
+        Parameters
+        ----------
+        level : float in (0, 1), optional
+            confidence level, by default 0.95
+
+        Returns
+        -------
+        ci_low, ci_upp : float
+            lower and upper confidence level
+        """
+        ci_low, ci_upp = mean_ci(target=self.filtered, level=level)[1:]
+        return ci_low, ci_upp
+
+    def stdev_ci(self, level: float = 0.95) -> Tuple[float, float]:
+        """Two sided confidence interval for standard deviation of 
+        filtered data
+
+        Parameters
+        ----------
+        level : float in (0, 1), optional
+            confidence level, by default 0.95
+
+        Returns
+        -------
+        ci_low, ci_upp : float
+            lower and upper confidence level
+        """
+        ci_low, ci_upp = stdev_ci(target=self.filtered, level=level)[1:]
+        return ci_low, ci_upp
     
     def distribution(self):
         """First, the p-score is calculated by performing a 
@@ -420,7 +461,7 @@ class Estimator:
         """
         assert isinstance(n_sections, int)
         assert  1 < n_sections < len(self.filtered)
-        p, _ = variance_stability_test(self.filtered, n_sections=n_sections)
+        p, _ = mean_stability_test(self.filtered, n_sections=n_sections)
         return p > alpha
     
     def follows_norm_curve(
@@ -587,11 +628,12 @@ class ProcessEstimator(Estimator):
         strategy : {'eval', 'fit', 'norm', 'data'}, optional
             Which strategy should be used to determine the control 
             limits (process spread):
-            - eval: The strategy is determined according to the given 
-            flowchart
-            - fit: First, the distribution is searched for that best 
-            represents the process data and then the process variation 
-            tolerance is calculated
+            - `eval`: The strategy is determined according to the given 
+            evaluate function. If none is given, the internal `evaluate`
+            method is used.
+            - `fit`: First, the distribution that best represents the 
+            process data is searched for and then the agreed process 
+            spread is calculated
             - norm: it is assumed that the data is subject to normal 
             distribution. The variation tolerance is then calculated as 
             agreement * standard deviation
