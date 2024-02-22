@@ -20,14 +20,15 @@ from .utils import Dodger
 from .utils import HueLabel
 from .utils import SizeLabel
 from .utils import ShapeLabel
-from .utils import LineDrawer
-from .facets import LabelFacets
 from .facets import AxesFacets
+from .facets import LabelFacets
+from .facets import StripesFacets
 from .plotter import _Plotter
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.ticker import AutoMinorLocator
 
+from .._strings import STR
 from .._constants import KW
 from .._constants import DIST
 from .._constants import COLOR
@@ -37,13 +38,13 @@ class _Chart(ABC):
 
     __slots__ = (
         'source', 'target', 'feature', 'target_on_y', 'axes_facets'
-        'label_facets', 'line_drawer', 'nrows', 'ncols', '_data', '_xlabel',
+        'label_facets', 'stripes_facets', 'nrows', 'ncols', '_data', '_xlabel',
         '_ylabel', '_plots')
     source: DataFrame
     target: str
     feature: str
     target_on_y: bool
-    line_drawer: LineDrawer | None
+    stripes_facets: StripesFacets | None
     axes_facets: AxesFacets
     label_facets: LabelFacets | None
     nrows: int
@@ -66,6 +67,7 @@ class _Chart(ABC):
             self.axes_facets = AxesFacets(self.nrows, self.ncols, **kwds)
         else:
             self.axes_facets = axes_facets
+        self.stripes_facets = None
         self.label_facets = None
         self.target_on_y = target_on_y
         for ax in self.axes.flat:
@@ -149,7 +151,7 @@ class _Chart(ABC):
     def plot(self, plotter: _Plotter): ...
 
     @abstractmethod
-    def lines(self, **lines): ...
+    def stripes(self, **lines): ...
 
     @abstractmethod
     def label(self, **labels): ...
@@ -250,6 +252,9 @@ class SimpleChart(_Chart):
         - values: handles and labels as tuple of tuples"""
         handlers = (self.coloring, self.marking, self.sizing)
         titles = (self.hue, self.shape, self.size)
+        if self.stripes_facets is not None:
+            handlers = handlers + (self.stripes_facets,)
+            titles = titles + (STR['stripes'], )
         return {t: h.handles_labels() for t, h in zip(titles, handlers) if t}
     
     def get_categorical_labels(self, colname: str) -> Tuple:
@@ -319,19 +324,19 @@ class SimpleChart(_Chart):
             self._plots.append(plot)
         return self
     
-    def lines(
+    def stripes(
             self, mean: bool = False, median: bool = False,
             control_limits: bool = False, spec_limits: Tuple[float] = (), 
             strategy: Literal['fit', 'eval', 'norm', 'data'] = 'norm', 
             possible_dists: Tuple[str | rv_continuous] = DIST.COMMON,
-            tolerance: float | int = 6) -> Self:
+            agreement: float | int = 6) -> Self:
         
-        self.line_drawer = LineDrawer(
+        self.stripes_facets = StripesFacets(
             target=self.source[self.target], mean=mean, median=median,
             control_limits=control_limits, spec_limits=spec_limits,
             strategy=strategy, possible_dists=possible_dists,
-            tolerance=tolerance)
-        self.line_drawer.draw()
+            agreement=agreement)
+        self.stripes_facets.draw()
         return self
 
     def label(

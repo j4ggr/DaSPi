@@ -31,7 +31,7 @@ class Estimator:
 
     __slots__ = (
         '_samples', '_filtered', '_n_samples', '_n_missing', '_mean', '_median', 
-        '_std', '_sem', '_lcl', '_ucl', '_strategy', '_tolerance', '_excess', 
+        '_std', '_sem', '_lcl', '_ucl', '_strategy', '_agreement', '_excess', 
         '_p_excess', '_skew', '_p_skew', '_dist', '_p_dist', '_p_ad', 
         '_dist_params', 'possible_dists', '_k', '_evaluate', '_q_low', '_q_upp')
     _samples: Series
@@ -53,7 +53,7 @@ class Estimator:
     _p_ad: float | None
     _dist_params: tuple | None
     _strategy: str
-    _tolerance: int
+    _agreement: int
     possible_dists: Tuple[str | rv_continuous]
     _k: float
     _evaluate: Callable | None
@@ -64,7 +64,7 @@ class Estimator:
             self,
             samples: ArrayLike, 
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
-            tolerance: float | int = 6, 
+            agreement: float | int = 6, 
             possible_dists: Tuple[str | rv_continuous] = DIST.COMMON,
             evaluate: Callable | None = None
             ) -> None:
@@ -86,19 +86,19 @@ class Estimator:
             flowchart
             - `fit`: First, the distribution is searched for that best 
             represents the process data and then the process variation 
-            tolerance is calculated
+            agreement is calculated
             - `norm`: it is assumed that the data is subject to normal 
             distribution. The variation tolerance is then calculated as 
-            tolerance * standard deviation
+            agreement * standard deviation
             - `data`: The quantiles for the process variation tolerance 
             are read directly from the data.
             by default 'norm'
-        tolerance : float or int, optional
+        agreement : float or int, optional
             Specify the tolerated process variation for which the 
             control limits are to be calculated. 
             - If int, the spread is determined using the normal 
-            distribution tolerance*sigma, 
-            e.g. tolerance = 6 -> 6*sigma ~ covers 99.75 % of the data. 
+            distribution agreement*sigma, 
+            e.g. agreement = 6 -> 6*sigma ~ covers 99.75 % of the data. 
             The upper and lower permissible quantiles are then 
             calculated from this.
             - If float, the value must be between 0 and 1.This value is
@@ -139,9 +139,9 @@ class Estimator:
         self._samples = samples 
         self._strategy = 'norm'
         self.strategy = strategy
-        self._tolerance = 6
-        self._k = self._tolerance/2
-        self.tolerance = tolerance
+        self._agreement = 6
+        self._k = self._agreement/2
+        self.agreement = agreement
         self._evaluate = evaluate
         
     @property
@@ -200,7 +200,7 @@ class Estimator:
     @property
     def lcl(self):
         """Get lower control limit according to given strategy and 
-        tolerance."""
+        agreement."""
         if self._lcl is None:
             self._lcl, self._ucl = self._calculate_control_limits_()
         return self._lcl
@@ -208,7 +208,7 @@ class Estimator:
     @property
     def ucl(self):
         """Get upper control limit according to given strategy and 
-        tolerance."""
+        agreement."""
         if self._ucl is None:
             self._lcl, self._ucl = self._calculate_control_limits_()
         return self._ucl
@@ -216,21 +216,21 @@ class Estimator:
     @property
     def q_low(self) -> float:
         """Get quantil for lower control limit according to given 
-        tolerance. If the samples is subject to normal distribution and 
-        the tolerance is given as 6, this value corresponds to the 0.135 % 
+        agreement. If the samples is subject to normal distribution and 
+        the agreement is given as 6, this value corresponds to the 0.135 % 
         quantile (6 sigma ~ 99.73 % of the samples)."""
         if self._q_low is None:
-            if isinstance(self.tolerance, int):
-                self._q_low = stats.norm.cdf(-self.tolerance/2)
+            if isinstance(self.agreement, int):
+                self._q_low = stats.norm.cdf(-self.agreement/2)
             else:
-                self._q_low = (1 - self.tolerance)/2
+                self._q_low = (1 - self.agreement)/2
         return self._q_low
 
     @property
     def q_upp(self) -> float:
         """Get quantil for upper control limit according to given 
-        tolerance. If the sample data is subject to normal distribution 
-        and the tolerance is given as 6, this value corresponds to the 
+        agreement. If the sample data is subject to normal distribution 
+        and the agreement is given as 6, this value corresponds to the 
         Q_0.99865 (0.99865-quantile or 99.865-percentile)."""
         if self._q_upp is None:
             self._q_upp = 1 - self.q_low
@@ -329,7 +329,7 @@ class Estimator:
             tolerance is calculated
             - norm: it is assumed that the data is subject to normal 
             distribution. The variation tolerance is then calculated as 
-            tolerance * standard deviation
+            agreement * standard deviation
             - data: The quantiles for the process variation tolerance 
             are read directly from the samples."""
         return self._strategy
@@ -341,25 +341,25 @@ class Estimator:
             self._reset_values_()
 
     @property
-    def tolerance(self) -> int | float:
-        """Get the multiplier of the sigma tolerance for Cp and Cpk 
+    def agreement(self) -> int | float:
+        """Get the multiplier of the sigma agreement for Cp and Cpk 
         value (default 6). By setting this value the cp and cpk values
         are resetted to None.
         
-        If setting tolerance by giving the percentile, enter the 
+        If setting agreement by giving the percentile, enter the 
         acceptable proportion for the spread, e.g. 0.9973 
         (which corresponds to ~ 6 sigma)"""
-        return self._tolerance
-    @tolerance.setter
-    def tolerance(self, tolerance: int | float):
-        if isinstance(tolerance, int): 
-            assert tolerance > 1
-            self._k = self.tolerance / 2
+        return self._agreement
+    @agreement.setter
+    def agreement(self, agreement: int | float):
+        if isinstance(agreement, int): 
+            assert agreement > 1
+            self._k = self.agreement / 2
         else:
-            assert 0 < tolerance < 1
-            self._k = stats.norm.ppf((1 + tolerance)/2)
-        if self._tolerance != tolerance:
-            self._tolerance = tolerance
+            assert 0 < agreement < 1
+            self._k = stats.norm.ppf((1 + agreement)/2)
+        if self._agreement != agreement:
+            self._agreement = agreement
             self._reset_values_()
     
     def distribution(self):
@@ -501,12 +501,12 @@ class Estimator:
             method. Then the limits are calculated using one of the 
             following points.
         - `fit`: first fit samples to a distribution and then calculate
-            quantile for this distribution according to given tolerance.
+            quantile for this distribution according to given agreement.
         - `norm`: The control limits are calculated from the mean plus 
             and minus the standard deviation multiplied by the expansion 
             factor k.
         - `data`: The quantiles are calculated directly from the sample
-            according the given tolerance
+            according the given agreement
 
         Returns
         -------
@@ -532,7 +532,7 @@ class Estimator:
     def _reset_values_(self):
         """Set the control limits and quantiles to None. This function 
         is called when one of the values relevant to the calculation of
-        those limits is adjusted (strategy or tolerance for the control
+        those limits is adjusted (strategy or agreement for the control
         limits)."""
         self._lcl = None
         self._ucl = None
@@ -561,7 +561,7 @@ class ProcessEstimator(Estimator):
             usl: Optional[float] = None, 
             error_values: Tuple[float] = (),
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
-            tolerance: float | int = 6, 
+            agreement: float | int = 6, 
             possible_dists: Tuple[str | rv_continuous] = DIST.COMMON
             ) -> None:
         """"An object for various statistical estimators. This class 
@@ -594,16 +594,16 @@ class ProcessEstimator(Estimator):
             tolerance is calculated
             - norm: it is assumed that the data is subject to normal 
             distribution. The variation tolerance is then calculated as 
-            tolerance * standard deviation
+            agreement * standard deviation
             - data: The quantiles for the process variation tolerance 
             are read directly from the data.
             by default 'norm'
-        tolerance : float or int, optional
+        agreement : float or int, optional
             Specify the tolerated process variation for which the 
             control limits are to be calculated. 
             - If int, the spread is determined using the normal 
-            distribution tolerance*sigma, 
-            e.g. tolerance = 6 -> 6*sigma ~ covers 99.75 % of the data. 
+            distribution agreement*sigma, 
+            e.g. agreement = 6 -> 6*sigma ~ covers 99.75 % of the data. 
             The upper and lower permissible quantiles are then 
             calculated from this.
             - If float, the value must be between 0 and 1.This value is
@@ -625,7 +625,7 @@ class ProcessEstimator(Estimator):
         self._lsl = lsl
         self._usl = usl
         self._reset_values_()
-        super().__init__(samples, strategy, tolerance, possible_dists)
+        super().__init__(samples, strategy, agreement, possible_dists)
         
     @property
     def filtered(self) -> pd.Series:
@@ -708,15 +708,15 @@ class ProcessEstimator(Estimator):
     def cp(self) -> float | None:
         """Cp is a measure of process capability. Cp is the ratio of the 
         specification width (usl - lsl) to the process variation 
-        (tolerance*sigma). The location is not taken into account by the 
+        (agreement*sigma). The location is not taken into account by the 
         Cp value. This value therefore only indicates the potential for 
         the Cpk value.
         This value cannot be calculated unless an upper and lower 
         specification limit is given. In this case, None is returned."""
         if None in self.limits: return None
         if self._cp is None:
-            tolerance = 2 * self._k
-            self._cp = np.abs(np.diff(self.limits))/(tolerance*self.std)
+            agreement = 2 * self._k
+            self._cp = np.abs(np.diff(self.limits))/(agreement*self.std)
         return self._cp
     
     @property
@@ -754,7 +754,7 @@ class ProcessEstimator(Estimator):
         """Set all values relevant to process capability to None. This 
         function is called when one of the values relevant to the 
         calculation of capability values is adjusted (specification 
-        limits or tolerance for the control limits). This ensures that 
+        limits or agreement for the control limits). This ensures that 
         the process capability values are recalculated."""
         super()._reset_values_()
         self._n_ok = None

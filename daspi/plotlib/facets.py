@@ -1,6 +1,4 @@
 import math
-import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 
 from typing import Self
@@ -8,6 +6,7 @@ from typing import List
 from typing import Dict
 from typing import Tuple
 from typing import Literal
+from typing import Iterable
 from typing import Generator
 from numpy.typing import NDArray
 from matplotlib.axes import Axes
@@ -16,10 +15,13 @@ from matplotlib.figure import Figure
 from matplotlib.legend import Legend
 from matplotlib.artist import Artist
 from matplotlib.patches import Patch
+from scipy.stats._distn_infrastructure import rv_continuous
 
 from .._strings import STR
 from .._constants import KW
+from .._constants import DIST
 from .._constants import LABEL
+from ..statistics.estimation import Estimator
 
 
 class LabelFacets:
@@ -327,7 +329,102 @@ class AxesFacets:
         return self.axes.flat[index]
 
 
+class StripesFacets:
+
+    __slots__ = (
+        'estimation', 'mean', 'median', 'control_limits', 'spec_limits')
+    estimation: Estimator
+    mean: bool
+    median: bool
+    control_limits: bool
+    spec_limits: Tuple[float | int]
+    
+    def __init__(
+        self,
+        target: Iterable,
+        mean: bool = False,
+        median: bool = False,
+        control_limits: bool = False,
+        spec_limits: Tuple[float | int] = (), 
+        strategy: Literal['fit', 'eval', 'norm', 'data'] = 'norm', 
+        possible_dists: Tuple[str | rv_continuous] = DIST.COMMON,
+        agreement: float | int = 6
+        ) -> None:
+        self.mean = mean
+        self.median = median
+        self.control_limits = control_limits
+        self.spec_limits = spec_limits
+        self.estimation = Estimator(
+            samples=target, strategy=strategy, agreement=agreement, 
+            possible_dists=possible_dists)
+    
+    @property
+    def _d(self) -> int:
+        """Get decimals to format labels"""
+        if self.estimation.n_samples > 50: return 1
+        if self.estimation.n_samples > 5: return 2
+        if self.estimation.n_samples > 0.5: return 3
+        return 4    
+    
+    @property
+    def kwds(self) -> Tuple[dict]:
+        """Get keyword arguments for all lines that are plotted"""
+        kwds = self._filter((
+            KW.MEAN_LINE, KW.MEDIAN_LINE, KW.CONTROL_LINE, KW.CONTROL_LINE,
+            KW.SECIFICATION_LINE, KW.SECIFICATION_LINE))
+        return kwds
+    
+    @property
+    def attrs(self) -> Tuple[str]:
+        """Get attributes used from estimation"""
+        attrs = self._filter(('mean', 'median', 'lcl', 'ucl'))
+        return attrs
+    
+    @property
+    def values(self) -> Tuple[float | int]:
+        """Get values for all lines that are plotted"""
+        values = self._filter(
+            [getattr(self.estimation, a) for a in self.attrs]
+            + [l for l in self.spec_limits if l is not None])
+        return values
+    
+    @property
+    def labels(self) -> Tuple[str]:
+        """Get labels for lines"""
+        if self.strategy == 'norm':
+            lcl = r'\bar x-' + f'{self._k}' + r'\sigma'
+            ucl = r'\bar x+' + f'{self._k}' + r'\sigma'
+        else:
+            lcl = r'x_{' + f'{self._q_low:.4f}' + '}'
+            ucl = r'x_{' + f'{self._q_upp:.4f}' + '}'
+        labels = self._filter(
+            (r'\bar x', r'x_{0.5}', lcl, ucl, STR['lsl'], STR['usl']))
+        labels = tuple(
+            f'${l}={v:.{self._d}}$' for l, v in zip(labels, self.values))
+        return labels
+    
+    def _filter(self, values: tuple | list) -> tuple:
+        """Filter given values according to given boolean attributes"""
+        mask = (
+            self.mean, self.median, self.control_limits, self.control_limits,
+            *list(map(lambda l: l is not None, self.spec_limits)))
+        return tuple(v for v, m in zip(values, mask) if m)
+    
+    def handles_labels(self) -> Tuple[Tuple[Patch | Line2D], Tuple[str]]:
+        handles = tuple(
+            Line2D(markersize=0, **kwds) for kwds in self.kwds)
+        return handles, self.labels
+
+    def draw(self, ax: Axes, target_on_y: bool):        
+        for kwds, value in zip(self.kwds, self.values):
+            if target_on_y:
+                 ax.axhline(value, **kwds)
+            else:
+                ax.axvline(value, **kwds)
+
+
 __all__ = [
     LabelFacets.__name__,
     AxesFacets.__name__,
+    StripesFacets.__name__,
 ]

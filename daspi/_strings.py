@@ -9,27 +9,27 @@ class _String_:
 
     anderson_darling: dict = {
         'en': 'Anderson-Darling',
-        'de': 'Anderson-Darling',}
+        'de': 'Anderson-Darling'}
     
     lsl: dict = { 
         'en': 'LSL',
-        'de': 'USG',}
+        'de': 'USG'}
     
     usl: dict = {
         'en': 'USL',
-        'de': 'OSG',}
+        'de': 'OSG'}
     
     lcl: dict = { 
         'en': 'LCL',
-        'de': 'UEG',}
+        'de': 'UEG'}
     
     ucl: dict = {
         'en': 'UCL',
-        'de': 'OEG',}
+        'de': 'OEG'}
     
     excess: dict = {
         'en': 'excess',
-        'de': 'Exzess',}
+        'de': 'Exzess'}
     
     skew: dict = {
         'en': 'skew',
@@ -37,9 +37,11 @@ class _String_:
     
     kde_ax_label: dict = {
         'en': 'estimated kernel density',
-        'de': 'geschätzte Kerndichte'
-    }
-    
+        'de': 'geschätzte Kerndichte'}
+
+    stripes: dict = {
+        'en': 'lines',
+        'de': 'Linien'}
 
 
     LANGUAGE: str = environ.get('DASPI_LANGUAGE', 'en')

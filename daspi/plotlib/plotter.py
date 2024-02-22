@@ -736,9 +736,9 @@ class StandardErrorMean(Errorbar):
 
 class ProcessRange(Errorbar):
 
-    __slots__ = ('strategy', 'tolerance', 'possible_dists')
+    __slots__ = ('strategy', 'agreement', 'possible_dists')
     strategy: str
-    tolerance: int
+    agreement: int
     possible_dists: Tuple[str | rv_continuous]
 
     def __init__(
@@ -747,7 +747,7 @@ class ProcessRange(Errorbar):
             target: str,
             feature: str = '',
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
-            tolerance: float | int = 6,
+            agreement: float | int = 6,
             possible_dists: Tuple[str | rv_continuous] = DIST.COMMON,
             show_center: bool = True,
             target_on_y: bool = True,
@@ -755,7 +755,7 @@ class ProcessRange(Errorbar):
             ax: Axes | None = None,
             **kwds) -> None:
         self.strategy = strategy
-        self.tolerance = tolerance
+        self.agreement = agreement
         self.possible_dists = possible_dists
         
         super().__init__(
@@ -766,7 +766,7 @@ class ProcessRange(Errorbar):
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
         estimation = Estimator(
-            samples=target_data, strategy=self.strategy, tolerance=self.tolerance,
+            samples=target_data, strategy=self.strategy, agreement=self.agreement,
             possible_dists=self.possible_dists)
         data = pd.DataFrame({
             self.target: [estimation.median],
@@ -861,7 +861,6 @@ class VariationTest(DistinctionTest):
             show_center=show_center, target_on_y=target_on_y,
             confidence_level=confidence_level, ci_func=ci_func, color=color,
             ax=ax)
-
 
                 
 __all__ = [
