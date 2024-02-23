@@ -43,6 +43,9 @@ class _String_:
         'en': 'lines',
         'de': 'Linien'}
 
+    ci: dict = {
+        'en': 'CI',
+        'de': 'KI'}
 
     LANGUAGE: str = environ.get('DASPI_LANGUAGE', 'en')
     USERNAME: str = environ['USERNAME']

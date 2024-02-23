@@ -381,6 +381,14 @@ class StripesFacets:
         return attrs
     
     @property
+    def ci_functions(self) -> Tuple[str]:
+        """Get confidence interval functions"""
+        ci = self._filter((
+            self.estimation.mean_ci, self.estimation.median_ci, 
+            self.estimation.stdev_ci, self.estimation.stdev_ci, None, None))
+        return ci
+    
+    @property
     def values(self) -> Tuple[float | int]:
         """Get values for all lines that are plotted"""
         values = self._filter(
@@ -401,6 +409,8 @@ class StripesFacets:
             (r'\bar x', r'x_{0.5}', lcl, ucl, STR['lsl'], STR['usl']))
         labels = tuple(
             f'${l}={v:.{self._d}}$' for l, v in zip(labels, self.values))
+        if self.confidence is not None:
+            labels = labels + (f'{100*self.confidence:.0f} %-{STR["ci"]}',)
         return labels
     
     def _filter(self, values: tuple | list) -> tuple:
@@ -410,14 +420,22 @@ class StripesFacets:
     def handles_labels(self) -> Tuple[Tuple[Patch | Line2D], Tuple[str]]:
         handles = tuple(
             Line2D(markersize=0, **kwds) for kwds in self.kwds)
+        if self.confidence is not None:
+            handles = handles + (Patch(**KW.CI_HANDLE),)
         return handles, self.labels
 
     def draw(self, ax: Axes, target_on_y: bool):        
-        for kwds, value in zip(self.kwds, self.values):
+        for kwds, value, ci in zip(self.kwds, self.values, self.ci_functions):
             if target_on_y:
                  ax.axhline(value, **kwds)
             else:
                 ax.axvline(value, **kwds)
+            if ci is not None:
+                low, upp = ci(self.confidence)
+                if target_on_y: # TODO: add kwds
+                    ax.axhspan(low, upp)
+                else:
+                    ax.axvspan(low, upp)
 
 
 __all__ = [

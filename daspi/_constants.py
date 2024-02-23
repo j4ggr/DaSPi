@@ -6,6 +6,7 @@ from typing import List
 from dataclasses import dataclass
 from scipy.stats._continuous_distns import _distn_names
 
+#TODO: add default value for stripes level
 
 class _Kw_:
     _x: float = 0.035 # X position for fig title, subtitle and info
@@ -35,6 +36,10 @@ class _Kw_:
         return dict(
             xdata=[], ydata=[], c=COLOR.HANDLES, marker='o', lw=0, 
             alpha=COLOR.MARKER_ALPHA)
+    @property
+    def CI_HANDLE(self) -> dict:
+        """Keyword arguments for confidence interval handle"""
+        return dict(c=COLOR.HANDLES, alpha=COLOR.FILL_ALPHA)
     @property
     def LEGEND(self) -> dict:
         """Figure legend at right side of figure"""
@@ -100,12 +105,13 @@ class _Kw_:
     @property
     def FIT_CI(self) -> dict:
         """Keyword arguments for confidence interval area for fit"""
-        kw = dict(zorder=2.2, alpha=0.3, lw=0)
+        kw = dict(zorder=2.2, alpha=COLOR.FILL_ALPHA, lw=0)
         return kw
     @property
     def PRED_CI(self) -> dict:
         """Keyword arguments for confidence interval area for fit"""
-        kw = dict(zorder=2.1, alpha=0.8, lw=self._lw, ls=self._dashed)
+        kw = dict(
+            zorder=2.1, alpha=COLOR.CI_ALPHA, lw=self._lw, ls=self._dashed)
         return kw
     @property
     def PROB_PC_FORMAT(self) -> dict:
@@ -141,9 +147,10 @@ class _Color_:
     PERCENTIL: str = '#303030'
     HANDLES: str = '#202020'
     TRANSPARENT: str = '#ffffff00'
-    WHITE_TRANSPARENT: str = '#ffffffaa'
+    BLUR: str = '#ffffffaa'
     MARKER_ALPHA: float = 0.5
     FILL_ALPHA: float = 0.5
+    CI_ALPHA: float = 0.8
     @property
     def PALETTE(self) -> List[str]:
         """Get prop cycler color palette"""

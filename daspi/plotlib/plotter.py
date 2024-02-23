@@ -641,10 +641,10 @@ class Ridge(GaussianKDE):
             estimation = group[self.feature]
             sequence = group[self.target]
             if self.target_on_y:
-                self.ax.plot(estimation, sequence, c=COLOR.WHITE_TRANSPARENT)
+                self.ax.plot(estimation, sequence, c=COLOR.BLUR)
                 self.ax.fill_betweenx(sequence, f_base, estimation, **kwds)
             else:
-                self.ax.plot(sequence, estimation, c=COLOR.WHITE_TRANSPARENT)
+                self.ax.plot(sequence, estimation, c=COLOR.BLUR)
                 self.ax.fill_between(sequence, f_base, estimation, **kwds)
 
 

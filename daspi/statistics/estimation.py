@@ -19,6 +19,7 @@ from scipy.stats import kurtosis
 
 from .confidence import mean_ci
 from .confidence import stdev_ci
+from .confidence import median_ci
 from .hypothesis import skew_test
 from .hypothesis import kurtosis_test
 from .hypothesis import mean_stability_test
@@ -383,7 +384,23 @@ class Estimator:
         ci_low, ci_upp : float
             lower and upper confidence level
         """
-        ci_low, ci_upp = mean_ci(target=self.filtered, level=level)[1:]
+        ci_low, ci_upp = mean_ci(sample=self.filtered, level=level)[1:]
+        return ci_low, ci_upp
+
+    def median_ci(self, level: float = 0.95) -> Tuple[float, float]:
+        """Two sided confidence interval for median of filtered data
+
+        Parameters
+        ----------
+        level : float in (0, 1), optional
+            confidence level, by default 0.95
+
+        Returns
+        -------
+        ci_low, ci_upp : float
+            lower and upper confidence level
+        """
+        ci_low, ci_upp = median_ci(sample=self.filtered, level=level)[1:]
         return ci_low, ci_upp
 
     def stdev_ci(self, level: float = 0.95) -> Tuple[float, float]:
@@ -400,7 +417,7 @@ class Estimator:
         ci_low, ci_upp : float
             lower and upper confidence level
         """
-        ci_low, ci_upp = stdev_ci(target=self.filtered, level=level)[1:]
+        ci_low, ci_upp = stdev_ci(sample=self.filtered, level=level)[1:]
         return ci_low, ci_upp
     
     def distribution(self):

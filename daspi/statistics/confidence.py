@@ -516,6 +516,7 @@ def _ppoints(n: int, a: float=None) -> ndarray:
 
 __all__ = [
     mean_ci.__name__,
+    median_ci.__name__,
     variance_ci.__name__,
     stdev_ci.__name__,
     proportion_ci.__name__,

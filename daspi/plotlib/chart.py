@@ -37,7 +37,7 @@ from .._constants import COLOR
 class _Chart(ABC):
 
     __slots__ = (
-        'source', 'target', 'feature', 'target_on_y', 'axes_facets'
+        'source', 'target', 'feature', 'target_on_y', 'axes_facets',
         'label_facets', 'stripes_facets', 'nrows', 'ncols', '_data', '_xlabel',
         '_ylabel', '_plots')
     source: DataFrame
@@ -283,8 +283,16 @@ class SimpleChart(_Chart):
         self._data[self.feature] = self.dodging(
             self._data[self.feature], hue_variate)
         
-    def _correct_feature_ticks_labels_(self) -> None:
-        """Correct feature ticks and labels if according to dodging labels"""
+    def _categorical_feature_grid_(self):
+        """Hide major grid and set one minor grid for feature axis"""
+        xy = 'x' if self.target_on_y else 'y'
+        axis = getattr(self.axes_facets.ax, f'{xy}axis')
+        axis.set_minor_locator(AutoMinorLocator(2))
+        axis.grid(True, which='minor')
+        axis.grid(False, which='major')
+    
+    def _categorical_feature_ticks_(self):
+        """Set one major tick for each category and label it"""
         xy = 'x' if self.target_on_y else 'y'
         _ticks = self.dodging.ticks
         settings = {
@@ -294,10 +302,13 @@ class SimpleChart(_Chart):
         self.axes_facets.ax.set(**settings)
         self.axes_facets.ax.tick_params(which='minor', color=COLOR.TRANSPARENT)
         
-        axis = getattr(self.axes_facets.ax, f'{xy}axis')
-        axis.set_minor_locator(AutoMinorLocator(2))
-        axis.grid(True, which='minor')
-        axis.grid(False, which='major')
+        
+    def _categorical_feature_axis_(self) -> None:
+        """Set one major tick for each category and label it plus
+        hide major grid and set one minor grid for feature axis"""
+        for ax in self.axes_facets:
+            self._categorical_feature_grid_()
+            self._categorical_feature_ticks_()
 
     def _data_genenator_(self) -> Generator[Tuple, Self, None]:
         if self.variate_names:
@@ -327,16 +338,14 @@ class SimpleChart(_Chart):
     def stripes(
             self, mean: bool = False, median: bool = False,
             control_limits: bool = False, spec_limits: Tuple[float] = (), 
-            strategy: Literal['fit', 'eval', 'norm', 'data'] = 'norm', 
-            possible_dists: Tuple[str | rv_continuous] = DIST.COMMON,
-            agreement: float | int = 6) -> Self:
+            confidence: float | None = None, **kwds) -> Self:
         
         self.stripes_facets = StripesFacets(
             target=self.source[self.target], mean=mean, median=median,
             control_limits=control_limits, spec_limits=spec_limits,
-            strategy=strategy, possible_dists=possible_dists,
-            agreement=agreement)
-        self.stripes_facets.draw()
+            confidence=confidence, **kwds)
+        self.stripes_facets.draw(
+            ax=self.axes_facets.ax, target_on_y=self.target_on_y)
         return self
 
     def label(
@@ -521,6 +530,11 @@ class JointChart(_Chart):
             self._plots.extend(chart.plots)
         return self
     
+    def stripes(
+            self, mean: bool = False, median: bool = False,
+            control_limits: bool = False, spec_limits: Tuple[float] = (), 
+            confidence: float | None = None, **kwds) -> Self:...
+    
     def label(
             self, fig_title: str = '', sub_title: str = '',
             feature_label: str | bool | Tuple = '', 
@@ -564,6 +578,7 @@ class MultipleVariateChart(SimpleChart):
             row: str = '',
             dodge: bool = False,
             stretch_figsize: bool = True,
+            categorical_features: bool = False,
             ) -> None:
         self.target_on_y = True
         self.source = source
@@ -576,7 +591,8 @@ class MultipleVariateChart(SimpleChart):
         super().__init__(
             source=self.source, target=target, feature=feature, hue=hue, 
             shape=shape, size=size, dodge=dodge, sharex=True, sharey=True,
-            nrows=nrows, ncols=ncols, stretch_figsize=stretch_figsize)
+            nrows=nrows, ncols=ncols, stretch_figsize=stretch_figsize,
+            categorical_features=categorical_features)
         self._variate_names = (self.row, self.col, self.hue, self.shape)
         self._reset_variate_()
     
@@ -590,7 +606,7 @@ class MultipleVariateChart(SimpleChart):
                 return True
         return False
 
-    def plot(self, plotter: _Plotter) -> Self:
+    def plot(self, plotter: _Plotter, **kwds) -> Self:
         ax = None
         _ax = iter(self.axes_facets)
         for data in self:
@@ -598,18 +614,33 @@ class MultipleVariateChart(SimpleChart):
             plot = plotter(
                 source=data, target=self.target, feature=self.feature,
                 target_on_y=self.target_on_y, color=self.color, ax=ax, 
-                marker=self.marker, size=self.sizes)
+                marker=self.marker, size=self.sizes,
+                width=self.dodging.width, **kwds)
             plot()
             self._plots.append(plot)
         return self
+    
+    def stripes(
+            self, mean: bool = False, median: bool = False,
+            control_limits: bool = False, spec_limits: Tuple[float] = (), 
+            confidence: float | None = None, **kwds) -> Self:
+        super().stripes(
+            mean=mean, median=median, control_limits=control_limits,
+            spec_limits=spec_limits, confidence=confidence, **kwds)
                 
     def label(
             self, feature_label: str, target_label: str,
-            fig_title: str = '', sub_title: str = '', row_title: str = '',
-            col_title: str = '', info: bool | str = False
-            ) -> Self:
+            fig_title: str = '', sub_title: str = '', 
+            row_title: str | None = None, col_title: str | None = None,
+            info: bool | str = False) -> Self:
+        if self.categorical_features:
+            self._correct_feature_ticks_labels_()
         self.set_axis_label(feature_label, is_target=False)
         self.set_axis_label(target_label, is_target=True)
+        if self.row and row_title is None:
+            row_title = self.row
+        if self.col and col_title is None:
+            col_title = self.col
 
         self.label_facets = LabelFacets(
             figure=self.figure, axes=self.axes, fig_title=fig_title,
