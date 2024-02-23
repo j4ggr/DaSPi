@@ -19,8 +19,8 @@ from scipy.stats._distn_infrastructure import rv_continuous
 
 from .._strings import STR
 from .._constants import KW
-from .._constants import DIST
 from .._constants import LABEL
+from .._constants import DEFAULT
 from ..statistics.estimation import ProcessEstimator
 
 
@@ -332,10 +332,10 @@ class AxesFacets:
 class StripesFacets:
 
     __slots__ = (
-        'estimation', 'mask', 'confidence', 'spec_limits')
+        'estimation', 'mask', '_confidence', 'spec_limits')
     estimation: ProcessEstimator
     mask: Tuple[bool]
-    confidence: float | None
+    _confidence: float | None
     spec_limits: Tuple[float | int]
     
     def __init__(
@@ -351,7 +351,7 @@ class StripesFacets:
             'Specification limits must contain 2 values, '
             'Set None for limits that do not exist')
         self.spec_limits = spec_limits
-        self.confidence = confidence
+        self._confidence = confidence
         self.mask = (
             mean, median, *[control_limits]*2,
             *list(map(lambda l: l is not None, self.spec_limits)))
@@ -375,12 +375,6 @@ class StripesFacets:
         return kwds
     
     @property
-    def attrs(self) -> Tuple[str]:
-        """Get attributes used from estimation"""
-        attrs = self._filter(('mean', 'median', 'lcl', 'ucl'))
-        return attrs
-    
-    @property
     def ci_functions(self) -> Tuple[str]:
         """Get confidence interval functions"""
         ci = self._filter((
@@ -391,38 +385,51 @@ class StripesFacets:
     @property
     def values(self) -> Tuple[float | int]:
         """Get values for all lines that are plotted"""
+        attrs = ('mean', 'median', 'lcl', 'ucl')
         values = self._filter(
-            [getattr(self.estimation, a) for a in self.attrs]
+            [getattr(self.estimation, a) for a in attrs]
             + [l for l in self.spec_limits if l is not None])
         return values
     
     @property
+    def confidence(self) -> float:
+        if self._confidence is None:
+            return DEFAULT.CONFIDENCE_LEVEL
+        return self._confidence
+    
+    @property
     def labels(self) -> Tuple[str]:
-        """Get labels for lines"""
-        if self.strategy == 'norm':
-            lcl = r'\bar x-' + f'{self._k}' + r'\sigma'
-            ucl = r'\bar x+' + f'{self._k}' + r'\sigma'
+        """Get legend labels for added lines and spans"""
+        if self.estimation.strategy == 'norm':
+            lcl = r'\bar x-' + f'{self.estimation._k}' + r'\sigma'
+            ucl = r'\bar x+' + f'{self.estimation._k}' + r'\sigma'
         else:
-            lcl = r'x_{' + f'{self._q_low:.4f}' + '}'
-            ucl = r'x_{' + f'{self._q_upp:.4f}' + '}'
+            lcl = r'x_{' + f'{self.estimation._q_low:.4f}' + '}'
+            ucl = r'x_{' + f'{self.estimation._q_upp:.4f}' + '}'
         labels = self._filter(
             (r'\bar x', r'x_{0.5}', lcl, ucl, STR['lsl'], STR['usl']))
         labels = tuple(
-            f'${l}={v:.{self._d}}$' for l, v in zip(labels, self.values))
-        if self.confidence is not None:
+            f'${l}={v:.{self._d}f}$' for l, v in zip(labels, self.values))
+        if self._confidence is not None:
             labels = labels + (f'{100*self.confidence:.0f} %-{STR["ci"]}',)
         return labels
+    
+    @property
+    def handles(self):
+        """Get legend handles for added lines and spans"""
+        handles = tuple(
+            Line2D([], [], markersize=0, **kwds) for kwds in self.kwds)
+        if self._confidence is not None:
+            handles = handles + (Patch(**KW.CI_HANDLE),)
+        return handles
+    
+    def handles_labels(self) -> Tuple[Tuple[Patch | Line2D], Tuple[str]]:
+        """Get legend handles and labels for added lines and spans"""
+        return self.handles, self.labels
     
     def _filter(self, values: tuple | list) -> tuple:
         """Filter given values according to given boolean attributes"""
         return tuple(v for v, m in zip(values, self.mask) if m)
-    
-    def handles_labels(self) -> Tuple[Tuple[Patch | Line2D], Tuple[str]]:
-        handles = tuple(
-            Line2D(markersize=0, **kwds) for kwds in self.kwds)
-        if self.confidence is not None:
-            handles = handles + (Patch(**KW.CI_HANDLE),)
-        return handles, self.labels
 
     def draw(self, ax: Axes, target_on_y: bool):        
         for kwds, value, ci in zip(self.kwds, self.values, self.ci_functions):

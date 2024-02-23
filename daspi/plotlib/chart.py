@@ -353,7 +353,7 @@ class SimpleChart(_Chart):
         feature_label: bool | str = '', target_label: bool | str = '',
         info: bool | str = False) -> Self:
         if self.categorical_features:
-            self._correct_feature_ticks_labels_()
+            self._categorical_feature_axis_()
         self.set_axis_label(feature_label, is_target=False)
         self.set_axis_label(target_label, is_target=True)
 
@@ -543,7 +543,7 @@ class JointChart(_Chart):
             ) -> Self:
         for chart in self.itercharts():
             if not chart.categorical_features: continue
-            chart._correct_feature_ticks_labels_()
+            chart._categorical_feature_axis_()
         self._xlabel = ''
         self._ylabel = ''
         self.set_axis_label(feature_label, is_target=False)
@@ -634,7 +634,7 @@ class MultipleVariateChart(SimpleChart):
             row_title: str | None = None, col_title: str | None = None,
             info: bool | str = False) -> Self:
         if self.categorical_features:
-            self._correct_feature_ticks_labels_()
+            self._categorical_feature_axis_()
         self.set_axis_label(feature_label, is_target=False)
         self.set_axis_label(target_label, is_target=True)
         if self.row and row_title is None:
