@@ -1,3 +1,37 @@
+"""
+Module for creating various types of chart visualizations using 
+Matplotlib and Pandas.
+
+This module provides classes and utility functions to facilitate the 
+creation of different types of charts and visualizations. It includes 
+support for single-variable charts, joint charts combining multiple 
+variables, and charts with multiple variables simultaneously.
+
+Classes:
+- _Chart: Abstract base class for creating chart visualizations.
+- SimpleChart: Represents a basic chart visualization with customizable 
+features.
+- JointChart: Represents a joint chart visualization combining multiple 
+SimpleCharts.
+- MultipleVariateChart: Represents a chart visualization handling 
+multiple variables simultaneously.
+
+Functionality:
+- Customization of chart attributes including target, feature, hue, 
+shape, size, etc.
+- Layout setup for charts, including grid arrangements for joint charts.
+- Adding stripes to highlight data patterns and labeling axes 
+appropriately.
+- Saving charts to files and programmatically closing charts.
+
+Other Details:
+- Dependencies: NumPy, Matplotlib, Pandas.
+- Typing annotations are extensively used for type hinting and 
+documentation.
+- Emphasizes modularity and extensibility, allowing users to create and 
+customize a wide range of chart visualizations.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -9,12 +43,10 @@ from typing import Self
 from typing import Dict
 from typing import List
 from typing import Tuple
-from typing import Literal
 from typing import Generator
 from pathlib import Path
 from numpy.typing import NDArray
 from pandas.core.frame import DataFrame
-from scipy.stats._distn_infrastructure import rv_continuous
 
 from .utils import Dodger
 from .utils import HueLabel
@@ -30,11 +62,46 @@ from matplotlib.ticker import AutoMinorLocator
 
 from .._strings import STR
 from .._constants import KW
-from .._constants import DIST
 from .._constants import COLOR
 
 
-class _Chart(ABC):
+class _Chart(ABC):   
+    """
+    Abstract base class for creating chart visualizations.
+
+    Attributes
+    ----------
+    source : pandas DataFrame
+        A pandas DataFrame containing the data in long-format.
+    target : str or Tuple[str]
+        The target variable (column) to visualize.
+    feature : str or Tuple[str]
+        The feature variable (column) to use for the visualization.
+    target_on_y : bool
+        If True, the target variable is plotted on the y-axis.
+    axes_facets : AxesFacets
+        An instance containing the subplots' Axes and their arrangement.
+    label_facets : LabelFacets, optional
+        An optional instance for configuring and arranging figure and 
+        subplot labels.
+    stripes_facets : StripesFacets, optional
+        An optional instance for adding stripes to the plot.
+    nrows : int
+        Number of rows in the subplot grid.
+    ncols : int
+        Number of columns in the subplot grid.
+    figure : Figure (read-only)
+        The top-level container for all plot elements.
+    axes : NDArray (2D) (read-only)
+        The axes of the subplot grid.
+    n_axes : int (read-only)
+        The total number of axes.
+    xlabel, ylabel : str (read-only)
+        Get the label for the x or y axis (set with the `set_axis_label` 
+        method).
+    plots : list of _Plotter (read-only)
+        Plotter objects used in the `plot` method.
+    """
 
     __slots__ = (
         'source', 'target', 'feature', 'target_on_y', 'axes_facets',
@@ -168,7 +235,43 @@ class _Chart(ABC):
 
 
 class SimpleChart(_Chart):
+    """
+    Represents a basic chart visualization with customizable features.
 
+    Inherits from _Chart.
+
+    Attributes
+    ----------
+    hue : str
+        The hue variable (column) for color differentiation.
+    shape : str
+        The shape variable (column) for marker differentiation.
+    size : str
+        The size variable (column) for marker size differentiation.
+    marking : ShapeLabel
+        Instance for configuring shape labels.
+    sizing : SizeLabel
+        Instance for configuring size labels.
+    categorical_features : bool
+        Flag indicating if the features are categorical.
+    coloring : HueLabel
+        Instance for configuring hue labels.
+    dodging : Dodger
+        Instance for configuring dodging attributes.
+    variate_names : List[str] (read-only)
+        Get names of all set variates
+    color : str (read-only)
+        Get color for current variate
+    marker : str (read-only)
+        Get marker for current variate
+    sizes : NDArray (1D) or None (read-only)
+        Get sizes for current variate, is set in grouped 
+        `_data_generator_`
+    legend_handles_labels : Dict[str, Tuple[tuple]] (read-only)
+        Get dictionary of handles and labels
+        - keys: titles as str
+        - values: handles and labels as tuple of tuples
+    """
     __slots__ = (
         'hue', 'shape', 'size', 'marking', 'sizing', '_sizes', 
         'categorical_features', 'coloring', 'dodging', '_variate_names',
@@ -258,18 +361,36 @@ class SimpleChart(_Chart):
         return {t: h.handles_labels() for t, h in zip(titles, handlers) if t}
     
     def get_categorical_labels(self, colname: str) -> Tuple:
-        """Get sorted unique elements of given column name is in source"""
+        """Get sorted unique elements of given column name if in source.
+
+        Parameters
+        ----------
+        colname : str
+            The name of the column in the source DataFrame.
+
+        Returns:
+        --------
+        Tuple:
+            Sorted unique elements of the given column name.
+        """
         if not colname: return ()
         return tuple(sorted(np.unique(self.source[colname])))
     
     def _reset_variate_(self):
-        """Set values to None for current and last variate"""
+        """Set values to None for current and last variate."""
         self._current_variate = {k: None for k in self.variate_names}
         self._last_variate = {k: None for k in self.variate_names}
 
     def update_variate(self, combination: Any) -> None:
-        """Update current variate by given combination coming from
-        pandas DataFrame groupby function."""
+        """Update current variate by given combination coming from 
+        pandas DataFrame groupby function.
+
+        Parameters
+        ----------
+        combination : Any
+            The combination of variables coming from the DataFrame 
+            groupby function.
+        """
         if not isinstance(combination, tuple): combination = (combination, )
         self._last_variate = deepcopy(self._current_variate)
         for key, name in zip(self.variate_names, combination):
@@ -284,7 +405,7 @@ class SimpleChart(_Chart):
             self._data[self.feature], hue_variate)
         
     def _categorical_feature_grid_(self):
-        """Hide major grid and set one minor grid for feature axis"""
+        """Hide major grid and set one minor grid for feature axis."""
         xy = 'x' if self.target_on_y else 'y'
         axis = getattr(self.axes_facets.ax, f'{xy}axis')
         axis.set_minor_locator(AutoMinorLocator(2))
@@ -292,7 +413,7 @@ class SimpleChart(_Chart):
         axis.grid(False, which='major')
     
     def _categorical_feature_ticks_(self):
-        """Set one major tick for each category and label it"""
+        """Set one major tick for each category and label it."""
         xy = 'x' if self.target_on_y else 'y'
         _ticks = self.dodging.ticks
         settings = {
@@ -302,15 +423,27 @@ class SimpleChart(_Chart):
         self.axes_facets.ax.set(**settings)
         self.axes_facets.ax.tick_params(which='minor', color=COLOR.TRANSPARENT)
         
-        
     def _categorical_feature_axis_(self) -> None:
-        """Set one major tick for each category and label it plus
-        hide major grid and set one minor grid for feature axis"""
+        """Set one major tick for each category and label it plus hide 
+        major grid and set one minor grid for feature axis."""
         for ax in self.axes_facets:
             self._categorical_feature_grid_()
             self._categorical_feature_ticks_()
 
-    def _data_genenator_(self) -> Generator[Tuple, Self, None]:
+    def _data_genenator_(self) -> Generator[DataFrame, Self, None]:
+        """Generate grouped data if `variate_names` are set, otherwise 
+        yield the entire source DataFrame.
+
+        This method serves as a generator function that yields grouped 
+        data based on the `variate_names` attribute if it is set. 
+        If no `variate_names` are specified, it yields the entire source 
+        DataFrame.
+
+        Yields:
+        -------
+        self._data : DataFrame
+            Containing the grouped data or the entire source DataFrame.
+        """
         if self.variate_names:
             for combination, data in self.source.groupby(self.variate_names):
                 self._data = data
@@ -324,6 +457,20 @@ class SimpleChart(_Chart):
 
     def plot(
             self, plotter: _Plotter, **kwds) -> Self:
+        """Plot the chart.
+
+        Parameters
+        ----------
+        plotter : _Plotter
+            The plotter object.
+        **kwds:
+            Additional keyword arguments for the plotter object.
+
+        Returns:
+        --------
+        Self:
+            The SimpleChart instance.
+        """
         self.target_on_y = kwds.pop('target_on_y', self.target_on_y)
         for data in self:
             plot = plotter(
@@ -339,7 +486,41 @@ class SimpleChart(_Chart):
             self, mean: bool = False, median: bool = False,
             control_limits: bool = False, spec_limits: Tuple[float] = (), 
             confidence: float | None = None, **kwds) -> Self:
-        
+        """Plot stripes on the chart axes.
+
+        Parameters
+        ----------
+        mean : bool, optional
+            Whether to plot the mean value of the plotted data on the axes, 
+            by default False.
+        median : bool, optional
+            Whether to plot the median value of the plotted data on the axes, 
+            by default False.
+        control_limits : bool, optional
+            Whether to plot control limits representing the process spread,
+            by default False.
+        spec_limits : Tuple[float], optional
+            If provided, specifies the specification limits. 
+            The tuple must contain two values for the lower and upper limits.
+            If a limit is not given, use None, by default ().
+        confidence : float, optional
+            The confidence level between 0 and 1, by default None.
+        **kwds:
+            Additional keyword arguments for configuring StripesFacets.
+
+        Returns
+        -------
+        SimpleChart:
+            The instance of the SimpleChart with the specified stripes plotted 
+            on the axes.
+
+        Notes
+        -----
+        This method plots stripes on the chart axes to represent statistical 
+        measures such as mean, median, control limits, and specification limits. 
+        The method provides options to customize the appearance and behavior 
+        of the stripes using various parameters and keyword arguments.
+        """
         self.stripes_facets = StripesFacets(
             target=self.source[self.target], mean=mean, median=median,
             control_limits=control_limits, spec_limits=spec_limits,
@@ -352,6 +533,26 @@ class SimpleChart(_Chart):
         self, fig_title: str = '', sub_title: str = '',
         feature_label: bool | str = '', target_label: bool | str = '',
         info: bool | str = False) -> Self:
+        """Add labels to the chart.
+
+        Parameters
+        ----------
+        fig_title : str, optional
+            The figure title, by default ''.
+        sub_title : str, optional
+            The subtitle, by default ''.
+        feature_label : bool | str, optional
+            The feature label, by default ''.
+        target_label : bool | str, optional
+            The target label, by default ''.
+        info : bool | str, optional
+            Additional information label, by default False.
+
+        Returns:
+        --------
+        Self:
+            The SimpleChart instance.
+        """
         if self.categorical_features:
             self._categorical_feature_axis_()
         self.set_axis_label(feature_label, is_target=False)
@@ -365,9 +566,25 @@ class SimpleChart(_Chart):
 
         return self
 
-
 class JointChart(_Chart):
+    """
+    Represents a joint chart visualization combining multiple SimpleCharts.
 
+    Inherits from _Chart.
+
+    Attributes
+    ----------
+    charts : List of SimpleChart
+        List of SimpleChart instances to be combined.
+    hue : str or Tuple[str]
+        The hue variable (column) for color differentiation.
+    shape : str or Tuple[str]
+        The shape variable (column) for marker differentiation.
+    size : str or Tuple[str]
+        The size variable (column) for marker size differentiation.
+    dodge : bool or Tuple[bool]
+        Flag indicating if dodging is enabled.
+    """
     __slots__ = ('charts', '_target', '_feature')
     charts: List[SimpleChart]
     hue: str | Tuple[str]
@@ -559,6 +776,22 @@ class JointChart(_Chart):
 
 
 class MultipleVariateChart(SimpleChart):
+    """
+    Represents a chart visualization handling multiple variables simultaneously.
+
+    Inherits from SimpleChart.
+
+    Attributes
+    ----------
+    col : str
+        The column used for column-wise differentiation.
+    row : str
+        The column used for row-wise differentiation.
+    row_labels : tuple
+        Tuple of sorted unique elements of the row column.
+    col_labels : tuple
+        Tuple of sorted unique elements of the column column.
+    """
 
     __slots__ = ('col', 'row', 'row_labels', 'col_labels')
     col: str
