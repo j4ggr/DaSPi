@@ -47,6 +47,7 @@ from typing import Generator
 from pathlib import Path
 from numpy.typing import NDArray
 from pandas.core.frame import DataFrame
+from pandas.core.series import Series
 
 from .utils import Dodger
 from .utils import HueLabel
@@ -360,7 +361,7 @@ class SimpleChart(_Chart):
             titles = titles + (STR['stripes'], )
         return {t: h.handles_labels() for t, h in zip(titles, handlers) if t}
     
-    def get_categorical_labels(self, colname: str) -> Tuple:
+    def get_categorical_labels(self, colname: str) -> Tuple[Any, ...]:
         """Get sorted unique elements of given column name if in source.
 
         Parameters
@@ -376,7 +377,7 @@ class SimpleChart(_Chart):
         if not colname: return ()
         return tuple(sorted(np.unique(self.source[colname])))
     
-    def _reset_variate_(self):
+    def _reset_variate_(self) -> None:
         """Set values to None for current and last variate."""
         self._current_variate = {k: None for k in self.variate_names}
         self._last_variate = {k: None for k in self.variate_names}
@@ -404,7 +405,7 @@ class SimpleChart(_Chart):
         self._data[self.feature] = self.dodging(
             self._data[self.feature], hue_variate)
         
-    def _categorical_feature_grid_(self):
+    def _categorical_feature_grid_(self) -> None:
         """Hide major grid and set one minor grid for feature axis."""
         xy = 'x' if self.target_on_y else 'y'
         axis = getattr(self.axes_facets.ax, f'{xy}axis')
@@ -412,7 +413,7 @@ class SimpleChart(_Chart):
         axis.grid(True, which='minor')
         axis.grid(False, which='major')
     
-    def _categorical_feature_ticks_(self):
+    def _categorical_feature_ticks_(self) -> None:
         """Set one major tick for each category and label it."""
         xy = 'x' if self.target_on_y else 'y'
         _ticks = self.dodging.ticks
@@ -490,18 +491,18 @@ class SimpleChart(_Chart):
         Parameters
         ----------
         mean : bool, optional
-            Whether to plot the mean value of the plotted data on the axes, 
-            by default False.
+            Whether to plot the mean value of the plotted data on the 
+            axes, by default False.
         median : bool, optional
-            Whether to plot the median value of the plotted data on the axes, 
-            by default False.
+            Whether to plot the median value of the plotted data on the 
+            axes, by default False.
         control_limits : bool, optional
-            Whether to plot control limits representing the process spread,
-            by default False.
+            Whether to plot control limits representing the process 
+            spread, by default False.
         spec_limits : Tuple[float], optional
             If provided, specifies the specification limits. 
-            The tuple must contain two values for the lower and upper limits.
-            If a limit is not given, use None, by default ().
+            The tuple must contain two values for the lower and upper 
+            limits. If a limit is not given, use None, by default ().
         confidence : float, optional
             The confidence level between 0 and 1, by default None.
         **kwds:
@@ -510,18 +511,20 @@ class SimpleChart(_Chart):
         Returns
         -------
         SimpleChart:
-            The instance of the SimpleChart with the specified stripes plotted 
-            on the axes.
+            The instance of the SimpleChart with the specified stripes 
+            plotted on the axes.
 
         Notes
         -----
-        This method plots stripes on the chart axes to represent statistical 
-        measures such as mean, median, control limits, and specification limits. 
-        The method provides options to customize the appearance and behavior 
-        of the stripes using various parameters and keyword arguments.
+        This method plots stripes on the chart axes to represent 
+        statistical measures such as mean, median, control limits, and 
+        specification limits. The method provides options to customize 
+        the appearance and behavior of the stripes using various 
+        parameters and keyword arguments.
         """
+        target = kwds.pop('target', self.source[self.target])
         self.stripes_facets = StripesFacets(
-            target=self.source[self.target], mean=mean, median=median,
+            target=target, mean=mean, median=median,
             control_limits=control_limits, spec_limits=spec_limits,
             confidence=confidence, **kwds)
         self.stripes_facets.draw(
@@ -565,9 +568,11 @@ class SimpleChart(_Chart):
 
         return self
 
+
 class JointChart(_Chart):
     """
-    Represents a joint chart visualization combining multiple SimpleCharts.
+    Represents a joint chart visualization combining multiple 
+    SimpleCharts.
 
     Inherits from _Chart.
 
@@ -696,14 +701,14 @@ class JointChart(_Chart):
             self._ylabel = tuple((c.ylabel for c in self.charts))
         return self._ylabel
     
-    def itercharts(self):
+    def itercharts(self) -> Generator[SimpleChart, Self, None]:
         """Iter over charts simultaneosly iters over axes of 
         `axes_facets`. That ensures that the current Axes to which the 
         current chart belongs is set."""
         for _, chart in zip(self.axes_facets, self.charts):
             yield chart
     
-    def ensure_tuple(self, attribute: Any) -> Tuple:
+    def ensure_tuple(self, attribute: Any) -> Tuple[Any]:
         """Ensures that the specified attribute is a tuple with the same
         length as the axes. If only one value is specified, it will be
         copied accordingly."""
@@ -749,7 +754,53 @@ class JointChart(_Chart):
     def stripes(
             self, mean: bool = False, median: bool = False,
             control_limits: bool = False, spec_limits: Tuple[float] = (), 
-            confidence: float | None = None, **kwds) -> Self:...
+            confidence: float | None = None, **kwds) -> Self:
+        """Plot stripes on the chart axes.
+
+        Parameters
+        ----------
+        mean : bool, optional
+            Whether to plot the mean value of the plotted data on the 
+            axes, by default False.
+        median : bool, optional
+            Whether to plot the median value of the plotted data on the 
+            axes, by default False.
+        control_limits : bool, optional
+            Whether to plot control limits representing the process 
+            spread, by default False.
+        spec_limits : Tuple[float], optional
+            If provided, specifies the specification limits. 
+            The tuple must contain two values for the lower and upper 
+            limits. If a limit is not given, use None, by default ().
+        confidence : float, optional
+            The confidence level between 0 and 1, by default None.
+        **kwds:
+            Additional keyword arguments for configuring StripesFacets.
+
+        Returns
+        -------
+        JointChart:
+            The instance of the JointChart with the specified stripes 
+            plotted on the axes.
+
+        Notes
+        -----
+        The given arguments are applied to all axes!
+        If stripes should only be drawn on selected axes, select the 
+        desired subchart via `charts` attributes. Then use its `stripes`
+        method.
+
+        This method plots stripes on the chart axes to represent 
+        statistical measures such as mean, median, control limits, and 
+        specification limits. The method provides options to customize 
+        the appearance and behavior of the stripes using various 
+        parameters and keyword arguments.
+        """
+        for chart in self.itercharts():
+            chart.stripes(
+                mean=mean, median=median, control_limits=control_limits,
+                spec_limits=spec_limits, confidence=confidence, **kwds)
+        return self
     
     def label(
             self, fig_title: str = '', sub_title: str = '',
@@ -757,6 +808,26 @@ class JointChart(_Chart):
             target_label: str | bool | Tuple = '', 
             row_title: str = '', col_title: str = '', info: bool | str = False
             ) -> Self:
+        """Add labels to the chart.
+
+        Parameters
+        ----------
+        fig_title : str, optional
+            The figure title, by default ''.
+        sub_title : str, optional
+            The subtitle, by default ''.
+        feature_label : bool | str, optional
+            The feature label, by default ''.
+        target_label : bool | str, optional
+            The target label, by default ''.
+        info : bool | str, optional
+            Additional information label, by default False.
+
+        Returns:
+        --------
+        Self:
+            The JointChart instance.
+        """
         for chart in self.itercharts():
             if not chart.categorical_features: continue
             chart._categorical_feature_axis_()
@@ -837,6 +908,26 @@ class MultipleVariateChart(SimpleChart):
             if old != new and key in (self.row, self.col):
                 return True
         return False
+    
+    def _axes_data_(self) -> Generator[Series, Self, None]:
+        """Generate all target data of each axes in one Series there are
+        multiple axes, otherwise yield the entire target column.
+
+        This method serves as a generator function that yields grouped 
+        data based on the `row` and `col` attribute if they are set. 
+        If no `row` and no `col` are specified, it yields the entire
+        target column.
+
+        Yields:
+        -------
+        axes_data : Series
+            Containing all target data for each axes.
+        """
+        columns = [c for c in (self.row, self.col) if c]
+        grouper = self.source.groupby(columns) if columns else (self.source, )
+        for _, data in grouper:
+            axes_data = data[self.target]
+            yield axes_data
 
     def plot(self, plotter: _Plotter, **kwds) -> Self:
         ax = None
@@ -856,9 +947,12 @@ class MultipleVariateChart(SimpleChart):
             self, mean: bool = False, median: bool = False,
             control_limits: bool = False, spec_limits: Tuple[float] = (), 
             confidence: float | None = None, **kwds) -> Self:
-        super().stripes(
-            mean=mean, median=median, control_limits=control_limits,
-            spec_limits=spec_limits, confidence=confidence, **kwds)
+        for ax, axes_data in zip(self.axes_facets, self._axes_data_()):
+            super().stripes(
+                target=axes_data, mean=mean, median=median, 
+                control_limits=control_limits, spec_limits=spec_limits,
+                confidence=confidence, **kwds)
+        return self
                 
     def label(
             self, feature_label: str, target_label: str,

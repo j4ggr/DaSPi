@@ -323,7 +323,7 @@ class AxesFacets:
     def __next__(self) -> Axes:
         return next(self)
     
-    def __getitem__(self, index: int):
+    def __getitem__(self, index: int) -> Axes:
         return self.axes.flat[index]
 
 
@@ -332,9 +332,9 @@ class StripesFacets:
     __slots__ = (
         'estimation', 'mask', '_confidence', 'spec_limits')
     estimation: ProcessEstimator
-    mask: Tuple[bool]
+    mask: Tuple[bool, ...]
     _confidence: float | None
-    spec_limits: Tuple[float | int]
+    spec_limits: Tuple[float | int, ...]
     
     def __init__(
         self,
@@ -365,7 +365,7 @@ class StripesFacets:
         return 4    
     
     @property
-    def kwds(self) -> Tuple[dict]:
+    def kwds(self) -> Tuple[dict, ...]:
         """Get keyword arguments for all lines that are plotted"""
         kwds = self._filter((
             KW.MEAN_LINE, KW.MEDIAN_LINE, KW.CONTROL_LINE, KW.CONTROL_LINE,
@@ -373,7 +373,7 @@ class StripesFacets:
         return kwds
     
     @property
-    def ci_functions(self) -> Tuple[str]:
+    def ci_functions(self) -> Tuple[str, ...]:
         """Get confidence interval functions"""
         ci = self._filter((
             self.estimation.mean_ci, self.estimation.median_ci, 
@@ -381,7 +381,7 @@ class StripesFacets:
         return ci
     
     @property
-    def values(self) -> Tuple[float | int]:
+    def values(self) -> Tuple[float | int, ...]:
         """Get values for all lines that are plotted"""
         attrs = ('mean', 'median', 'lcl', 'ucl')
         values = self._filter(
@@ -396,7 +396,7 @@ class StripesFacets:
         return self._confidence
     
     @property
-    def labels(self) -> Tuple[str]:
+    def labels(self) -> Tuple[str, ...]:
         """Get legend labels for added lines and spans"""
         if self.estimation.strategy == 'norm':
             lcl = r'\bar x-' + f'{self.estimation._k}' + r'\sigma'
@@ -413,7 +413,7 @@ class StripesFacets:
         return labels
     
     @property
-    def handles(self):
+    def handles(self) -> Tuple[*Tuple[Line2D, ...], Patch] | Tuple[Line2D, ...]:
         """Get legend handles for added lines and spans"""
         handles = tuple(
             Line2D([], [], markersize=0, **kwds) for kwds in self.kwds)
@@ -429,10 +429,10 @@ class StripesFacets:
         """Filter given values according to given boolean attributes"""
         return tuple(v for v, m in zip(values, self.mask) if m)
 
-    def draw(self, ax: Axes, target_on_y: bool):        
+    def draw(self, ax: Axes, target_on_y: bool) -> None:        
         for kwds, value, ci in zip(self.kwds, self.values, self.ci_functions):
             if target_on_y:
-                 ax.axhline(value, **kwds)
+                ax.axhline(value, **kwds)
             else:
                 ax.axvline(value, **kwds)
             if ci is not None:

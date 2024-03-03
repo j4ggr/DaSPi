@@ -155,11 +155,11 @@ class _Color_:
         """Get prop cycler color palette"""
         return plt.rcParams['axes.prop_cycle'].by_key()['color']
     @property
-    def LIMITS(self) -> Tuple[str]:
+    def LIMITS(self) -> Tuple[str, str]:
         """Color for specification limits"""
         return (self.BAD, self.BAD)
     @property
-    def STATISTIC_LINES(self) -> Tuple[str]:
+    def STATISTIC_LINES(self) -> Tuple[str, str, str]:
         """Statistic lines color in order lower (Percentil Q_0.99865)
         upper (Percentil Q_0.00135) and mean"""
         return (self.PERCENTIL, self.PERCENTIL, self.MEAN)
@@ -194,7 +194,7 @@ class _Plotter_:
     MEAN: str = '_mean_'
     MEDIAN: str = '_median_'
     @property
-    def REGRESSION_CI_NAMES(self) -> Tuple[str]:
+    def REGRESSION_CI_NAMES(self) -> Tuple[str, str, str, str]:
         """Get names for regression confidences in order
         - lower confidence level of fitted values
         - upper confidence level of fitted values
@@ -209,28 +209,28 @@ PLOTTER = _Plotter_()
 
 @dataclass(frozen=True)
 class _Category_:
-    MARKERS: Tuple[str] = ('o', 's', '^', 'p', 'D', 'v', 'P', 'X', '*')
-    MARKERSIZE_LIMITS: Tuple[int] = (1, 13)
+    MARKERS: Tuple[str, ...] = ('o', 's', '^', 'p', 'D', 'v', 'P', 'X', '*')
+    MARKERSIZE_LIMITS: Tuple[int, int] = (1, 13)
     N_SIZE_BINS: int = 5
     FEATURE_SPACE: float = 0.8
     FEATURE_PAD: float = 0.05
     @property
-    def COLORS(self) -> Tuple[str]:
+    def COLORS(self) -> Tuple[str, ...]:
         return tuple(COLOR.PALETTE)
     @property
-    def SIZE_LIMITS(self) -> Tuple[int]:
+    def SIZE_LIMITS(self) -> Tuple[int, int]:
         """Used for scatter plots. The area must be specified there 
         instead of the height, as with markers in line plots.
         See: https://stackoverflow.com/a/14860958/11362192"""
         return tuple(s**2 for s in self.MARKERSIZE_LIMITS)
     @property
-    def HANDLE_SIZES(self) -> Tuple[int]:
+    def HANDLE_SIZES(self) -> Tuple[int, ...]:
         """Get marker sizes for legend handles"""
         sizes = tuple(np.linspace(
             *self.MARKERSIZE_LIMITS, self.N_SIZE_BINS, dtype=int))
         return sizes
     @property
-    def MARKER(self):
+    def MARKER(self) -> str:
         """Get default marker if markers not specified"""
         return self.MARKERS[0]
 CATEGORY = _Category_()
@@ -238,19 +238,19 @@ CATEGORY = _Category_()
 
 @dataclass(frozen=True)
 class _Distribution_:
-    _ignore_: Tuple[str] = ('levy_stable', 'studentized_range')
-    COMMON: Tuple[str] = (
+    _ignore_: Tuple[str, str] = ('levy_stable', 'studentized_range')
+    COMMON: Tuple[str, ...] = (
         'norm', 'chi2', 'foldnorm', 'rayleigh', 'weibull_min', 'gamma', 'wald',
         'expon', 'logistic', 'lognorm')
     @property
-    def POSSIBLE(self) -> Tuple[str]:
+    def POSSIBLE(self) -> Tuple[str, ...]:
         """Get all possible continous distributions coming from scipy"""
         return tuple(d for d in _distn_names if d not in self._ignore_)
     @property
-    def COMMON_NOT_NORM(self) -> Tuple[str]:
+    def COMMON_NOT_NORM(self) -> Tuple[str, ...]:
         """Get all common distributions but norm, usefull to fit if norm
         tests fail."""
-        return self.COMMON[1:]
+        return tuple(d for d in self.COMMON if d != 'norm')
 DIST = _Distribution_()
 
 @dataclass(frozen=True)
