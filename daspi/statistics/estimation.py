@@ -890,7 +890,7 @@ def estimate_kernel_density(
         the area under the curve will not be normalized, by default None
     base : float, optional
         The curve is shifted in the estimated direction by the given 
-        amount. This is usefull for ridge plots, by default 0
+        amount. This is usefull for violine plots, by default 0
     n_points : int, optional
         Number of points the estimation and sequence should have,
         by default KD_SEQUENCE_LEN (defined in constants.py)

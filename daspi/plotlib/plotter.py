@@ -613,46 +613,6 @@ class Violine(GaussianKDE):
             else:
                 self.ax.fill_between(sequence, estim_low, estim_upp, **kwds)
 
-
-class Ridge(GaussianKDE):
-
-    def __init__(
-            self,
-            source: Hashable,
-            target: str,
-            feature: str,
-            target_on_y: bool = True,
-            color: str | None = None,
-            ax: Axes | None = None,
-            **kwds) -> None:
-        super().__init__(
-            source=source, target=target, feature=feature,
-            target_on_y=target_on_y, color=color, ax=ax,
-            show_density_axis=True, base_on_zero=False, **kwds)
-
-    def transform(
-            self, feature_data: float | int, target_data: Series) -> DataFrame:
-        sequence, estimation = estimate_kernel_density(
-            target_data, stretch=PLOTTER.VIOLINE_STRETCH, base=feature_data)
-        data = pd.DataFrame({
-            self.target: sequence,
-            self.feature: estimation,
-            PLOTTER.F_BASE_NAME: feature_data * np.ones(len(sequence))})
-        return data
-    
-    def __call__(self, **kwds) -> None:
-        kwds = dict(color=self.color, alpha=COLOR.FILL_ALPHA) | kwds
-        for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME):
-            estimation = group[self.feature]
-            sequence = group[self.target]
-            if self.target_on_y:
-                self.ax.plot(estimation, sequence, c=COLOR.BLUR)
-                self.ax.fill_betweenx(sequence, f_base, estimation, **kwds)
-            else:
-                self.ax.plot(sequence, estimation, c=COLOR.BLUR)
-                self.ax.fill_between(sequence, f_base, estimation, **kwds)
-
-
 class Errorbar(_TransformPlotter):
     __slots__ = ('lower', 'upper', 'show_center')
     lower: str
@@ -878,7 +838,6 @@ __all__ = [
     Jitter.__name__,
     GaussianKDE.__name__,
     Violine.__name__,
-    Ridge.__name__,
     Errorbar.__name__,
     StandardErrorMean.__name__,
     DistinctionTest.__name__,

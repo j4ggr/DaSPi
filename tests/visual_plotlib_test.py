@@ -23,7 +23,6 @@ from daspi.plotlib.chart import JointChart
 from daspi.plotlib.chart import MultipleVariateChart
 from daspi.plotlib.plotter import Bar
 from daspi.plotlib.plotter import Line
-from daspi.plotlib.plotter import Ridge
 from daspi.plotlib.plotter import Jitter
 from daspi.plotlib.plotter import Scatter
 from daspi.plotlib.plotter import Violine
@@ -495,39 +494,6 @@ class TestSimpleChart:
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg not in info_msg
-
-        self.kind = 'ridge'
-        file_name = savedir/f'{base}_{self.kind}.png'
-        chart = SimpleChart(
-                df_travel,
-                target = self.target,
-                feature = self.cat1,
-                categorical_features = True,
-                target_on_y = False
-            ).plot(
-                Ridge
-            ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = True, 
-                info = True
-            ).save(file_name
-            ).close()
-        texts = get_texts(chart)
-        info_msg = texts[-1].get_text()
-        yticklabels = [t.get_text() for t in chart.axes[0][0].get_yticklabels()]
-        assert file_name.is_file()
-        assert len(texts) == 5
-        assert chart.label_facets.legend_box is None
-        assert texts[0].get_text() == self.fig_title
-        assert texts[1].get_text() == self.sub_title
-        assert texts[2].get_text() == self.cat1
-        assert texts[3].get_text() == self.target
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
-        assert self.info_msg not in info_msg
-        assert yticklabels == sorted(df_travel[self.cat1].unique())
     
     def test_jitter_plot(self) -> None:
         base = f'{self.fig_title}_jitter'
