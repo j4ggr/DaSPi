@@ -277,7 +277,7 @@ class Probability(LinearRegression):
         """If given distribution is exponential or logaritmic, change axis
         scale for samples or quantiles (not for percentiles) from 'linear' 
         to 'log'."""
-        xscale, yscale = 'linear', 'linear'
+        xscale = yscale = 'linear'
         if self.dist.name in ('expon', 'log', 'lognorm'):
             if self.kind[1] == 'q': 
                 xscale = 'log'
@@ -511,8 +511,9 @@ class Jitter(_TransformPlotter):
 
 class GaussianKDE(_TransformPlotter):
 
-    __slots__ = ('_height', 'show_density_axis', 'base_on_zero')
-    _height: float
+    __slots__ = ('_height', '_stretch', 'show_density_axis', 'base_on_zero')
+    _height: float | None
+    _stretch: float
     show_density_axis: bool
     base_on_zero: bool
 
@@ -520,6 +521,7 @@ class GaussianKDE(_TransformPlotter):
             self,
             source: Hashable,
             target: str,
+            stretch: float = 1,
             height: float | None = None,
             target_on_y: bool = True,
             color: str | None = None,
@@ -528,6 +530,7 @@ class GaussianKDE(_TransformPlotter):
             base_on_zero: bool = True,
             **kwds) -> None:
         self._height = height
+        self._stretch = stretch
         self.show_density_axis = show_density_axis
         self.base_on_zero = base_on_zero
         feature = PLOTTER.TRANSFORMED_FEATURE
@@ -542,11 +545,16 @@ class GaussianKDE(_TransformPlotter):
     def height(self) -> float:
         """Height of kde curve at its maximum."""
         return self._height
+    @property
+    def stretch(self) -> float:
+        """Factor by which the curve was stretched in height"""
+        return self._stretch
         
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
         sequence, estimation = estimate_kernel_density(
-            target_data, height=self.height, base=feature_data)
+            data=target_data, stretch=self.stretch, height=self.height,
+            base=feature_data)
         data = pd.DataFrame({
             self.target: sequence,
             self.feature: estimation,
@@ -585,10 +593,13 @@ class Violine(GaussianKDE):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        self._height = width/2
+        if feature:
+            stretch = width*PLOTTER.VIOLINE_STRETCH/(2*CATEGORY.FEATURE_SPACE)
+        else:
+            stretch = 1
         super().__init__(
-            source=source, target=target, feature=feature, height=self.height,
-            target_on_y=target_on_y, color=color, ax=ax,
+            source=source, target=target, feature=feature, stretch=stretch,
+            height=None, target_on_y=target_on_y, color=color, ax=ax,
             show_density_axis=True, base_on_zero=False, **kwds)
 
     def __call__(self, **kwds) -> None:
@@ -605,9 +616,6 @@ class Violine(GaussianKDE):
 
 class Ridge(GaussianKDE):
 
-    __slots__ = ('stretch')
-    stretch: float
-
     def __init__(
             self,
             source: Hashable,
@@ -617,8 +625,6 @@ class Ridge(GaussianKDE):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        _, estim = estimate_kernel_density(source[target])
-        self.stretch = 1/np.max(estim)
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax,
@@ -626,13 +632,12 @@ class Ridge(GaussianKDE):
 
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
-        f_base = feature_data + PLOTTER.RIDGE_SHIFT
         sequence, estimation = estimate_kernel_density(
-            target_data, stretch=self.stretch, base=f_base)
+            target_data, stretch=PLOTTER.VIOLINE_STRETCH, base=feature_data)
         data = pd.DataFrame({
             self.target: sequence,
             self.feature: estimation,
-            PLOTTER.F_BASE_NAME: f_base * np.ones(len(sequence))})
+            PLOTTER.F_BASE_NAME: feature_data * np.ones(len(sequence))})
         return data
     
     def __call__(self, **kwds) -> None:

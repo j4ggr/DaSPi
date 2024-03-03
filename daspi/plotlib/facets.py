@@ -5,7 +5,6 @@ from typing import Self
 from typing import List
 from typing import Dict
 from typing import Tuple
-from typing import Literal
 from typing import Iterable
 from typing import Generator
 from numpy.typing import NDArray
@@ -15,7 +14,6 @@ from matplotlib.figure import Figure
 from matplotlib.legend import Legend
 from matplotlib.artist import Artist
 from matplotlib.patches import Patch
-from scipy.stats._distn_infrastructure import rv_continuous
 
 from .._strings import STR
 from .._constants import KW

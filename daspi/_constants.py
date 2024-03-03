@@ -182,7 +182,7 @@ class _Plotter_:
     DEFAULT_F_BASE: int = 0
     ERR_LOW: str = '_error_lower_'
     ERR_UPP: str = '_error_upper_'
-    RIDGE_SHIFT: float = -0.3
+    VIOLINE_STRETCH: int = 70
     KD_SEQUENCE_LEN: int = 300
     FITTED_VALUES_NAME: str = '_fitted_values_'
     FIT_CI_LOW: str = '_fit_ci_low_'

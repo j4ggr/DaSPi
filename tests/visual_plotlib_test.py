@@ -100,7 +100,7 @@ class TestSimpleChart:
     def sub_title(self) -> str:
         return f'{self._sub_title}: {self.kind}'
 
-    def test_line_plot(self):
+    def test_line_plot(self) -> None:
         base = f'{self.fig_title}_line'
 
         self.kind = 'hue'
@@ -171,7 +171,7 @@ class TestSimpleChart:
         assert self.info_msg in info_msg
     
 
-    def test_scatter_plot(self):
+    def test_scatter_plot(self) -> None:
         base = f'{self.fig_title}_scatter'
 
         self.kind = 'simple'
@@ -442,7 +442,7 @@ class TestSimpleChart:
         assert self.info_msg in info_msg
 
 
-    def test_kde_plot(self):
+    def test_kde_plot(self) -> None:
         base = f'{self.fig_title}_KDE'
 
         self.kind = 'simple'
@@ -529,7 +529,7 @@ class TestSimpleChart:
         assert self.info_msg not in info_msg
         assert yticklabels == sorted(df_travel[self.cat1].unique())
     
-    def test_jitter_plot(self):
+    def test_jitter_plot(self) -> None:
         base = f'{self.fig_title}_jitter'
 
         self.kind = 'simple'
@@ -582,8 +582,30 @@ class TestSimpleChart:
         assert self.info_msg in info_msg
 
 
-    def test_violine_plot(self):
+    def test_violine_plot(self) -> None:
         base = f'{self.fig_title}_violine'
+
+        self.kind = 'mono'
+        file_name = savedir/f'{base}_{self.kind}.png'
+        chart = SimpleChart(
+                source = df_travel,
+                target = self.target,
+            ).plot(Violine
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = self.target_label,    
+                info = self.info_msg
+            ).save(file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert file_name.is_file()
+        assert len(texts) == 4 # feature label should not appear
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
 
         self.kind = 'simple'
         file_name = savedir/f'{base}_{self.kind}.png'
@@ -633,8 +655,8 @@ class TestSimpleChart:
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
 
-    def test_errorbar_plots(self):
-        base = f'{self.fig_title}_violine'
+    def test_errorbar_plots(self) -> None:
+        base = f'{self.fig_title}_errorbar'
 
         self.kind = 'sem'
         file_name = savedir/f'{base}_{self.kind}.png'
@@ -763,7 +785,7 @@ class TestJointChart:
     def sub_title(self) -> str:
         return f'{self._sub_title}: {self.kind}'
 
-    def test_kde_plots(self):
+    def test_kde_plots(self) -> None:
         base = f'{self.fig_title}_kdes'
         
         self.kind = 'mixed-kde'
@@ -774,42 +796,36 @@ class TestJointChart:
                 feature = self.cat1,
                 hue = self.cat2,
                 ncols = 1,
-                nrows = 3,
+                nrows = 2,
                 sharex = True,
-                categorical_features = (False, True, True),
+                dodge = (False, True),
+                categorical_features = (False, True),
                 target_on_y = False
             ).plot([
-                (GaussianKDE, dict(show_density_axis=False)),
-                (Ridge, {}), 
+                (GaussianKDE, dict(show_density_axis=True)),
                 (Violine, {})]
             ).label(
-                feature_label = [True]*3,
-                target_label = [True]*3
+                feature_label = [True]*2,
+                target_label = [True]*2
             ).save(file_name
             ).close()
         texts = get_texts(chart)
         legend_artists = chart.label_facets.legend_box.get_children()
         yticklabels1 = [t.get_text() for t in chart.axes[1][0].get_yticklabels()]
-        yticklabels2 = [t.get_text() for t in chart.axes[2][0].get_yticklabels()]
         xticklabels0 = [t.get_text() for t in chart.axes[0][0].get_xticklabels()]
         xticklabels1 = [t.get_text() for t in chart.axes[1][0].get_xticklabels()]
-        xticklabels2 = [t.get_text() for t in chart.axes[2][0].get_xticklabels()]
         assert file_name.is_file()
         assert len(texts) == 0 # No text added to figure only to axes
         assert legend_artists[0].get_children()[0].get_text() == self.cat2
-        assert yticklabels1 == yticklabels2
         assert yticklabels1 == sorted(df_travel[self.cat1].unique())
         assert bool(xticklabels0) == False
-        assert bool(xticklabels1) == False
-        assert bool(xticklabels2) == True
+        assert bool(xticklabels1) == True
         assert chart.axes[0][0].get_xlabel() == ''
-        assert chart.axes[1][0].get_xlabel() == ''
+        assert chart.axes[1][0].get_xlabel() == self.target
         assert chart.axes[1][0].get_ylabel() == self.cat1
-        assert chart.axes[2][0].get_xlabel() == self.target
-        assert chart.axes[2][0].get_ylabel() == self.cat1
     
 
-    def test_probabilities(self):
+    def test_probabilities(self) -> None:
         base = f'{self.fig_title}_probability'
         
         self.kind = 'norm-prob'
@@ -902,7 +918,7 @@ class TestJointChart:
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
 
-    def test_regression_joint(self):
+    def test_regression_joint(self) -> None:
         base = f'{self.fig_title}_probability'
 
         self.kind = 'kde'
@@ -984,7 +1000,7 @@ class TestMultipleVariateChart:
     def sub_title(self) -> str:
         return f'{self._sub_title}: {self.kind}'
 
-    def test_full(self):
+    def test_full(self) -> None:
         base = f'{self.fig_title}_full'
 
         self.kind = 'kde'

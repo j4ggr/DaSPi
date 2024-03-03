@@ -424,11 +424,10 @@ class SimpleChart(_Chart):
         self.axes_facets.ax.tick_params(which='minor', color=COLOR.TRANSPARENT)
         
     def _categorical_feature_axis_(self) -> None:
-        """Set one major tick for each category and label it plus hide 
+        """Set one major tick for each category and label it. Hide 
         major grid and set one minor grid for feature axis."""
-        for ax in self.axes_facets:
-            self._categorical_feature_grid_()
-            self._categorical_feature_ticks_()
+        self._categorical_feature_grid_()
+        self._categorical_feature_ticks_()
 
     def _data_genenator_(self) -> Generator[DataFrame, Self, None]:
         """Generate grouped data if `variate_names` are set, otherwise 
@@ -632,11 +631,11 @@ class JointChart(_Chart):
             dodge = self.ensure_tuple(dodge),
             categorical_features = self.ensure_tuple(categorical_features),
             target_on_y = self.ensure_tuple(target_on_y))
-        kw = dict(
+        _kwds = dict(
             source=self.source, axes_facets=self.axes_facets)
         for values in zip(*charts_data.values()):
-            _kw = kw | {k: v for k, v in zip(charts_data.keys(), values)}
-            self.charts.append(SimpleChart(**_kw))
+            kwds = _kwds | dict(zip(charts_data.keys(), values))
+            self.charts.append(SimpleChart(**kwds))
     
     @property
     def _idx(self) -> int:

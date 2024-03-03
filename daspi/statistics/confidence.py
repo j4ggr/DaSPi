@@ -168,11 +168,7 @@ def stdev_ci(
     ci_low, ci_upp : float
         lower and upper confidence level
     """
-    s2, ci_low2, ci_upp2 = variance_ci(sample, level, n_groups)
-    s = sqrt(s2)
-    ci_low = sqrt(ci_low2)
-    ci_upp = sqrt(ci_upp2)
-    return s, ci_low, ci_upp
+    return tuple(map(sqrt, variance_ci(sample, level, n_groups)))
 
 def proportion_ci(
         count: int, nobs: int, level: float = 0.95, n_groups: int = 1
@@ -206,7 +202,7 @@ def proportion_ci(
     return portion, ci_low, ci_upp
 
 def bonferroni_ci(
-        data: DataFrame, sample: str, feature: str, level: float = 0.95, 
+        data: DataFrame, target: str, feature: str, level: float = 0.95, 
         ci_func: Callable = stdev_ci, n_groups: int | None = None, 
         name: str='midpoint') -> pd.DataFrame:
     """Calculate confidence interval after bonferroni correction.
@@ -223,8 +219,8 @@ def bonferroni_ci(
     ----------
     data : pandas.DataFrame
         data frame containing sample and feature data
-    sample : str
-        name of sample data column
+    target : str
+        name of target sample data column
     feature : str
         name of categorical feature. The confidence intervals are 
         calculated separately for these groups
@@ -249,7 +245,7 @@ def bonferroni_ci(
     """
     columns = [name, 'ci_low', 'ci_upp']
     if not isinstance(feature, list): feature = [feature]
-    groups = data.groupby(feature)[sample]
+    groups = data.groupby(feature)[target]
     n_groups = n_groups if isinstance(n_groups, int) else groups.ngroups
     df = pd.DataFrame(
             groups.agg(lambda x: ci_func(x, level, n_groups)).dropna().to_list(),
@@ -281,12 +277,13 @@ def delta_mean_ci(x1: Iterable, x2: Iterable, level: float = 0.95
     ci_low, ci_upp : float
         lower and upper confidence level
     """
-    alpha = confidence_to_alpha(level, two_sided=True)                          # two sided significance level
-    n1, n2 = len(x1), len(x2)                                                   # sample sizes
-    s1, s2 = np.var(x1, ddof=1), np.var(x2, ddof=1)                             # sample variances
-    s = np.sqrt(((n1 - 1) * s1 + (n2 - 1) * s2) / (n1 + n2 - 2))                # pooled standard deviation
-    dof = n1 + n2 - 2                                                            # degrees of freedom
-    t_crit = t.ppf(1 - alpha, dof)                                               # t-critical value for 95% CI
+    alpha = confidence_to_alpha(level, two_sided=True)
+    n1, n2 = len(x1), len(x2)
+    s1, s2 = np.var(x1, ddof=1), np.var(x2, ddof=1)
+    # pooled standard deviation:
+    s = np.sqrt(((n1 - 1) * s1 + (n2 - 1) * s2) / (n1 + n2 - 2))
+    dof = n1 + n2 - 2
+    t_crit = t.ppf(1 - alpha, dof)
     m1, m2 = np.mean(x1), np.mean(x2)
     delta = m1 - m2
     ci_low = (m1 - m2) - t_crit * np.sqrt(1 / len(x1) + 1 / len(x2)) * s
@@ -294,7 +291,6 @@ def delta_mean_ci(x1: Iterable, x2: Iterable, level: float = 0.95
 
     return delta, ci_low, ci_upp
 
-#TODO: delta_variance_ci lower and upper not implemented yet
 def delta_variance_ci(x1: Iterable, x2: Iterable, level: float = 0.95
         ) -> Tuple[float, float, float]:
     """two sided confidence interval for variance difference of two
@@ -311,13 +307,49 @@ def delta_variance_ci(x1: Iterable, x2: Iterable, level: float = 0.95
     -------
     delta : float
         difference of variance of data
-    ci_low, ci_upp : np.nan
-        NOT IMPLEMENTED YET
+    ci_low, ci_upp : float
+        lower and upper confidence level
+    
+    Notes
+    -----
+    This function is a ChatGPT solution and therefore does not guarantee
+    that this solution is correct.
     """
-    s1, s2 = np.var(x1, ddof=1), np.var(x2, ddof=1)
-    delta = s1 - s2
-    return delta, np.nan, np.nan
+    alpha = confidence_to_alpha(level, two_sided=True)  
+    s2_1, s2_2 = np.var(x1, ddof=1), np.var(x2, ddof=1)
+    dof1, dof2 = len(x1) - 1, len(x2) - 1
+    delta = s2_1 - s2_2
+    F_upp = f.ppf(alpha, dof1, dof2)
+    F_low = f.ppf(1 - alpha, dof1, dof2)
+    ci_low = (s2_1 / s2_2) * F_low
+    ci_upp = (s2_1 / s2_2) * F_upp
+    return delta, ci_low, ci_upp
 
+def delta_stdev_ci(x1: Iterable, x2: Iterable, level: float = 0.95
+        ) -> Tuple[float, float, float]:
+    """two sided confidence interval for standard deviation difference 
+    of two independent variables.
+
+    Parameters
+    ----------
+    x1, x2 : array like
+        sample data, Only one-dimensional sample are accepted
+    ci : float in (0, 1), optional
+        confidence level, by default 0.95
+
+    Returns
+    -------
+    delta : float
+        difference of standard deviation of data
+    ci_low, ci_upp : float
+        lower and upper confidence level
+    
+    Notes
+    -----
+    This function is a ChatGPT solution and therefore does not guarantee
+    that this solution is correct.
+    """
+    return tuple(map(sqrt, delta_variance_ci(x1, x2, level)))
 
 def delta_proportions_ci(
         count1: int, nobs1: int, count2: int, nobs2: int,
