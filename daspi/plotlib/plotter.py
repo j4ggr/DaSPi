@@ -368,6 +368,49 @@ class _TransformPlotter(_Plotter):
     def __call__(self): ...
 
 
+class PositionLine(_TransformPlotter):
+
+    __slots__ = ('_kind')
+    _kind: Literal['mean', 'median']
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str = '',
+            kind: Literal['mean', 'median'] = 'mean',
+            f_base: int | float = PLOTTER.DEFAULT_F_BASE,
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        self.kind = kind
+        super().__init__(
+            source=source, target=target, feature=feature, f_base=f_base,
+            target_on_y=target_on_y, color=color, ax=ax, **kwds)
+
+    @property
+    def kind(self)-> Literal['mean', 'median']:
+        return self._kind
+    @kind.setter
+    def kind(self, kind: Literal['mean', 'median']):
+        assert kind in ('mean', 'median')
+        self._kind = kind
+    
+    def transform(
+            self, feature_data: float | int, target_data: Series) -> DataFrame:
+        t_value = getattr(target_data, self.kind)()
+        data = pd.DataFrame({
+            self.target: [t_value],
+            self.feature: [feature_data]})
+        return data
+    
+    def __call__(self, marker=None, **kwds) -> None:
+        alpha = None if marker is None else COLOR.MARKER_ALPHA
+        kwds = dict(c=self.color, marker=marker, alpha=alpha) | kwds
+        self.ax.plot(self.x, self.y, **kwds)
+
+
 class Bar(_TransformPlotter):
 
     __slots__ = ('method', 'kw_method', 'stack', 'width')
@@ -593,13 +636,9 @@ class Violine(GaussianKDE):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        if feature:
-            stretch = width*PLOTTER.VIOLINE_STRETCH/(2*CATEGORY.FEATURE_SPACE)
-        else:
-            stretch = 1
         super().__init__(
-            source=source, target=target, feature=feature, stretch=stretch,
-            height=None, target_on_y=target_on_y, color=color, ax=ax,
+            source=source, target=target, feature=feature,
+            height=width/2, target_on_y=target_on_y, color=color, ax=ax,
             show_density_axis=True, base_on_zero=False, **kwds)
 
     def __call__(self, **kwds) -> None:
@@ -834,12 +873,15 @@ __all__ = [
     Line.__name__,
     LinearRegression.__name__,
     Probability.__name__,
+    _TransformPlotter.__name__,
+    PositionLine.__name__,
     Bar.__name__,
     Jitter.__name__,
     GaussianKDE.__name__,
     Violine.__name__,
     Errorbar.__name__,
     StandardErrorMean.__name__,
+    ProcessRange.__name__,
     DistinctionTest.__name__,
     MeanTest.__name__,
     VariationTest.__name__,

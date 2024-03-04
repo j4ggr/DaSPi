@@ -446,10 +446,10 @@ class StripesFacets:
                 ax.axvline(value, **kwds)
             if ci is not None:
                 low, upp = ci(self.confidence)
-                if target_on_y: # TODO: add kwds
-                    ax.axhspan(low, upp)
+                if target_on_y:
+                    ax.axhspan(low, upp, **KW.STRIPES_CONFIDENCE)
                 else:
-                    ax.axvspan(low, upp)
+                    ax.axvspan(low, upp, **KW.STRIPES_CONFIDENCE)
 
 
 __all__ = [

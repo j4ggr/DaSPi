@@ -99,41 +99,41 @@ class _Kw_:
     @property
     def FIT_LINE(self) -> dict:
         """Keyword arguments for confidence interval area for fit"""
-        kw = dict(zorder=2.3, alpha=0.8)
-        return kw
+        return dict(zorder=2.3, alpha=0.8)
     @property
     def FIT_CI(self) -> dict:
         """Keyword arguments for confidence interval area for fit"""
-        kw = dict(zorder=2.2, alpha=COLOR.FILL_ALPHA, lw=0)
-        return kw
+        return dict(zorder=2.2, alpha=COLOR.FILL_ALPHA, lw=0)
     @property
     def PRED_CI(self) -> dict:
         """Keyword arguments for confidence interval area for fit"""
-        kw = dict(
+        return dict(
             zorder=2.1, alpha=COLOR.CI_ALPHA, lw=self._lw, ls=self._dashed)
-        return kw
     @property
     def PROB_PC_FORMAT(self) -> dict:
         """Keyword arguments for percentage formatter used at 
         Probability Plotter."""
-        kw = dict(xmax=1.0, decimals=None, symbol='%')
-        return kw
+        return dict(xmax=1.0, decimals=None, symbol='%')
     @property
     def MEAN_LINE(self) -> dict:
         """Keyword arguments for control limit line"""
-        return dict(lw=self._lw, ls=self._solid, color=COLOR.MEAN)
+        return dict(lw=self._lw, ls=self._solid, color=COLOR.MEAN, zorder=0.9)
     @property
     def MEDIAN_LINE(self) -> dict:
         """Keyword arguments for control limit line"""
-        return dict(lw=self._lw, ls=self._dotted, color=COLOR.MEDIAN)
+        return dict(lw=self._lw, ls=self._dotted, color=COLOR.MEDIAN, zorder=0.8)
     @property
     def CONTROL_LINE(self) -> dict:
         """Keyword arguments for control limit line"""
-        return dict(lw=self._lw, ls=self._dashed, color=COLOR.PERCENTIL)
+        return dict(lw=self._lw, ls=self._dashed, color=COLOR.PERCENTIL, zorder=0.7)
     @property
     def SECIFICATION_LINE(self) -> dict:
         """Keyword arguments for specification limit line"""
-        return dict(lw=self._lw, ls=self._dashdot, color=COLOR.BAD)
+        return dict(lw=self._lw, ls=self._dashdot, color=COLOR.BAD, zorder=0.7)
+    @property
+    def STRIPES_CONFIDENCE(self) -> dict:
+        """Keyword arguments for confidence area for stripes"""
+        return dict(alpha=COLOR.FILL_ALPHA, lw=0, zorder=0.6)
 KW = _Kw_()
 
 
