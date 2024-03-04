@@ -967,9 +967,9 @@ class TestMultipleVariateChart:
         return f'{self._sub_title}: {self.kind}'
 
     def test_full(self) -> None:
-        base = f'{self.fig_title}_full'
+        base = f'{self.fig_title}'
 
-        self.kind = 'kde'
+        self.kind = 'full'
         file_name = savedir/f'{base}_{self.kind}.png'
         chart = MultipleVariateChart(
                 source = df_affairs,
@@ -992,3 +992,30 @@ class TestMultipleVariateChart:
         chart.save(file_name).close()
         assert file_name.is_file()
 
+        base = f'{self.fig_title}'
+        self.kind = 'full-stripes'
+        file_name = savedir/f'{base}_{self.kind}.png'
+        chart = MultipleVariateChart(
+                source = df_affairs,
+                target = 'affairs',
+                feature = 'yrs_married', 
+                hue = 'rate_marriage',
+                size = 'age',
+                shape = 'educ',
+                col = 'religious',
+                row = 'children',
+            ).plot(Scatter
+            ).stripes(
+                mean = True,
+                control_limits = True,
+                confidence = 0.95,
+            ).label(
+                fig_title = 'Multiple Variate Chart',
+                sub_title = 'Affairs R Dataset',
+                feature_label = 'Years of marriage',
+                target_label = 'Amount of affairs',
+                row_title = 'Amount of children',
+                col_title = 'How religious',
+                info = 'pytest figure')
+        chart.save(file_name).close()
+        assert file_name.is_file()

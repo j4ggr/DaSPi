@@ -326,19 +326,24 @@ class AxesFacets:
     def __getitem__(self, index: int) -> Axes:
         return self.axes.flat[index]
 
+    def __len__(self) -> int:
+        return len(self.axes.flat)
+
 
 class StripesFacets:
 
     __slots__ = (
-        'estimation', 'mask', '_confidence', 'spec_limits')
+        'estimation', 'mask', '_confidence', 'spec_limits', 'single_axes')
     estimation: ProcessEstimator
     mask: Tuple[bool, ...]
     _confidence: float | None
     spec_limits: Tuple[float | int, ...]
+    single_axes: bool
     
     def __init__(
         self,
         target: Iterable,
+        single_axes: bool, 
         mean: bool = False,
         median: bool = False,
         control_limits: bool = False,
@@ -346,8 +351,9 @@ class StripesFacets:
         confidence: float | None = None,
         **kwds) -> None:
         assert len(spec_limits) == 2, (
-            'Specification limits must contain 2 values, '
+            f'Specification limits must contain 2 values, got {spec_limits}. '
             'Set None for limits that do not exist')
+        self.single_axes = single_axes
         self.spec_limits = spec_limits
         self._confidence = confidence
         self.mask = (
@@ -406,8 +412,11 @@ class StripesFacets:
             ucl = r'x_{' + f'{self.estimation._q_upp:.4f}' + '}'
         labels = self._filter(
             (r'\bar x', r'x_{0.5}', lcl, ucl, STR['lsl'], STR['usl']))
-        labels = tuple(
-            f'${l}={v:.{self._d}f}$' for l, v in zip(labels, self.values))
+        if self.single_axes:
+            labels = tuple(
+                f'${l}={v:.{self._d}f}$' for l, v in zip(labels, self.values))
+        else:
+            labels = tuple(f'${l}$' for l in labels)
         if self._confidence is not None:
             labels = labels + (f'{100*self.confidence:.0f} %-{STR["ci"]}',)
         return labels

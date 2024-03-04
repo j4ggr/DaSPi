@@ -484,7 +484,8 @@ class SimpleChart(_Chart):
     
     def stripes(
             self, mean: bool = False, median: bool = False,
-            control_limits: bool = False, spec_limits: Tuple[float] = (), 
+            control_limits: bool = False, 
+            spec_limits: Tuple[float | None, float | None] = (None, None), 
             confidence: float | None = None, **kwds) -> Self:
         """Plot stripes on the chart axes.
 
@@ -523,8 +524,9 @@ class SimpleChart(_Chart):
         parameters and keyword arguments.
         """
         target = kwds.pop('target', self.source[self.target])
+        single_axes = len(self.axes_facets) == 1
         self.stripes_facets = StripesFacets(
-            target=target, mean=mean, median=median,
+            target=target, single_axes=single_axes, mean=mean, median=median,
             control_limits=control_limits, spec_limits=spec_limits,
             confidence=confidence, **kwds)
         self.stripes_facets.draw(
@@ -753,7 +755,8 @@ class JointChart(_Chart):
     
     def stripes(
             self, mean: bool = False, median: bool = False,
-            control_limits: bool = False, spec_limits: Tuple[float] = (), 
+            control_limits: bool = False, 
+            spec_limits: Tuple[float | None, float | None] = (None, None), 
             confidence: float | None = None, **kwds) -> Self:
         """Plot stripes on the chart axes.
 
@@ -945,7 +948,8 @@ class MultipleVariateChart(SimpleChart):
     
     def stripes(
             self, mean: bool = False, median: bool = False,
-            control_limits: bool = False, spec_limits: Tuple[float] = (), 
+            control_limits: bool = False, 
+            spec_limits: Tuple[float | None, float | None] = (None, None), 
             confidence: float | None = None, **kwds) -> Self:
         for ax, axes_data in zip(self.axes_facets, self._axes_data_()):
             super().stripes(
