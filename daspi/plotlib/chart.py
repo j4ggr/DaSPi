@@ -912,6 +912,12 @@ class MultipleVariateChart(SimpleChart):
                 return True
         return False
     
+    def _categorical_feature_axis_(self) -> None:
+        """Set one major tick for each category and label it. Hide 
+        major grid and set one minor grid for feature axis."""
+        for ax in self.axes_facets:
+            super()._categorical_feature_axis_()
+    
     def _axes_data_(self) -> Generator[Series, Self, None]:
         """Generate all target data of each axes in one Series there are
         multiple axes, otherwise yield the entire target column.
@@ -949,12 +955,16 @@ class MultipleVariateChart(SimpleChart):
     def stripes(
             self, mean: bool = False, median: bool = False,
             control_limits: bool = False, 
-            spec_limits: Tuple[float | None, float | None] = (None, None), 
+            spec_limits: Tuple[float, float] | Tuple[Tuple] = (None, None), 
             confidence: float | None = None, **kwds) -> Self:
-        for ax, axes_data in zip(self.axes_facets, self._axes_data_()):
+        if not isinstance(spec_limits[0], tuple):
+            spec_limits = tuple(spec_limits for _ in len(self.axes_facets))
+        for ax, axes_data, limits in zip(self.axes_facets,
+                                         self._axes_data_(),
+                                         spec_limits):
             super().stripes(
                 target=axes_data, mean=mean, median=median, 
-                control_limits=control_limits, spec_limits=spec_limits,
+                control_limits=control_limits, spec_limits=limits,
                 confidence=confidence, **kwds)
         return self
                 
