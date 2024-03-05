@@ -103,6 +103,10 @@ class _Plotter(ABC):
 
 class Scatter(_Plotter):
 
+    __slots__ = ('marker', 'size')
+    marker: str | None
+    size: Iterable[int] | None
+    
     def __init__(
             self,
             source: Hashable,
@@ -117,8 +121,8 @@ class Scatter(_Plotter):
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
-        self.size = size
         self.marker = marker
+        self.size = size
     
     def __call__(self, **kwds) -> None:
         kwds = dict(
@@ -324,6 +328,7 @@ class _TransformPlotter(_Plotter):
 
     __slots__ = ('_f_base')
     _f_base: int | float
+    source: DataFrame
     
     def __init__(
             self,
@@ -368,10 +373,15 @@ class _TransformPlotter(_Plotter):
     def __call__(self): ...
 
 
-class PositionLine(_TransformPlotter):
+class Location(_TransformPlotter):
 
-    __slots__ = ('_kind')
+    __slots__ = ('_kind', 'show_line', 'show_points', 'marker')
     _kind: Literal['mean', 'median']
+    points: bool
+    show_line: bool
+    show_points: bool
+    marker: str | None
+    source: DataFrame
 
     def __init__(
             self,
@@ -379,15 +389,21 @@ class PositionLine(_TransformPlotter):
             target: str,
             feature: str = '',
             kind: Literal['mean', 'median'] = 'mean',
+            marker: str | None = None,
+            show_line: bool = True,
+            show_points: bool = True,
             f_base: int | float = PLOTTER.DEFAULT_F_BASE,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        self.kind = kind
         super().__init__(
             source=source, target=target, feature=feature, f_base=f_base,
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
+        self.kind = kind
+        self.show_line = show_line
+        self.show_points = show_points
+        self.marker = marker if marker else plt.rcParams['scatter.marker']
 
     @property
     def kind(self)-> Literal['mean', 'median']:
@@ -405,9 +421,13 @@ class PositionLine(_TransformPlotter):
             self.feature: [feature_data]})
         return data
     
-    def __call__(self, marker=None, **kwds) -> None:
+    def __call__(self, **kwds) -> None:
+        marker = self.marker if self.show_points else ''
+        linestyle = plt.rcParams['lines.linestyle'] if self.show_line else ''
         alpha = None if marker is None else COLOR.MARKER_ALPHA
-        kwds = dict(c=self.color, marker=marker, alpha=alpha) | kwds
+        kwds = dict(
+            c=self.color, marker=marker, linestyle=linestyle, alpha=alpha
+            ) | kwds
         self.ax.plot(self.x, self.y, **kwds)
 
 
@@ -738,7 +758,7 @@ class StandardErrorMean(Errorbar):
         return data
 
 
-class ProcessRange(Errorbar):
+class SpreadWidth(Errorbar):
 
     __slots__ = ('strategy', 'agreement', 'possible_dists')
     strategy: str
@@ -874,14 +894,14 @@ __all__ = [
     LinearRegression.__name__,
     Probability.__name__,
     _TransformPlotter.__name__,
-    PositionLine.__name__,
+    Location.__name__,
     Bar.__name__,
     Jitter.__name__,
     GaussianKDE.__name__,
     Violine.__name__,
     Errorbar.__name__,
     StandardErrorMean.__name__,
-    ProcessRange.__name__,
+    SpreadWidth.__name__,
     DistinctionTest.__name__,
     MeanTest.__name__,
     VariationTest.__name__,

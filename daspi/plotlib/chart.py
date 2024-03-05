@@ -920,7 +920,8 @@ class MultipleVariateChart(SimpleChart):
     
     def _axes_data_(self) -> Generator[Series, Self, None]:
         """Generate all target data of each axes in one Series there are
-        multiple axes, otherwise yield the entire target column.
+        multiple axes, otherwise yield the entire target column. This
+        function ensures also the current axes of `axes_facets`.
 
         This method serves as a generator function that yields grouped 
         data based on the `row` and `col` attribute if they are set. 
@@ -934,7 +935,7 @@ class MultipleVariateChart(SimpleChart):
         """
         columns = [c for c in (self.row, self.col) if c]
         grouper = self.source.groupby(columns) if columns else (self.source, )
-        for _, data in grouper:
+        for _, (_, data) in zip(self.axes_facets, grouper):
             axes_data = data[self.target]
             yield axes_data
 
@@ -959,15 +960,13 @@ class MultipleVariateChart(SimpleChart):
             confidence: float | None = None, **kwds) -> Self:
         if not isinstance(spec_limits[0], tuple):
             spec_limits = tuple(spec_limits for _ in len(self.axes_facets))
-        for ax, axes_data, limits in zip(self.axes_facets,
-                                         self._axes_data_(),
-                                         spec_limits):
+        for axes_data, limits in zip(self._axes_data_(), spec_limits):
             super().stripes(
                 target=axes_data, mean=mean, median=median, 
                 control_limits=control_limits, spec_limits=limits,
                 confidence=confidence, **kwds)
         return self
-                
+
     def label(
             self, feature_label: str, target_label: str,
             fig_title: str = '', sub_title: str = '', 
