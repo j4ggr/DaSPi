@@ -134,6 +134,18 @@ class _Kw_:
     def STRIPES_CONFIDENCE(self) -> dict:
         """Keyword arguments for confidence area for stripes"""
         return dict(alpha=COLOR.FILL_ALPHA, lw=0, zorder=0.6)
+    @property
+    def PARETO_H(self) -> dict:
+        """Keyword arguments for adding percentage texts in pareto chart.
+        Use `PARETO_V` if `target_on_y' is True."""
+        return dict(va='bottom', ha='center', color=plt.rcParams['grid.color'])
+    @property
+    def PARETO_H(self) -> dict:
+        """Keyword arguments for adding percentage texts in pareto chart.
+        Use `PARETO_H` if `target_on_y' is False."""
+        return dict(
+            va='center', ha='left', color=plt.rcParams['grid.color'],
+            rotation=-90)
 KW = _Kw_()
 
 
@@ -193,6 +205,8 @@ class _Plotter_:
     UCL: str = '_ucl_'
     MEAN: str = '_mean_'
     MEDIAN: str = '_median_'
+    PARETO_N_TICKS: int = 11
+    PARETO_AXLIM_FACTOR: float = 1.05
     @property
     def REGRESSION_CI_NAMES(self) -> Tuple[str, str, str, str]:
         """Get names for regression confidences in order

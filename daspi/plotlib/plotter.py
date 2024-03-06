@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from abc import ABC
 from abc import abstractmethod
 
+from typing import Any
 from typing import Self
 from typing import List
 from typing import Tuple
@@ -499,7 +500,8 @@ class Bar(_TransformPlotter):
         else:
             t_value = target_data
             assert len(t_value) <= 1, (
-                'Each feature level must contain only one target value')
+                'Each feature level must contain only one target value, '
+                'as the length of the bar')
         
         data = pd.DataFrame({
             self.target: t_value,
@@ -513,6 +515,79 @@ class Bar(_TransformPlotter):
         else:
             self.ax.barh(
                 self.y, self.x, height=self.width, left=self.t_base, **kwds)
+
+
+class Pareto(Bar):
+
+    __slots__ = ('highlight', 'highlight_color', 'highlighted_as_last')
+    highlight: Any
+    highlight_color: str
+    highlighted_as_last: bool
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str,
+            highlight: Any = None,
+            highlight_color: str = COLOR.BAD,
+            highlighted_as_last: bool = True,
+            width: float = CATEGORY.FEATURE_SPACE,
+            method: str | None = None,
+            kw_method: dict = {},
+            f_base: int | float = PLOTTER.DEFAULT_F_BASE,
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        
+        self.highlight = highlight
+        self.highlight_color = highlight_color
+        self.highlighted_as_last = highlighted_as_last
+        
+        super().__init__(
+            source=source, target=target, feature=feature, stack=False,
+            width=width, method=method, kw_method=kw_method, f_base=f_base,
+            target_on_y=target_on_y, color=color, ax=ax, **kwds)
+
+        df = (self.source
+            .sort_values(self.target, ascending= not self.target_on_y)
+            .reset_index(drop=True))
+        if highlighted_as_last:
+            idx = [i for i, v in df[self.feature].items() if v == highlight]
+            df = df.loc[df.index.to_list() + idx, :].reset_index(drop=True)
+        self.source = df
+
+    def add_percentage_texts(self) -> None:
+        """Add percentage texts on top of major grids"""
+        n_texts = PLOTTER.PARETO_N_TICKS-1
+        max_value = self.source[self.target].sum()
+        ticks = np.linspace(0, max_value, PLOTTER.PARETO_N_TICKS)
+        positions = np.linspace(0.1, 1, n_texts)
+        texts = [f'{int(pc)} %' for pc in np.linspace(10, 100, n_texts)]
+        
+        if self.target_on_y:
+            self.ax.set_yticks(ticks)
+            self.ax.set_ylim(top=max_value*PLOTTER.PARETO_AXLIM_FACTOR)
+            for pos, text in zip(positions, texts):
+                self.ax.text(
+                    PLOTTER.PARETO_TEXT_POS, pos, text,
+                    transform=self.ax.transAxes, **KW.PARETO_V)
+        else:
+            self.ax.set_xticks(ticks)
+            self.ax.set_xlim(right=max_value*PLOTTER.PARETO_AXLIM_FACTOR)
+            for pos, text in zip(positions, texts):
+                self.ax.text(
+                    pos, PLOTTER.PARETO_TEXT_POS, text,
+                    transform=self.ax.transAxes, **KW.PARETO_H)
+        self.ax.has_pc_texts = True
+
+    def __call__(self, **kwds) -> None:
+        super().__call__(**kwds)
+        self.ax.plot(self.x, self.y, color=self.color)
+        if hasattr(self.ax, 'has_pc_texts'):
+            return
+        self.add_percentage_texts()
 
 
 class Jitter(_TransformPlotter):
