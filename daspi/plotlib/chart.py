@@ -299,12 +299,15 @@ class SimpleChart(Chart):
             shape: str = '',
             size: str = '', 
             categorical_features: bool = False,
+            target_on_y: bool = True,
             **kwds) -> None:
         self.categorical_features = categorical_features or dodge
         self.hue = hue
         self.shape = shape
         self.size = size
-        super().__init__(source=source, target=target, feature=feature, **kwds)
+        super().__init__(
+            source=source, target=target, feature=feature,
+            target_on_y=target_on_y, **kwds)
         self.coloring = HueLabel(self.get_categorical_labels(self.hue))
         feature_tick_labels = ()
         if self.categorical_features:
@@ -413,7 +416,7 @@ class SimpleChart(Chart):
         axis.grid(True, which='minor')
         axis.grid(False, which='major')
     
-    def _categorical_feature_ticks_(self) -> None:
+    def _categorical_feature_ticks_(self) -> None: #TODO: consider original features for certain plots
         """Set one major tick for each category and label it."""
         xy = 'x' if self.target_on_y else 'y'
         _ticks = self.dodging.ticks
@@ -959,7 +962,7 @@ class MultipleVariateChart(SimpleChart):
             spec_limits: Tuple[float, float] | Tuple[Tuple] = (None, None), 
             confidence: float | None = None, **kwds) -> Self:
         if not isinstance(spec_limits[0], tuple):
-            spec_limits = tuple(spec_limits for _ in len(self.axes_facets))
+            spec_limits = tuple(spec_limits for _ in self.axes_facets)
         for axes_data, limits in zip(self._axes_data_(), spec_limits):
             super().stripes(
                 target=axes_data, mean=mean, median=median, 

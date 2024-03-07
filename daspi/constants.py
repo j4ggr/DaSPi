@@ -135,17 +135,19 @@ class _Kw_:
         """Keyword arguments for confidence area for stripes"""
         return dict(alpha=COLOR.FILL_ALPHA, lw=0, zorder=0.6)
     @property
-    def PARETO_H(self) -> dict:
-        """Keyword arguments for adding percentage texts in pareto chart.
-        Use `PARETO_V` if `target_on_y' is True."""
-        return dict(va='bottom', ha='center', color=plt.rcParams['grid.color'])
-    @property
-    def PARETO_H(self) -> dict:
+    def PARETO_V(self) -> dict:
         """Keyword arguments for adding percentage texts in pareto chart.
         Use `PARETO_H` if `target_on_y' is False."""
         return dict(
-            va='center', ha='left', color=plt.rcParams['grid.color'],
-            rotation=-90)
+            x=1, va='bottom', ha='right', color=plt.rcParams['text.color'],
+            fontsize='small', zorder=0.1)
+    @property
+    def PARETO_H(self) -> dict:
+        """Keyword arguments for adding percentage texts in pareto chart.
+        Use `PARETO_V` if `target_on_y' is True."""
+        return dict(
+            y=1, va='top', ha='left', color=plt.rcParams['text.color'],
+            fontsize='small', rotation=-90, zorder=0.1)
 KW = _Kw_()
 
 
@@ -188,8 +190,9 @@ LABEL = _Label_()
 
 @dataclass(frozen=True)
 class _Plotter_:
-    FEATURE: float = '_feature_'
-    TRANSFORMED_FEATURE: float = '_transformed_'
+    FEATURE: str = '_feature_'
+    FEATURE_ORIGINAL: str = '_feature_original_'
+    TRANSFORMED_FEATURE: str = '_transformed_'
     F_BASE_NAME: str = '_base_'
     DEFAULT_F_BASE: int = 0
     ERR_LOW: str = '_error_lower_'
@@ -219,7 +222,6 @@ class _Plotter_:
             self.PRED_CI_LOW, self.PRED_CI_UPP)
         return names
 PLOTTER = _Plotter_()
-
 
 @dataclass(frozen=True)
 class _Category_:

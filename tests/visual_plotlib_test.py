@@ -134,7 +134,6 @@ class TestSimpleChart:
         assert STR.USERNAME in texts[4].get_text()
         assert self.info_msg not in info_msg
 
-
         self.kind = 'hue_size'
         file_name = savedir/f'{base}_{self.kind}.png'
         chart =SimpleChart(
@@ -337,7 +336,6 @@ class TestSimpleChart:
         assert STR.USERNAME in info_msg
         assert self.info_msg not in info_msg
 
-
         self.kind = 'hue-shape'
         file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
@@ -370,7 +368,6 @@ class TestSimpleChart:
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg not in info_msg
-
 
         self.kind = 'size-shape'
         file_name = savedir/f'{base}_{self.kind}.png'
@@ -437,6 +434,68 @@ class TestSimpleChart:
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target_label
         assert texts[3].get_text() == self.feature_label
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+    
+    def test_pareto_plot(self) -> None:
+        base = f'{self.fig_title}_pareto'
+
+        self.kind = 'simple'
+        file_name = savedir/f'{base}_{self.kind}.png'
+        chart = SimpleChart(
+                df_travel,
+                target = self.target,
+                feature = self.cat1,
+            ).plot(
+                Pareto, method='sum'  
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = self.target_label,
+                info = self.info_msg
+            ).save(file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert file_name.is_file()
+        assert len(texts) == 5
+        assert chart.label_facets.legend_box is None
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == self.sub_title
+        assert texts[2].get_text() == self.target_label
+        assert texts[3].get_text() == self.cat1
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+
+        self.kind = 'transposed'
+        file_name = savedir/f'{base}_{self.kind}.png'
+        chart = SimpleChart(
+                df_travel,
+                target = self.target,
+                feature = self.cat1,
+                target_on_y = False
+            ).plot(
+                Pareto, method='sum'  
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = self.target_label,
+                info = self.info_msg
+            ).save(file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert file_name.is_file()
+        assert len(texts) == 5
+        assert chart.label_facets.legend_box is None
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == self.sub_title
+        assert texts[2].get_text() == self.cat1
+        assert texts[3].get_text() == self.target_label
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg

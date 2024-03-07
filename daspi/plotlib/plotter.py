@@ -327,9 +327,10 @@ class Probability(LinearRegression):
 
 class _TransformPlotter(Plotter):
 
-    __slots__ = ('_f_base')
+    __slots__ = ('_f_base', '_original_f_values')
     _f_base: int | float
     source: DataFrame
+    _original_f_values: tuple
     
     def __init__(
             self,
@@ -344,11 +345,13 @@ class _TransformPlotter(Plotter):
         self._f_base = f_base
         self.target = target
         self.feature = feature
+        self._original_f_values = ()
         
         df = pd.DataFrame()
         for _feature, _target in self.feature_grouped(source):
             _data = self.transform(_feature, _target)
             df = pd.concat([df, _data], axis=0)
+        df.reset_index(drop=True, inplace=True)
 
         super().__init__(
             source=df, target=target, feature=feature,
@@ -360,9 +363,11 @@ class _TransformPlotter(Plotter):
             grouper = source.groupby(self.feature, sort=True)
             for i, (f_value, group) in enumerate(grouper, start=1):
                 f_base = f_value if isinstance(f_value, (float, int)) else i
+                self._original_f_values = self._original_f_values + (f_value, )
                 yield f_base, group[self.target]
         else:
             self.feature = PLOTTER.TRANSFORMED_FEATURE
+            self._original_f_values = (self._f_base, )
             yield self._f_base, source[self.target]
     
     @abstractmethod
@@ -549,44 +554,80 @@ class Pareto(Bar):
             source=source, target=target, feature=feature, stack=False,
             width=width, method=method, kw_method=kw_method, f_base=f_base,
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
-
-        df = (self.source
+        self.source[PLOTTER.FEATURE_ORIGINAL] = self._original_f_values
+        self.source[self.feature] = np.arange(len(self.original_f_values)) + 1
+    
+    @property
+    def indices(self) -> List[int]:
+        """Get the source data index so that the target is in a
+        descending order"""
+        indices = (self.source
             .sort_values(self.target, ascending= not self.target_on_y)
-            .reset_index(drop=True))
-        if highlighted_as_last:
-            idx = [i for i, v in df[self.feature].items() if v == highlight]
-            df = df.loc[df.index.to_list() + idx, :].reset_index(drop=True)
-        self.source = df
+            .index.to_list())
+        if self.highlighted_as_last and self.highlight is not None:
+            items = self.source[PLOTTER.FEATURE_ORIGINAL].items()
+            idx_last = [i for i, v in items if v == self.highlight]
+            indices = [i for i in indices if i not in idx_last] + idx_last
+        return indices
+    
+    @property
+    def original_f_values(self) -> Series:
+        """Get original feature values in order of plotted data"""
+        return self.source.loc[self.indices, PLOTTER.FEATURE_ORIGINAL]
+    
+    @property
+    def x(self):
+        """Get values used for x axis so that the target is in a
+        descending order"""
+        if self.target_on_y:
+            return self.source[self.feature]
+        else:
+            return self.source.loc[self.indices, self.target][::-1]
+    
+    @property
+    def y(self):
+        """Get values used for y axis so that the target is in a
+        descending order"""
+        if not self.target_on_y:
+            return self.source[self.feature][::-1]
+        else:
+            return self.source.loc[self.indices, self.target]
 
     def add_percentage_texts(self) -> None:
         """Add percentage texts on top of major grids"""
+        if hasattr(self.ax, 'has_pc_texts'):
+            return
+        
         n_texts = PLOTTER.PARETO_N_TICKS-1
         max_value = self.source[self.target].sum()
         ticks = np.linspace(0, max_value, PLOTTER.PARETO_N_TICKS)
-        positions = np.linspace(0.1, 1, n_texts)
+        positions = np.linspace(0.1, 1, n_texts)/PLOTTER.PARETO_AXLIM_FACTOR
         texts = [f'{int(pc)} %' for pc in np.linspace(10, 100, n_texts)]
-        
         if self.target_on_y:
             self.ax.set_yticks(ticks)
             self.ax.set_ylim(top=max_value*PLOTTER.PARETO_AXLIM_FACTOR)
             for pos, text in zip(positions, texts):
                 self.ax.text(
-                    PLOTTER.PARETO_TEXT_POS, pos, text,
-                    transform=self.ax.transAxes, **KW.PARETO_V)
+                    y=pos, s=text, transform=self.ax.transAxes, **KW.PARETO_V)
         else:
             self.ax.set_xticks(ticks)
             self.ax.set_xlim(right=max_value*PLOTTER.PARETO_AXLIM_FACTOR)
             for pos, text in zip(positions, texts):
                 self.ax.text(
-                    pos, PLOTTER.PARETO_TEXT_POS, text,
-                    transform=self.ax.transAxes, **KW.PARETO_H)
+                    x=pos, s=text, transform=self.ax.transAxes, **KW.PARETO_H)
         self.ax.has_pc_texts = True
 
     def __call__(self, **kwds) -> None:
-        super().__call__(**kwds)
-        self.ax.plot(self.x, self.y, color=self.color)
-        if hasattr(self.ax, 'has_pc_texts'):
-            return
+        if self.target_on_y:
+            self.ax.bar(self.x, self.y, width=self.width, **kwds)
+            self.ax.plot(
+                self.x, self.y.cumsum(), color=self.color,
+                marker=plt.rcParams['scatter.marker'])
+        else:
+            self.ax.barh(self.y, self.x, height=self.width, **kwds)
+            self.ax.plot(
+                self.x.cumsum(), self.y, color=self.color,
+                marker=plt.rcParams['scatter.marker'])
         self.add_percentage_texts()
 
 
