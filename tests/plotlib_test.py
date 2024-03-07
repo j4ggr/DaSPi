@@ -13,7 +13,7 @@ from pandas.core.frame import DataFrame
 
 sys.path.append(Path(__file__).parent.resolve())
 
-from daspi._constants import CATEGORY
+from daspi.constants import CATEGORY
 from daspi.plotlib.utils import Dodger
 from daspi.plotlib.utils import HueLabel
 from daspi.plotlib.utils import SizeLabel

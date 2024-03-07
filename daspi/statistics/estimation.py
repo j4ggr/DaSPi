@@ -26,8 +26,8 @@ from .hypothesis import mean_stability_test
 from .hypothesis import anderson_darling_test
 from .hypothesis import variance_stability_test
 from .hypothesis import kolmogorov_smirnov_test
-from .._constants import DIST
-from .._constants import PLOTTER
+from ..constants import DIST
+from ..constants import PLOTTER
 
 
 class Estimator:

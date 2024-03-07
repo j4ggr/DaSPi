@@ -16,8 +16,8 @@ from matplotlib.ticker import PercentFormatter
 
 sys.path.append(Path(__file__).parent.resolve())
 
-from daspi._strings import STR
-from daspi._constants import PLOTTER
+from daspi.strings import STR
+from daspi.constants import PLOTTER
 from daspi.plotlib.chart import SimpleChart
 from daspi.plotlib.chart import JointChart
 from daspi.plotlib.chart import MultipleVariateChart

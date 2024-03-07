@@ -61,9 +61,9 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.ticker import AutoMinorLocator
 
-from .._strings import STR
-from .._constants import KW
-from .._constants import COLOR
+from ..strings import STR
+from ..constants import KW
+from ..constants import COLOR
 
 
 class _Chart(ABC):   

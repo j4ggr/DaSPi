@@ -33,11 +33,11 @@ from pandas.api.types import is_scalar
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
-from .._constants import KW
-from .._constants import DIST
-from .._constants import COLOR
-from .._constants import PLOTTER
-from .._constants import CATEGORY
+from ..constants import KW
+from ..constants import DIST
+from ..constants import COLOR
+from ..constants import PLOTTER
+from ..constants import CATEGORY
 from ..statistics.confidence import fit_ci
 from ..statistics.confidence import mean_ci
 from ..statistics.confidence import stdev_ci
@@ -971,6 +971,7 @@ __all__ = [
     _TransformPlotter.__name__,
     Location.__name__,
     Bar.__name__,
+    Pareto.__name__,
     Jitter.__name__,
     GaussianKDE.__name__,
     Violine.__name__,

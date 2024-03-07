@@ -15,8 +15,8 @@ from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
-from .._constants import KW
-from .._constants import CATEGORY
+from ..constants import KW
+from ..constants import CATEGORY
 
 
 def add_second_axis(# TODO remove if not needed

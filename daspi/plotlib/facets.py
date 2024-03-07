@@ -15,10 +15,10 @@ from matplotlib.legend import Legend
 from matplotlib.artist import Artist
 from matplotlib.patches import Patch
 
-from .._strings import STR
-from .._constants import KW
-from .._constants import LABEL
-from .._constants import DEFAULT
+from ..strings import STR
+from ..constants import KW
+from ..constants import LABEL
+from ..constants import DEFAULT
 from ..statistics.estimation import ProcessEstimator
 
 
