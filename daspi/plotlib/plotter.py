@@ -47,7 +47,7 @@ from ..statistics.confidence import prediction_ci
 from ..statistics.estimation import estimate_kernel_density
 
 
-class _Plotter(ABC):
+class Plotter(ABC):
 
     __slots__ = (
         'source', 'target', 'feature', '_color', 'target_on_y', 'fig', 'ax')
@@ -102,7 +102,7 @@ class _Plotter(ABC):
     def __call__(self):...
 
 
-class Scatter(_Plotter):
+class Scatter(Plotter):
 
     __slots__ = ('marker', 'size')
     marker: str | None
@@ -132,7 +132,7 @@ class Scatter(_Plotter):
         self.ax.scatter(self.x, self.y, **kwds)
 
 
-class Line(_Plotter):
+class Line(Plotter):
 
     def __init__(
             self,
@@ -153,7 +153,7 @@ class Line(_Plotter):
         self.ax.plot(self.x, self.y, **kwds)
             
 
-class LinearRegression(_Plotter):
+class LinearRegression(Plotter):
 
     __slots__ = (
         'model', 'target_fit', 'show_center', 'show_fit_ci', 'show_pred_ci')
@@ -325,7 +325,7 @@ class Probability(LinearRegression):
         self.format_axis()
 
 
-class _TransformPlotter(_Plotter):
+class _TransformPlotter(Plotter):
 
     __slots__ = ('_f_base')
     _f_base: int | float
@@ -963,7 +963,7 @@ class VariationTest(DistinctionTest):
 
                 
 __all__ = [
-    _Plotter.__name__,
+    Plotter.__name__,
     Scatter.__name__,
     Line.__name__,
     LinearRegression.__name__,

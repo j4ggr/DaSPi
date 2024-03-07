@@ -8,7 +8,7 @@ support for single-variable charts, joint charts combining multiple
 variables, and charts with multiple variables simultaneously.
 
 Classes:
-- _Chart: Abstract base class for creating chart visualizations.
+- Chart: Abstract base class for creating chart visualizations.
 - SimpleChart: Represents a basic chart visualization with customizable 
 features.
 - JointChart: Represents a joint chart visualization combining multiple 
@@ -56,7 +56,7 @@ from .utils import ShapeLabel
 from .facets import AxesFacets
 from .facets import LabelFacets
 from .facets import StripesFacets
-from .plotter import _Plotter
+from .plotter import Plotter
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.ticker import AutoMinorLocator
@@ -66,7 +66,7 @@ from ..constants import KW
 from ..constants import COLOR
 
 
-class _Chart(ABC):   
+class Chart(ABC):   
     """
     Abstract base class for creating chart visualizations.
 
@@ -100,7 +100,7 @@ class _Chart(ABC):
     xlabel, ylabel : str (read-only)
         Get the label for the x or y axis (set with the `set_axis_label` 
         method).
-    plots : list of _Plotter (read-only)
+    plots : list of Plotter (read-only)
         Plotter objects used in the `plot` method.
     """
 
@@ -120,7 +120,7 @@ class _Chart(ABC):
     _data: DataFrame
     _xlabel: str
     _ylabel: str
-    _plots: List[_Plotter]
+    _plots: List[Plotter]
 
     def __init__(
             self, source: DataFrame, target: str | Tuple[str], 
@@ -171,7 +171,7 @@ class _Chart(ABC):
         return self._ylabel
     
     @property
-    def plots(self) -> List[_Plotter]:
+    def plots(self) -> List[Plotter]:
         """Get plotter objects used in `plot` method"""
         return self._plots
     
@@ -216,7 +216,7 @@ class _Chart(ABC):
         return next(self)
     
     @abstractmethod
-    def plot(self, plotter: _Plotter): ...
+    def plot(self, plotter: Plotter): ...
 
     @abstractmethod
     def stripes(self, **stripes): ...
@@ -235,11 +235,11 @@ class _Chart(ABC):
         return self
 
 
-class SimpleChart(_Chart):
+class SimpleChart(Chart):
     """
     Represents a basic chart visualization with customizable features.
 
-    Inherits from _Chart.
+    Inherits from Chart.
 
     Attributes
     ----------
@@ -456,12 +456,12 @@ class SimpleChart(_Chart):
         self._reset_variate_()
 
     def plot(
-            self, plotter: _Plotter, **kwds) -> Self:
+            self, plotter: Plotter, **kwds) -> Self:
         """Plot the chart.
 
         Parameters
         ----------
-        plotter : _Plotter
+        plotter : Plotter
             The plotter object.
         **kwds:
             Additional keyword arguments for the plotter object.
@@ -571,12 +571,12 @@ class SimpleChart(_Chart):
         return self
 
 
-class JointChart(_Chart):
+class JointChart(Chart):
     """
     Represents a joint chart visualization combining multiple 
     SimpleCharts.
 
-    Inherits from _Chart.
+    Inherits from Chart.
 
     Attributes
     ----------
@@ -741,7 +741,7 @@ class JointChart(_Chart):
         return super()._data_genenator_()
         
     def plot(
-            self, plotters_kwds: List[Tuple[_Plotter | None, Dict]],
+            self, plotters_kwds: List[Tuple[Plotter | None, Dict]],
             hide_none: bool = True) -> Self:
         _axs = iter(self.axes_facets)
         for chart, (plotter, kwds) in zip(self.itercharts(), plotters_kwds):
@@ -939,7 +939,7 @@ class MultipleVariateChart(SimpleChart):
             axes_data = data[self.target]
             yield axes_data
 
-    def plot(self, plotter: _Plotter, **kwds) -> Self:
+    def plot(self, plotter: Plotter, **kwds) -> Self:
         ax = None
         _ax = iter(self.axes_facets)
         for data in self:
