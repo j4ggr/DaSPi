@@ -16,6 +16,7 @@ from matplotlib.ticker import PercentFormatter
 
 sys.path.append(Path(__file__).parent.resolve())
 
+from daspi import load_dataset
 from daspi.strings import STR
 from daspi.constants import COLOR
 from daspi.plotlib.chart import JointChart
@@ -1144,5 +1145,9 @@ class TestMultipleVariateChart:
 
     def test_blant_altmann_plot(self) -> None:
         self.base = f'{self.fig_title}'
-
+        raise NotImplementedError
+        df = load_dataset('blandaltman')
         self.kind = 'created'
+        chart = SimpleChart(
+                source = df_affairs
+            )

@@ -416,7 +416,7 @@ class SimpleChart(Chart):
         axis.grid(True, which='minor')
         axis.grid(False, which='major')
     
-    def _categorical_feature_ticks_(self) -> None: #TODO: consider original features for certain plots
+    def _categorical_feature_ticks_(self) -> None:
         """Set one major tick for each category and label it."""
         xy = 'x' if self.target_on_y else 'y'
         _ticks = self.dodging.ticks

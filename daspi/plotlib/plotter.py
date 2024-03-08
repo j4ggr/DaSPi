@@ -721,6 +721,23 @@ class Jitter(TransformPlotter):
         kwds = dict(color=self.color) | kwds
         self.ax.scatter(self.x, self.y, **kwds)
 
+#TODO: implement BlandAltman Plotter
+class BlandAltman(TransformPlotter):
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str = '',
+            f_base: int | float = PLOTTER.DEFAULT_F_BASE,
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        raise NotImplementedError
+        super().__init__(
+            source=source, target=target, feature=feature, f_base=f_base,
+            target_on_y=target_on_y, color=color, ax=ax, **kwds)
 
 class GaussianKDE(TransformPlotter):
 
