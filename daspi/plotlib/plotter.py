@@ -327,7 +327,7 @@ class Probability(LinearRegression):
         self.format_axis()
 
 
-class _TransformPlotter(Plotter):
+class TransformPlotter(Plotter):
 
     __slots__ = ('_f_base', '_original_f_values')
     _f_base: int | float
@@ -354,15 +354,9 @@ class _TransformPlotter(Plotter):
             _data = self.transform(_feature, _target)
             df = pd.concat([df, _data], axis=0)
         df.reset_index(drop=True, inplace=True)
-        df[PLOTTER.FEATURE_ORIGINAL] = self._original_f_values
         super().__init__(
             source=df, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
-    
-    @property
-    def original_f_values(self) -> Series:
-        """Get original feature values"""
-        return self.source[PLOTTER.FEATURE_ORIGINAL]
     
     def feature_grouped(
             self, source: DataFrame) -> Generator[Tuple, Self, None]:
@@ -386,7 +380,7 @@ class _TransformPlotter(Plotter):
     def __call__(self): ...
 
 
-class Location(_TransformPlotter):
+class Location(TransformPlotter):
 
     __slots__ = ('_kind', 'show_line', 'show_points', 'marker')
     _kind: Literal['mean', 'median']
@@ -444,7 +438,7 @@ class Location(_TransformPlotter):
         self.ax.plot(self.x, self.y, **kwds)
 
 
-class Bar(_TransformPlotter):
+class Bar(TransformPlotter):
 
     __slots__ = ('method', 'kw_method', 'stack', 'width')
     method: str | None
@@ -563,7 +557,7 @@ class Pareto(Bar):
             source=source, target=target, feature=feature, stack=False,
             width=width, method=method, kw_method=kw_method, f_base=f_base,
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
-        self.source[self.feature] = self.original_f_values
+        self.source[self.feature] = self._original_f_values
         assert not self.shared_feature_axes, (
             'Do not use Pareto plotter in an chart where the feature axis '
             'is shared with other axes. Pareto sorts the feature axis, '
@@ -582,7 +576,7 @@ class Pareto(Bar):
             .sort_values(self.target, ascending = not self.target_on_y)
             .index.to_list())
         if self.highlighted_as_last and self.highlight is not None:
-            items = self.source[PLOTTER.FEATURE_ORIGINAL].items()
+            items = self.source[self.feature].items()
             idx_last = [i for i, v in items if v == self.highlight]
             if self.target_on_y:
                 indices = [i for i in indices if i not in idx_last] + idx_last
@@ -671,7 +665,7 @@ class Pareto(Bar):
         self.add_percentage_texts()
 
 
-class Jitter(_TransformPlotter):
+class Jitter(TransformPlotter):
 
     __slots__ = ('width')
     width: float
@@ -728,7 +722,7 @@ class Jitter(_TransformPlotter):
         self.ax.scatter(self.x, self.y, **kwds)
 
 
-class GaussianKDE(_TransformPlotter):
+class GaussianKDE(TransformPlotter):
 
     __slots__ = ('_height', '_stretch', 'show_density_axis', 'base_on_zero')
     _height: float | None
@@ -828,7 +822,7 @@ class Violine(GaussianKDE):
             else:
                 self.ax.fill_between(sequence, estim_low, estim_upp, **kwds)
 
-class Errorbar(_TransformPlotter):
+class Errorbar(TransformPlotter):
     __slots__ = ('lower', 'upper', 'show_center')
     lower: str
     upper: str
@@ -1049,7 +1043,7 @@ __all__ = [
     Line.__name__,
     LinearRegression.__name__,
     Probability.__name__,
-    _TransformPlotter.__name__,
+    TransformPlotter.__name__,
     Location.__name__,
     Bar.__name__,
     Pareto.__name__,

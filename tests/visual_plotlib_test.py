@@ -99,12 +99,15 @@ class TestSimpleChart:
     @property
     def sub_title(self) -> str:
         return f'{self._sub_title}: {self.kind}'
+    
+    @property
+    def file_name(self) -> Path:
+        return savedir/f'{self.base}_{self.kind}.png'
 
     def test_line_plot(self) -> None:
-        base = f'{self.fig_title}_line'
+        self.base = f'{self.fig_title}_line'
 
         self.kind = 'hue'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 df_travel,
                 target = 'invc',
@@ -117,12 +120,12 @@ class TestSimpleChart:
                 feature_label = True,
                 target_label = True, 
                 info = True, 
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         legend_artists = chart.label_facets.legend_box.get_children()
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 2
         assert legend_artists[0].get_children()[0].get_text() == self.cat1
@@ -135,7 +138,6 @@ class TestSimpleChart:
         assert self.info_msg not in info_msg
 
         self.kind = 'hue_size'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart =SimpleChart(
                 df_travel,
                 target = 'invc',
@@ -150,13 +152,13 @@ class TestSimpleChart:
                 feature_label = 'Individual',
                 target_label = 'In vehicle cost ($)', 
                 info = self.info_msg, 
-            ).save(file_name
+            ).save(self.file_name
             ).close()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         texts = get_texts(chart)
         legend_artists = chart.label_facets.legend_box.get_children()
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 4
         assert legend_artists[0].get_children()[0].get_text() == self.cat1
@@ -171,10 +173,9 @@ class TestSimpleChart:
     
 
     def test_scatter_plot(self) -> None:
-        base = f'{self.fig_title}_scatter'
+        self.base = f'{self.fig_title}_scatter'
 
         self.kind = 'simple'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 df_travel,
                 target = self.target,
@@ -182,17 +183,16 @@ class TestSimpleChart:
             ).plot(Scatter
             ).label(
                 sub_title = self.sub_title
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 1
         assert chart.label_facets.legend_box is None
         assert texts[0].get_text() == self.sub_title
 
 
         self.kind = 'transposed'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart =SimpleChart(
                 df_travel,
                 target = self.target,
@@ -202,10 +202,10 @@ class TestSimpleChart:
                 sub_title = self.sub_title,
                 feature_label = True,
                 target_label = True
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 3
         assert chart.label_facets.legend_box is None
         assert texts[0].get_text() == self.sub_title
@@ -214,7 +214,6 @@ class TestSimpleChart:
 
 
         self.kind = 'hue'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 df_travel,
                 target = self.target,
@@ -226,12 +225,12 @@ class TestSimpleChart:
                 feature_label = self.feature_label,
                 target_label = self.target_label, 
                 info = True
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         legend_artists = chart.label_facets.legend_box.get_children()
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 4
         assert len(legend_artists) == 2
         assert legend_artists[0].get_children()[0].get_text() == self.cat1
@@ -244,7 +243,6 @@ class TestSimpleChart:
 
 
         self.kind = 'shape'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 df_travel,
                 target = self.target,
@@ -256,12 +254,12 @@ class TestSimpleChart:
                 feature_label = self.feature_label,
                 target_label = self.target_label, 
                 info = True
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         legend_artists = chart.label_facets.legend_box.get_children()
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 4
         assert len(legend_artists) == 2
         assert legend_artists[0].get_children()[0].get_text() == self.cat2
@@ -274,7 +272,6 @@ class TestSimpleChart:
 
 
         self.kind = 'size'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 df_travel,
                 target = self.target,
@@ -286,12 +283,12 @@ class TestSimpleChart:
                 feature_label = self.feature_label,
                 target_label = self.target_label, 
                 info = True
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         legend_artists = chart.label_facets.legend_box.get_children()
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 4
         assert len(legend_artists) == 2
         assert legend_artists[0].get_children()[0].get_text() == self.size
@@ -304,7 +301,6 @@ class TestSimpleChart:
 
 
         self.kind = 'hue-size'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 df_travel,
                 target = self.target,
@@ -318,12 +314,12 @@ class TestSimpleChart:
                 feature_label = self.feature_label,
                 target_label = self.target_label, 
                 info = True
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         legend_artists = chart.label_facets.legend_box.get_children()
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 4
         assert legend_artists[0].get_children()[0].get_text() == self.cat1
@@ -337,7 +333,6 @@ class TestSimpleChart:
         assert self.info_msg not in info_msg
 
         self.kind = 'hue-shape'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 df_travel,
                 target = self.target,
@@ -351,12 +346,12 @@ class TestSimpleChart:
                 feature_label = self.feature_label,
                 target_label = self.target_label, 
                 info = True
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         legend_artists = chart.label_facets.legend_box.get_children()
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 4
         assert legend_artists[0].get_children()[0].get_text() == self.cat1
@@ -370,7 +365,6 @@ class TestSimpleChart:
         assert self.info_msg not in info_msg
 
         self.kind = 'size-shape'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 df_travel,
                 target = self.target,
@@ -384,12 +378,12 @@ class TestSimpleChart:
                 feature_label = self.feature_label,
                 target_label = self.target_label, 
                 info = True
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         legend_artists = chart.label_facets.legend_box.get_children()
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 4
         assert legend_artists[0].get_children()[0].get_text() == self.cat2
@@ -402,9 +396,7 @@ class TestSimpleChart:
         assert STR.USERNAME in info_msg
         assert self.info_msg not in info_msg
 
-
         self.kind = 'full'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 df_travel,
                 target = self.target,
@@ -419,12 +411,12 @@ class TestSimpleChart:
                 feature_label = self.feature_label,
                 target_label = self.target_label, 
                 info = self.info_msg
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         legend_artists = chart.label_facets.legend_box.get_children()
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 6
         assert legend_artists[0].get_children()[0].get_text() == self.cat1
@@ -439,7 +431,7 @@ class TestSimpleChart:
         assert self.info_msg in info_msg
     
     def test_pareto_plot(self) -> None:
-        base = f'{self.fig_title}_pareto'
+        self.base = f'{self.fig_title}_pareto'
         with pytest.raises(AssertionError) as err:
             chart = SimpleChart(
                     df_travel,
@@ -451,7 +443,6 @@ class TestSimpleChart:
         assert 'categorical_feature' in str(err.value)
         
         self.kind = 'simple'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 df_travel,
                 target = self.target,
@@ -464,11 +455,11 @@ class TestSimpleChart:
                 feature_label = True,
                 target_label = self.target_label,
                 info = self.info_msg
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 5
         assert chart.label_facets.legend_box is None
         assert texts[0].get_text() == self.fig_title
@@ -480,7 +471,6 @@ class TestSimpleChart:
         assert self.info_msg in info_msg
 
         self.kind = 'transposed'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 df_travel,
                 target = self.target,
@@ -494,11 +484,11 @@ class TestSimpleChart:
                 feature_label = True,
                 target_label = self.target_label,
                 info = self.info_msg
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 5
         assert chart.label_facets.legend_box is None
         assert texts[0].get_text() == self.fig_title
@@ -510,10 +500,9 @@ class TestSimpleChart:
         assert self.info_msg in info_msg
         
     def test_kde_plot(self) -> None:
-        base = f'{self.fig_title}_KDE'
+        self.base = f'{self.fig_title}_KDE'
 
         self.kind = 'simple'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 df_travel,
                 target = self.target,
@@ -524,17 +513,16 @@ class TestSimpleChart:
                 sub_title = self.sub_title,
                 feature_label = True,
                 target_label = True
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 2 # feature label should not appear
         assert chart.label_facets.legend_box is None
         assert texts[0].get_text() == self.sub_title
         assert texts[1].get_text() == self.target
 
         self.kind = 'multiple'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 df_travel,
                 target = self.target,
@@ -548,12 +536,12 @@ class TestSimpleChart:
                 feature_label = True,
                 target_label = True, 
                 info = True
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         legend_artists = chart.label_facets.legend_box.get_children()
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 4 # feature label should not appear
         assert legend_artists[0].get_children()[0].get_text() == self.cat1
         assert texts[0].get_text() == self.fig_title
@@ -564,10 +552,9 @@ class TestSimpleChart:
         assert self.info_msg not in info_msg
     
     def test_jitter_plot(self) -> None:
-        base = f'{self.fig_title}_jitter'
+        self.base = f'{self.fig_title}_jitter'
 
         self.kind = 'simple'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 source = df_travel,
                 target = self.target,
@@ -580,18 +567,17 @@ class TestSimpleChart:
                 feature_label = True,
                 target_label = self.target_label,    
                 info = self.info_msg
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 5
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
         
         self.kind = 'multiple'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 source = df_travel,
                 target = self.target,
@@ -605,11 +591,11 @@ class TestSimpleChart:
                 feature_label = True,
                 target_label = self.target_label,    
                 info = self.info_msg
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 5
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
@@ -617,10 +603,9 @@ class TestSimpleChart:
 
 
     def test_violine_plot(self) -> None:
-        base = f'{self.fig_title}_violine'
+        self.base = f'{self.fig_title}_violine'
 
         self.kind = 'mono'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 source = df_travel,
                 target = self.target,
@@ -631,18 +616,17 @@ class TestSimpleChart:
                 feature_label = True,
                 target_label = self.target_label,    
                 info = self.info_msg
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 4 # feature label should not appear
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
 
         self.kind = 'simple'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 source = df_travel,
                 target = self.target,
@@ -654,18 +638,17 @@ class TestSimpleChart:
                 feature_label = True,
                 target_label = self.target_label,    
                 info = self.info_msg
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 5
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
         
         self.kind = 'multiple'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 source = df_travel,
                 target = self.target,
@@ -679,21 +662,20 @@ class TestSimpleChart:
                 feature_label = True,
                 target_label = self.target_label,    
                 info = self.info_msg
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 5
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
 
     def test_errorbar_plots(self) -> None:
-        base = f'{self.fig_title}_errorbar'
+        self.base = f'{self.fig_title}_errorbar'
 
         self.kind = 'sem'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 source = df_travel,
                 target = self.target,
@@ -709,18 +691,17 @@ class TestSimpleChart:
                 feature_label = True,
                 target_label = self.target_label,    
                 info = self.info_msg
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 5
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
         
         self.kind = 'mean-test'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 source = df_travel,
                 target = 'gc',
@@ -735,18 +716,17 @@ class TestSimpleChart:
                 feature_label = True,
                 target_label = self.target_label,    
                 info = self.info_msg
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 5
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
         
         self.kind = 'var-test'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 source = df_travel,
                 target = 'gc',
@@ -762,18 +742,17 @@ class TestSimpleChart:
                 feature_label = True,
                 target_label = self.target_label,    
                 info = self.info_msg
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 5
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
         
         self.kind = 'std-test'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
                 source = df_travel,
                 target = 'gc',
@@ -790,11 +769,11 @@ class TestSimpleChart:
                 feature_label = True,
                 target_label = self.target_label,    
                 info = self.info_msg
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 5
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
@@ -818,6 +797,10 @@ class TestJointChart:
     @property
     def sub_title(self) -> str:
         return f'{self._sub_title}: {self.kind}'
+    
+    @property
+    def file_name(self) -> Path:
+        return savedir/f'{self.base}_{self.kind}.png'
 
     def test_raises(self):
         with pytest.raises(AssertionError) as err:
@@ -838,10 +821,9 @@ class TestJointChart:
         assert err_msg == str(err.value)
 
     def test_kde_plots(self) -> None:
-        base = f'{self.fig_title}_kdes'
+        self.base = f'{self.fig_title}_kdes'
         
         self.kind = 'mixed-kde'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = JointChart(
                 df_travel,
                 target = self.target,
@@ -859,14 +841,14 @@ class TestJointChart:
             ).label(
                 feature_label = [True]*2,
                 target_label = [True]*2
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         legend_artists = chart.label_facets.legend_box.get_children()
         yticklabels1 = [t.get_text() for t in chart.axes[1][0].get_yticklabels()]
         xticklabels0 = [t.get_text() for t in chart.axes[0][0].get_xticklabels()]
         xticklabels1 = [t.get_text() for t in chart.axes[1][0].get_xticklabels()]
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 0 # No text added to figure only to axes
         assert legend_artists[0].get_children()[0].get_text() == self.cat2
         assert yticklabels1 == sorted(df_travel[self.cat1].unique())
@@ -878,10 +860,9 @@ class TestJointChart:
     
 
     def test_probabilities(self) -> None:
-        base = f'{self.fig_title}_probability'
+        self.base = f'{self.fig_title}_probability'
         
         self.kind = 'norm-prob'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = JointChart(
                 df_dist25,
                 target = 'rayleigh',
@@ -903,10 +884,10 @@ class TestJointChart:
                 feature_label = (
                     'theoretical quantiles', 'theoretical percentiles',
                     'theoretical quantiles', 'theoretical percentiles')
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 2
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == 'QQ, PP, samples-Q and samples-P'
@@ -936,7 +917,6 @@ class TestJointChart:
             assert '%' not in l
 
         self.kind = 'dists-prob'
-        file_name = savedir/f'{base}_{self.kind}.png'
         target = df_dist25.columns.to_list()[1:]
         target_labels = tuple(f'{d} quantiles' for d in target)
         feature_label = 'theoretical quantiles'
@@ -954,11 +934,11 @@ class TestJointChart:
                 target_label = target_labels,
                 feature_label = feature_label,
                 info = self.info_msg
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 4
         for ax, ylabel in zip(chart.axes.flat, target_labels):
             assert ax.get_xlabel() == ''
@@ -971,10 +951,9 @@ class TestJointChart:
         assert self.info_msg in info_msg
 
     def test_regression_joint(self) -> None:
-        base = f'{self.fig_title}_probability'
+        self.base = f'{self.fig_title}_probability'
 
         self.kind = 'kde'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = JointChart(
                 source = df_travel,
                 target = ('invc', '', 'invt', 'invt'),
@@ -994,15 +973,14 @@ class TestJointChart:
             (LinearRegression, dict(show_center=True, show_fit_ci=True, show_pred_ci=True)),
             (GaussianKDE, {'show_density_axis': False})]
         ).label(
-        ).save(file_name
+        ).save(self.file_name
         ).close()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
 
     def test_bar_plots(self) -> None:
-        base = f'{self.fig_title}_bar'
+        self.base = f'{self.fig_title}_bar'
 
         self.kind = 'stacking'
-        file_name = savedir/f'{base}_{self.kind}.png'
         target_labels = (
             'Generalized cost measure count ($)',
             'Generalized cost measure sum ($)')
@@ -1026,11 +1004,11 @@ class TestJointChart:
                 feature_label = feature_label, 
                 target_label = target_labels,
                 info = self.info_msg
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 4
         for ax, xlabel in zip(chart.axes.flat, target_labels):
             assert ax.get_xlabel() == xlabel
@@ -1043,7 +1021,7 @@ class TestJointChart:
         assert self.info_msg in info_msg
 
     def test_pareto_plot(self) -> None:
-        base = f'{self.fig_title}_pareto'
+        self.base = f'{self.fig_title}_pareto'
         with pytest.raises(AssertionError) as err:
             JointChart(
                 df_travel,
@@ -1057,7 +1035,6 @@ class TestJointChart:
         assert 'shared with other axes' in str(err.value)
 
         self.kind = 'marked'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = JointChart(
                 df_travel,
                 target = self.target,
@@ -1081,11 +1058,11 @@ class TestJointChart:
                 feature_label = True,
                 target_label = [self.target_label]*4,
                 info = self.info_msg
-            ).save(file_name
+            ).save(self.file_name
             ).close()
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
-        assert file_name.is_file()
+        assert self.file_name.is_file()
         assert len(texts) == 3 # Feature and target labels are not as texts in figure here
         for i, ax in enumerate(chart.axes.flat):
             if i < 2:
@@ -1108,12 +1085,15 @@ class TestMultipleVariateChart:
     @property
     def sub_title(self) -> str:
         return f'{self._sub_title}: {self.kind}'
+    
+    @property
+    def file_name(self) -> Path:
+        return savedir/f'{self.base}_{self.kind}.png'
 
     def test_full(self) -> None:
-        base = f'{self.fig_title}'
+        self.base = f'{self.fig_title}'
 
         self.kind = 'full'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = MultipleVariateChart(
                 source = df_affairs,
                 target = 'affairs',
@@ -1132,12 +1112,11 @@ class TestMultipleVariateChart:
                 row_title = 'Amount of children',
                 col_title = 'How religious',
                 info = 'pytest figure')
-        chart.save(file_name).close()
-        assert file_name.is_file()
+        chart.save(self.file_name).close()
+        assert self.file_name.is_file()
 
-        base = f'{self.fig_title}'
+        self.base = f'{self.fig_title}'
         self.kind = 'full-stripes'
-        file_name = savedir/f'{base}_{self.kind}.png'
         chart = MultipleVariateChart(
                 source = df_affairs,
                 target = 'affairs',
@@ -1160,5 +1139,10 @@ class TestMultipleVariateChart:
                 row_title = 'Amount of children',
                 col_title = 'How religious',
                 info = 'pytest figure')
-        chart.save(file_name).close()
-        assert file_name.is_file()
+        chart.save(self.file_name).close()
+        assert self.file_name.is_file()
+
+    def test_blant_altmann_plot(self) -> None:
+        self.base = f'{self.fig_title}'
+
+        self.kind = 'created'

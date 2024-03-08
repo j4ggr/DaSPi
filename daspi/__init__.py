@@ -2,3 +2,4 @@ from .strings import *
 from .statistics import *
 from .plotlib import *
 from .anova import *
+from .datasets import *
