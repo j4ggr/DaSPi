@@ -253,7 +253,7 @@ class SimpleChart(Chart):
         Instance for configuring shape labels.
     sizing : SizeLabel
         Instance for configuring size labels.
-    categorical_features : bool
+    categorical_feature : bool
         Flag indicating if the features are categorical.
     coloring : HueLabel
         Instance for configuring hue labels.
@@ -275,7 +275,7 @@ class SimpleChart(Chart):
     """
     __slots__ = (
         'hue', 'shape', 'size', 'marking', 'sizing', '_sizes', 
-        'categorical_features', 'coloring', 'dodging', '_variate_names',
+        'categorical_feature', 'coloring', 'dodging', '_variate_names',
         '_current_variate', '_last_variate', )
     hue: str
     shape: str
@@ -283,7 +283,7 @@ class SimpleChart(Chart):
     marking: ShapeLabel
     sizing: SizeLabel
     _sizes: NDArray
-    categorical_features: bool
+    categorical_feature: bool
     coloring: HueLabel
     dodging: Dodger
     _current_variate: dict
@@ -298,10 +298,10 @@ class SimpleChart(Chart):
             dodge: bool = False,
             shape: str = '',
             size: str = '', 
-            categorical_features: bool = False,
+            categorical_feature: bool = False,
             target_on_y: bool = True,
             **kwds) -> None:
-        self.categorical_features = categorical_features or dodge
+        self.categorical_feature = categorical_feature or dodge
         self.hue = hue
         self.shape = shape
         self.size = size
@@ -310,9 +310,9 @@ class SimpleChart(Chart):
             target_on_y=target_on_y, **kwds)
         self.coloring = HueLabel(self.get_categorical_labels(self.hue))
         feature_tick_labels = ()
-        if self.categorical_features:
+        if self.categorical_feature:
             assert feature in source, (
-                'categorical_features is True, but features is not present')
+                'categorical_feature is True, but features is not present')
             feature_tick_labels = self.get_categorical_labels(feature)
         dodge_categories = self.coloring.labels if dodge else ()
         self.dodging = Dodger(dodge_categories, feature_tick_labels)
@@ -480,7 +480,8 @@ class SimpleChart(Chart):
                 source=data, target=self.target, feature=self.feature,
                 target_on_y=self.target_on_y, color=self.color, 
                 ax=self.axes_facets.ax, marker=self.marker, size=self.sizes,
-                width=self.dodging.width, **kwds)
+                width=self.dodging.width,
+                categorical_feature=self.categorical_feature, **kwds)
             plot()
             self._plots.append(plot)
         return self
@@ -560,7 +561,7 @@ class SimpleChart(Chart):
         Self:
             The SimpleChart instance.
         """
-        if self.categorical_features:
+        if self.categorical_feature:
             self._categorical_feature_axis_()
         self.set_axis_label(feature_label, is_target=False)
         self.set_axis_label(target_label, is_target=True)
@@ -612,7 +613,7 @@ class JointChart(Chart):
             shape: str | Tuple[str] = '',
             size: str | Tuple[str] = '',
             dodge: bool | Tuple[bool] = False,
-            categorical_features: bool | Tuple[str] = False,
+            categorical_feature: bool | Tuple[str] = False,
             target_on_y: bool | List[bool] = True,
             sharex: bool | str = False,
             sharey: bool | str = False,
@@ -639,7 +640,7 @@ class JointChart(Chart):
             shape = self.ensure_tuple(shape),
             size = self.ensure_tuple(size),
             dodge = self.ensure_tuple(dodge),
-            categorical_features = self.ensure_tuple(categorical_features),
+            categorical_feature = self.ensure_tuple(categorical_feature),
             target_on_y = self.ensure_tuple(target_on_y))
         _kwds = dict(
             source=self.source, axes_facets=self.axes_facets)
@@ -835,7 +836,7 @@ class JointChart(Chart):
             The JointChart instance.
         """
         for chart in self.itercharts():
-            if not chart.categorical_features: continue
+            if not chart.categorical_feature: continue
             chart._categorical_feature_axis_()
         self._xlabel = ''
         self._ylabel = ''
@@ -887,7 +888,7 @@ class MultipleVariateChart(SimpleChart):
             row: str = '',
             dodge: bool = False,
             stretch_figsize: bool = True,
-            categorical_features: bool = False,
+            categorical_feature: bool = False,
             ) -> None:
         self.target_on_y = True
         self.source = source
@@ -901,7 +902,7 @@ class MultipleVariateChart(SimpleChart):
             source=self.source, target=target, feature=feature, hue=hue, 
             shape=shape, size=size, dodge=dodge, sharex=True, sharey=True,
             nrows=nrows, ncols=ncols, stretch_figsize=stretch_figsize,
-            categorical_features=categorical_features)
+            categorical_feature=categorical_feature)
         self._variate_names = (self.row, self.col, self.hue, self.shape)
         self._reset_variate_()
     
@@ -975,7 +976,7 @@ class MultipleVariateChart(SimpleChart):
             fig_title: str = '', sub_title: str = '', 
             row_title: str | None = None, col_title: str | None = None,
             info: bool | str = False) -> Self:
-        if self.categorical_features:
+        if self.categorical_feature:
             self._categorical_feature_axis_()
         self.set_axis_label(feature_label, is_target=False)
         self.set_axis_label(target_label, is_target=True)

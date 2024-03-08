@@ -352,10 +352,15 @@ class _TransformPlotter(Plotter):
             _data = self.transform(_feature, _target)
             df = pd.concat([df, _data], axis=0)
         df.reset_index(drop=True, inplace=True)
-
+        df[PLOTTER.FEATURE_ORIGINAL] = self._original_f_values
         super().__init__(
             source=df, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
+    
+    @property
+    def original_f_values(self) -> Series:
+        """Get original feature values"""
+        return self.source[PLOTTER.FEATURE_ORIGINAL]
     
     def feature_grouped(
             self, source: DataFrame) -> Generator[Tuple, Self, None]:
@@ -545,7 +550,9 @@ class Pareto(Bar):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        
+        assert not (kwds.pop('categorical_feature', False)), (
+            "categorical_feature doesn't work with Pareto charts, "
+            'it would mess up the axis tick labels')
         self.highlight = highlight
         self.highlight_color = highlight_color
         self.highlighted_as_last = highlighted_as_last
@@ -554,15 +561,14 @@ class Pareto(Bar):
             source=source, target=target, feature=feature, stack=False,
             width=width, method=method, kw_method=kw_method, f_base=f_base,
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
-        self.source[PLOTTER.FEATURE_ORIGINAL] = self._original_f_values
-        self.source[self.feature] = np.arange(len(self.original_f_values)) + 1
-    
+        self.source[self.feature] = self.original_f_values
+
     @property
     def indices(self) -> List[int]:
         """Get the source data index so that the target is in a
         descending order"""
         indices = (self.source
-            .sort_values(self.target, ascending= not self.target_on_y)
+            .sort_values(self.target, ascending = not self.target_on_y)
             .index.to_list())
         if self.highlighted_as_last and self.highlight is not None:
             items = self.source[PLOTTER.FEATURE_ORIGINAL].items()
@@ -571,25 +577,20 @@ class Pareto(Bar):
         return indices
     
     @property
-    def original_f_values(self) -> Series:
-        """Get original feature values in order of plotted data"""
-        return self.source.loc[self.indices, PLOTTER.FEATURE_ORIGINAL]
-    
-    @property
     def x(self):
         """Get values used for x axis so that the target is in a
         descending order"""
         if self.target_on_y:
-            return self.source[self.feature]
+            return self.source.loc[self.indices, self.feature]
         else:
-            return self.source.loc[self.indices, self.target][::-1]
+            return self.source.loc[self.indices, self.target]
     
     @property
     def y(self):
         """Get values used for y axis so that the target is in a
         descending order"""
         if not self.target_on_y:
-            return self.source[self.feature][::-1]
+            return self.source.loc[self.indices, self.feature]
         else:
             return self.source.loc[self.indices, self.target]
 
@@ -622,12 +623,14 @@ class Pareto(Bar):
             self.ax.bar(self.x, self.y, width=self.width, **kwds)
             self.ax.plot(
                 self.x, self.y.cumsum(), color=self.color,
-                marker=plt.rcParams['scatter.marker'])
+                **KW.PARETO_LINE)
+            self.ax.set_xmargin(PLOTTER.PARETO_F_MARGIN)
         else:
             self.ax.barh(self.y, self.x, height=self.width, **kwds)
             self.ax.plot(
-                self.x.cumsum(), self.y, color=self.color,
-                marker=plt.rcParams['scatter.marker'])
+                self.x[::-1].cumsum(), self.y[::-1], color=self.color,
+                **KW.PARETO_LINE)
+            self.ax.set_ymargin(PLOTTER.PARETO_F_MARGIN)
         self.add_percentage_texts()
 
 

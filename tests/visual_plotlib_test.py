@@ -564,7 +564,7 @@ class TestSimpleChart:
                 source = df_travel,
                 target = self.target,
                 feature = self.cat1, 
-                categorical_features = True,
+                categorical_feature = True,
             ).plot(Jitter
             ).label(
                 fig_title = self.fig_title,
@@ -717,7 +717,7 @@ class TestSimpleChart:
                 source = df_travel,
                 target = 'gc',
                 feature = 'mode',
-                categorical_features = True,
+                categorical_feature = True,
                 target_on_y = False
             ).plot(
                 MeanTest
@@ -743,7 +743,7 @@ class TestSimpleChart:
                 source = df_travel,
                 target = 'gc',
                 feature = 'mode',
-                categorical_features = True,
+                categorical_feature = True,
                 target_on_y = False
             ).plot(
                 VariationTest,
@@ -770,7 +770,7 @@ class TestSimpleChart:
                 source = df_travel,
                 target = 'gc',
                 feature = 'mode',
-                categorical_features = True,
+                categorical_feature = True,
                 target_on_y = False,
             ).plot(
                 VariationTest,
@@ -825,7 +825,7 @@ class TestJointChart:
                 nrows = 2,
                 sharex = True,
                 dodge = (False, True),
-                categorical_features = (False, True),
+                categorical_feature = (False, True),
                 target_on_y = False
             ).plot([
                 (GaussianKDE, dict(show_density_axis=True)),
@@ -988,7 +988,7 @@ class TestJointChart:
                 nrows = 2,
                 ncols = 1,
                 hue = 'choice',
-                categorical_features = True,
+                categorical_feature = True,
                 target_on_y = (False, False),
                 dodge = (False, True)
             ).plot([

@@ -148,6 +148,11 @@ class _Kw_:
         return dict(
             y=1, va='top', ha='left', color=plt.rcParams['text.color'],
             fontsize='small', rotation=-90, zorder=0.1)
+    @property
+    def PARETO_LINE(self) -> dict:
+        """Keyword arguments for plotting line in pareto chart."""
+        return dict(
+            marker=plt.rcParams['scatter.marker'], alpha=COLOR.MARKER_ALPHA)
 KW = _Kw_()
 
 
@@ -210,6 +215,7 @@ class _Plotter_:
     MEDIAN: str = '_median_'
     PARETO_N_TICKS: int = 11
     PARETO_AXLIM_FACTOR: float = 1.05
+    PARETO_F_MARGIN: float = 0.1
     @property
     def REGRESSION_CI_NAMES(self) -> Tuple[str, str, str, str]:
         """Get names for regression confidences in order

@@ -19,10 +19,11 @@ from ..constants import KW
 from ..constants import CATEGORY
 
 
-def add_second_axis(# TODO remove if not needed
-        ax: Axes, which: Literal['x', 'y'], tick_labels: List[str], 
-        axis_label: str = '') -> Axes:
-    """Adds e second axis to the given direction, sharing the other one.
+def shared_axes(ax: Axes, which: Literal['x', 'y']) -> List[bool]:
+    """Get all the axes from the figure of the given `ax` and compare 
+    whether the `ax` share the given axis. 
+    Get a map of boolean values as a list where all are `True` when the 
+    axis is shared.
     
     Parameters
     ----------
@@ -30,26 +31,20 @@ def add_second_axis(# TODO remove if not needed
         Base axes object to add second axis
     which : {'x', 'y'}
         From which axis a second one should be added
-    tick_labels : list of str, optional
-        Axis tick labels
-    axis_label : str, optional
-        Label for axis, corresponds to ylabel if which is 'y', else to
-        xlabel, by default ''
     
     Returns
     -------
-    ax2 : Axes
-        The added axis object
+    map_shared : List[bool]
+        Flat map for axes that shares same axis
+
+    Notes
+    -----
+    Given `ax` is also included in the map and is always True.
     """
-    ticks = [i for i in range(len(tick_labels))]
-    ax2 = ax.twinx() if which == 'y' else ax.twiny()
-    keys = (f'{which}{l}' for l in ('label', 'ticks', 'ticklabels'))
-    values = (axis_label, ticks, tick_labels)
-    ax2.set(**{k: v for k, v in zip(keys, values)})
-    
-    margins = ax.margins()
-    ax2.margins(x=margins[0]/2, y=margins[1]/2)
-    return ax2
+    assert which in ('x', 'y')
+    view = getattr(ax, f'get_shared_{which}_axes')()
+    map_shared = [view.joined(ax, _ax) for _ax in ax.figure.axes]
+    return map_shared
 
 
 class _CategoryLabel(ABC):
