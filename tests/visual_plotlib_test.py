@@ -17,7 +17,7 @@ from matplotlib.ticker import PercentFormatter
 sys.path.append(Path(__file__).parent.resolve())
 
 from daspi.strings import STR
-from daspi.constants import PLOTTER
+from daspi.constants import COLOR
 from daspi.plotlib.chart import JointChart
 from daspi.plotlib.chart import SimpleChart
 from daspi.plotlib.chart import MultipleVariateChart
@@ -440,7 +440,16 @@ class TestSimpleChart:
     
     def test_pareto_plot(self) -> None:
         base = f'{self.fig_title}_pareto'
-
+        with pytest.raises(AssertionError) as err:
+            chart = SimpleChart(
+                    df_travel,
+                    target = self.target,
+                    feature = self.cat1,
+                    categorical_feature = True
+                ).plot(
+                    Pareto, method='sum')
+        assert 'categorical_feature' in str(err.value)
+        
         self.kind = 'simple'
         file_name = savedir/f'{base}_{self.kind}.png'
         chart = SimpleChart(
@@ -499,8 +508,7 @@ class TestSimpleChart:
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
-
-
+        
     def test_kde_plot(self) -> None:
         base = f'{self.fig_title}_KDE'
 
@@ -811,6 +819,24 @@ class TestJointChart:
     def sub_title(self) -> str:
         return f'{self._sub_title}: {self.kind}'
 
+    def test_raises(self):
+        with pytest.raises(AssertionError) as err:
+            JointChart(
+                df_travel,
+                target = self.target,
+                feature = self.cat1,
+                nrows = 2,
+                ncols = 2,
+                target_on_y = (True, True, False, False)
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = self.target_label,
+                info = self.info_msg)
+        err_msg = 'For a single label, all axes must have the same orientation'
+        assert err_msg == str(err.value)
+
     def test_kde_plots(self) -> None:
         base = f'{self.fig_title}_kdes'
         
@@ -1016,6 +1042,63 @@ class TestJointChart:
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
 
+    def test_pareto_plot(self) -> None:
+        base = f'{self.fig_title}_pareto'
+        with pytest.raises(AssertionError) as err:
+            JointChart(
+                df_travel,
+                target = self.target,
+                feature = self.cat1,
+                nrows = 3,
+                ncols = 2,
+                sharex = 'col',
+            ).plot(
+                [(Pareto, dict(method='sum'))]*6)
+        assert 'shared with other axes' in str(err.value)
+
+        self.kind = 'marked'
+        file_name = savedir/f'{base}_{self.kind}.png'
+        chart = JointChart(
+                df_travel,
+                target = self.target,
+                feature = self.cat1,
+                nrows = 2,
+                ncols = 2,
+                target_on_y = (True, True, False, False)
+            ).plot(
+                [(Pareto, dict(
+                    highlight='air', highlighted_as_last=False, method='sum')),
+                (Pareto, dict(
+                    highlight='bus', highlight_color=COLOR.GOOD, method='sum')),
+                (Pareto, dict(
+                    highlight='air', highlighted_as_last=False, method='sum')),
+                (Pareto, dict(
+                    highlight='bus', highlight_color=COLOR.GOOD, method='sum'))]
+            ).stripes(mean=True
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = [self.target_label]*4,
+                info = self.info_msg
+            ).save(file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert file_name.is_file()
+        assert len(texts) == 3 # Feature and target labels are not as texts in figure here
+        for i, ax in enumerate(chart.axes.flat):
+            if i < 2:
+                assert ax.get_xlabel() == self.cat1
+                assert ax.get_ylabel() == self.target_label
+            else:
+                assert ax.get_xlabel() == self.target_label
+                assert ax.get_ylabel() == self.cat1
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == self.sub_title
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
 
 class TestMultipleVariateChart:
 

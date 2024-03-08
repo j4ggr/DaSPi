@@ -140,14 +140,14 @@ class _Kw_:
         Use `PARETO_H` if `target_on_y' is False."""
         return dict(
             x=1, va='bottom', ha='right', color=plt.rcParams['text.color'],
-            fontsize='small', zorder=0.1)
+            fontsize='x-small', zorder=0.1)
     @property
     def PARETO_H(self) -> dict:
         """Keyword arguments for adding percentage texts in pareto chart.
         Use `PARETO_V` if `target_on_y' is True."""
         return dict(
             y=1, va='top', ha='left', color=plt.rcParams['text.color'],
-            fontsize='small', rotation=-90, zorder=0.1)
+            fontsize='x-small', rotation=-90, zorder=0.1)
     @property
     def PARETO_LINE(self) -> dict:
         """Keyword arguments for plotting line in pareto chart."""
@@ -158,8 +158,8 @@ KW = _Kw_()
 
 @dataclass(frozen=True)
 class _Color_:
-    GOOD: str = '#2ca02c'
-    BAD: str = '#d62728'
+    GOOD: str = '#2ca02ccc'
+    BAD: str = '#d62728cc'
     MEAN: str = '#101010'
     MEDIAN: str = '#202020'
     PERCENTIL: str = '#303030'

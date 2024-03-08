@@ -33,6 +33,8 @@ from pandas.api.types import is_scalar
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
+from .utils import shared_axes
+
 from ..constants import KW
 from ..constants import DIST
 from ..constants import COLOR
@@ -550,8 +552,8 @@ class Pareto(Bar):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        assert not (kwds.pop('categorical_feature', False)), (
-            "categorical_feature doesn't work with Pareto charts, "
+        assert not (kwds.get('categorical_feature', False)), (
+            "Don't set categorical_feature to True for Pareto charts, "
             'it would mess up the axis tick labels')
         self.highlight = highlight
         self.highlight_color = highlight_color
@@ -562,6 +564,15 @@ class Pareto(Bar):
             width=width, method=method, kw_method=kw_method, f_base=f_base,
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
         self.source[self.feature] = self.original_f_values
+        assert not self.shared_feature_axes, (
+            'Do not use Pareto plotter in an chart where the feature axis '
+            'is shared with other axes. Pareto sorts the feature axis, '
+            'which can mess up the other axes')
+    
+    @property
+    def shared_feature_axes(self) -> bool:
+        """True if any other ax in this figure shares the feature axes."""
+        return any(shared_axes(self.ax, 'x' if self.target_on_y else 'y', True))
 
     @property
     def indices(self) -> List[int]:
@@ -573,7 +584,10 @@ class Pareto(Bar):
         if self.highlighted_as_last and self.highlight is not None:
             items = self.source[PLOTTER.FEATURE_ORIGINAL].items()
             idx_last = [i for i, v in items if v == self.highlight]
-            indices = [i for i in indices if i not in idx_last] + idx_last
+            if self.target_on_y:
+                indices = [i for i in indices if i not in idx_last] + idx_last
+            else:
+                indices = idx_last + [i for i in indices if i not in idx_last]
         return indices
     
     @property
@@ -593,6 +607,28 @@ class Pareto(Bar):
             return self.source.loc[self.indices, self.feature]
         else:
             return self.source.loc[self.indices, self.target]
+
+    def _highlight_bar_(self, bars: BarContainer) -> None:
+        """Highlight the specified bar if `highlight` is set True."""
+        feature_values = self.x if self.target_on_y else self.y
+        for i, f_value in enumerate(feature_values):
+            if f_value == self.highlight:
+                bars[i].set_color(self.highlight_color)
+    
+    def _set_margin_(self) -> None:
+        """Set margin in feature axis direction to ensure space for 
+        percentage values."""
+        if self.target_on_y:
+            self.ax.set_xmargin(PLOTTER.PARETO_F_MARGIN)
+        else:
+            self.ax.set_ymargin(PLOTTER.PARETO_F_MARGIN)
+    
+    def _remove_feature_grid_(self) -> None:
+        """Remove grid lines of feature axis"""
+        if self.target_on_y:
+            self.ax.xaxis.grid(False)
+        else:
+            self.ax.yaxis.grid(False)
 
     def add_percentage_texts(self) -> None:
         """Add percentage texts on top of major grids"""
@@ -620,17 +656,18 @@ class Pareto(Bar):
 
     def __call__(self, **kwds) -> None:
         if self.target_on_y:
-            self.ax.bar(self.x, self.y, width=self.width, **kwds)
+            bars = self.ax.bar(self.x, self.y, width=self.width, **kwds)
             self.ax.plot(
                 self.x, self.y.cumsum(), color=self.color,
                 **KW.PARETO_LINE)
-            self.ax.set_xmargin(PLOTTER.PARETO_F_MARGIN)
         else:
-            self.ax.barh(self.y, self.x, height=self.width, **kwds)
+            bars = self.ax.barh(self.y, self.x, height=self.width, **kwds)
             self.ax.plot(
                 self.x[::-1].cumsum(), self.y[::-1], color=self.color,
                 **KW.PARETO_LINE)
-            self.ax.set_ymargin(PLOTTER.PARETO_F_MARGIN)
+        self._highlight_bar_(bars)
+        self._set_margin_()
+        self._remove_feature_grid_()
         self.add_percentage_texts()
 
 

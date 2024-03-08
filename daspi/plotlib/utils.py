@@ -19,7 +19,8 @@ from ..constants import KW
 from ..constants import CATEGORY
 
 
-def shared_axes(ax: Axes, which: Literal['x', 'y']) -> List[bool]:
+def shared_axes(
+        ax: Axes, which: Literal['x', 'y'], exclude: bool = True) -> List[bool]:
     """Get all the axes from the figure of the given `ax` and compare 
     whether the `ax` share the given axis. 
     Get a map of boolean values as a list where all are `True` when the 
@@ -31,20 +32,18 @@ def shared_axes(ax: Axes, which: Literal['x', 'y']) -> List[bool]:
         Base axes object to add second axis
     which : {'x', 'y'}
         From which axis a second one should be added
+    exclude : bool, optional
+        If True excludes the given `ax` in the returned map
     
     Returns
     -------
-    map_shared : List[bool]
+    List[bool]
         Flat map for axes that shares same axis
-
-    Notes
-    -----
-    Given `ax` is also included in the map and is always True.
     """
     assert which in ('x', 'y')
     view = getattr(ax, f'get_shared_{which}_axes')()
-    map_shared = [view.joined(ax, _ax) for _ax in ax.figure.axes]
-    return map_shared
+    axes = [_ax for _ax in ax.figure.axes] if exclude else ax.figure.axes
+    return [view.joined(ax, _ax) for _ax in axes]
 
 
 class _CategoryLabel(ABC):
@@ -241,7 +240,7 @@ class Dodger:
         return len(self.categories) > 1
 
 __all__ = [
-    add_second_axis.__name__,
+    shared_axes.__name__,
     HueLabel.__name__,
     ShapeLabel.__name__,
     SizeLabel.__name__,
