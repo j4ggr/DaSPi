@@ -1,3 +1,41 @@
+"""
+The plotter module provides classes for creating and customizing various types of plots.
+
+Classes:
+    - Plotter: An abstract base class for creating plotters.
+    - Scatter: A scatter plotter that extends the Plotter base class.
+    - LinearRegression: A linear regression plotter that extends the Plotter base class.
+    - Probability: A probability plotter that extends the LinearRegression class.
+    - TransformPlotter: A base class for creating plotter classes that perform transformations on data.
+    - CenterLocation: A CenterLocation plotter that extends the TransformPlotter class.
+
+Usage:
+    Import the module and use the classes to create and customize plots.
+
+Example:
+    from plotter import Plotter, Scatter, LinearRegression, Probability, TransformPlotter, CenterLocation
+
+    # Create a scatter plot
+    data = {...}  # Data source for the plot
+    scatter_plot = Scatter(data, 'target_variable')
+    scatter_plot()
+
+    # Create a linear regression plot
+    data = {...}  # Data source for the plot
+    linear_regression_plot = LinearRegression(data, 'target_variable', 'feature_variable')
+    linear_regression_plot()
+
+    # Create a probability plot
+    data = {...}  # Data source for the plot
+    probability_plot = Probability(data, 'target_variable', dist='norm', kind='qq')
+    probability_plot()
+
+    # Create a CenterLocation plot
+    data = {...}  # Data source for the plot
+    center_plot = CenterLocation(data, 'target_variable', 'feature_variable', kind='mean')
+    center_plot()
+"""#TODO write module docstring
+
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -17,6 +55,7 @@ from typing import Iterable
 from typing import Generator
 
 from numpy.typing import NDArray
+from numpy.typing import ArrayLike
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -50,7 +89,32 @@ from ..statistics.estimation import estimate_kernel_density
 
 
 class Plotter(ABC):
+    """Abstract base class for creating plotters.
 
+    Attributes
+    ----------
+    source : Hashable
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn
+    color : str (read-only)
+        The color of the drawn artist.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if 
+        `target_on_y` is True
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if 
+        `target_on_y` is True
+    """
     __slots__ = (
         'source', 'target', 'feature', '_color', 'target_on_y', 'fig', 'ax')
     source: Hashable
@@ -70,6 +134,28 @@ class Plotter(ABC):
             color: str | None = None,
             ax: Axes | None = None,
             ) -> None:
+        """
+        Initialize the Plotter object.
+
+        Parameters
+        ----------
+        source : Hashable
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        feature : str, optional
+            Column name of the feature variable for the plot,
+            by default ''
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on the
+            y-axis, by default True
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first 
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure ovject with
+            one Axes is created, by default None.
+        """
         self.target_on_y = target_on_y
         self.source = source
         if not feature:
@@ -82,14 +168,14 @@ class Plotter(ABC):
         self._color = color
     
     @property
-    def x(self):
-        """Get values used for x axis"""
+    def x(self) -> ArrayLike:
+        """Get values used for x-axis"""
         name = self.feature if self.target_on_y else self.target
         return self.source[name]
     
     @property
-    def y(self):
-        """Get values used for y axis"""
+    def y(self) -> ArrayLike:
+        """Get values used for y-axis"""
         name = self.target if self.target_on_y else self.feature
         return self.source[name]
     
@@ -101,11 +187,45 @@ class Plotter(ABC):
         return self._color
 
     @abstractmethod
-    def __call__(self):...
+    def __call__(self):
+        """
+        Perform the plotting operation.
+
+        This method should be overridden by subclasses to provide the specific plotting functionality.
+        """
 
 
 class Scatter(Plotter):
-
+    """A scatter plotter that extends the Plotter base class.
+    
+    Attributes
+    ----------
+    source : Hashable
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn
+    marker : str | None
+        The marker style for the scatter plot.
+    size : Iterable[int] | None
+        The size of the markers in the scatter plot.
+    color : str (read-only)
+        The color of the drawn artist.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if 
+        `target_on_y` is True
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if 
+        `target_on_y` is True
+    """
     __slots__ = ('marker', 'size')
     marker: str | None
     size: Iterable[int] | None
@@ -114,13 +234,38 @@ class Scatter(Plotter):
             self,
             source: Hashable,
             target: str,
-            feature: str = '', 
+            feature: str, 
             target_on_y: bool = True, 
             color: str | None = None,
             marker: str | None = None,
             size: Iterable[int] | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
+        """Initialize the Scatter object.
+        
+        Parameters
+        ----------
+        source : Hashable
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        feature : str
+            Column name of the feature variable for the plot
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on the
+            y-axis, by default True
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first 
+            color is taken from the color cycle, by default None.
+        marker : str | None, optional
+            The marker style for the scatter plot. Available markers see:
+            https://matplotlib.org/stable/api/markers_api.html, 
+            by default None
+        size : Iterable[int] | None, optional
+            The size of the markers in the scatter plot, by default None
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure ovject with
+            one Axes is created, by default None."""
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
@@ -128,6 +273,14 @@ class Scatter(Plotter):
         self.size = size
     
     def __call__(self, **kwds) -> None:
+        """Perform the scatter plot operation.
+
+        Parameters
+        ----------
+        **kwds : 
+            Additional keyword arguments to be passed to the Axes 
+            `scatter` method.
+        """
         kwds = dict(
             c=self.color, marker=self.marker, s=self.size,
             alpha=COLOR.MARKER_ALPHA) | kwds
@@ -135,7 +288,32 @@ class Scatter(Plotter):
 
 
 class Line(Plotter):
-
+    """A line plotter that extends the Plotter base class.
+    
+    Attributes
+    ----------
+    source : Hashable
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn
+    color : str (read-only)
+        The color of the drawn artist.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if 
+        `target_on_y` is True
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if 
+        `target_on_y` is True
+    """
     def __init__(
             self,
             source: Hashable,
@@ -145,23 +323,93 @@ class Line(Plotter):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
+        """Initialize the Line object
+        
+        Parameters
+        ----------
+        source : Hashable
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        feature : str, optional
+            Column name of the feature variable for the plot,
+            by default ''
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on the
+            y-axis, by default True
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first 
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure ovject with
+            one Axes is created, by default None.
+        """
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
     
     def __call__(self, marker=None, **kwds) -> None:
+        """Perform the scatter plot operation.
+
+        Parameters
+        ----------
+        marker : str | None, optional
+            The marker style for the scatter plot. Available markers see:
+            https://matplotlib.org/stable/api/markers_api.html, 
+            by default None
+        **kwds : 
+            Additional keyword arguments to be passed to the Axes `plot` 
+            method.
+        """
         alpha = None if marker is None else COLOR.MARKER_ALPHA
         kwds = dict(c=self.color, marker=marker, alpha=alpha) | kwds
         self.ax.plot(self.x, self.y, **kwds)
             
 
 class LinearRegression(Plotter):
-
+    """A linear regression plotter that extends the Plotter base class.
+    
+    Attributes
+    ----------
+    source : pandas DataFrame
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn
+    model : statsmodels RegressionResults
+        The full fitted OLS regression model
+    target_fit : str
+        The column name of the target variable for the fitted line.
+    show_points : bool
+        Flag indicating whether to show the individuals as scatter point.
+    show_fit_ci : bool
+        Flag indicating whether to show the confidence interval for the
+        fitted line.
+    show_pred_ci : bool
+        Flag indicating whether to show the confidence interval for 
+        predictions.
+    color : str (read-only)
+        The color of the drawn artist.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if 
+        `target_on_y` is True
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if 
+        `target_on_y` is True
+    """
     __slots__ = (
-        'model', 'target_fit', 'show_center', 'show_fit_ci', 'show_pred_ci')
+        'model', 'target_fit', 'show_points', 'show_fit_ci', 'show_pred_ci')
     model: RegressionResults
     target_fit: str
-    show_center: bool
+    show_points: bool
     show_fit_ci: bool
     show_pred_ci: bool
 
@@ -173,12 +421,46 @@ class LinearRegression(Plotter):
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
-            show_center: bool = True,
+            show_points: bool = True,
             show_fit_ci: bool = False,
             show_pred_ci: bool = False,
             **kwds) -> None:
+        """Initialize the LinearRegression object
+        
+        Parameters
+        ----------
+        source : Hashable
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        feature : str
+            Column name of the feature variable for the plot,
+            by default ''
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on the
+            y-axis, by default True
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first 
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure ovject with
+            one Axes is created, by default None.
+        show_points : bool, optional
+            Flag indicating whether to show the individual points, 
+            by default True.
+        show_fit_ci : bool, optional
+            Flag indicating whether to show the confidence interval for
+            the fitted line as filled area, by default False.
+        show_pred_ci : bool, optional
+            Flag indicating whether to show the confidence interval for 
+            predictions as additional lines, by default False
+        **kwds:
+            Those arguments have no effect. Only serves to catch further
+            arguments that have no use here (occurs when this class is 
+            used within chart objects).
+        """
         self.target_fit = PLOTTER.FITTED_VALUES_NAME
-        self.show_center = show_center
+        self.show_points = show_points
         self.show_fit_ci = show_fit_ci
         self.show_pred_ci = show_pred_ci
         df = source if isinstance(source, DataFrame) else pd.DataFrame(source)
@@ -208,41 +490,108 @@ class LinearRegression(Plotter):
     def __call__(
             self, kw_scatter: dict = {}, kw_fit_ci: dict = {},
             kw_pred_ci: dict = {}, **kwds):
-        _color = {'color': self.color}
-        
+        """
+        Perform the linear regression plot operation.
+
+        Parameters
+        ----------
+        kw_scatter : dict, optional
+            Additional keyword arguments for the Axes `scatter` method,
+            by default {}.
+        kw_fit_ci : dict, optional
+            Additional keyword arguments for the confidence interval of 
+            the fitted line (Axes `fill_between` method), by default {}.
+        kw_pred_ci : dict, optional
+            Additional keyword arguments for the confidence interval of
+            the predictions (Axes plot method), by default {}
+        **kwds:
+            Additional keyword arguments to be passed to the fit line
+            plot (Axes `plot` method).
+        """
+        color = dict(color=self.color)
         x, y = self.source[self.feature], self.source[self.target_fit]
         if not self.target_on_y: x, y = y, x
-        kwds = KW.FIT_LINE | _color | kwds
+        kwds = KW.FIT_LINE | color | kwds
         self.ax.plot(x, y, **kwds)
         
-        if self.show_center:
-            kw_scatter = _color | kw_scatter
+        if self.show_points:
+            kw_scatter = color | kw_scatter
             self.ax.scatter(self.x, self.y, **kw_scatter)
-        
         if self.show_fit_ci:
-            kw_fit_ci = KW.FIT_CI | _color | kw_fit_ci
+            kw_fit_ci = KW.FIT_CI | color | kw_fit_ci
             lower = self.source[PLOTTER.FIT_CI_LOW]
             upper = self.source[PLOTTER.FIT_CI_UPP]
             if self.target_on_y:
                 self.ax.fill_between(self.x, lower, upper, **kw_fit_ci)
             else:
                 self.ax.fill_betweenx(self.y, lower, upper, **kw_fit_ci)
-        
         if self.show_pred_ci:
-            kw_pred_ci = KW.PRED_CI | _color | kw_pred_ci
+            kw_pred_ci = KW.PRED_CI | color | kw_pred_ci
             lower = self.source[PLOTTER.PRED_CI_LOW]
             upper = self.source[PLOTTER.PRED_CI_UPP]
             if self.target_on_y:
-                x0, y0 = self.x, lower
-                x1, y1 = self.x, upper
+                self.ax.plot(self.x, lower, self.x, upper, **kw_pred_ci)
             else:
-                x0, y0 = lower, self.y
-                x1, y1 = upper, self.y
-            self.ax.plot(x0, y0, x1, y1, **kw_pred_ci)
+                self.ax.plot(lower, self.y, upper, self.y, **kw_pred_ci)
 
 
 class Probability(LinearRegression):
-
+    """A Q-Q and P-P probability plotter that extends the 
+    LinearRegression class.
+    
+    Attributes
+    ----------
+    source : pandas DataFrame
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements.
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn.
+    model : statsmodels RegressionResults
+        The full fitted OLS regression model.
+    target_fit : str
+        The column name of the target variable for the fitted line.
+    show_points : bool
+        Flag indicating whether to show the individuals as scatter point.
+    show_fit_ci : bool
+        Flag indicating whether to show the confidence interval for the
+        fitted line.
+    show_pred_ci : bool
+        Flag indicating whether to show the confidence interval for 
+        predictions.
+    dist : scipy stats rv_continuous
+        The probability distribution to use for the plot.
+    kind : Literal['qq', 'pp', 'sq', 'sp']:
+        The type of probability plot to create. The first letter
+        corresponds to the target, the second to the feature.
+        - qq: target = sample quantile; feature = theoretical quantile
+        - pp: target = sample percentile; feature = theoretical 
+            percentile
+        - sq: target = sample data; feature = theoretical quantiles
+        - sp: target = sample data, feature = theoretical percentiles
+    prob_fit : statsmodels ProbPlot
+        The probability plot object.
+    color : str (read-only)
+        The color of the drawn artist.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if 
+        `target_on_y` is True.
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if 
+        `target_on_y` is True.
+    sample_data : NDArray (read-only)
+        Get fitted samples (target data) according to given kind.
+    theoretical_data : NDArray (read-only)
+        Get theoretical data (quantiles or percentiles) according to 
+        the given kind.
+    """
     __slots__ = ('dist', 'kind', 'prob_fit')
     dist: rv_continuous
     kind: Literal['qq', 'pp', 'sq', 'sp']
@@ -257,10 +606,59 @@ class Probability(LinearRegression):
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
-            show_center: bool = True,
+            show_points: bool = True,
             show_fit_ci: bool = True,
             show_pred_ci: bool = True,
             **kwds) -> None:
+        """Initialize the Probability object
+        
+        Parameters
+        ----------
+        source : Hashable
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        dist : scipy stats rv_continuous
+            The probability distribution use for creating feature data
+            (the theoretical values).
+        kind : Literal['qq', 'pp', 'sq', 'sp']:
+            The type of probability plot to create. The first letter
+            corresponds to the target, the second to the feature.
+            - qq: target = sample quantile; feature = theoretical
+                quantile
+            - pp: target = sample percentile; feature = theoretical 
+                percentile
+            - sq: target = sample data; feature = theoretical quantiles
+            - sp: target = sample data, feature = theoretical
+                percentiles
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on 
+            the y-axis, by default True.
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first 
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure ovject with
+            one Axes is created, by default None.
+        show_points : bool, optional
+            Flag indicating whether to show the individual points, 
+            by default True.
+        show_fit_ci : bool, optional
+            Flag indicating whether to show the confidence interval for
+            the fitted line as filled area, by default False.
+        show_pred_ci : bool, optional
+            Flag indicating whether to show the confidence interval for 
+            predictions as additional lines, by default False.
+        **kwds:
+            Those arguments have no effect. Only serves to catch further
+            arguments that have no use here (occurs when this class is 
+            used within chart objects).
+        
+        Raises
+        ------
+        AssertionError
+            If given kind is not one of 'qq', 'pp', 'sq' or 'sp'
+        """
         assert kind in ('qq', 'pp', 'sq', 'sp'), (
             f'kind must be one of {"qq", "pp", "sq", "sp"}, got {kind}')
 
@@ -277,13 +675,13 @@ class Probability(LinearRegression):
         super().__init__(
             source=df, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax, 
-            show_center=show_center, show_fit_ci=show_fit_ci,
+            show_points=show_points, show_fit_ci=show_fit_ci,
             show_pred_ci=show_pred_ci)
     
     def _xy_scale_(self) -> Tuple[str, str]:
-        """If given distribution is exponential or logaritmic, change axis
-        scale for samples or quantiles (not for percentiles) from 'linear' 
-        to 'log'."""
+        """If given distribution is exponential or logaritmic, change
+        axis scale for samples or quantiles (not for percentiles) from
+        'linear' to 'log'."""
         xscale = yscale = 'linear'
         if self.dist.name in ('expon', 'log', 'lognorm'):
             if self.kind[1] == 'q': 
@@ -295,6 +693,8 @@ class Probability(LinearRegression):
         return xscale, yscale
         
     def format_axis(self):
+        """Format the x-axis and y-axis based on the probability plot 
+        type."""
         xscale, yscale = self._xy_scale_()
         self.ax.set(xscale=xscale, yscale=yscale)
         if self.kind[0] == 'p':
@@ -305,8 +705,8 @@ class Probability(LinearRegression):
             axis.set_major_formatter(PercentFormatter(xmax=1.0, symbol='%'))
     
     @property
-    def sample_data(self):
-        """Get fitted samples (target date) according to given kind"""
+    def sample_data(self) -> NDArray:
+        """Get fitted samples (target data) according to given kind"""
         match self.kind[0]:
             case 'q': data = self.prob_fit.sample_percentiles
             case 'p': data = self.prob_fit.sample_percentiles
@@ -314,7 +714,9 @@ class Probability(LinearRegression):
         return data
 
     @property
-    def theoretical_data(self):
+    def theoretical_data(self) -> NDArray:
+        """Get theoretical data (quantiles or percentiles) according to 
+        the given kind."""
         match self.kind[1]:
             case 'q': data = self.prob_fit.theoretical_quantiles
             case 'p': data = self.prob_fit.theoretical_percentiles
@@ -323,12 +725,226 @@ class Probability(LinearRegression):
     def __call__(
             self, kw_scatter: dict = {}, kw_fit_ci: dict = {},
             kw_pred_ci: dict = {}, **kwds) -> None:
+        """Perform the probability plot operation.
+
+        Parameters
+        ----------
+        kw_scatter : dict, optional
+            Additional keyword arguments for the Axes `scatter` method,
+            by default {}.
+        kw_fit_ci : dict, optional
+            Additional keyword arguments for the confidence interval of 
+            the fitted line (Axes `fill_between` method), by default {}.
+        kw_pred_ci : dict, optional
+            Additional keyword arguments for the confidence interval of
+            the predictions (Axes plot method), by default {}
+        **kwds:
+            Additional keyword arguments to be passed to the fit line
+            plot (Axes `plot` method).
+        """
         super().__call__(kw_scatter, kw_fit_ci, kw_pred_ci, **kwds)
         self.format_axis()
 
 
-class TransformPlotter(Plotter):
+class BlandAltman(Plotter):
+    """Generate a Bland-Altman plot to compare two sets of measurements.
 
+    Attributes
+    ----------
+    source : pandas DataFrame
+        The data source for the plot.
+    target : str
+        Column name of the target variable (the second measurement).
+    feature : str
+        Column name of the feature variable (the first or reference
+        measurement).
+    estimation : Estimator
+        Instance to estimate the mean, agreement limits and those 
+        confidence interval.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn
+    color : str (read-only)
+        The color of the drawn artist.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if 
+        `target_on_y` is True
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if 
+        `target_on_y` is True
+
+    Notes
+    -----
+    Bland-Altman plots [1]_ are extensively used to evaluate the 
+    agreement among two different instruments or two measurements 
+    techniques. They allow identification of any systematic difference 
+    between the measurements (i.e., fixed bias) or possible outliers.
+
+    The mean difference (= first - second) is the estimated bias, and 
+    the SD of the differences measures the random fluctuations around 
+    this mean. If the mean value of the difference differs significantly 
+    from 0 on the basis of a 1-sample t-test, this indicates the 
+    presence of fixed bias. If there is a consistent bias, it can be 
+    adjusted for by subtracting the mean difference from the new method.
+
+    It is common to compute 95% limits of agreement for each comparison 
+    (average difference ± 1.96 standard deviation of the difference), 
+    which tells us how far apart measurements by 2 methods were more 
+    likely to be for most individuals. If the differences within 
+    mean ± 1.96 SD are not clinically important, the two methods may be 
+    used interchangeably. The 95% limits of agreement can be unreliable 
+    estimates of the population parameters especially for small sample 
+    sizes so, when comparing methods or assessing repeatability, it is 
+    important to calculate confidence intervals for the 95% limits of 
+    agreement.
+
+    The code is an adaptation of the Pingouin package.
+    https://pingouin-stats.org/generated/pingouin.plot_blandaltman.html
+    
+    The pingouin implementation is also a simplified version of the 
+    PyCombare package:
+    https://github.com/jaketmp/pyCompare
+    
+    References
+    ----------
+    .. [1] Bland, J. M., & Altman, D. (1986). Statistical methods for assessing
+           agreement between two methods of clinical measurement. The lancet,
+           327(8476), 307-310.
+    """
+    __slots__ = ('confidence', 'estimation')
+    confidence: float
+    estimation: Estimator
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str,
+            agreement: float = 3.92,
+            confidence: float = 0.95, 
+            feature_axis: Literal['mean', 'data'] = 'mean',
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        """
+        Parameters
+        ----------
+        source : pandas DataFrame
+            The data source for the plot.
+        target : str
+            Column name of the target variable (the second measurement).
+        feature : str
+            Column name of the feature variable (the first or reference
+            measurement).
+        agreement : float, optional
+            Multiple of the standard deviation to plot agreement limits
+            (in both direction). The defaults is 3.92 (± 1.96), which 
+            corresponds to 95 % confidence interval if the differences
+            are normally distributed.
+        confidence : float or None, optional
+            If not None, plot the specified percentage confidence
+            interval of the mean and limits of agreement. The CIs of the
+            mean difference and agreement limits describe a possible
+            error in the estimate due to a sampling error. The greater
+            the sample size, the narrower the CIs will be,
+            by default 0.95
+        feature_axis : Literal['mean', 'data']
+            Definition of data used as feature axis (reference axis). 
+            - If 'mean' the mean for each measurement is calculated
+            as (first + second)/2.
+            - If 'data' the feature values are used for feature axis.
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on 
+            the y-axis, by default True.
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first 
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure ovject with
+            one Axes is created, by default None.
+        **kwds:
+            Those arguments have no effect. Only serves to catch further
+            arguments that have no use here (occurs when this class is 
+            used within chart objects).
+        """
+        df = pd.DataFrame()
+        _target = f'{target} - {feature}'
+        df[_target] = source[target] - source[feature]
+        if feature_axis == 'mean':
+            _feature = feature_axis
+            df[_feature] = (np
+                .vstack((source[target].values, source[feature].values))
+                .mean(axis=0))
+        else:
+            _feature = feature
+            df[_feature] = source[feature]
+        super().__init__(
+            source=df, target=_target, feature=_feature,
+            target_on_y=target_on_y, color=color, ax=ax, **kwds)
+        self.confidence = confidence
+        self.estimation = Estimator(
+            samples=df[_target], strategy='norm', agreement=agreement)
+
+    def __call__(self, **kwds):
+        """Perform the Bland-Altman plot operation.
+
+        Parameters
+        ----------
+        **kwds : 
+            Additional keyword arguments to be passed to the Axes
+            `scatter` method.
+        """
+        kwds = dict(color=self.color) | kwds
+        self.ax.scatter(self.x, self.y, **kwds)
+        
+        kws = (KW.MEAN_LINE, KW.CONTROL_LINE, KW.CONTROL_LINE)
+        attrs = ('mean', 'lcl', 'ucl')
+        ci_funs = ('mean_ci', 'stdev_ci', 'stdev_ci')
+        for kw, attr, ci_fun in zip(kws, attrs, ci_funs):
+            value = getattr(self.estimation, attr)
+            low, upp = getattr(self.estimation, ci_fun)()
+            if self.target_on_y:
+                self.ax.axhline(value, **kw)
+                if self.confidence is not None:
+                    self.ax.axhspan(low, upp, **KW.STRIPES_CONFIDENCE)
+            else:
+                self.ax.axvline(value, **kw)
+                if self.confidence is not None:
+                    self.ax.axvspan(low, upp, **KW.STRIPES_CONFIDENCE)
+
+
+class TransformPlotter(Plotter):
+    """Abstract base class for creating plotters.
+
+    Attributes
+    ----------
+    source : pandas DataFrame
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements.
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn.
+    color : str (read-only)
+        The color of the drawn artist.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if 
+        `target_on_y` is True.
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if 
+        `target_on_y` is True.
+    """
     __slots__ = ('_f_base', '_original_f_values')
     _f_base: int | float
     source: DataFrame
@@ -344,6 +960,35 @@ class TransformPlotter(Plotter):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
+        """Initialize the TransformPlotter object.
+
+        Parameters
+        ----------
+        source : pandas DataFrame
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        feature : str, optional
+            Column name of the feature variable for the plot,
+            by default ''
+        f_base : int | float, optional
+            Value that serves as the base location (offset) of the 
+            feature values. Only taken into account if feature is not 
+            given, by default `PLOTTER.DEFAULT_F_BASE`.
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on 
+            the y-axis, by default True
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first 
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure ovject with
+            one Axes is created, by default None.
+        **kwds:
+            Those arguments have no effect. Only serves to catch further
+            arguments that have no use here (occurs when this class is 
+            used within chart objects).
+        """
         self._f_base = f_base
         self.target = target
         self.feature = feature
@@ -360,28 +1005,107 @@ class TransformPlotter(Plotter):
     
     def feature_grouped(
             self, source: DataFrame) -> Generator[Tuple, Self, None]:
+        """Group the data by the feature variable and yield the 
+        transformed data for each group.
+
+        Parameters
+        ----------
+        source : pandas DataFrame
+            The data source for the plot.
+
+        Yields
+        ------
+        feature_data : int | float
+            Base location (offset) of feature axis.
+        target_data : pandas Series
+            feature grouped target data used for transformation.
+        """
         if self.feature and self.feature != PLOTTER.TRANSFORMED_FEATURE:
             grouper = source.groupby(self.feature, sort=True)
             for i, (f_value, group) in enumerate(grouper, start=1):
-                f_base = f_value if isinstance(f_value, (float, int)) else i
                 self._original_f_values = self._original_f_values + (f_value, )
-                yield f_base, group[self.target]
+                if isinstance(f_value, (float, int)):
+                    feature_data = f_value
+                else:
+                    feature_data = i
+                target_data = group[self.target]
+                yield feature_data, target_data
         else:
             self.feature = PLOTTER.TRANSFORMED_FEATURE
             self._original_f_values = (self._f_base, )
-            yield self._f_base, source[self.target]
+            feature_data = self._f_base
+            target_data = source[self.target]
+            yield feature_data, target_data
     
     @abstractmethod
     def transform(
         self, feature_data: float | int, target_data: Series) -> DataFrame:
-        ...
+         """Perform the transformation on the target data and return the
+        transformed data.
+
+        This method should be overridden by subclasses to provide the
+        specific plotting functionality.
+
+        Parameters
+        ----------
+        feature_data : int | float
+            Base location (offset) of feature axis coming from 
+            `feature_grouped' generator.
+        target_data : pandas Series
+            feature grouped target data used for transformation, coming
+            from `feature_grouped' generator.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            The transformed data source for the plot.
+        """
     
     @abstractmethod
-    def __call__(self): ...
+    def __call__(self):
+        """Perform the plotting operation.
+
+        This method should be overridden by subclasses to provide the specific plotting functionality.
+        """
 
 
-class Location(TransformPlotter):
+class CenterLocation(TransformPlotter):
+    """A center location (mean or median) plotter that extends the 
+    TransformPlotter class.
 
+    Attributes
+    ----------
+    source : pandas DataFrame
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements.
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn.
+    color : str (read-only)
+        The color of the drawn artist.
+    kind : Literal['mean', 'median']
+        The type of center to plot ('mean' or 'median').
+    show_line : bool
+        Flag indicating whether to draw a line between the calculated 
+        mean or median points.
+    show_points : bool
+        Flag indicating whether to show the center points.
+    marker : str | None
+        The marker style for the points.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if 
+        `target_on_y` is True.
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if 
+        `target_on_y` is True.
+    """
     __slots__ = ('_kind', 'show_line', 'show_points', 'marker')
     _kind: Literal['mean', 'median']
     points: bool
@@ -404,6 +1128,47 @@ class Location(TransformPlotter):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
+        """Initialize the CenterLocation object.
+
+        Parameters
+        ----------
+        source : pandas DataFrame
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        feature : str, optional
+            Column name of the feature variable for the plot,
+            by default ''
+        kind : Literal['mean', 'median'], optional
+            The type of center to plot ('mean' or 'median'),
+            by default 'mean'.
+        marker : str | None, optional
+            The marker style for the scatter plot. Available markers see:
+            https://matplotlib.org/stable/api/markers_api.html, 
+            by default None
+        show_line : bool
+            Flag indicating whether to draw a line between the calculated 
+            mean or median points.
+        show_points : bool
+            Flag indicating whether to show the center points.
+        f_base : int | float, optional
+            Value that serves as the base location (offset) of the 
+            feature values. Only taken into account if feature is not 
+            given, by default `PLOTTER.DEFAULT_F_BASE`.
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on 
+            the y-axis, by default True
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first 
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure ovject with
+            one Axes is created, by default None.
+        **kwds:
+            Those arguments have no effect. Only serves to catch further
+            arguments that have no use here (occurs when this class is 
+            used within chart objects).
+        """
         super().__init__(
             source=source, target=target, feature=feature, f_base=f_base,
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
@@ -414,6 +1179,13 @@ class Location(TransformPlotter):
 
     @property
     def kind(self)-> Literal['mean', 'median']:
+        """Get and set the type of location to plot ('mean' or 'median')
+        
+        Raises
+        ------
+        AssertionError
+            If neither 'mean' or 'median' is given when setting `kind`.
+        """
         return self._kind
     @kind.setter
     def kind(self, kind: Literal['mean', 'median']):
@@ -422,6 +1194,23 @@ class Location(TransformPlotter):
     
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
+        """Calculate the mean or median of the target data and return the
+        transformed data.
+
+        Parameters
+        ----------
+        feature_data : int | float
+            Base location (offset) of feature axis coming from 
+            `feature_grouped' generator.
+        target_data : pandas Series
+            feature grouped target data used for transformation, coming
+            from `feature_grouped' generator.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            The transformed data source for the plot.
+        """
         t_value = getattr(target_data, self.kind)()
         data = pd.DataFrame({
             self.target: [t_value],
@@ -429,6 +1218,15 @@ class Location(TransformPlotter):
         return data
     
     def __call__(self, **kwds) -> None:
+        """
+        Perform the center plot operation.
+
+        Parameters
+        ----------
+        **kwds
+            Additional keyword arguments to be passed to the Axes
+            `plot` method.
+        """
         marker = self.marker if self.show_points else ''
         linestyle = plt.rcParams['lines.linestyle'] if self.show_line else ''
         alpha = None if marker is None else COLOR.MARKER_ALPHA
@@ -439,7 +1237,49 @@ class Location(TransformPlotter):
 
 
 class Bar(TransformPlotter):
+    """A bar plotter that extends the TransformPlotter class.
 
+    Attributes
+    ----------
+    source : pandas DataFrame
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements.
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn.
+    color : str (read-only)
+        The color of the drawn artist.
+    method : str | None
+        A pandas Series method to use for aggregating target values 
+        within each feature level. Like 'sum', 'count' or similar that
+        returns a scalar.
+    kw_method : dict
+        Additional keyword arguments to be passed to the method.
+    stack : bool
+        Flag indicating whether to stack the bars. It is checked whether
+        there are already bars at each feature position, if so the new
+        ones are stacked on top of the existing ones.
+    width : float
+        The width of the bars.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if 
+        `target_on_y` is True.
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if 
+        `target_on_y` is True.
+    bars : List[BarContainer] (read-only)
+        List of BarContainer objects representing the bars in the plot.
+    t_base : NDArray (read-only)
+        Base values for the bars (target), contains zeros when not 
+        stacked.
+    """
     __slots__ = ('method', 'kw_method', 'stack', 'width')
     method: str | None
     kw_method: dict
@@ -460,6 +1300,48 @@ class Bar(TransformPlotter):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
+        """Initialize the Bar object.
+
+        Parameters
+        ----------
+        source : pandas DataFrame
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        feature : str
+            Column name of the feature variable for the plot.
+        stack : bool, optional
+            Flag indicating whether to stack the bars. It is checked 
+            whether there are already bars at each feature position, if
+            so the new ones are stacked on top of the existing ones,
+            by default True
+        width: float, optional
+            Width of the bars, by default `CATEGORY.FEATURE_SPACE`
+        kw_method : dict, optional
+            Additional keyword arguments to be passed to the method,
+            by default {}
+        method : str, optional
+            A pandas Series method to use for aggregating target values 
+            within each feature level. Like 'sum', 'count' or similar
+            that returns a scalar, by default None
+        f_base : int | float, optional
+            Value that serves as the base location (offset) of the 
+            feature values. Only taken into account if feature is not 
+            given, by default `PLOTTER.DEFAULT_F_BASE`.
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on 
+            the y-axis, by default True
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first 
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure ovject with
+            one Axes is created, by default None.
+        **kwds:
+            Those arguments have no effect. Only serves to catch further
+            arguments that have no use here (occurs when this class is 
+            used within chart objects).
+        """
         self.stack = stack
         self.width = width
         self.method = method
@@ -475,10 +1357,14 @@ class Bar(TransformPlotter):
 
     @property
     def bars(self) -> List[BarContainer]:
+        """Get a list of BarContainer objects representing the bars in
+        the plot."""
         return [c for c in self.ax.containers if isinstance(c, BarContainer)]
     
     @property
     def t_base(self) -> NDArray:
+        """Get the base values for the bars (target), contains zeros 
+        when not stacked."""
         feature_ticks = self.source[self.feature]
         t_base = np.zeros(len(feature_ticks))
         if not self.stack: 
@@ -498,6 +1384,30 @@ class Bar(TransformPlotter):
     
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
+        """Perform the given Series method on the target data if given 
+        and return the transformed data. If no method is given, the 
+        target data is adopted directly.
+
+        Parameters
+        ----------
+        feature_data : int | float
+            Base location (offset) of feature axis coming from 
+            `feature_grouped' generator.
+        target_data : pandas Series
+            feature grouped target data used for transformation, coming
+            from `feature_grouped' generator.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            The transformed data source for the plot.
+        
+        Raises
+        ------
+        AssertionError
+            When transformed target data (or original data if no method
+            is specified) is non-scalar.
+        """
         if self.method is not None:
             t_value = getattr(target_data, self.method)(**self.kw_method)
             assert is_scalar(t_value), (
@@ -515,6 +1425,15 @@ class Bar(TransformPlotter):
         return data
 
     def __call__(self, **kwds) -> None:
+        """
+        Perform the bar plot operation.
+
+        Parameters
+        ----------
+        **kwds
+            Additional keyword arguments to be passed to the Axes `bar`
+            (or 'barh' if target_on_y is False) method.
+        """
         if self.target_on_y:
             self.ax.bar(
                 self.x, self.y, width=self.width, bottom=self.t_base, **kwds)
@@ -524,7 +1443,77 @@ class Bar(TransformPlotter):
 
 
 class Pareto(Bar):
+    """A plotter to perform a pareto chart that extends the Bar plotter
+    class.
 
+    A Pareto chart is a type of chart that combines a bar graph and a 
+    line graph. It is used to display and analyze data in order to 
+    prioritize and identify the most significant factors contributing 
+    to a particular phenomenon or problem. The line graph in a Pareto 
+    chart shows the cumulative percentage of the total, which helps 
+    identify the point at which a significant portion of the cumulative 
+    total is reached.
+
+    Pareto charts are commonly used in quality control, process 
+    improvement, and decision-making processes. They allow users to 
+    visually identify and focus on the most significant factors that 
+    contribute to a problem or outcome, enabling them to allocate 
+    resources and address the most critical issues first.
+
+    Attributes
+    ----------
+    source : pandas DataFrame
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    highlight : Any
+        The feature value whose bar should be highlighted in the diagram.
+    highlight_color : str
+        The color to use for highlighting.
+    highlighted_as_last: bool
+        Whether the highlighted bar should be at the end.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements.
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn.
+    color : str (read-only)
+        The color of the drawn artist.
+    method : str | None
+        A pandas Series method to use for aggregating target values 
+        within each feature level. Like 'sum', 'count' or similar that
+        return a scalar.
+    kw_method : dict
+        Additional keyword arguments to be passed to the method.
+    stack : bool
+        Flag indicating whether to stack the bars. It is checked whether
+        there are already bars at each feature position, if so the new
+        ones are stacked on top of the existing ones.
+    width : float
+        The width of the bars.
+    x : ArrayLike (read-only)
+        Values used for the x-axis so that the target is displayed in 
+        descending order and the highlighted bar is at the end
+        (if so specified).
+    y : ArrayLike (read-only)
+        Values used for the y-axis so that the target is displayed in 
+        descending order and the highlighted bar is at the end
+        (if so specified).
+    bars : List[BarContainer] (read-only)
+        List of BarContainer objects representing the bars in the plot.
+    t_base : NDArray (read-only)
+        Base values for the bars (target), contains zeros when not 
+        stacked.
+    shared_feature_axes : bool (read-only)
+        True if any other ax in this figure shares the feature axes.
+    indices : List[int] (read-only)
+        Arranged index values to access the target data (from source 
+        data) in the order to be plotted.
+    """
     __slots__ = ('highlight', 'highlight_color', 'highlighted_as_last')
     highlight: Any
     highlight_color: str
@@ -541,11 +1530,59 @@ class Pareto(Bar):
             width: float = CATEGORY.FEATURE_SPACE,
             method: str | None = None,
             kw_method: dict = {},
-            f_base: int | float = PLOTTER.DEFAULT_F_BASE,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
+        """Initialize the Pareto object.
+
+        Parameters
+        ----------
+        source : pandas DataFrame
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        feature : str
+            Column name of the feature variable for the plot.
+        highlight : Any, optional
+            The feature value whose bar should be highlighted in the 
+            diagram, by default None.
+        highlight_color : str, optional
+            The color to use for highlighting, by default `COLOR.BAD`.
+        highlighted_as_last: bool, optional
+            Whether the highlighted bar should be at the end, by default
+            True.
+        width: float, optional
+            Width of the bars, by default `CATEGORY.FEATURE_SPACE`.
+        method : str, optional
+            A pandas Series method to use for aggregating target values 
+            within each feature level. Like 'sum', 'count' or similar
+            that returns a scalar, by default None.
+        kw_method : dict, optional
+            Additional keyword arguments to be passed to the method,
+            by default {}.
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on 
+            the y-axis, by default True.
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first 
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure ovject with
+            one Axes is created, by default None.
+        **kwds:
+            Those arguments have no effect. Only serves to catch further
+            arguments that have no use here (occurs when this class is 
+            used within chart objects).
+        
+        Raises
+        ------
+        AssertionError
+            If 'categorical_feature' is True, coming from Chart objects.
+        AssertionError
+            If an other Axes object in this Figure instance shares the
+            feature axis.
+        """
         assert not (kwds.get('categorical_feature', False)), (
             "Don't set categorical_feature to True for Pareto charts, "
             'it would mess up the axis tick labels')
@@ -555,7 +1592,7 @@ class Pareto(Bar):
         
         super().__init__(
             source=source, target=target, feature=feature, stack=False,
-            width=width, method=method, kw_method=kw_method, f_base=f_base,
+            width=width, method=method, kw_method=kw_method,
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
         self.source[self.feature] = self._original_f_values
         assert not self.shared_feature_axes, (
@@ -570,8 +1607,8 @@ class Pareto(Bar):
 
     @property
     def indices(self) -> List[int]:
-        """Get the source data index so that the target is in a
-        descending order"""
+        """Get arranged index values to access the target data (from 
+        source data) in the order to be plotted."""
         indices = (self.source
             .sort_values(self.target, ascending = not self.target_on_y)
             .index.to_list())
@@ -586,8 +1623,9 @@ class Pareto(Bar):
     
     @property
     def x(self):
-        """Get values used for x axis so that the target is in a
-        descending order"""
+        """Get the values used for the x-axis so that the target is 
+        displayed in descending order and the highlighted bar is at the
+        end (if so specified)."""
         if self.target_on_y:
             return self.source.loc[self.indices, self.feature]
         else:
@@ -595,8 +1633,9 @@ class Pareto(Bar):
     
     @property
     def y(self):
-        """Get values used for y axis so that the target is in a
-        descending order"""
+        """Get the values used for the y-axis so that the target is 
+        displayed in descending order and the highlighted bar is at the
+        end (if so specified)."""
         if not self.target_on_y:
             return self.source.loc[self.indices, self.feature]
         else:
@@ -649,6 +1688,14 @@ class Pareto(Bar):
         self.ax.has_pc_texts = True
 
     def __call__(self, **kwds) -> None:
+        """Perform the pareto plot operation.
+
+        Parameters
+        ----------
+        **kwds
+            Additional keyword arguments to be passed to the Axes `bar`
+            (or 'barh' if target_on_y is False) method.
+        """
         if self.target_on_y:
             bars = self.ax.bar(self.x, self.y, width=self.width, **kwds)
             self.ax.plot(
@@ -666,7 +1713,34 @@ class Pareto(Bar):
 
 
 class Jitter(TransformPlotter):
+    """A class for creating jitter plots.
 
+    Attributes
+    ----------
+    source : pandas DataFrame
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements.
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn.
+    color : str (read-only)
+        The color of the drawn artist.
+    width : float
+        The width of the jitter.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if 
+        `target_on_y` is True.
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if 
+        `target_on_y` is True.
+    """
     __slots__ = ('width')
     width: float
 
@@ -680,6 +1754,33 @@ class Jitter(TransformPlotter):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
+        """Initialize the Jitter object.
+
+        Parameters
+        ----------
+        source : pandas DataFrame
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        feature : str, optional
+            Column name of the feature variable for the plot,
+            by default ''
+        width : float
+            The width of the jitter, by default `CATEGORY.FEATURE_SPACE`.
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on 
+            the y-axis, by default True
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first 
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure ovject with
+            one Axes is created, by default None.
+        **kwds:
+            Those arguments have no effect. Only serves to catch further
+            arguments that have no use here (occurs when this class is 
+            used within chart objects).
+        """
         self.width = width
         super().__init__(
             source=source, target=target, feature=feature,
@@ -712,32 +1813,40 @@ class Jitter(TransformPlotter):
         
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
+        """Normally randomize the target data for each feature value in 
+        the feature axis direction.
+
+        Parameters
+        ----------
+        feature_data : int | float
+            Base location (offset) of feature axis coming from 
+            `feature_grouped' generator.
+        target_data : pandas Series
+            feature grouped target data used for transformation, coming
+            from `feature_grouped' generator.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            The transformed data source for the plot.
+        """
         data = pd.DataFrame({
             self.target: target_data,
             self.feature: self.jitter(feature_data, target_data.size)})
         return data
 
     def __call__(self, **kwds) -> None:
+        """Perform the jitter plot operation.
+
+        Parameters
+        ----------
+        **kwds
+            Additional keyword arguments to be passed to the Axes 
+            `scatter` method.
+        """
         kwds = dict(color=self.color) | kwds
         self.ax.scatter(self.x, self.y, **kwds)
 
-#TODO: implement BlandAltman Plotter
-class BlandAltman(TransformPlotter):
-
-    def __init__(
-            self,
-            source: DataFrame,
-            target: str,
-            feature: str = '',
-            f_base: int | float = PLOTTER.DEFAULT_F_BASE,
-            target_on_y: bool = True,
-            color: str | None = None,
-            ax: Axes | None = None,
-            **kwds) -> None:
-        raise NotImplementedError
-        super().__init__(
-            source=source, target=target, feature=feature, f_base=f_base,
-            target_on_y=target_on_y, color=color, ax=ax, **kwds)
 
 class GaussianKDE(TransformPlotter):
 
@@ -1060,8 +2169,9 @@ __all__ = [
     Line.__name__,
     LinearRegression.__name__,
     Probability.__name__,
+    BlandAltman.__name__,
     TransformPlotter.__name__,
-    Location.__name__,
+    CenterLocation.__name__,
     Bar.__name__,
     Pareto.__name__,
     Jitter.__name__,
