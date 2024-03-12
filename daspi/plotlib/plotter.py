@@ -1850,15 +1850,14 @@ class Jitter(TransformPlotter):
 
 class GaussianKDE(TransformPlotter):
 
-    __slots__ = ('_height', '_stretch', 'show_density_axis', 'base_on_zero')
+    __slots__ = ('_height', '_stretch', 'show_density_axis')
     _height: float | None
     _stretch: float
     show_density_axis: bool
-    base_on_zero: bool
 
     def __init__(
             self,
-            source: Hashable,
+            source: DataFrame,
             target: str,
             stretch: float = 1,
             height: float | None = None,
@@ -1866,12 +1865,10 @@ class GaussianKDE(TransformPlotter):
             color: str | None = None,
             ax: Axes | None = None,
             show_density_axis: bool = True,
-            base_on_zero: bool = True,
             **kwds) -> None:
         self._height = height
         self._stretch = stretch
         self.show_density_axis = show_density_axis
-        self.base_on_zero = base_on_zero
         feature = PLOTTER.TRANSFORMED_FEATURE
         _feature = kwds.pop('feature', '')
         if type(self) != GaussianKDE and _feature:
@@ -1915,9 +1912,6 @@ class GaussianKDE(TransformPlotter):
             self.ax.fill_between(self.x, self._f_base, self.y, **kw_fill)
         if not self.show_density_axis:
             self.hide_density_axis()
-        if self.base_on_zero:
-            xy = 'x' if self.target_on_y else 'y'
-            getattr(self.ax, f'set_{xy}margin')(0)
 
 
 class Violine(GaussianKDE):
@@ -1935,7 +1929,7 @@ class Violine(GaussianKDE):
         super().__init__(
             source=source, target=target, feature=feature,
             height=width/2, target_on_y=target_on_y, color=color, ax=ax,
-            show_density_axis=True, base_on_zero=False, **kwds)
+            show_density_axis=True, **kwds)
 
     def __call__(self, **kwds) -> None:
         kwds = dict(color=self.color, alpha=COLOR.FILL_ALPHA) | kwds
@@ -1947,6 +1941,7 @@ class Violine(GaussianKDE):
                 self.ax.fill_betweenx(sequence, estim_low, estim_upp, **kwds)
             else:
                 self.ax.fill_between(sequence, estim_low, estim_upp, **kwds)
+
 
 class Errorbar(TransformPlotter):
     __slots__ = ('lower', 'upper', 'show_center')
