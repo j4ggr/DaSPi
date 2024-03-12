@@ -1713,7 +1713,7 @@ class Pareto(Bar):
 
 
 class Jitter(TransformPlotter):
-    """A class for creating jitter plots.
+    """A class for creating jitter plotters.
 
     Attributes
     ----------
@@ -1849,7 +1849,45 @@ class Jitter(TransformPlotter):
 
 
 class GaussianKDE(TransformPlotter):
+    """Class for creating Gaussian Kernel Density Estimation (KDE) 
+    plotters.
 
+    Kernel density estimation is a way to estimate the probability 
+    density function (PDF) of a random variable in a non-parametric way.
+    The used gaussian_kde function of scipy.stats works for both
+    uni-variate and multi-variate data. It includes automatic bandwidth
+    determination. The estimation works best for a unimodal 
+    distribution; bimodal or multi-modal distributions tend to be 
+    oversmoothed.
+    
+    Attributes
+    ----------
+    source : DataFrame
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements.
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn.
+    show_density_axis : bool
+        Flag indicating whether to show the density axis.
+    color : str (read-only)
+        The color of the drawn artist.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if `target_on_y` is True.
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if `target_on_y` is True.
+    height : float (read-only)
+        Height of the KDE curve at its maximum.
+    stretch : float (read-only)
+        Factor by which the curve was stretched in height.
+    """
     __slots__ = ('_height', '_stretch', 'show_density_axis')
     _height: float | None
     _stretch: float
@@ -1866,6 +1904,36 @@ class GaussianKDE(TransformPlotter):
             ax: Axes | None = None,
             show_density_axis: bool = True,
             **kwds) -> None:
+        """Initialize the GaussianKDE object.
+
+        Parameters
+        ----------
+        source : DataFrame
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        stretch : float, optional
+            Factor by which the curve was stretched in height,
+            by default 1.
+        height : float | None, optional
+            Height of the KDE curve at its maximum, by default None.
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on 
+            the y-axis, by default True.
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first 
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure object with 
+            one Axes is created, by default None.
+        show_density_axis : bool, optional
+            Flag indicating whether to show the density axis,
+            by default True.
+        **kwds:
+            Additional keyword arguments that have no effect and are
+            only used to catch further arguments that have no use here
+            (occurs when this class is used within chart objects).
+        """
         self._height = height
         self._stretch = stretch
         self.show_density_axis = show_density_axis
@@ -1881,6 +1949,7 @@ class GaussianKDE(TransformPlotter):
     def height(self) -> float:
         """Height of kde curve at its maximum."""
         return self._height
+    
     @property
     def stretch(self) -> float:
         """Factor by which the curve was stretched in height"""
@@ -1888,6 +1957,27 @@ class GaussianKDE(TransformPlotter):
         
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
+        """Perform the transformation on the target data by estimating 
+        its kernel density. To obtain a uniform curve, a sequence 
+        is generated with a specific number of points in the same range 
+        (min to max) as the target data.
+
+        Parameters
+        ----------
+        feature_data : float | int
+            Base location (offset) of feature axis coming from 
+            `feature_grouped` generator.
+        target_data : pandas Series
+            Feature grouped target data used for transformation,
+            coming from `feature_grouped` generator.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            The transformed data source for the plot. Contains the 
+            generated sequence as target data and the estimation as
+            feature data.
+        """
         sequence, estimation = estimate_kernel_density(
             data=target_data, stretch=self.stretch, height=self.height,
             base=feature_data)
@@ -1898,12 +1988,24 @@ class GaussianKDE(TransformPlotter):
         return data
     
     def hide_density_axis(self) -> None:
+        """Hide the density axis (spine, ticks and labels)."""
         axis = 'xaxis' if self.target_on_y else 'yaxis'
         spine = 'bottom' if self.target_on_y else 'left'
         getattr(self.ax, axis).set_visible(False)
         self.ax.spines[spine].set_visible(False)
         
     def __call__(self, kw_line: dict = {}, **kw_fill) -> None:
+        """Perform the plotting operation.
+
+        Parameters
+        ----------
+        kw_line : dict, optional
+            Additional keyword arguments for the axes `plot` method,
+            by default {}.
+        **kw_fill : dict, optional
+            Additional keyword arguments for the axes `fill_between`
+            method, by default {}.
+        """
         self.ax.plot(self.x, self.y, **kw_line)
         kw_fill = dict(alpha=COLOR.FILL_ALPHA) | kw_fill
         if self.target_on_y:
@@ -1915,7 +2017,41 @@ class GaussianKDE(TransformPlotter):
 
 
 class Violine(GaussianKDE):
+    """Class for creating violine plotters.
 
+    This violin plot is composed of a double-sided Gaussian kernel
+    density estimate. The width of the violin is stretched to fill the
+    available width.
+
+    Attributes
+    ----------
+    source : DataFrame
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements.
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn.
+    color : str (read-only)
+        The color of the drawn artist.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if `target_on_y` is True.
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if `target_on_y` is True.
+    height : float (read-only)
+        Height of the KDE curve at its maximum.
+    stretch : float (read-only)
+        Factor by which the curve was stretched in height.
+    show_density_axis : bool
+        Flag indicating whether to show the density axis.
+    base_on_zero : bool
+        Flag indicating whether to base the plot on zero.
+    """
     def __init__(
             self,
             source: DataFrame,
@@ -1926,12 +2062,47 @@ class Violine(GaussianKDE):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
+        """Initialize the Violine object.
+
+        Parameters
+        ----------
+        source : DataFrame
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        feature : str, optional
+            Column name of the feature variable for the plot,
+            by default ''.
+        width : float, optional
+            Width of the violine, by default CATEGORY.FEATURE_SPACE.
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on
+            the y-axis, by default True.
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure object with
+            one Axes is created, by default None.
+        **kwds:
+            Additional keyword arguments that have no effect and are
+            only used to catch further arguments that have no use here
+            (occurs when this class is used within chart objects).
+        """
         super().__init__(
             source=source, target=target, feature=feature,
             height=width/2, target_on_y=target_on_y, color=color, ax=ax,
             show_density_axis=True, **kwds)
 
     def __call__(self, **kwds) -> None:
+        """
+        Perform the plotting operation.
+
+        Parameters
+        ----------
+        **kwds : dict, optional
+            Additional keyword arguments for the fill plot, by default {}.
+        """
         kwds = dict(color=self.color, alpha=COLOR.FILL_ALPHA) | kwds
         for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME):
             estim_upp = group[self.feature]
@@ -1944,6 +2115,35 @@ class Violine(GaussianKDE):
 
 
 class Errorbar(TransformPlotter):
+    """Class for creating error bar plotters.
+
+    Attributes
+    ----------
+    source : DataFrame
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements.
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn.
+    color : str (read-only)
+        The color of the drawn artist.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if `target_on_y` is True.
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if `target_on_y` is True.
+    lower : str
+        Column name of the lower error values.
+    upper : str
+        Column name of the upper error values.
+    show_center : bool
+        Flag indicating whether to show the center points.
+    """
     __slots__ = ('lower', 'upper', 'show_center')
     lower: str
     upper: str
@@ -1951,7 +2151,7 @@ class Errorbar(TransformPlotter):
 
     def __init__(
             self,
-            source: Hashable,
+            source: DataFrame,
             target: str,
             lower: str,
             upper: str,
@@ -1961,6 +2161,41 @@ class Errorbar(TransformPlotter):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
+        """Initialize the Errorbar object.
+
+        Parameters
+        ----------
+        source : DataFrame
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        lower : str
+            Column name of the lower error values.
+        upper : str
+            Column name of the upper error values.
+        feature : str, optional
+            Column name of the feature variable for the plot,
+            by default ''.
+        show_center : bool, optional
+            Flag indicating whether to show the center points,
+            by default True.
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on
+            the y-axis, by default True.
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure object with
+            one Axes is created, by default None.
+        err : NDArray (read-only)
+            separated error lengths as 2D array. First row contains the
+            lower errors, the second row contains the upper errors.
+        **kwds:
+            Additional keyword arguments that have no effect and are
+            only used to catch further arguments that have no use here
+            (occurs when this class is used within chart objects).
+        """
         self.lower = lower
         self.upper = upper
         self.show_center = show_center
@@ -1974,6 +2209,23 @@ class Errorbar(TransformPlotter):
         
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
+        """Perform the transformation on the target data and return the
+        transformed data.
+
+        Parameters
+        ----------
+        feature_data : float | int
+            Base location (offset) of feature axis coming from
+            `feature_grouped` generator.
+        target_data : pandas Series
+            Feature grouped target data used for transformation, coming
+            from `feature_grouped` generator.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            The transformed data source for the plot.
+        """
         data = pd.DataFrame({
             self.target: target_data,
             self.feature: [feature_data]})
@@ -1990,6 +2242,16 @@ class Errorbar(TransformPlotter):
         return err
     
     def __call__(self, kw_points: dict = {}, **kwds):
+        """Perform the plotting operation.
+
+        Parameters
+        ----------
+        kw_points : dict, optional
+            Additional keyword arguments for the axes `scatter` method,
+            by default {}.
+        **kwds :
+            Additional keyword arguments for the axes `errorbar` method.
+        """
         if self.show_center:
             kw_points = dict(color=self.color) | kw_points
             self.ax.scatter(self.x, self.y, **kw_points)
@@ -2001,10 +2263,42 @@ class Errorbar(TransformPlotter):
 
 
 class StandardErrorMean(Errorbar):
+    """Class for creating plotters with error bars representing the
+    standard error of the mean.
 
+    Attributes
+    ----------
+    source : DataFrame
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements.
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn.
+    color : str (read-only)
+        The color of the drawn artist.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if
+        `target_on_y` is True.
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if
+        `target_on_y` is True.
+    lower : str
+        Column name of the lower error values.
+    upper : str
+        Column name of the upper error values.
+    show_center : bool
+        Flag indicating whether to show the center points.
+    """
     def __init__(
             self,
-            source: Hashable,
+            source: DataFrame,
             target: str,
             feature: str = '',
             show_center: bool = True,
@@ -2012,7 +2306,34 @@ class StandardErrorMean(Errorbar):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        
+        """Initialize the StandardErrorMean object.
+
+        Parameters
+        ----------
+        source : DataFrame
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        feature : str, optional
+            Column name of the feature variable for the plot,
+            by default ''.
+        show_center : bool, optional
+            Flag indicating whether to show the center points,
+            by default True.
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on
+            the y-axis, by default True.
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure object with
+            one Axes is created, by default None.
+        **kwds:
+            Additional keyword arguments that have no effect and are
+            only used to catch further arguments that have no use here
+            (occurs when this class is used within chart objects).
+        """
         super().__init__(
             source=source, target=target, lower=PLOTTER.ERR_LOW,
             upper=PLOTTER.ERR_UPP, feature=feature, show_center=show_center,
@@ -2020,6 +2341,23 @@ class StandardErrorMean(Errorbar):
 
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
+        """Perform the transformation on the target data using the 
+        `Estimator` class and return the transformed data.
+
+        Parameters
+        ----------
+        feature_data : float | int
+            Base location (offset) of feature axis coming from
+            `feature_grouped` generator.
+        target_data : pandas Series
+            Feature grouped target data used for transformation, coming
+            from `feature_grouped` generator.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            The transformed data source for the plot.
+        """
         estimation = Estimator(target_data)
         data = pd.DataFrame({
             self.target: [estimation.mean],
@@ -2030,7 +2368,46 @@ class StandardErrorMean(Errorbar):
 
 
 class SpreadWidth(Errorbar):
+    """Class for creating plotters with error bars representing the 
+    spread width.
 
+    Attributes
+    ----------
+    source : Hashable
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements.
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn.
+    color : str (read-only)
+        The color of the drawn artist.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if
+        `target_on_y` is True.
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if
+        `target_on_y` is True.
+    lower : str
+        Column name of the lower error values.
+    upper : str
+        Column name of the upper error values.
+    show_center : bool
+        Flag indicating whether to show the center points.
+    strategy : Literal['eval', 'fit', 'norm', 'data']
+        Strategy for estimating the spread width, by default 'norm'.
+    agreement : float | int
+        Agreement value for the spread width estimation, by default 6.
+    possible_dists : Tuple[str | rv_continuous]
+        Tuple of possible distributions for the spread width estimation,
+        by default DIST.COMMON.
+    """#TODO copy docstring from Estimator
     __slots__ = ('strategy', 'agreement', 'possible_dists')
     strategy: str
     agreement: int
@@ -2049,6 +2426,42 @@ class SpreadWidth(Errorbar):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
+        """Initialize the SpreadWidth object.
+
+        Parameters
+        ----------
+        source : Hashable
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        feature : str, optional
+            Column name of the feature variable for the plot,
+            by default ''.
+        strategy : Literal['eval', 'fit', 'norm', 'data'], optional
+            Strategy for estimating the spread width, by default 'norm'.
+        agreement : float | int, optional
+            Agreement value for the spread width estimation,
+            by default 6.
+        possible_dists : Tuple[str | rv_continuous], optional
+            Tuple of possible distributions for the spread width
+            estimation, by default DIST.COMMON.
+        show_center : bool, optional
+            Flag indicating whether to show the center points,
+            by default True.
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on
+            the y-axis, by default True.
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure object with
+            one Axes is created, by default None.
+        **kwds:
+            Additional keyword arguments that have no effect and are
+            only used to catch further arguments that have no use here
+            (occurs when this class is used within chart objects).
+        """#TODO copy from estimator
         self.strategy = strategy
         self.agreement = agreement
         self.possible_dists = possible_dists
@@ -2060,6 +2473,23 @@ class SpreadWidth(Errorbar):
 
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
+        """Perform the transformation on the target data using the 
+        `Estimator` class and return the transformed data.
+
+        Parameters
+        ----------
+        feature_data : float | int
+            Base location (offset) of feature axis coming from
+            `feature_grouped` generator.
+        target_data : pandas Series
+            Feature grouped target data used for transformation,
+            coming from `feature_grouped` generator.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            The transformed data source for the plot.
+        """
         estimation = Estimator(
             samples=target_data, strategy=self.strategy, agreement=self.agreement,
             possible_dists=self.possible_dists)
@@ -2071,6 +2501,16 @@ class SpreadWidth(Errorbar):
         return data
     
     def __call__(self, kw_points: dict = {}, **kwds):
+        """Perform the plotting operation.
+
+        Parameters
+        ----------
+        kw_points : dict, optional
+            Additional keyword arguments for the axes `scatter` method,
+            by default {}.
+        **kwds :
+            Additional keyword arguments for the axes `errorbar` method.
+        """
         kw_points = dict(marker= '_' if self.target_on_y else '|') | kw_points
         return super().__call__(kw_points, **kwds)
 
