@@ -47,12 +47,31 @@ class _String_:
         'en': 'CI',
         'de': 'KI'}
 
-    LANGUAGE: str = environ.get('DASPI_LANGUAGE', 'en')
-    USERNAME: str = environ['USERNAME']
+    _language_: str = 'en'
+    _username_: str = environ['USERNAME']
 
     @property
     def TODAY(self):
         return date.today().strftime('%Y.%m.%d')
+    
+    @property
+    def LANGUAGE(self) -> Literal['en', 'de']:
+        """Language (abbreviation) in which the strings should be
+        rendered"""
+        return self._language_
+    @LANGUAGE.setter
+    def LANGUAGE(self, language: Literal['en', 'de']) -> None:
+        assert language in ('en', 'de')
+        self._language_ = language
+    
+    @property
+    def USERNAME(self) -> str:
+        """Username reflected in the charts in the info text, defaults 
+        to username from the environment variable."""
+        return self._username_
+    @USERNAME.setter
+    def USERNAME(self, username: str) -> None:
+        self._username_ = username
     
     def __getitem__(self, item:str) -> str | Literal['']:
         empty = ''

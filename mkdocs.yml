@@ -1,0 +1,61 @@
+site_name: DaSPi
+
+theme:
+  name: material
+  palette:
+    primary: deep-purple
+    accent: deep-orange
+
+plugins: 
+  search: null
+  mkdocstrings:
+    handlers:
+      python:
+        options:
+          docstring_style: numpy
+          merge_init_into_class: true
+          docstring_section_style: spacy
+
+nav:
+  - Home: index.md
+  - Installing: installing.md
+  - Reference (Code API):
+    - Anova: api/anova.md
+    - Plotlib:
+      - Chart:
+        - reference/plotlib/chart/index.md
+        - reference/plotlib/chart/.md
+      - Plotter:
+        - reference/plotlib/plotter/index.md
+        - reference/plotlib/plotter/scatter.md
+        - reference/plotlib/plotter/line.md
+        - reference/plotlib/plotter/linear-regression.md
+        - reference/plotlib/plotter/probability.md
+        - reference/plotlib/plotter/bland-altman.md
+        - reference/plotlib/plotter/transform-plotter.md
+        - reference/plotlib/plotter/center-location.md
+        - reference/plotlib/plotter/bar.md
+        - reference/plotlib/plotter/pareto.md
+        - reference/plotlib/plotter/jitter.md
+        - reference/plotlib/plotter/gaussian-kde.md
+        - reference/plotlib/plotter/violine.md
+        - reference/plotlib/plotter/errorbar.md
+        - reference/plotlib/plotter/standard-error-mean.md
+        - reference/plotlib/plotter/spread-width.md
+        - reference/plotlib/plotter/confidence-interval.md
+        - reference/plotlib/plotter/mean-test.md
+        - reference/plotlib/plotter/variation-test.md
+      - Facets:
+        - reference/plotlib/facets/index.md
+        - reference/plotlib/facets/.md
+    - Statistics:
+      - Hypothesis:
+        - reference/statistics/hypothesis/index.md
+      - Estimation:
+        - reference/statistics/estimation/index.md
+        - reference/statistics/estimation/.md
+      - Confidence:
+        - reference/statistics/confidence/index.md
+        - reference/statistics/confidence/.md
+
+  - About: about.md
