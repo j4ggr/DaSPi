@@ -267,7 +267,7 @@ def delta_mean_ci(x1: Iterable, x2: Iterable, level: float = 0.95
     ----------
     x1, x2 : array like
         sample data, Only one-dimensional sample are accepted
-    ci : float in (0, 1), optional
+    level : float in (0, 1), optional
         confidence level, by default 0.95
 
     Returns
@@ -300,7 +300,7 @@ def delta_variance_ci(x1: Iterable, x2: Iterable, level: float = 0.95
     ----------
     x1, x2 : array like
         sample data, Only one-dimensional sample are accepted
-    ci : float in (0, 1), optional
+    level : float in (0, 1), optional
         confidence level, by default 0.95
 
     Returns
@@ -334,7 +334,7 @@ def delta_stdev_ci(x1: Iterable, x2: Iterable, level: float = 0.95
     ----------
     x1, x2 : array like
         sample data, Only one-dimensional sample are accepted
-    ci : float in (0, 1), optional
+    level : float in (0, 1), optional
         confidence level, by default 0.95
 
     Returns

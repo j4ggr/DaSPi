@@ -1,39 +1,81 @@
 """
-The plotter module provides classes for creating and customizing various types of plots.
+The plotter module provides classes for creating and customizing various
+types of plots. It also provides a collection of classes for statistical
+plotting and analysis.
 
-Classes:
-    - Plotter: An abstract base class for creating plotters.
-    - Scatter: A scatter plotter that extends the Plotter base class.
-    - LinearRegression: A linear regression plotter that extends the Plotter base class.
-    - Probability: A probability plotter that extends the LinearRegression class.
-    - TransformPlotter: A base class for creating plotter classes that perform transformations on data.
-    - CenterLocation: A CenterLocation plotter that extends the TransformPlotter class.
+This module contains several classes that are useful for visualizing and
+analyzing statistical data. The classes provide functionality for 
+creating various types of plots, including Gaussian KDE plots,
+violine plots, error bar plots, and confidence interval plots. These
+plots can be used to visually assess statistical differences,
+estimate kernel density, display error bars, and evaluate confidence
+intervals.
 
-Usage:
-    Import the module and use the classes to create and customize plots.
+Classes
+-------
+- Plotter: An abstract base class for creating plotters.
+- Scatter: A scatter plotter that extends the Plotter base class.
+- Line: A line plotter that extends the Plotter base class.
+- LinearRegression: A linear regression plotter that extends the 
+    Plotter base class.
+- Probability: A probability plotter that extends the
+    LinearRegression class.
+- TransformPlotter: A base class for creating plotter classes that
+    perform transformations on data.
+- CenterLocation: A CenterLocation plotter that extends the
+    TransformPlotter class.
+- GaussianKDE: A class for creating Gaussian Kernel Density
+    Estimation (KDE) plotters.
+- Violine: A class for creating violine plotters.
+- Errorbar: A class for creating error bar plotters.
+- StandardErrorMean: A class for creating plotters with error bars
+representing the standard error of the mean.
+- SpreadWidth: A class for creating plotters with error bars
+representing the spread width.
+- DistinctionTest: A class for creating plotters with error bars
+representing distinction tests.
+- MeanTest: A class for creating plotters with error bars representing
+confidence intervals for the mean.
+- VariationTest: A class for creating plotters with error bars
+representing confidence intervals for variation measures.
 
-Example:
-    from plotter import Plotter, Scatter, LinearRegression, Probability, TransformPlotter, CenterLocation
+These classes are designed to provide a convenient and intuitive way to
+visualize and analyze statistical data. They can be used in a variety of
+applications, including data exploration, hypothesis testing, and data
+presentation.
 
-    # Create a scatter plot
-    data = {...}  # Data source for the plot
-    scatter_plot = Scatter(data, 'target_variable')
-    scatter_plot()
+Usage
+-----
+Import the module and use the classes to create and customize plots.
 
-    # Create a linear regression plot
-    data = {...}  # Data source for the plot
-    linear_regression_plot = LinearRegression(data, 'target_variable', 'feature_variable')
-    linear_regression_plot()
+Example
+-------
+from plotter import Plotter
+from plotter import Scatter
+from plotter import LinearRegression
+from plotter import Probability
+from plotter import TransformPlotter
+from plotter import CenterLocation
 
-    # Create a probability plot
-    data = {...}  # Data source for the plot
-    probability_plot = Probability(data, 'target_variable', dist='norm', kind='qq')
-    probability_plot()
+# Create a scatter plot
+data = {...}  # Data source for the plot
+scatter_plot = Scatter(data, 'target_variable')
+scatter_plot()
 
-    # Create a CenterLocation plot
-    data = {...}  # Data source for the plot
-    center_plot = CenterLocation(data, 'target_variable', 'feature_variable', kind='mean')
-    center_plot()
+# Create a linear regression plot
+data = {...}  # Data source for the plot
+linear_regression_plot = LinearRegression(data, 'target_variable', 'feature_variable')
+linear_regression_plot()
+
+# Create a probability plot
+data = {...}  # Data source for the plot
+probability_plot = Probability(data, 'target_variable', dist='norm', kind='qq')
+probability_plot()
+
+# Create a CenterLocation plot
+data = {...}  # Data source for the plot
+center_plot = CenterLocation(data, 'target_variable', 'feature_variable', kind='mean')
+center_plot()
 """#TODO write module docstring
 
 import numpy as np
@@ -2515,8 +2557,53 @@ class SpreadWidth(Errorbar):
         return super().__call__(kw_points, **kwds)
 
 
-class DistinctionTest(Errorbar):
+class ConfidenceInterval(Errorbar):
+    """Class for creating plotters with error bars representing optical
+    distinction tests.
 
+    This class is useful for visually testing whether there is a 
+    statistically significant difference between groups or conditions.
+    By plotting confidence intervals around the actual value, it 
+    provides a visual representation of the uncertainty in the estimate 
+    and allows for a quick assessment of whether the intervals overlap 
+    or not.
+    
+    Attributes
+    ----------
+    source : pandas DataFrame
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements.
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn.
+    color : str (read-only)
+        The color of the drawn artist.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if
+        `target_on_y` is True.
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if
+        `target_on_y` is True.
+    lower : str
+        Column name of the lower error values.
+    upper : str
+        Column name of the upper error values.
+    show_center : bool
+        Flag indicating whether to show the center points.
+    confidence_level : float
+        Confidence level used for interval calculation.
+    ci_func : Callable
+        Function used for calculating the confidence interval.
+    n_groups : int
+        Number of groups in the data.
+    """
     __slots__ = ('confidence_level', 'ci_func', 'n_groups')
     confidence_level: float
     ci_func: Callable
@@ -2524,7 +2611,7 @@ class DistinctionTest(Errorbar):
 
     def __init__(
             self,
-            source: Hashable,
+            source: DataFrame,
             target: str,
             feature: str = '',
             show_center: bool = True,
@@ -2534,6 +2621,40 @@ class DistinctionTest(Errorbar):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
+        """Initialize the ConfidenceIntervalPlotter object.
+
+        Parameters
+        ----------
+        source : pandas DataFrame
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        feature : str, optional
+            Column name of the feature variable for the plot,
+            by default ''.
+        show_center : bool, optional
+            Flag indicating whether to show the center points,
+            by default True.
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on
+            the y-axis, by default True.
+        confidence_level : float, optional
+            Confidence level for the confidence intervals,
+            by default 0.95.
+        ci_func : Callable, optional
+            Function for calculating the confidence intervals,
+            by default mean_ci.
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure object with
+            one Axes is created, by default None.
+        **kwds:
+            Additional keyword arguments that have no effect and are
+            only used to catch further arguments that have no use here
+            (occurs when this class is used within chart objects).
+        """
         self.confidence_level = confidence_level
         self.ci_func = ci_func
         self.n_groups = pd.Series(source[feature]).nunique() if feature else 1
@@ -2546,6 +2667,23 @@ class DistinctionTest(Errorbar):
     def transform(
             self, feature_data: float | int, target_data: Series
             ) -> pd.DataFrame:
+        """Perform the transformation on the target data by using the
+        given function `ci_func' and return the transformed data.
+
+        Parameters
+        ----------
+        feature_data : float | int
+            Base location (offset) of feature axis coming from
+            `feature_grouped` generator.
+        target_data : pandas Series
+            Feature grouped target data used for transformation, coming
+            from `feature_grouped` generator.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            The transformed data source for the plot.
+        """
         center, lower, upper = self.ci_func(
             target_data, self.confidence_level, self.n_groups)
         data = pd.DataFrame({
@@ -2556,11 +2694,55 @@ class DistinctionTest(Errorbar):
         return data
 
 
-class MeanTest(DistinctionTest):
+class MeanTest(ConfidenceInterval):
+    """Class for creating plotters with error bars representing
+    confidence intervals for the mean.
 
+    This class is specifically designed for testing the statistical
+    significance of the mean difference between groups or conditions.
+    It uses confidence intervals to visually represent the uncertainty
+    in the mean estimates and allows for a quick assessment of whether
+    the intervals overlap or not.
+
+    Attributes
+    ----------
+    source : pandas DataFrame
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements.
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn.
+    color : str (read-only)
+        The color of the drawn artist.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if
+        `target_on_y` is True.
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if
+        `target_on_y` is True.
+    lower : str
+        Column name of the lower error values.
+    upper : str
+        Column name of the upper error values.
+    show_center : bool
+        Flag indicating whether to show the center points.
+    confidence_level : float
+        Confidence level used for interval calculation.
+    ci_func : Callable
+        Function used for calculating the confidence interval.
+    n_groups : int
+        Number of groups in the data.
+    """
     def __init__(
             self,
-            source: Hashable,
+            source: DataFrame,
             target: str,
             feature: str = '',
             show_center: bool = True,
@@ -2569,6 +2751,37 @@ class MeanTest(DistinctionTest):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
+        """Initialize the MeanTest object.
+
+        Parameters
+        ----------
+        source : pandas DataFrame
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        feature : str, optional
+            Column name of the feature variable for the plot,
+            by default ''.
+        show_center : bool, optional
+            Flag indicating whether to show the center points,
+            by default True.
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on
+            the y-axis, by default True.
+        confidence_level : float, optional
+            Confidence level for the confidence intervals,
+            by default 0.95.
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure object with
+            one Axes is created, by default None.
+        **kwds:
+            Additional keyword arguments that have no effect and are
+            only used to catch further arguments that have no use here
+            (occurs when this class is used within chart objects).
+        """
         super().__init__(
             source=source, target=target, feature=feature,
             show_center=show_center, target_on_y=target_on_y,
@@ -2576,11 +2789,56 @@ class MeanTest(DistinctionTest):
             ax=ax)
 
 
-class VariationTest(DistinctionTest):
+class VariationTest(ConfidenceInterval):
+    """Class for creating plotters with error bars representing 
+    confidence intervals for variation measures.
 
+    This class is specifically designed for testing the statistical
+    significance of variation measures, such as standard deviation or
+    variance, between groups or conditions. It uses confidence intervals
+    to visually represent the uncertainty in the variation estimates and
+    allows for a quick assessment of whether the intervals overlap or
+    not.
+
+    Attributes
+    ----------
+    source : Hashable
+        The data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    target_on_y : bool
+        Flag indicating whether the target variable is plotted on the
+        y-axis.
+    fig : matplotlib Figure
+        The top-level container for all plot elements.
+    ax : matplotlib Axes
+        The Axes object on which the Artists are drawn.
+    color : str (read-only)
+        The color of the drawn artist.
+    x : ArrayLike (read-only)
+        Values used for the x-axis. Corresponds to the feature data if
+        `target_on_y` is True.
+    y : ArrayLike (read-only)
+        Values used for the y-axis. Corresponds to the target data if
+        `target_on_y` is True.
+    lower : str
+        Column name of the lower error values.
+    upper : str
+        Column name of the upper error values.
+    show_center : bool
+        Flag indicating whether to show the center points.
+    confidence_level : float
+        Confidence level used for interval calculation.
+    ci_func : Callable
+        Function used for calculating the confidence interval.
+    n_groups : int
+        Number of groups in the data.
+    """
     def __init__(
             self,
-            source: Hashable,
+            source: DataFrame,
             target: str,
             feature: str = '',
             show_center: bool = True,
@@ -2590,6 +2848,39 @@ class VariationTest(DistinctionTest):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
+        """Initialize the VariationTest object.
+
+        Parameters
+        ----------
+        source : pandas DataFrame
+            The data source for the plot.
+        target : str
+            Column name of the target variable for the plot.
+        feature : str, optional
+            Column name of the feature variable for the plot,
+            by default ''.
+        show_center : bool, optional
+            Flag indicating whether to show the center points,
+            by default True.
+        target_on_y : bool, optional
+            Flag indicating whether the target variable is plotted on
+            the y-axis, by default True.
+        confidence_level : float, optional
+            Confidence level for the confidence intervals,
+            by default 0.95.
+        kind : Literal['stdev', 'variance'], optional
+            Type of variation measure to use, by default 'stdev'.
+        color : str | None, optional
+            Color to be used to draw the artists. If None, the first
+            color is taken from the color cycle, by default None.
+        ax : Axes | None, optional
+            The axes object for the plot. If None, a Figure object with
+            one Axes is created, by default None.
+        **kwds:
+            Additional keyword arguments that have no effect and are
+            only used to catch further arguments that have no use here
+            (occurs when this class is used within chart objects).
+        """
         ci_func = stdev_ci if kind == 'stdev' else variance_ci
         super().__init__(
             source=source, target=target, feature=feature,

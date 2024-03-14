@@ -28,3 +28,8 @@ package-type = "library"
 test = [
     "pytest>=7.4.4",
 ]
+doc = [
+    "mkdocs>=1.5.3",
+    "mkdocstrings>=0.24.1",
+    "mkdocs-bootstrap>=1.1.1",
+]
