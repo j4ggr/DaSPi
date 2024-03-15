@@ -5,6 +5,20 @@ theme:
   palette:
     primary: deep-purple
     accent: deep-orange
+  features:
+  - search.suggest
+  - search.highlight
+  - content.tabs.link
+  - navigation.indexes
+  - content.tooltips
+  - navigation.path
+  - content.code.annotate
+  - content.code.copy
+  - content.code.select
+  - navigation.tabs
+  
+repo_name: j4ggr/DaSPi
+repo_url: https://github.com/j4ggr/DaSPi
 
 plugins: 
   search: null
@@ -15,47 +29,55 @@ plugins:
           docstring_style: numpy
           merge_init_into_class: true
           docstring_section_style: spacy
+          show_root_heading: true
+          show_symbol_type_heading: true
+          show_symbol_type_toc: true
 
 nav:
   - Home: index.md
   - Installing: installing.md
-  - Reference (Code API):
-    - Anova: api/anova.md
-    - Plotlib:
-      - Chart:
-        - reference/plotlib/chart/index.md
-        - reference/plotlib/chart/.md
-      - Plotter:
-        - reference/plotlib/plotter/index.md
-        - reference/plotlib/plotter/scatter.md
-        - reference/plotlib/plotter/line.md
-        - reference/plotlib/plotter/linear-regression.md
-        - reference/plotlib/plotter/probability.md
-        - reference/plotlib/plotter/bland-altman.md
-        - reference/plotlib/plotter/transform-plotter.md
-        - reference/plotlib/plotter/center-location.md
-        - reference/plotlib/plotter/bar.md
-        - reference/plotlib/plotter/pareto.md
-        - reference/plotlib/plotter/jitter.md
-        - reference/plotlib/plotter/gaussian-kde.md
-        - reference/plotlib/plotter/violine.md
-        - reference/plotlib/plotter/errorbar.md
-        - reference/plotlib/plotter/standard-error-mean.md
-        - reference/plotlib/plotter/spread-width.md
-        - reference/plotlib/plotter/confidence-interval.md
-        - reference/plotlib/plotter/mean-test.md
-        - reference/plotlib/plotter/variation-test.md
-      - Facets:
-        - reference/plotlib/facets/index.md
-        - reference/plotlib/facets/.md
-    - Statistics:
-      - Hypothesis:
-        - reference/statistics/hypothesis/index.md
-      - Estimation:
-        - reference/statistics/estimation/index.md
-        - reference/statistics/estimation/.md
-      - Confidence:
-        - reference/statistics/confidence/index.md
-        - reference/statistics/confidence/.md
+  - Anova: index.md
+  - Plotlib:
+    - Chart:
+      - plotlib/chart/index.md
+      - plotlib/chart/chart.md
+      - plotlib/chart/simple-chart.md
+      - plotlib/chart/multiple-variate-chart.md
+      - plotlib/chart/joint-chart.md
+    - Plotter:
+      - plotlib/plotter/index.md
+      - plotlib/plotter/plotter.md
+      - plotlib/plotter/scatter.md
+      - plotlib/plotter/line.md
+      - plotlib/plotter/linear-regression.md
+      - plotlib/plotter/probability.md
+      - plotlib/plotter/bland-altman.md
+      - plotlib/plotter/transform-plotter.md
+      - plotlib/plotter/center-location.md
+      - plotlib/plotter/bar.md
+      - plotlib/plotter/pareto.md
+      - plotlib/plotter/jitter.md
+      - plotlib/plotter/gaussian-kde.md
+      - plotlib/plotter/violine.md
+      - plotlib/plotter/errorbar.md
+      - plotlib/plotter/standard-error-mean.md
+      - plotlib/plotter/spread-width.md
+      - plotlib/plotter/confidence-interval.md
+      - plotlib/plotter/mean-test.md
+      - plotlib/plotter/variation-test.md
+    - Facets:
+      - plotlib/facets/index.md
+      - plotlib/facets/axes-facets.md
+      - plotlib/facets/label-facets.md
+      - plotlib/facets/stripes-facets.md
+  - Statistics:
+    - Hypothesis:
+      - statistics/hypothesis/index.md
+    - Estimation:
+      - statistics/estimation/index.md
+      - statistics/estimation/estimator.md
+      - statistics/estimation/process-estimator.md
+    - Confidence:
+      - statistics/confidence/index.md
 
   - About: about.md

@@ -1,0 +1,1 @@
+::: daspi.plotlib.chart.SimpleChart
