@@ -105,7 +105,7 @@ from typing import List
 from typing import Tuple
 from typing import Callable
 from typing import Literal
-from typing import Hashable
+from typing import DataFrame
 from typing import Iterable
 from typing import Generator
 
@@ -148,8 +148,9 @@ class Plotter(ABC):
     
     Parameters
     ----------
-    source : Hashable
-        The tabular data source for the plot in a long format. 
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
     feature : str, optional
@@ -167,7 +168,7 @@ class Plotter(ABC):
     """
     __slots__ = (
         'source', 'target', 'feature', '_color', 'target_on_y', 'fig', 'ax')
-    source: Hashable
+    source: DataFrame
     target: str
     feature: str
     _color: str
@@ -177,7 +178,7 @@ class Plotter(ABC):
 
     def __init__(
             self,
-            source: Hashable,
+            source: DataFrame,
             target: str,
             feature: str = '',
             target_on_y : bool = True,
@@ -196,16 +197,24 @@ class Plotter(ABC):
         self._color = color
     
     @property
+    def x_column(self) -> str:
+        """Get column name used to access data for x-axis (read-only)."""
+        return self.feature if self.target_on_y else self.target
+    
+    @property
+    def y_column(self) -> str:
+        """Get column name used to access data for y-axis (read-only)."""
+        return self.target if self.target_on_y else self.feature
+        
+    @property
     def x(self) -> ArrayLike:
-        """Get values used for x-axis"""
-        name = self.feature if self.target_on_y else self.target
-        return self.source[name]
+        """Get values used for x-axis (read-only)."""
+        return self.source[self.x_column]
     
     @property
     def y(self) -> ArrayLike:
-        """Get values used for y-axis"""
-        name = self.target if self.target_on_y else self.feature
-        return self.source[name]
+        """Get values used for y-axis (read-only)"""
+        return self.source[self.y_column]
     
     @property
     def color(self) -> str | None:
@@ -227,8 +236,9 @@ class Scatter(Plotter):
     
     Parameters
     ----------
-    source : Hashable
-        The tabular data source for the plot in a long format. 
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
     feature : str
@@ -255,7 +265,7 @@ class Scatter(Plotter):
     
     def __init__(
             self,
-            source: Hashable,
+            source: DataFrame,
             target: str,
             feature: str, 
             target_on_y: bool = True, 
@@ -290,8 +300,9 @@ class Line(Plotter):
     
     Parameters
     ----------
-    source : Hashable
-        The tabular data source for the plot in a long format. 
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
     feature : str, optional
@@ -309,7 +320,7 @@ class Line(Plotter):
     """
     def __init__(
             self,
-            source: Hashable,
+            source: DataFrame,
             target: str,
             feature: str = '',
             target_on_y: bool = True, 
@@ -343,8 +354,9 @@ class LinearRegression(Plotter):
     
     Parameters
     ----------
-    source : Hashable
-        The tabular data source for the plot in a long format. 
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
     feature : str
@@ -383,7 +395,7 @@ class LinearRegression(Plotter):
 
     def __init__(
             self,
-            source: Hashable,
+            source: DataFrame,
             target: str,
             feature: str,
             target_on_y: bool = True,
@@ -409,6 +421,18 @@ class LinearRegression(Plotter):
         super().__init__(
             source=df, target=target, feature=feature, target_on_y=target_on_y,
             color=color, ax=ax)
+        
+    @property
+    def x_fit(self) -> ArrayLike:
+        """Get values used for x-axis for fitted line (read-only)."""
+        name = self.feature if self.target_on_y else self.target_fit
+        return self.source[name]
+    
+    @property
+    def y_fit(self) -> ArrayLike:
+        """Get values used for y-axis for fitted line (read-only)"""
+        name = self.target_fit if self.target_on_y else self.feature
+        return self.source[name]
     
     def ci_data(self) -> pd.DataFrame:
         """Get confidence interval for prediction and fitted line as 
@@ -443,10 +467,8 @@ class LinearRegression(Plotter):
             plot (Axes `plot` method).
         """
         color = dict(color=self.color)
-        x, y = self.source[self.feature], self.source[self.target_fit]
-        if not self.target_on_y: x, y = y, x
         kwds = KW.FIT_LINE | color | kwds
-        self.ax.plot(x, y, **kwds)
+        self.ax.plot(self.x_fit, self.y_fit, **kwds)
         
         if self.show_points:
             kw_scatter = color | kw_scatter
@@ -475,8 +497,9 @@ class Probability(LinearRegression):
     
     Parameters
     ----------
-    source : Hashable
-        The tabular data source for the plot in a long format. 
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
     dist : scipy stats rv_continuous
@@ -527,7 +550,7 @@ class Probability(LinearRegression):
 
     def __init__(
             self,
-            source: Hashable,
+            source: DataFrame,
             target: str,
             dist: str | rv_continuous = 'norm',
             kind: Literal['qq', 'pp', 'sq', 'sp'] = 'sq',
@@ -623,6 +646,76 @@ class Probability(LinearRegression):
         """
         super().__call__(kw_scatter, kw_fit_ci, kw_pred_ci, **kwds)
         self.format_axis()
+
+
+class ParallelCoordinate(Plotter):
+    """This plotter allows to compare the feature of several individual 
+    observations on a set of numeric variables.
+
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the categorical feature variable (coordinates).
+    identities : str
+        Column name of identities of each sample, must occur once for 
+        each coordinate.
+    show_points : bool, optional
+        Flag indicating whether to show the individual points, 
+        by default True.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on 
+        the y-axis, by default True.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure ovject with
+        one Axes is created, by default None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
+    """
+
+    __slots__ = ('identities', 'show_points')
+    identities: str
+    show_points: bool
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str,
+            identities: str,
+            show_points: bool = True,
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None) -> None:
+        self.identities = identities
+        self.show_points = show_points
+        super().__init__(
+            source=source, target=target, feature=feature,
+            target_on_y=target_on_y, color=color, ax=ax)
+
+    def __call__(self, **kwds):
+        """Perform the parallel coordinate plot
+
+        Parameters
+        ----------
+        **kwds:
+            Additional keyword arguments to be passed to the fit line
+            plot (Axes `plot` method)."""
+        marker = kwds.pop('marker', plt.rcParams['lines.marker'])
+        if not self.show_points:
+            marker = None
+        _kwds = dict(color=self.color, marker=marker) | kwds
+        for identity, group in self.source.groupby(self.identities):
+            self.ax.plot(group[self.x_column], group[self.y_column], **_kwds)
 
 
 class BlandAltman(Plotter):
@@ -920,8 +1013,9 @@ class CenterLocation(TransformPlotter):
     show_line : bool
         Flag indicating whether to draw a line between the calculated 
         mean or median points.
-    show_points : bool
-        Flag indicating whether to show the center points.
+    show_points : bool, optional
+        Flag indicating whether to show the individual points, 
+        by default True.
     f_base : int | float, optional
         Value that serves as the base location (offset) of the 
         feature values. Only taken into account if feature is not 
@@ -1531,7 +1625,7 @@ class GaussianKDE(TransformPlotter):
     
     Parameters
     ----------
-    source : DataFrame
+    source : pandas DataFrame
         Pandas long format DataFrame containing the data source for the
         plot.
     target : str
@@ -1665,7 +1759,7 @@ class Violine(GaussianKDE):
 
     Parameters
     ----------
-    source : DataFrame
+    source : pandas DataFrame
         Pandas long format DataFrame containing the data source for the
         plot.
     target : str
@@ -1729,7 +1823,7 @@ class Errorbar(TransformPlotter):
 
     Parameters
     ----------
-    source : DataFrame
+    source : pandas DataFrame
         Pandas long format DataFrame containing the data source for the
         plot.
     target : str
@@ -1847,7 +1941,7 @@ class StandardErrorMean(Errorbar):
 
     Parameters
     ----------
-    source : DataFrame
+    source : pandas DataFrame
         Pandas long format DataFrame containing the data source for the
         plot.
     target : str
@@ -1921,7 +2015,7 @@ class SpreadWidth(Errorbar):
 
     Parameters
     ----------
-    source : Hashable
+    source : pandas DataFrame
         Pandas long format DataFrame containing the data source for the
         plot.
     target : str
@@ -1961,7 +2055,7 @@ class SpreadWidth(Errorbar):
 
     def __init__(
             self,
-            source: Hashable,
+            source: DataFrame,
             target: str,
             feature: str = '',
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',

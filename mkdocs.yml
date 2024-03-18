@@ -51,6 +51,7 @@ nav:
       - plotlib/plotter/line.md
       - plotlib/plotter/linear-regression.md
       - plotlib/plotter/probability.md
+      - plotlib/plotter/parallel-coordinate.md
       - plotlib/plotter/bland-altman.md
       - plotlib/plotter/transform-plotter.md
       - plotlib/plotter/center-location.md

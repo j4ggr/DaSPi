@@ -1,6 +1,8 @@
+import re
 import numpy as np
 import matplotlib.pyplot as plt
 
+from re import Pattern
 from typing import Tuple
 from typing import List
 from dataclasses import dataclass
@@ -275,10 +277,23 @@ class _Distribution_:
         return tuple(d for d in self.COMMON if d != 'norm')
 DIST = _Distribution_()
 
+
 @dataclass(frozen=True)
 class _Default_:
     CONFIDENCE_LEVEL: float = 0.95
 DEFAULT = _Default_()
+
+
+@dataclass(frozen=True)
+class _Anova_:
+    SEP: str = ':'
+    INTERCEPT: str = 'Intercept'
+    CAT: str = '[T.'
+    CAT_ORIG: Pattern = re.compile(r'(\w+)\[T.\w+\]')
+    CAT_VALUE: Pattern = re.compile(r'\w+\[T.(\w+)\]')
+    SMALLEST_INTERACTION = 2 # smallest possible interaction
+ANOVA = _Anova_()
+
 
 __all__ = [
     'KW',
@@ -286,6 +301,7 @@ __all__ = [
     'DIST',
     'COLOR',
     'LABEL',
+    'ANOVA',
     'PLOTTER',
     'DEFAULT',
     'CATEGORY',
