@@ -7,24 +7,33 @@ creation of different types of charts and visualizations. It includes
 support for single-variable charts, joint charts combining multiple 
 variables, and charts with multiple variables simultaneously.
 
-Classes:
-- Chart: Abstract base class for creating chart visualizations.
-- SimpleChart: Represents a basic chart visualization with customizable 
-features.
-- JointChart: Represents a joint chart visualization combining multiple 
-SimpleCharts.
-- MultipleVariateChart: Represents a chart visualization handling 
-multiple variables simultaneously.
+All plotter objects from the plotter module can be used and combined 
+with the chart classes from this module to create a preferred plot that
+is optimal for the current analysis. These Chart objects are also used
+to combine the LabelFacets, AxesFacets, and StripesFacets facet objects
+to produce consistent charts for very different plots.
 
-Functionality:
+## Classes
+
+- *Chart:* Abstract base class for creating chart visualizations.
+- *SimpleChart:* Represents a basic chart visualization with
+  customizable features.
+- *JointChart:* Represents a joint chart visualization combining
+  multiple SimpleCharts.
+- *MultipleVariateChart:* Represents a chart visualization handling 
+  multiple variables simultaneously.
+
+## Functionality
+
 - Customization of chart attributes including target, feature, hue, 
-shape, size, etc.
+  shape, size, etc.
 - Layout setup for charts, including grid arrangements for joint charts.
 - Adding stripes to highlight data patterns and labeling axes 
-appropriately.
+  appropriately.
 - Saving charts to files and programmatically closing charts.
 
-Other Details:
+## Other Details
+
 - Dependencies: NumPy, Matplotlib, Pandas.
 - Typing annotations are extensively used for type hinting and 
 documentation.
@@ -70,7 +79,7 @@ class Chart(ABC):
     """
     Abstract base class for creating chart visualizations.
 
-    Attributes
+    Parameters
     ----------
     source : pandas DataFrame
         A pandas DataFrame containing the data in long-format.
@@ -82,28 +91,10 @@ class Chart(ABC):
         If True, the target variable is plotted on the y-axis.
     axes_facets : AxesFacets
         An instance containing the subplots' Axes and their arrangement.
-    label_facets : LabelFacets, optional
-        An optional instance for configuring and arranging figure and 
-        subplot labels.
-    stripes_facets : StripesFacets, optional
-        An optional instance for adding stripes to the plot.
-    nrows : int
-        Number of rows in the subplot grid.
-    ncols : int
-        Number of columns in the subplot grid.
-    figure : Figure (read-only)
-        The top-level container for all plot elements.
-    axes : NDArray (2D) (read-only)
-        The axes of the subplot grid.
-    n_axes : int (read-only)
-        The total number of axes.
-    xlabel, ylabel : str (read-only)
-        Get the label for the x or y axis (set with the `set_axis_label` 
-        method).
-    plots : list of Plotter (read-only)
-        Plotter objects used in the `plot` method.
+    **kwds
+        Additional key word arguments to instantiate the `AxesFacets`
+        object. Only taken into account if axes_facets is not specified.
     """
-
     __slots__ = (
         'source', 'target', 'feature', 'target_on_y', 'axes_facets',
         'label_facets', 'stripes_facets', 'nrows', 'ncols', '_data', '_xlabel',
@@ -147,7 +138,8 @@ class Chart(ABC):
 
     @property
     def figure(self) -> Figure:
-        """Get the top level container for all the plot elements"""
+        """Get the top level container for all the plot elements
+        (read-only)."""
         return self.axes_facets.figure
     
     @property
@@ -236,42 +228,46 @@ class Chart(ABC):
 
 
 class SimpleChart(Chart):
-    """
-    Represents a basic chart visualization with customizable features.
+    """Represents a basic chart visualization with customizable
+    features.
 
-    Inherits from Chart.
-
-    Attributes
+    Parameters
     ----------
-    hue : str
-        The hue variable (column) for color differentiation.
-    shape : str
-        The shape variable (column) for marker differentiation.
-    size : str
-        The size variable (column) for marker size differentiation.
-    marking : ShapeLabel
-        Instance for configuring shape labels.
-    sizing : SizeLabel
-        Instance for configuring size labels.
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
+    target : str
+        The target variable (column) to visualize.
+    feature : str, optional
+        The feature variable (column) to use for the visualization,
+        by default ''
+    hue : str, optional
+        The hue variable (column) for color differentiation,
+        by default ''
+    dodge : bool, optional
+        Flag indicating whether to move overlapping categorical features
+        with different colors along the axis so that they appear
+        separately. Should only be set to True if given feature is
+        categorical, by default False
+    shape : str, optional
+        The categorical shape variable (column) for marker
+        differentiation, by default ''.
+    size : str, optional
+        The numeric variable (column) from which the marker size is
+        derived. The range (minimum to maximum) of the variable is
+        mapped to the marker size, by default ''
     categorical_feature : bool
-        Flag indicating if the features are categorical.
-    coloring : HueLabel
-        Instance for configuring hue labels.
-    dodging : Dodger
-        Instance for configuring dodging attributes.
-    variate_names : List[str] (read-only)
-        Get names of all set variates
-    color : str (read-only)
-        Get color for current variate
-    marker : str (read-only)
-        Get marker for current variate
-    sizes : NDArray (1D) or None (read-only)
-        Get sizes for current variate, is set in grouped 
-        `_data_generator_`
-    legend_handles_labels : Dict[str, Tuple[tuple]] (read-only)
-        Get dictionary of handles and labels
-        - keys: titles as str
-        - values: handles and labels as tuple of tuples
+        Flag indicating if the features are categorical. If True, the 
+        feature values are transferred to the feature axis and the major 
+        grid is removed. However, a minor grid is created so that the 
+        categories are visually better separated. This attribute is set 
+        to True if `dodge` is set to True, by default False
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on the
+        y-axis, by default True
+    **kwds
+        Additional key word arguments to instantiate the `AxesFacets`
+        object.
     """
     __slots__ = (
         'hue', 'shape', 'size', 'marking', 'sizing', '_sizes', 

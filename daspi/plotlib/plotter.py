@@ -145,30 +145,25 @@ from ..statistics.estimation import estimate_kernel_density
 
 class Plotter(ABC):
     """Abstract base class for creating plotters.
-
-    Attributes
+    
+    Parameters
     ----------
     source : Hashable
-        The data source for the plot.
+        The tabular data source for the plot in a long format. 
     target : str
         Column name of the target variable for the plot.
-    feature : str
-        Column name of the feature variable for the plot.
-    target_on_y : bool
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''
+    target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn
-    color : str (read-only)
-        The color of the drawn artist.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if 
-        `target_on_y` is True
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if 
-        `target_on_y` is True
+        y-axis, by default True
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure ovject with
+        one Axes is created, by default None.
     """
     __slots__ = (
         'source', 'target', 'feature', '_color', 'target_on_y', 'fig', 'ax')
@@ -189,28 +184,6 @@ class Plotter(ABC):
             color: str | None = None,
             ax: Axes | None = None,
             ) -> None:
-        """
-        Initialize the Plotter object.
-
-        Parameters
-        ----------
-        source : Hashable
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        feature : str, optional
-            Column name of the feature variable for the plot,
-            by default ''
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on the
-            y-axis, by default True
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first 
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure ovject with
-            one Axes is created, by default None.
-        """
         self.target_on_y = target_on_y
         self.source = source
         if not feature:
@@ -249,37 +222,32 @@ class Plotter(ABC):
         This method should be overridden by subclasses to provide the specific plotting functionality.
         """
 
-
 class Scatter(Plotter):
     """A scatter plotter that extends the Plotter base class.
     
-    Attributes
+    Parameters
     ----------
     source : Hashable
-        The data source for the plot.
+        The tabular data source for the plot in a long format. 
     target : str
         Column name of the target variable for the plot.
     feature : str
-        Column name of the feature variable for the plot.
-    target_on_y : bool
+        Column name of the feature variable for the plot
+    target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn
-    marker : str | None
-        The marker style for the scatter plot.
-    size : Iterable[int] | None
-        The size of the markers in the scatter plot.
-    color : str (read-only)
-        The color of the drawn artist.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if 
-        `target_on_y` is True
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if 
-        `target_on_y` is True
+        y-axis, by default True
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the scatter plot. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
+    size : Iterable[int] | None, optional
+        The size of the markers in the scatter plot, by default None
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure ovject with
+        one Axes is created, by default None.
     """
     __slots__ = ('marker', 'size')
     marker: str | None
@@ -296,31 +264,6 @@ class Scatter(Plotter):
             size: Iterable[int] | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        """Initialize the Scatter object.
-        
-        Parameters
-        ----------
-        source : Hashable
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        feature : str
-            Column name of the feature variable for the plot
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on the
-            y-axis, by default True
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first 
-            color is taken from the color cycle, by default None.
-        marker : str | None, optional
-            The marker style for the scatter plot. Available markers see:
-            https://matplotlib.org/stable/api/markers_api.html, 
-            by default None
-        size : Iterable[int] | None, optional
-            The size of the markers in the scatter plot, by default None
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure ovject with
-            one Axes is created, by default None."""
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
@@ -345,29 +288,24 @@ class Scatter(Plotter):
 class Line(Plotter):
     """A line plotter that extends the Plotter base class.
     
-    Attributes
+    Parameters
     ----------
     source : Hashable
-        The data source for the plot.
+        The tabular data source for the plot in a long format. 
     target : str
         Column name of the target variable for the plot.
-    feature : str
-        Column name of the feature variable for the plot.
-    target_on_y : bool
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''
+    target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn
-    color : str (read-only)
-        The color of the drawn artist.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if 
-        `target_on_y` is True
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if 
-        `target_on_y` is True
+        y-axis, by default True
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure ovject with
+        one Axes is created, by default None.
     """
     def __init__(
             self,
@@ -378,27 +316,6 @@ class Line(Plotter):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        """Initialize the Line object
-        
-        Parameters
-        ----------
-        source : Hashable
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        feature : str, optional
-            Column name of the feature variable for the plot,
-            by default ''
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on the
-            y-axis, by default True
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first 
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure ovject with
-            one Axes is created, by default None.
-        """
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
@@ -424,41 +341,37 @@ class Line(Plotter):
 class LinearRegression(Plotter):
     """A linear regression plotter that extends the Plotter base class.
     
-    Attributes
+    Parameters
     ----------
-    source : pandas DataFrame
-        The data source for the plot.
+    source : Hashable
+        The tabular data source for the plot in a long format. 
     target : str
         Column name of the target variable for the plot.
     feature : str
-        Column name of the feature variable for the plot.
-    target_on_y : bool
+        Column name of the feature variable for the plot,
+        by default ''
+    target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn
-    model : statsmodels RegressionResults
-        The full fitted OLS regression model
-    target_fit : str
-        The column name of the target variable for the fitted line.
-    show_points : bool
-        Flag indicating whether to show the individuals as scatter point.
-    show_fit_ci : bool
-        Flag indicating whether to show the confidence interval for the
-        fitted line.
-    show_pred_ci : bool
+        y-axis, by default True
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure ovject with
+        one Axes is created, by default None.
+    show_points : bool, optional
+        Flag indicating whether to show the individual points, 
+        by default True.
+    show_fit_ci : bool, optional
+        Flag indicating whether to show the confidence interval for
+        the fitted line as filled area, by default False.
+    show_pred_ci : bool, optional
         Flag indicating whether to show the confidence interval for 
-        predictions.
-    color : str (read-only)
-        The color of the drawn artist.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if 
-        `target_on_y` is True
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if 
-        `target_on_y` is True
+        predictions as additional lines, by default False
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
     """
     __slots__ = (
         'model', 'target_fit', 'show_points', 'show_fit_ci', 'show_pred_ci')
@@ -480,40 +393,6 @@ class LinearRegression(Plotter):
             show_fit_ci: bool = False,
             show_pred_ci: bool = False,
             **kwds) -> None:
-        """Initialize the LinearRegression object
-        
-        Parameters
-        ----------
-        source : Hashable
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        feature : str
-            Column name of the feature variable for the plot,
-            by default ''
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on the
-            y-axis, by default True
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first 
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure ovject with
-            one Axes is created, by default None.
-        show_points : bool, optional
-            Flag indicating whether to show the individual points, 
-            by default True.
-        show_fit_ci : bool, optional
-            Flag indicating whether to show the confidence interval for
-            the fitted line as filled area, by default False.
-        show_pred_ci : bool, optional
-            Flag indicating whether to show the confidence interval for 
-            predictions as additional lines, by default False
-        **kwds:
-            Those arguments have no effect. Only serves to catch further
-            arguments that have no use here (occurs when this class is 
-            used within chart objects).
-        """
         self.target_fit = PLOTTER.FITTED_VALUES_NAME
         self.show_points = show_points
         self.show_fit_ci = show_fit_ci
@@ -594,58 +473,52 @@ class Probability(LinearRegression):
     """A Q-Q and P-P probability plotter that extends the 
     LinearRegression class.
     
-    Attributes
+    Parameters
     ----------
-    source : pandas DataFrame
-        The data source for the plot.
+    source : Hashable
+        The tabular data source for the plot in a long format. 
     target : str
         Column name of the target variable for the plot.
-    feature : str
-        Column name of the feature variable for the plot.
-    target_on_y : bool
-        Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements.
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn.
-    model : statsmodels RegressionResults
-        The full fitted OLS regression model.
-    target_fit : str
-        The column name of the target variable for the fitted line.
-    show_points : bool
-        Flag indicating whether to show the individuals as scatter point.
-    show_fit_ci : bool
-        Flag indicating whether to show the confidence interval for the
-        fitted line.
-    show_pred_ci : bool
-        Flag indicating whether to show the confidence interval for 
-        predictions.
     dist : scipy stats rv_continuous
-        The probability distribution to use for the plot.
+        The probability distribution use for creating feature data
+        (the theoretical values).
     kind : Literal['qq', 'pp', 'sq', 'sp']:
         The type of probability plot to create. The first letter
         corresponds to the target, the second to the feature.
-        - qq: target = sample quantile; feature = theoretical quantile
+        - qq: target = sample quantile; feature = theoretical
+            quantile
         - pp: target = sample percentile; feature = theoretical 
             percentile
         - sq: target = sample data; feature = theoretical quantiles
-        - sp: target = sample data, feature = theoretical percentiles
-    prob_fit : statsmodels ProbPlot
-        The probability plot object.
-    color : str (read-only)
-        The color of the drawn artist.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if 
-        `target_on_y` is True.
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if 
-        `target_on_y` is True.
-    sample_data : NDArray (read-only)
-        Get fitted samples (target data) according to given kind.
-    theoretical_data : NDArray (read-only)
-        Get theoretical data (quantiles or percentiles) according to 
-        the given kind.
+        - sp: target = sample data, feature = theoretical
+            percentiles
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on 
+        the y-axis, by default True.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure ovject with
+        one Axes is created, by default None.
+    show_points : bool, optional
+        Flag indicating whether to show the individual points, 
+        by default True.
+    show_fit_ci : bool, optional
+        Flag indicating whether to show the confidence interval for
+        the fitted line as filled area, by default False.
+    show_pred_ci : bool, optional
+        Flag indicating whether to show the confidence interval for 
+        predictions as additional lines, by default False.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
+    
+    Raises
+    ------
+    AssertionError
+        If given kind is not one of 'qq', 'pp', 'sq' or 'sp'
     """
     __slots__ = ('dist', 'kind', 'prob_fit')
     dist: rv_continuous
@@ -665,55 +538,6 @@ class Probability(LinearRegression):
             show_fit_ci: bool = True,
             show_pred_ci: bool = True,
             **kwds) -> None:
-        """Initialize the Probability object
-        
-        Parameters
-        ----------
-        source : Hashable
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        dist : scipy stats rv_continuous
-            The probability distribution use for creating feature data
-            (the theoretical values).
-        kind : Literal['qq', 'pp', 'sq', 'sp']:
-            The type of probability plot to create. The first letter
-            corresponds to the target, the second to the feature.
-            - qq: target = sample quantile; feature = theoretical
-                quantile
-            - pp: target = sample percentile; feature = theoretical 
-                percentile
-            - sq: target = sample data; feature = theoretical quantiles
-            - sp: target = sample data, feature = theoretical
-                percentiles
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on 
-            the y-axis, by default True.
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first 
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure ovject with
-            one Axes is created, by default None.
-        show_points : bool, optional
-            Flag indicating whether to show the individual points, 
-            by default True.
-        show_fit_ci : bool, optional
-            Flag indicating whether to show the confidence interval for
-            the fitted line as filled area, by default False.
-        show_pred_ci : bool, optional
-            Flag indicating whether to show the confidence interval for 
-            predictions as additional lines, by default False.
-        **kwds:
-            Those arguments have no effect. Only serves to catch further
-            arguments that have no use here (occurs when this class is 
-            used within chart objects).
-        
-        Raises
-        ------
-        AssertionError
-            If given kind is not one of 'qq', 'pp', 'sq' or 'sp'
-        """
         assert kind in ('qq', 'pp', 'sq', 'sp'), (
             f'kind must be one of {"qq", "pp", "sq", "sp"}, got {kind}')
 
@@ -804,36 +628,6 @@ class Probability(LinearRegression):
 class BlandAltman(Plotter):
     """Generate a Bland-Altman plot to compare two sets of measurements.
 
-    Attributes
-    ----------
-    source : pandas DataFrame
-        The data source for the plot.
-    target : str
-        Column name of the target variable (the second measurement).
-    feature : str
-        Column name of the feature variable (the first or reference
-        measurement).
-    estimation : Estimator
-        Instance to estimate the mean, agreement limits and those 
-        confidence interval.
-    target_on_y : bool
-        Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn
-    color : str (read-only)
-        The color of the drawn artist.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if 
-        `target_on_y` is True
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if 
-        `target_on_y` is True
-
-    Notes
-    -----
     Bland-Altman plots [1]_ are extensively used to evaluate the 
     agreement among two different instruments or two measurements 
     techniques. They allow identification of any systematic difference 
@@ -857,6 +651,49 @@ class BlandAltman(Plotter):
     important to calculate confidence intervals for the 95% limits of 
     agreement.
 
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot. 
+    target : str
+        Column name of the target variable (the second measurement).
+    feature : str
+        Column name of the feature variable (the first or reference
+        measurement).
+    agreement : float, optional
+        Multiple of the standard deviation to plot agreement limits
+        (in both direction). The defaults is 3.92 (± 1.96), which 
+        corresponds to 95 % confidence interval if the differences
+        are normally distributed.
+    confidence : float or None, optional
+        If not None, plot the specified percentage confidence
+        interval of the mean and limits of agreement. The CIs of the
+        mean difference and agreement limits describe a possible
+        error in the estimate due to a sampling error. The greater
+        the sample size, the narrower the CIs will be,
+        by default 0.95
+    feature_axis : Literal['mean', 'data']
+        Definition of data used as feature axis (reference axis). 
+        - If 'mean' the mean for each measurement is calculated
+        as (first + second)/2.
+        - If 'data' the feature values are used for feature axis.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on 
+        the y-axis, by default True.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure ovject with
+        one Axes is created, by default None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
+
+    Notes
+    -----
     The code is an adaptation of the Pingouin package.
     https://pingouin-stats.org/generated/pingouin.plot_blandaltman.html
     
@@ -866,9 +703,9 @@ class BlandAltman(Plotter):
     
     References
     ----------
-    .. [1] Bland, J. M., & Altman, D. (1986). Statistical methods for assessing
-           agreement between two methods of clinical measurement. The lancet,
-           327(8476), 307-310.
+    .. [1] Bland, J. M., & Altman, D. (1986). Statistical methods for 
+           assessing agreement between two methods of clinical
+           measurement. The lancet, 327(8476), 307-310.
     """
     __slots__ = ('confidence', 'estimation')
     confidence: float
@@ -886,47 +723,6 @@ class BlandAltman(Plotter):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        """
-        Parameters
-        ----------
-        source : pandas DataFrame
-            The data source for the plot.
-        target : str
-            Column name of the target variable (the second measurement).
-        feature : str
-            Column name of the feature variable (the first or reference
-            measurement).
-        agreement : float, optional
-            Multiple of the standard deviation to plot agreement limits
-            (in both direction). The defaults is 3.92 (± 1.96), which 
-            corresponds to 95 % confidence interval if the differences
-            are normally distributed.
-        confidence : float or None, optional
-            If not None, plot the specified percentage confidence
-            interval of the mean and limits of agreement. The CIs of the
-            mean difference and agreement limits describe a possible
-            error in the estimate due to a sampling error. The greater
-            the sample size, the narrower the CIs will be,
-            by default 0.95
-        feature_axis : Literal['mean', 'data']
-            Definition of data used as feature axis (reference axis). 
-            - If 'mean' the mean for each measurement is calculated
-            as (first + second)/2.
-            - If 'data' the feature values are used for feature axis.
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on 
-            the y-axis, by default True.
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first 
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure ovject with
-            one Axes is created, by default None.
-        **kwds:
-            Those arguments have no effect. Only serves to catch further
-            arguments that have no use here (occurs when this class is 
-            used within chart objects).
-        """
         df = pd.DataFrame()
         _target = f'{target} - {feature}'
         df[_target] = source[target] - source[feature]
@@ -976,29 +772,33 @@ class BlandAltman(Plotter):
 class TransformPlotter(Plotter):
     """Abstract base class for creating plotters.
 
-    Attributes
+    Parameters
     ----------
     source : pandas DataFrame
-        The data source for the plot.
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
-    feature : str
-        Column name of the feature variable for the plot.
-    target_on_y : bool
-        Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements.
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn.
-    color : str (read-only)
-        The color of the drawn artist.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if 
-        `target_on_y` is True.
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if 
-        `target_on_y` is True.
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''
+    f_base : int | float, optional
+        Value that serves as the base location (offset) of the 
+        feature values. Only taken into account if feature is not 
+        given, by default `PLOTTER.DEFAULT_F_BASE`.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on 
+        the y-axis, by default True
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure ovject with
+        one Axes is created, by default None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
     """
     __slots__ = ('_f_base', '_original_f_values')
     _f_base: int | float
@@ -1015,35 +815,6 @@ class TransformPlotter(Plotter):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        """Initialize the TransformPlotter object.
-
-        Parameters
-        ----------
-        source : pandas DataFrame
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        feature : str, optional
-            Column name of the feature variable for the plot,
-            by default ''
-        f_base : int | float, optional
-            Value that serves as the base location (offset) of the 
-            feature values. Only taken into account if feature is not 
-            given, by default `PLOTTER.DEFAULT_F_BASE`.
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on 
-            the y-axis, by default True
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first 
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure ovject with
-            one Axes is created, by default None.
-        **kwds:
-            Those arguments have no effect. Only serves to catch further
-            arguments that have no use here (occurs when this class is 
-            used within chart objects).
-        """
         self._f_base = f_base
         self.target = target
         self.feature = feature
@@ -1066,7 +837,8 @@ class TransformPlotter(Plotter):
         Parameters
         ----------
         source : pandas DataFrame
-            The data source for the plot.
+            Pandas long format DataFrame containing the data source for
+            the plot.
 
         Yields
         ------
@@ -1128,38 +900,45 @@ class CenterLocation(TransformPlotter):
     """A center location (mean or median) plotter that extends the 
     TransformPlotter class.
 
-    Attributes
+    Parameters
     ----------
     source : pandas DataFrame
-        The data source for the plot.
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
-    feature : str
-        Column name of the feature variable for the plot.
-    target_on_y : bool
-        Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements.
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn.
-    color : str (read-only)
-        The color of the drawn artist.
-    kind : Literal['mean', 'median']
-        The type of center to plot ('mean' or 'median').
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''
+    kind : Literal['mean', 'median'], optional
+        The type of center to plot ('mean' or 'median'),
+        by default 'mean'.
+    marker : str | None, optional
+        The marker style for the scatter plot. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
     show_line : bool
         Flag indicating whether to draw a line between the calculated 
         mean or median points.
     show_points : bool
         Flag indicating whether to show the center points.
-    marker : str | None
-        The marker style for the points.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if 
-        `target_on_y` is True.
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if 
-        `target_on_y` is True.
+    f_base : int | float, optional
+        Value that serves as the base location (offset) of the 
+        feature values. Only taken into account if feature is not 
+        given, by default `PLOTTER.DEFAULT_F_BASE`.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on 
+        the y-axis, by default True
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure ovject with
+        one Axes is created, by default None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
     """
     __slots__ = ('_kind', 'show_line', 'show_points', 'marker')
     _kind: Literal['mean', 'median']
@@ -1183,47 +962,6 @@ class CenterLocation(TransformPlotter):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        """Initialize the CenterLocation object.
-
-        Parameters
-        ----------
-        source : pandas DataFrame
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        feature : str, optional
-            Column name of the feature variable for the plot,
-            by default ''
-        kind : Literal['mean', 'median'], optional
-            The type of center to plot ('mean' or 'median'),
-            by default 'mean'.
-        marker : str | None, optional
-            The marker style for the scatter plot. Available markers see:
-            https://matplotlib.org/stable/api/markers_api.html, 
-            by default None
-        show_line : bool
-            Flag indicating whether to draw a line between the calculated 
-            mean or median points.
-        show_points : bool
-            Flag indicating whether to show the center points.
-        f_base : int | float, optional
-            Value that serves as the base location (offset) of the 
-            feature values. Only taken into account if feature is not 
-            given, by default `PLOTTER.DEFAULT_F_BASE`.
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on 
-            the y-axis, by default True
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first 
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure ovject with
-            one Axes is created, by default None.
-        **kwds:
-            Those arguments have no effect. Only serves to catch further
-            arguments that have no use here (occurs when this class is 
-            used within chart objects).
-        """
         super().__init__(
             source=source, target=target, feature=feature, f_base=f_base,
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
@@ -1294,46 +1032,46 @@ class CenterLocation(TransformPlotter):
 class Bar(TransformPlotter):
     """A bar plotter that extends the TransformPlotter class.
 
-    Attributes
+    Parameters
     ----------
     source : pandas DataFrame
-        The data source for the plot.
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
     feature : str
         Column name of the feature variable for the plot.
-    target_on_y : bool
-        Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements.
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn.
-    color : str (read-only)
-        The color of the drawn artist.
-    method : str | None
+    stack : bool, optional
+        Flag indicating whether to stack the bars. It is checked 
+        whether there are already bars at each feature position, if
+        so the new ones are stacked on top of the existing ones,
+        by default True
+    width: float, optional
+        Width of the bars, by default `CATEGORY.FEATURE_SPACE`
+    kw_method : dict, optional
+        Additional keyword arguments to be passed to the method,
+        by default {}
+    method : str, optional
         A pandas Series method to use for aggregating target values 
-        within each feature level. Like 'sum', 'count' or similar that
-        returns a scalar.
-    kw_method : dict
-        Additional keyword arguments to be passed to the method.
-    stack : bool
-        Flag indicating whether to stack the bars. It is checked whether
-        there are already bars at each feature position, if so the new
-        ones are stacked on top of the existing ones.
-    width : float
-        The width of the bars.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if 
-        `target_on_y` is True.
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if 
-        `target_on_y` is True.
-    bars : List[BarContainer] (read-only)
-        List of BarContainer objects representing the bars in the plot.
-    t_base : NDArray (read-only)
-        Base values for the bars (target), contains zeros when not 
-        stacked.
+        within each feature level. Like 'sum', 'count' or similar
+        that returns a scalar, by default None
+    f_base : int | float, optional
+        Value that serves as the base location (offset) of the 
+        feature values. Only taken into account if feature is not 
+        given, by default `PLOTTER.DEFAULT_F_BASE`.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on 
+        the y-axis, by default True
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure ovject with
+        one Axes is created, by default None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
     """
     __slots__ = ('method', 'kw_method', 'stack', 'width')
     method: str | None
@@ -1355,48 +1093,6 @@ class Bar(TransformPlotter):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        """Initialize the Bar object.
-
-        Parameters
-        ----------
-        source : pandas DataFrame
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        feature : str
-            Column name of the feature variable for the plot.
-        stack : bool, optional
-            Flag indicating whether to stack the bars. It is checked 
-            whether there are already bars at each feature position, if
-            so the new ones are stacked on top of the existing ones,
-            by default True
-        width: float, optional
-            Width of the bars, by default `CATEGORY.FEATURE_SPACE`
-        kw_method : dict, optional
-            Additional keyword arguments to be passed to the method,
-            by default {}
-        method : str, optional
-            A pandas Series method to use for aggregating target values 
-            within each feature level. Like 'sum', 'count' or similar
-            that returns a scalar, by default None
-        f_base : int | float, optional
-            Value that serves as the base location (offset) of the 
-            feature values. Only taken into account if feature is not 
-            given, by default `PLOTTER.DEFAULT_F_BASE`.
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on 
-            the y-axis, by default True
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first 
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure ovject with
-            one Axes is created, by default None.
-        **kwds:
-            Those arguments have no effect. Only serves to catch further
-            arguments that have no use here (occurs when this class is 
-            used within chart objects).
-        """
         self.stack = stack
         self.width = width
         self.method = method
@@ -1515,59 +1211,53 @@ class Pareto(Bar):
     contribute to a problem or outcome, enabling them to allocate 
     resources and address the most critical issues first.
 
-    Attributes
+    Parameters
     ----------
     source : pandas DataFrame
-        The data source for the plot.
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
     feature : str
         Column name of the feature variable for the plot.
-    highlight : Any
-        The feature value whose bar should be highlighted in the diagram.
-    highlight_color : str
-        The color to use for highlighting.
-    highlighted_as_last: bool
-        Whether the highlighted bar should be at the end.
-    target_on_y : bool
-        Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements.
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn.
-    color : str (read-only)
-        The color of the drawn artist.
-    method : str | None
+    highlight : Any, optional
+        The feature value whose bar should be highlighted in the 
+        diagram, by default None.
+    highlight_color : str, optional
+        The color to use for highlighting, by default `COLOR.BAD`.
+    highlighted_as_last: bool, optional
+        Whether the highlighted bar should be at the end, by default
+        True.
+    width: float, optional
+        Width of the bars, by default `CATEGORY.FEATURE_SPACE`.
+    method : str, optional
         A pandas Series method to use for aggregating target values 
         within each feature level. Like 'sum', 'count' or similar that
-        return a scalar.
-    kw_method : dict
-        Additional keyword arguments to be passed to the method.
-    stack : bool
-        Flag indicating whether to stack the bars. It is checked whether
-        there are already bars at each feature position, if so the new
-        ones are stacked on top of the existing ones.
-    width : float
-        The width of the bars.
-    x : ArrayLike (read-only)
-        Values used for the x-axis so that the target is displayed in 
-        descending order and the highlighted bar is at the end
-        (if so specified).
-    y : ArrayLike (read-only)
-        Values used for the y-axis so that the target is displayed in 
-        descending order and the highlighted bar is at the end
-        (if so specified).
-    bars : List[BarContainer] (read-only)
-        List of BarContainer objects representing the bars in the plot.
-    t_base : NDArray (read-only)
-        Base values for the bars (target), contains zeros when not 
-        stacked.
-    shared_feature_axes : bool (read-only)
-        True if any other ax in this figure shares the feature axes.
-    indices : List[int] (read-only)
-        Arranged index values to access the target data (from source 
-        data) in the order to be plotted.
+        returns a scalar, by default None.
+    kw_method : dict, optional
+        Additional keyword arguments to be passed to the method,
+        by default {}.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on the
+        y-axis, by default True.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first color
+        is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure ovject with one
+        Axes is created, by default None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is used
+        within chart objects).
+    
+    Raises
+    ------
+    AssertionError
+        If 'categorical_feature' is True, coming from Chart objects.
+    AssertionError
+        If an other Axes object in this Figure instance shares the
+        feature axis.
     """
     __slots__ = ('highlight', 'highlight_color', 'highlighted_as_last')
     highlight: Any
@@ -1589,55 +1279,6 @@ class Pareto(Bar):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        """Initialize the Pareto object.
-
-        Parameters
-        ----------
-        source : pandas DataFrame
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        feature : str
-            Column name of the feature variable for the plot.
-        highlight : Any, optional
-            The feature value whose bar should be highlighted in the 
-            diagram, by default None.
-        highlight_color : str, optional
-            The color to use for highlighting, by default `COLOR.BAD`.
-        highlighted_as_last: bool, optional
-            Whether the highlighted bar should be at the end, by default
-            True.
-        width: float, optional
-            Width of the bars, by default `CATEGORY.FEATURE_SPACE`.
-        method : str, optional
-            A pandas Series method to use for aggregating target values 
-            within each feature level. Like 'sum', 'count' or similar
-            that returns a scalar, by default None.
-        kw_method : dict, optional
-            Additional keyword arguments to be passed to the method,
-            by default {}.
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on 
-            the y-axis, by default True.
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first 
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure ovject with
-            one Axes is created, by default None.
-        **kwds:
-            Those arguments have no effect. Only serves to catch further
-            arguments that have no use here (occurs when this class is 
-            used within chart objects).
-        
-        Raises
-        ------
-        AssertionError
-            If 'categorical_feature' is True, coming from Chart objects.
-        AssertionError
-            If an other Axes object in this Figure instance shares the
-            feature axis.
-        """
         assert not (kwds.get('categorical_feature', False)), (
             "Don't set categorical_feature to True for Pareto charts, "
             'it would mess up the axis tick labels')
@@ -1770,31 +1411,31 @@ class Pareto(Bar):
 class Jitter(TransformPlotter):
     """A class for creating jitter plotters.
 
-    Attributes
+    Parameters
     ----------
     source : pandas DataFrame
-        The data source for the plot.
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
-    feature : str
-        Column name of the feature variable for the plot.
-    target_on_y : bool
-        Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements.
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn.
-    color : str (read-only)
-        The color of the drawn artist.
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''
     width : float
-        The width of the jitter.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if 
-        `target_on_y` is True.
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if 
-        `target_on_y` is True.
+        The width of the jitter, by default `CATEGORY.FEATURE_SPACE`.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on 
+        the y-axis, by default True
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure ovject with
+        one Axes is created, by default None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
     """
     __slots__ = ('width')
     width: float
@@ -1809,33 +1450,6 @@ class Jitter(TransformPlotter):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        """Initialize the Jitter object.
-
-        Parameters
-        ----------
-        source : pandas DataFrame
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        feature : str, optional
-            Column name of the feature variable for the plot,
-            by default ''
-        width : float
-            The width of the jitter, by default `CATEGORY.FEATURE_SPACE`.
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on 
-            the y-axis, by default True
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first 
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure ovject with
-            one Axes is created, by default None.
-        **kwds:
-            Those arguments have no effect. Only serves to catch further
-            arguments that have no use here (occurs when this class is 
-            used within chart objects).
-        """
         self.width = width
         super().__init__(
             source=source, target=target, feature=feature,
@@ -1915,33 +1529,34 @@ class GaussianKDE(TransformPlotter):
     distribution; bimodal or multi-modal distributions tend to be 
     oversmoothed.
     
-    Attributes
+    Parameters
     ----------
     source : DataFrame
-        The data source for the plot.
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
-    feature : str
-        Column name of the feature variable for the plot.
-    target_on_y : bool
-        Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements.
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn.
-    show_density_axis : bool
-        Flag indicating whether to show the density axis.
-    color : str (read-only)
-        The color of the drawn artist.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if `target_on_y` is True.
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if `target_on_y` is True.
-    height : float (read-only)
-        Height of the KDE curve at its maximum.
-    stretch : float (read-only)
-        Factor by which the curve was stretched in height.
+    stretch : float, optional
+        Factor by which the curve was stretched in height,
+        by default 1.
+    height : float | None, optional
+        Height of the KDE curve at its maximum, by default None.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on 
+        the y-axis, by default True.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure object with 
+        one Axes is created, by default None.
+    show_density_axis : bool, optional
+        Flag indicating whether to show the density axis,
+        by default True.
+    **kwds:
+        Additional keyword arguments that have no effect and are
+        only used to catch further arguments that have no use here
+        (occurs when this class is used within chart objects).
     """
     __slots__ = ('_height', '_stretch', 'show_density_axis')
     _height: float | None
@@ -1959,36 +1574,6 @@ class GaussianKDE(TransformPlotter):
             ax: Axes | None = None,
             show_density_axis: bool = True,
             **kwds) -> None:
-        """Initialize the GaussianKDE object.
-
-        Parameters
-        ----------
-        source : DataFrame
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        stretch : float, optional
-            Factor by which the curve was stretched in height,
-            by default 1.
-        height : float | None, optional
-            Height of the KDE curve at its maximum, by default None.
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on 
-            the y-axis, by default True.
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first 
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure object with 
-            one Axes is created, by default None.
-        show_density_axis : bool, optional
-            Flag indicating whether to show the density axis,
-            by default True.
-        **kwds:
-            Additional keyword arguments that have no effect and are
-            only used to catch further arguments that have no use here
-            (occurs when this class is used within chart objects).
-        """
         self._height = height
         self._stretch = stretch
         self.show_density_axis = show_density_axis
@@ -2078,34 +1663,31 @@ class Violine(GaussianKDE):
     density estimate. The width of the violin is stretched to fill the
     available width.
 
-    Attributes
+    Parameters
     ----------
     source : DataFrame
-        The data source for the plot.
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
-    feature : str
-        Column name of the feature variable for the plot.
-    target_on_y : bool
-        Flag indicating whether the target variable is plotted on the y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements.
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn.
-    color : str (read-only)
-        The color of the drawn artist.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if `target_on_y` is True.
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if `target_on_y` is True.
-    height : float (read-only)
-        Height of the KDE curve at its maximum.
-    stretch : float (read-only)
-        Factor by which the curve was stretched in height.
-    show_density_axis : bool
-        Flag indicating whether to show the density axis.
-    base_on_zero : bool
-        Flag indicating whether to base the plot on zero.
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''.
+    width : float, optional
+        Width of the violine, by default CATEGORY.FEATURE_SPACE.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on
+        the y-axis, by default True.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure object with
+        one Axes is created, by default None.
+    **kwds:
+        Additional keyword arguments that have no effect and are
+        only used to catch further arguments that have no use here
+        (occurs when this class is used within chart objects).
     """
     def __init__(
             self,
@@ -2117,33 +1699,6 @@ class Violine(GaussianKDE):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        """Initialize the Violine object.
-
-        Parameters
-        ----------
-        source : DataFrame
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        feature : str, optional
-            Column name of the feature variable for the plot,
-            by default ''.
-        width : float, optional
-            Width of the violine, by default CATEGORY.FEATURE_SPACE.
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on
-            the y-axis, by default True.
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure object with
-            one Axes is created, by default None.
-        **kwds:
-            Additional keyword arguments that have no effect and are
-            only used to catch further arguments that have no use here
-            (occurs when this class is used within chart objects).
-        """
         super().__init__(
             source=source, target=target, feature=feature,
             height=width/2, target_on_y=target_on_y, color=color, ax=ax,
@@ -2172,32 +1727,36 @@ class Violine(GaussianKDE):
 class Errorbar(TransformPlotter):
     """Class for creating error bar plotters.
 
-    Attributes
+    Parameters
     ----------
     source : DataFrame
-        The data source for the plot.
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
-    feature : str
-        Column name of the feature variable for the plot.
-    target_on_y : bool
-        Flag indicating whether the target variable is plotted on the y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements.
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn.
-    color : str (read-only)
-        The color of the drawn artist.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if `target_on_y` is True.
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if `target_on_y` is True.
     lower : str
         Column name of the lower error values.
     upper : str
         Column name of the upper error values.
-    show_center : bool
-        Flag indicating whether to show the center points.
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''.
+    show_center : bool, optional
+        Flag indicating whether to show the center points,
+        by default True.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on
+        the y-axis, by default True.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure object with
+        one Axes is created, by default None.
+    **kwds:
+        Additional keyword arguments that have no effect and are
+        only used to catch further arguments that have no use here
+        (occurs when this class is used within chart objects).
     """
     __slots__ = ('lower', 'upper', 'show_center')
     lower: str
@@ -2216,41 +1775,6 @@ class Errorbar(TransformPlotter):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        """Initialize the Errorbar object.
-
-        Parameters
-        ----------
-        source : DataFrame
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        lower : str
-            Column name of the lower error values.
-        upper : str
-            Column name of the upper error values.
-        feature : str, optional
-            Column name of the feature variable for the plot,
-            by default ''.
-        show_center : bool, optional
-            Flag indicating whether to show the center points,
-            by default True.
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on
-            the y-axis, by default True.
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure object with
-            one Axes is created, by default None.
-        err : NDArray (read-only)
-            separated error lengths as 2D array. First row contains the
-            lower errors, the second row contains the upper errors.
-        **kwds:
-            Additional keyword arguments that have no effect and are
-            only used to catch further arguments that have no use here
-            (occurs when this class is used within chart objects).
-        """
         self.lower = lower
         self.upper = upper
         self.show_center = show_center
@@ -2321,35 +1845,32 @@ class StandardErrorMean(Errorbar):
     """Class for creating plotters with error bars representing the
     standard error of the mean.
 
-    Attributes
+    Parameters
     ----------
     source : DataFrame
-        The data source for the plot.
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
-    feature : str
-        Column name of the feature variable for the plot.
-    target_on_y : bool
-        Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements.
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn.
-    color : str (read-only)
-        The color of the drawn artist.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if
-        `target_on_y` is True.
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if
-        `target_on_y` is True.
-    lower : str
-        Column name of the lower error values.
-    upper : str
-        Column name of the upper error values.
-    show_center : bool
-        Flag indicating whether to show the center points.
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''.
+    show_center : bool, optional
+        Flag indicating whether to show the center points,
+        by default True.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on
+        the y-axis, by default True.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure object with
+        one Axes is created, by default None.
+    **kwds:
+        Additional keyword arguments that have no effect and are
+        only used to catch further arguments that have no use here
+        (occurs when this class is used within chart objects).
     """
     def __init__(
             self,
@@ -2361,34 +1882,6 @@ class StandardErrorMean(Errorbar):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        """Initialize the StandardErrorMean object.
-
-        Parameters
-        ----------
-        source : DataFrame
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        feature : str, optional
-            Column name of the feature variable for the plot,
-            by default ''.
-        show_center : bool, optional
-            Flag indicating whether to show the center points,
-            by default True.
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on
-            the y-axis, by default True.
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure object with
-            one Axes is created, by default None.
-        **kwds:
-            Additional keyword arguments that have no effect and are
-            only used to catch further arguments that have no use here
-            (occurs when this class is used within chart objects).
-        """
         super().__init__(
             source=source, target=target, lower=PLOTTER.ERR_LOW,
             upper=PLOTTER.ERR_UPP, feature=feature, show_center=show_center,
@@ -2426,42 +1919,40 @@ class SpreadWidth(Errorbar):
     """Class for creating plotters with error bars representing the 
     spread width.
 
-    Attributes
+    Parameters
     ----------
     source : Hashable
-        The data source for the plot.
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
-    feature : str
-        Column name of the feature variable for the plot.
-    target_on_y : bool
-        Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements.
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn.
-    color : str (read-only)
-        The color of the drawn artist.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if
-        `target_on_y` is True.
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if
-        `target_on_y` is True.
-    lower : str
-        Column name of the lower error values.
-    upper : str
-        Column name of the upper error values.
-    show_center : bool
-        Flag indicating whether to show the center points.
-    strategy : Literal['eval', 'fit', 'norm', 'data']
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''.
+    strategy : Literal['eval', 'fit', 'norm', 'data'], optional
         Strategy for estimating the spread width, by default 'norm'.
-    agreement : float | int
-        Agreement value for the spread width estimation, by default 6.
-    possible_dists : Tuple[str | rv_continuous]
-        Tuple of possible distributions for the spread width estimation,
-        by default DIST.COMMON.
+    agreement : float | int, optional
+        Agreement value for the spread width estimation,
+        by default 6.
+    possible_dists : Tuple[str | rv_continuous], optional
+        Tuple of possible distributions for the spread width
+        estimation, by default DIST.COMMON.
+    show_center : bool, optional
+        Flag indicating whether to show the center points,
+        by default True.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on
+        the y-axis, by default True.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure object with
+        one Axes is created, by default None.
+    **kwds:
+        Additional keyword arguments that have no effect and are
+        only used to catch further arguments that have no use here
+        (occurs when this class is used within chart objects).
     """#TODO copy docstring from Estimator
     __slots__ = ('strategy', 'agreement', 'possible_dists')
     strategy: str
@@ -2481,42 +1972,6 @@ class SpreadWidth(Errorbar):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        """Initialize the SpreadWidth object.
-
-        Parameters
-        ----------
-        source : Hashable
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        feature : str, optional
-            Column name of the feature variable for the plot,
-            by default ''.
-        strategy : Literal['eval', 'fit', 'norm', 'data'], optional
-            Strategy for estimating the spread width, by default 'norm'.
-        agreement : float | int, optional
-            Agreement value for the spread width estimation,
-            by default 6.
-        possible_dists : Tuple[str | rv_continuous], optional
-            Tuple of possible distributions for the spread width
-            estimation, by default DIST.COMMON.
-        show_center : bool, optional
-            Flag indicating whether to show the center points,
-            by default True.
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on
-            the y-axis, by default True.
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure object with
-            one Axes is created, by default None.
-        **kwds:
-            Additional keyword arguments that have no effect and are
-            only used to catch further arguments that have no use here
-            (occurs when this class is used within chart objects).
-        """#TODO copy from estimator
         self.strategy = strategy
         self.agreement = agreement
         self.possible_dists = possible_dists
@@ -2581,41 +2036,38 @@ class ConfidenceInterval(Errorbar):
     and allows for a quick assessment of whether the intervals overlap 
     or not.
     
-    Attributes
+    Parameters
     ----------
     source : pandas DataFrame
-        The data source for the plot.
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
-    feature : str
-        Column name of the feature variable for the plot.
-    target_on_y : bool
-        Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements.
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn.
-    color : str (read-only)
-        The color of the drawn artist.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if
-        `target_on_y` is True.
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if
-        `target_on_y` is True.
-    lower : str
-        Column name of the lower error values.
-    upper : str
-        Column name of the upper error values.
-    show_center : bool
-        Flag indicating whether to show the center points.
-    confidence_level : float
-        Confidence level used for interval calculation.
-    ci_func : Callable
-        Function used for calculating the confidence interval.
-    n_groups : int
-        Number of groups in the data.
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''.
+    show_center : bool, optional
+        Flag indicating whether to show the center points,
+        by default True.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on
+        the y-axis, by default True.
+    confidence_level : float, optional
+        Confidence level for the confidence intervals,
+        by default 0.95.
+    ci_func : Callable, optional
+        Function for calculating the confidence intervals,
+        by default mean_ci.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure object with
+        one Axes is created, by default None.
+    **kwds:
+        Additional keyword arguments that have no effect and are
+        only used to catch further arguments that have no use here
+        (occurs when this class is used within chart objects).
     """
     __slots__ = ('confidence_level', 'ci_func', 'n_groups')
     confidence_level: float
@@ -2634,40 +2086,6 @@ class ConfidenceInterval(Errorbar):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        """Initialize the ConfidenceIntervalPlotter object.
-
-        Parameters
-        ----------
-        source : pandas DataFrame
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        feature : str, optional
-            Column name of the feature variable for the plot,
-            by default ''.
-        show_center : bool, optional
-            Flag indicating whether to show the center points,
-            by default True.
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on
-            the y-axis, by default True.
-        confidence_level : float, optional
-            Confidence level for the confidence intervals,
-            by default 0.95.
-        ci_func : Callable, optional
-            Function for calculating the confidence intervals,
-            by default mean_ci.
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure object with
-            one Axes is created, by default None.
-        **kwds:
-            Additional keyword arguments that have no effect and are
-            only used to catch further arguments that have no use here
-            (occurs when this class is used within chart objects).
-        """
         self.confidence_level = confidence_level
         self.ci_func = ci_func
         self.n_groups = pd.Series(source[feature]).nunique() if feature else 1
@@ -2717,41 +2135,35 @@ class MeanTest(ConfidenceInterval):
     in the mean estimates and allows for a quick assessment of whether
     the intervals overlap or not.
 
-    Attributes
+    Parameters
     ----------
     source : pandas DataFrame
-        The data source for the plot.
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
-    feature : str
-        Column name of the feature variable for the plot.
-    target_on_y : bool
-        Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements.
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn.
-    color : str (read-only)
-        The color of the drawn artist.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if
-        `target_on_y` is True.
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if
-        `target_on_y` is True.
-    lower : str
-        Column name of the lower error values.
-    upper : str
-        Column name of the upper error values.
-    show_center : bool
-        Flag indicating whether to show the center points.
-    confidence_level : float
-        Confidence level used for interval calculation.
-    ci_func : Callable
-        Function used for calculating the confidence interval.
-    n_groups : int
-        Number of groups in the data.
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''.
+    show_center : bool, optional
+        Flag indicating whether to show the center points,
+        by default True.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on
+        the y-axis, by default True.
+    confidence_level : float, optional
+        Confidence level for the confidence intervals,
+        by default 0.95.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure object with
+        one Axes is created, by default None.
+    **kwds:
+        Additional keyword arguments that have no effect and are
+        only used to catch further arguments that have no use here
+        (occurs when this class is used within chart objects).
     """
     def __init__(
             self,
@@ -2764,37 +2176,6 @@ class MeanTest(ConfidenceInterval):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        """Initialize the MeanTest object.
-
-        Parameters
-        ----------
-        source : pandas DataFrame
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        feature : str, optional
-            Column name of the feature variable for the plot,
-            by default ''.
-        show_center : bool, optional
-            Flag indicating whether to show the center points,
-            by default True.
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on
-            the y-axis, by default True.
-        confidence_level : float, optional
-            Confidence level for the confidence intervals,
-            by default 0.95.
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure object with
-            one Axes is created, by default None.
-        **kwds:
-            Additional keyword arguments that have no effect and are
-            only used to catch further arguments that have no use here
-            (occurs when this class is used within chart objects).
-        """
         super().__init__(
             source=source, target=target, feature=feature,
             show_center=show_center, target_on_y=target_on_y,
@@ -2813,41 +2194,37 @@ class VariationTest(ConfidenceInterval):
     allows for a quick assessment of whether the intervals overlap or
     not.
 
-    Attributes
+    Parameters
     ----------
-    source : Hashable
-        The data source for the plot.
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
     target : str
         Column name of the target variable for the plot.
-    feature : str
-        Column name of the feature variable for the plot.
-    target_on_y : bool
-        Flag indicating whether the target variable is plotted on the
-        y-axis.
-    fig : matplotlib Figure
-        The top-level container for all plot elements.
-    ax : matplotlib Axes
-        The Axes object on which the Artists are drawn.
-    color : str (read-only)
-        The color of the drawn artist.
-    x : ArrayLike (read-only)
-        Values used for the x-axis. Corresponds to the feature data if
-        `target_on_y` is True.
-    y : ArrayLike (read-only)
-        Values used for the y-axis. Corresponds to the target data if
-        `target_on_y` is True.
-    lower : str
-        Column name of the lower error values.
-    upper : str
-        Column name of the upper error values.
-    show_center : bool
-        Flag indicating whether to show the center points.
-    confidence_level : float
-        Confidence level used for interval calculation.
-    ci_func : Callable
-        Function used for calculating the confidence interval.
-    n_groups : int
-        Number of groups in the data.
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''.
+    show_center : bool, optional
+        Flag indicating whether to show the center points,
+        by default True.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on
+        the y-axis, by default True.
+    confidence_level : float, optional
+        Confidence level for the confidence intervals,
+        by default 0.95.
+    kind : Literal['stdev', 'variance'], optional
+        Type of variation measure to use, by default 'stdev'.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure object with
+        one Axes is created, by default None.
+    **kwds:
+        Additional keyword arguments that have no effect and are
+        only used to catch further arguments that have no use here
+        (occurs when this class is used within chart objects).
     """
     def __init__(
             self,
@@ -2861,39 +2238,6 @@ class VariationTest(ConfidenceInterval):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        """Initialize the VariationTest object.
-
-        Parameters
-        ----------
-        source : pandas DataFrame
-            The data source for the plot.
-        target : str
-            Column name of the target variable for the plot.
-        feature : str, optional
-            Column name of the feature variable for the plot,
-            by default ''.
-        show_center : bool, optional
-            Flag indicating whether to show the center points,
-            by default True.
-        target_on_y : bool, optional
-            Flag indicating whether the target variable is plotted on
-            the y-axis, by default True.
-        confidence_level : float, optional
-            Confidence level for the confidence intervals,
-            by default 0.95.
-        kind : Literal['stdev', 'variance'], optional
-            Type of variation measure to use, by default 'stdev'.
-        color : str | None, optional
-            Color to be used to draw the artists. If None, the first
-            color is taken from the color cycle, by default None.
-        ax : Axes | None, optional
-            The axes object for the plot. If None, a Figure object with
-            one Axes is created, by default None.
-        **kwds:
-            Additional keyword arguments that have no effect and are
-            only used to catch further arguments that have no use here
-            (occurs when this class is used within chart objects).
-        """
         ci_func = stdev_ci if kind == 'stdev' else variance_ci
         super().__init__(
             source=source, target=target, feature=feature,

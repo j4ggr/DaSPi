@@ -5,6 +5,7 @@ from typing import Self
 from typing import List
 from typing import Dict
 from typing import Tuple
+from typing import Sequence
 from typing import Iterable
 from typing import Generator
 from numpy.typing import NDArray
@@ -54,17 +55,17 @@ class LabelFacets:
         self.axes_titles = axes_titles
         self._legends = legends
         self._legend: Legend | None = None
-    
+
     @property
     def shift_text_y(self) -> float:
         """Get offset to move text based on the fig height"""
         return LABEL.SHIFT_BASE / self.figure.get_figheight()
-    
+
     @property
     def shift_text_x(self) -> float:
         """Get offset to move text based on the fig width"""
         return LABEL.SHIFT_BASE / self.figure.get_figwidth()
-    
+
     @property
     def shift_fig_title(self) -> float:
         """Get offset in y direction for fig title"""
@@ -72,7 +73,7 @@ class LabelFacets:
         n = (LABEL.AXES_PADDING
              + sum(map(bool, labels)))
         return n * self.shift_text_y
-    
+
     @property
     def shift_sub_title(self) -> float:
         """Get offset in y direction for sub title"""
@@ -81,7 +82,7 @@ class LabelFacets:
              + LABEL.LABEL_PADDING * int(any(map(bool, labels)))
              + sum(map(bool, labels)))
         return n * self.shift_text_y
-    
+
     @property
     def shift_legend(self) -> float:
         """Get offset in x direction for legend"""
@@ -110,15 +111,15 @@ class LabelFacets:
         
         Parameters
         ----------
-        title : str
-            Legend title
+        handles: List[Patch | Line2D]
+            A list of Artists (lines, patches) to be added to the
+            legend.
         labels : list of str, optional
             The labels must be in the same order as the corresponding 
             plots were drawn. If no labels are given, the handles and 
             labels of the first axes are used.
-        merkers : list of str, optional
-            Use this argument to extend a existing hue legend with a 
-            symbolic legend.
+        title : str
+            Title for the given handles and labels. 
         """
         kw = KW.LEGEND
         bbox = kw['bbox_to_anchor']
@@ -131,7 +132,7 @@ class LabelFacets:
         else:
             new_children = legend.get_children()[0].get_children()
             self.legend_box.get_children().extend(new_children)
-    
+
     def add_xlabel(self) -> None:
         if not self.xlabel: return
         if isinstance(self.xlabel, str):
@@ -220,7 +221,9 @@ class AxesFacets:
 
     def __init__(
             self, nrows: int = 1, ncols: int = 1, sharex: str = 'none', 
-            sharey: str = 'none', stretch_figsize: bool = True, **kwds
+            sharey: str = 'none', width_ratios: Sequence[float] | None = None,
+            height_ratios: Sequence[float] | None = None, 
+            stretch_figsize: bool = True, **kwds
             ) -> None:
         """
         Parameters
@@ -273,7 +276,8 @@ class AxesFacets:
         self.figsize = figsize
         fig, axes = plt.subplots(
             nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey, 
-            squeeze=False, figsize=self.figsize, **kwds)
+            squeeze=False, figsize=self.figsize, width_ratios=width_ratios,
+            height_ratios=height_ratios, **kwds,)
         self.figure: Figure = fig
         self.axes: NDArray = axes
         self._ax: Axes | None = None
@@ -283,7 +287,10 @@ class AxesFacets:
 
     @property
     def ax(self) -> Axes:
-        """Get the axes that is currently being worked on"""
+        """Get the axes that is currently being worked on. This property
+        is automatically kept current when iterating through this 
+        class (read-only).
+        """
         return self._ax
     
     @property
