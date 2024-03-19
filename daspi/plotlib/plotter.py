@@ -103,9 +103,8 @@ from typing import Any
 from typing import Self
 from typing import List
 from typing import Tuple
-from typing import Callable
 from typing import Literal
-from typing import DataFrame
+from typing import Callable
 from typing import Iterable
 from typing import Generator
 
@@ -386,8 +385,8 @@ class LinearRegression(Plotter):
         used within chart objects).
     """
     __slots__ = (
-        'model', 'target_fit', 'show_points', 'show_fit_ci', 'show_pred_ci')
-    model: RegressionResults
+        'results', 'target_fit', 'show_points', 'show_fit_ci', 'show_pred_ci')
+    results: RegressionResults
     target_fit: str
     show_points: bool
     show_fit_ci: bool
@@ -415,8 +414,8 @@ class LinearRegression(Plotter):
             [[feature, target]]
             .dropna(axis=0, how='any')
             .reset_index(drop=True))
-        self.model: RegressionResults = sm.OLS(df[target], sm.add_constant(df[feature])).fit()
-        df[self.target_fit] = self.model.fittedvalues
+        self.results = sm.OLS(df[target], sm.add_constant(df[feature])).fit()
+        df[self.target_fit] = self.results.fittedvalues
         df = pd.concat([df, self.ci_data()], axis=1)
         super().__init__(
             source=df, target=target, feature=feature, target_on_y=target_on_y,
@@ -438,8 +437,8 @@ class LinearRegression(Plotter):
         """Get confidence interval for prediction and fitted line as 
         DataFrame."""
         data = (
-            *fit_ci(self.model),
-            *prediction_ci(self.model))
+            *fit_ci(self.results),
+            *prediction_ci(self.results))
         ci_data = pd.DataFrame(
             data = np.array(data).T, 
             columns = PLOTTER.REGRESSION_CI_NAMES)
@@ -726,7 +725,7 @@ class BlandAltman(Plotter):
     techniques. They allow identification of any systematic difference 
     between the measurements (i.e., fixed bias) or possible outliers.
 
-    The mean difference (= first - second) is the estimated bias, and 
+    The mean difference (= second - first) is the estimated bias, and 
     the SD of the differences measures the random fluctuations around 
     this mean. If the mean value of the difference differs significantly 
     from 0 on the basis of a 1-sample t-test, this indicates the 
@@ -829,7 +828,7 @@ class BlandAltman(Plotter):
             df[_feature] = source[feature]
         super().__init__(
             source=df, target=_target, feature=_feature,
-            target_on_y=target_on_y, color=color, ax=ax, **kwds)
+            target_on_y=target_on_y, color=color, ax=ax)
         self.confidence = confidence
         self.estimation = Estimator(
             samples=df[_target], strategy='norm', agreement=agreement)
@@ -846,12 +845,15 @@ class BlandAltman(Plotter):
         kwds = dict(color=self.color) | kwds
         self.ax.scatter(self.x, self.y, **kwds)
         
-        kws = (KW.MEAN_LINE, KW.CONTROL_LINE, KW.CONTROL_LINE)
-        attrs = ('mean', 'lcl', 'ucl')
-        ci_funs = ('mean_ci', 'stdev_ci', 'stdev_ci')
+        kws = (KW.CONTROL_LINE, KW.CONTROL_LINE, KW.MEAN_LINE)
+        attrs = ('lcl', 'ucl', 'mean')
+        ci_funs = ('stdev_ci', 'stdev_ci', 'mean_ci')
         for kw, attr, ci_fun in zip(kws, attrs, ci_funs):
             value = getattr(self.estimation, attr)
-            low, upp = getattr(self.estimation, ci_fun)()
+            _low, _upp = getattr(self.estimation, ci_fun)()
+            span = _upp - _low
+            low = value - span/2
+            upp = value + span/2
             if self.target_on_y:
                 self.ax.axhline(value, **kw)
                 if self.confidence is not None:

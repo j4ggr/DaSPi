@@ -56,7 +56,7 @@ class Estimator:
     _p_ad: float | None
     _dist_params: tuple | None
     _strategy: str
-    _agreement: int
+    _agreement: int | float
     possible_dists: Tuple[str | rv_continuous]
     _k: float
     _evaluate: Callable | None
@@ -67,7 +67,7 @@ class Estimator:
             self,
             samples: ArrayLike, 
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
-            agreement: float | int = 6, 
+            agreement: int | float = 6, 
             possible_dists: Tuple[str | rv_continuous] = DIST.COMMON,
             evaluate: Callable | None = None
             ) -> None:
@@ -97,7 +97,7 @@ class Estimator:
             - `data`: The quantiles for the process variation tolerance 
             are read directly from the data.
             by default 'norm'
-        agreement : float or int, optional
+        agreement : int or float, optional
             Specify the tolerated process variation for which the 
             control limits are to be calculated. 
             - If int, the spread is determined using the normal 
@@ -143,8 +143,7 @@ class Estimator:
         self._samples = samples 
         self._strategy = 'norm'
         self.strategy = strategy
-        self._agreement = 6
-        self._k = self._agreement/2
+        self._agreement = -1
         self.agreement = agreement
         self._evaluate = evaluate
         
@@ -361,12 +360,14 @@ class Estimator:
         return self._agreement
     @agreement.setter
     def agreement(self, agreement: int | float):
-        if isinstance(agreement, int): 
-            assert agreement > 1
-            self._k = self.agreement / 2
+        assert agreement > 0, (
+            'Agreement must be set as a percentage (0 < agreement < 1) '
+            + 'or as a multiple of the standard deviation (agreement >= 1), '
+            + f'got {agreement}.')
+        if agreement >= 1:
+            self._k = agreement / 2
         else:
-            assert 0 < agreement < 1
-            self._k = stats.norm.ppf((1 + agreement)/2)
+            self._k = stats.norm.ppf((1 + agreement) / 2)
         if self._agreement != agreement:
             self._agreement = agreement
             self._reset_values_()

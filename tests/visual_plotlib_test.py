@@ -29,6 +29,7 @@ from daspi.plotlib.plotter import Jitter
 from daspi.plotlib.plotter import Scatter
 from daspi.plotlib.plotter import Violine
 from daspi.plotlib.plotter import MeanTest
+from daspi.plotlib.plotter import BlandAltman
 from daspi.plotlib.plotter import Probability
 from daspi.plotlib.plotter import GaussianKDE
 from daspi.plotlib.plotter import VariationTest
@@ -779,7 +780,36 @@ class TestSimpleChart:
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
-
+    
+    def test_bland_altman_plot(self) -> None:
+        self.base = f'{self.fig_title}_blandaltman'
+        
+        self.kind = 'simple'
+        chart = SimpleChart(
+                source = load_dataset('blandaltman'),
+                target = 'B',
+                feature = 'A',
+            ).plot(BlandAltman, feature_axis='mean')
+        target_label = f'Difference {chart.plots[0].target}'
+        chart = chart.label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = 'Mean both measurements',
+                target_label = target_label,    
+                info = self.info_msg
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert self.file_name.is_file()
+        assert len(texts) == 5
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == self.sub_title
+        assert texts[2].get_text() == target_label
+        assert texts[3].get_text() == 'Mean both measurements'
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
 
 class TestJointChart:
 
@@ -859,7 +889,6 @@ class TestJointChart:
         assert chart.axes[1][0].get_xlabel() == self.target
         assert chart.axes[1][0].get_ylabel() == self.cat1
     
-
     def test_probabilities(self) -> None:
         self.base = f'{self.fig_title}_probability'
         
@@ -1143,11 +1172,3 @@ class TestMultipleVariateChart:
         chart.save(self.file_name).close()
         assert self.file_name.is_file()
 
-    def test_blant_altmann_plot(self) -> None:
-        self.base = f'{self.fig_title}'
-        raise NotImplementedError
-        df = load_dataset('blandaltman')
-        self.kind = 'created'
-        chart = SimpleChart(
-                source = df_affairs
-            )

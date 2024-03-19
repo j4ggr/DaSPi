@@ -1,15 +1,18 @@
 import patsy
 import itertools
 
+import numpy as np
 import pandas as pd 
 
 from typing import List
 from typing import Dict
 from typing import Tuple
-from typing import DefaultDict
-from collections import defaultdict
+from typing import Callable
+from scipy.optimize import Bounds
+from scipy.optimize import minimize
 from pandas.core.frame import DataFrame
 from patsy.design_info import DesignInfo
+from scipy.optimize._optimize import OptimizeResult
 from statsmodels.regression.linear_model import RegressionResults
 
 from ..constants import ANOVA
@@ -131,49 +134,78 @@ def hierarchical(features: List[str]) -> List[str]:
                 features_h.add(combo)
     return sorted(list(features_h), key=lambda x: x.count(ANOVA.SEP))
 
-def is_hierarchical(features: List[str]) -> bool:
-    """Check if given features could be used for a hierarchical model"""
-    features_h = hierarchical(features)
-    return all([f in features for f in features_h])
+def is_main_feature(feature: str) -> bool:
+    """Check if given feature is a main parameter (intercept is 
+    excluded)."""
+    return feature != ANOVA.INTERCEPT and ANOVA.SEP not in feature
 
-def goodness_of_fit_metrics(
-        model: RegressionResults, metrics: DefaultDict[str, list]=None, 
-        **kwargs) -> DefaultDict[str, list]:
-    """Get different goodness-of-fit metric as dict
-    
-    Keys:
-    - 'aic' = Akaike's information criteria
-    - 'rsquared' = R-squared of the model
-    - 'rsquared_adj' = adjusted R-squared
-    - 'p_least' = The least two-tailed p value for the t-stats of the 
-    params.
-    - 'hierarchical' = boolean value if model is hierarchical
-    
+def decode(value: str|float, mapper: dict, feature: str):
+    """Get original value of encoded value for given feature
+
     Parameters
     ----------
-    model : statsmodels RegressionResults
-        fitted OLS model
-    metrics : dict of float, optional
-        calculated metrics coming from last call, if none is given a 
-        new defaultdict with lists is created.
-    kwargs : dict
-        used for additional key value pairs e.g. ols formula, least 
-        param and p-value threshold (alpha) see api function 
-        "recursive_feature_elimination"
+    value : str or float
+        encoded value used as 2. level key in mapper
+    mapper : dict
+        information about how the levels are encoded
+        - key: str = feature name of main level
+        - value: dict = key: originals, value: codes
+    feature : str
+        feature name used as 1. level key in mapper
+    
+    Returns
+    orig : str or float
+        value used in original data bevore encoding
+    """
+    for orig, code in mapper[feature].items():
+        if isinstance(value, str): code = str(code)
+        if code == value: return orig
 
+def optimize(
+        fun: Callable, x0: List[float], negate: bool, columns: List[str], 
+        mapper: dict, bounds: Bounds|None = None, **kwds
+        ) -> Tuple[List[float], float, OptimizeResult]:
+    """Base function for optimize output with scipy.optimize.minimize 
+    function
+
+    Parameters
+    ----------
+    fun : callable
+        The objective function to be minimized.
+    x0 : ndarray, shape (n,)
+        Initial guess. Array of real elements of size (n,), where n is 
+        the number of independent
+    negate : bool
+        If the function was created for maximization, the prediction is 
+        negated here again
+    mapper : dict or None
+        - key: str = feature name of main level
+        - value: dict = key: originals, value: codes
+    bounds : scipy optimizer Bounds
+        Bounds on variables
+    **kwds
+        Additional keyword arguments for `scipy.optimize.minimize`
+        function.
+    
     Returns
     -------
-    metrics : dict
-        calculated goodness-of-fit metrics
+    xs : ndarray
+        Optimized values for independents
+    y : float
+        predicted output
+    res : OptimizeResult
+        The optimization result represented as a ``OptimizeResult`` object.
+        Important attributes are: ``x`` the solution array, ``success`` a
+        Boolean flag indicating if the optimizer exited successfully and
+        ``message`` which describes the cause of the termination. See
+        `OptimizeResult` for a description of other attributes.
     """
-    if not metrics: metrics = defaultdict(list)
-    for k, v in kwargs.items():
-        metrics[k].append(v)
-    for k in ['aic', 'rsquared', 'rsquared_adj']:
-        metrics[k].append(getattr(model, k))
-    metrics['p_least'].append(model.pvalues.max())
-    metrics['hierarchical'].append(is_hierarchical(list(model.params.index)))
-    return metrics
+    if not bounds:
+        bounds = Bounds(-np.ones(len(x0)), np.ones(len(x0)))
+    res: OptimizeResult = minimize(fun, x0, bounds=bounds, **kwds)
+    xs = [decode(x, mapper, c) for x, c in zip(res.x, columns)]
+    y = -res.fun if negate else res.fun
+    return xs, y, res
 
 
 __all__ = [
@@ -183,6 +215,7 @@ __all__ = [
     decode_cat_main.__name__,
     encoded_dmatrices.__name__,
     hierarchical.__name__,
-    is_hierarchical.__name__,
-    goodness_of_fit_metrics.__name__,
+    is_main_feature.__name__,
+    decode.__name__,
+    optimize.__name__,
 ]
