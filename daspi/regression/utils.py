@@ -1,3 +1,4 @@
+import re
 import patsy
 import itertools
 
@@ -10,41 +11,59 @@ from typing import Tuple
 from typing import Callable
 from scipy.optimize import Bounds
 from scipy.optimize import minimize
+from pandas.api.types import is_numeric_dtype
 from pandas.core.frame import DataFrame
 from patsy.design_info import DesignInfo
+from pandas.core.series import Series
 from scipy.optimize._optimize import OptimizeResult
 from statsmodels.regression.linear_model import RegressionResults
 
+from ..constants import RE
 from ..constants import ANOVA
 
 
 def is_encoded_categorical(feature_name: str) -> bool:
     """True if given feature is a patsy encoded categorical feature."""
-    return bool(ANOVA.CAT_VALUE.findall(feature_name))
+    return bool(RE.ENCODED_VALUE.findall(feature_name))
 
-def clean_categoricals(feature_name: str) -> str:
+def clean_categorical_names(feature_name: str) -> str:
     """Clean feature name of patsy encoded categorical features. Such 
     names are structured as follows '<term name>[T.<value>]'.
     Cleaned name looks like '<term name>_<value>'."""
     if ANOVA.SEP in feature_name:
         split = feature_name.split(ANOVA.SEP)
-        return ANOVA.SEP.join([clean_categoricals(f) for f in split])
+        return ANOVA.SEP.join([clean_categorical_names(f) for f in split])
     else:
-        name = ANOVA.CAT_ORIG.findall(feature_name)
-        value = ANOVA.CAT_VALUE.findall(feature_name)
+        name = RE.ENCODED_NAME.findall(feature_name)
+        value = RE.ENCODED_VALUE.findall(feature_name)
         return f'{name[0]}_{value[0]}' if name and value else feature_name
+
+def remove_special_characters(input_string):
+    """Use regex to remove all non-alphanumeric characters"""
+    return RE.NOT_ALPHANUMERIC.sub('', input_string)
+
+def prepare_encoding_data(df: DataFrame) -> DataFrame:
+    """Converts the data type of all non-numeric columns to a string and
+    removes all non-alphanumeric characters in the values for these
+    columns."""
+    def cleansing(column: Series):
+        if is_numeric_dtype(column):
+            return column
+        else:
+            return column.astype(str).apply(remove_special_characters)
+    return df.apply(cleansing, axis=0)
 
 def get_term_name(feature_name):
     """Get original term name of a patsy encoded categorical feature.
     Such names are structured as follows '<term name>[T.<value>]'."""
-    match = ANOVA.CAT_ORIG.findall(feature_name)
+    match = RE.ENCODED_NAME.findall(feature_name)
     return feature_name if not match else match[0]
 
 def decode_cat_main(
         feature_name: str, code: int, di: DesignInfo) -> str|None:
     """Decode 0 or 1 value of encoded categorical main feature. 
     The design info coming from patsy is used to get original values."""
-    matches = ANOVA.CAT_VALUE.findall(feature_name)
+    matches = RE.ENCODED_VALUE.findall(feature_name)
     if code == 1:
         return ' & '.join(matches)
     else:
@@ -78,15 +97,15 @@ def encoded_dmatrices(
         - key: str = feature name of main level
         - value: dict = key: originals, value: codes
     """
+    data = prepare_encoding_data(data)
     y, X = patsy.dmatrices(formula, data, return_type='dataframe')
     design_info = X.design_info
     features = list(design_info.column_name_indexes.keys())
     X_code = pd.DataFrame(0, index=X.index, columns=features)
-    X_code.design_info = design_info
     mapper = {}
     columns = {}
     for f in features:
-        columns[f] = clean_categoricals(f)
+        columns[f] = clean_categorical_names(f)
         if f == ANOVA.INTERCEPT:
             x_encoded = X[f]
         elif is_encoded_categorical(f) and ANOVA.SEP not in f:
@@ -105,6 +124,7 @@ def encoded_dmatrices(
                 x_encoded = x_encoded*X_code[s]
         X_code[f] = x_encoded
     X_code = X_code.rename(columns=columns)
+    X_code.design_info = design_info
     return y, X_code, mapper
 
 def hierarchical(features: List[str]) -> List[str]:
@@ -210,7 +230,9 @@ def optimize(
 
 __all__ = [
     is_encoded_categorical.__name__,
-    clean_categoricals.__name__,
+    clean_categorical_names.__name__,
+    remove_special_characters.__name__,
+    prepare_encoding_data.__name__,
     get_term_name.__name__,
     decode_cat_main.__name__,
     encoded_dmatrices.__name__,

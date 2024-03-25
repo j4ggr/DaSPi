@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from scipy.stats._continuous_distns import _distn_names
 
 
+@dataclass(frozen=True)
 class _Kw_:
     _x: float = 0.035 # X position for fig title, subtitle and info
     _lw: float = 0.8 # line width for special lines
@@ -160,6 +161,14 @@ KW = _Kw_()
 
 
 @dataclass(frozen=True)
+class _Regex_:
+    ENCODED_NAME: Pattern = re.compile(r'(\w+)\[T.\w+\]')
+    ENCODED_VALUE: Pattern = re.compile(r'\w+\[T.(\w+)\]')
+    NOT_ALPHANUMERIC: Pattern = re.compile(r'[^a-zA-Z0-9\\s]')
+RE = _Regex_()
+
+
+@dataclass(frozen=True)
 class _Color_:
     GOOD: str = '#2ca02ccc'
     BAD: str = '#d62728cc'
@@ -291,14 +300,12 @@ class _Anova_:
     SEP: str = ':'
     INTERCEPT: str = 'Intercept'
     CAT: str = '[T.'
-    CAT_ORIG: Pattern = re.compile(r'(\w+)\[T.\w+\]')
-    CAT_VALUE: Pattern = re.compile(r'\w+\[T.(\w+)\]')
     SMALLEST_INTERACTION = 2 # smallest possible interaction
 ANOVA = _Anova_()
 
-
 __all__ = [
     'KW',
+    'RE',
     'KDE',
     'DIST',
     'COLOR',

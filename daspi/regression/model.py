@@ -5,6 +5,7 @@ import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
+from typing import Self
 from typing import List
 from typing import Dict
 from typing import Literal
@@ -36,17 +37,17 @@ class LinearModel:
     """
 
     __slots__ = (
-        'source', '_target', '_features', '_covariates', 'formula',
-        'design_matrix', 'level_map', 'results')
-    source: DataFrame
+        '_source', '_target', '_features', '_covariates', 'formula',
+        'design_matrix', 'level_map', '_results', 'gof_metrics')
+    _source: DataFrame
     _target: str
     _features: List[str]
     _covariates: List[str]
     formula: str
     design_matrix: DataFrame
     level_map: dict
-    results: RegressionResults | None
-    metrics: DefaultDict
+    _results: RegressionResults | None
+    gof_metrics: DefaultDict
 
     def __init__(
             self,
@@ -54,7 +55,7 @@ class LinearModel:
             target: str,
             features: List[str],
             covariates: List[str] = []) -> None:
-        self.source = source
+        self._source = source
         self._target = target
         self._features = features
         self._covariates = covariates
@@ -62,7 +63,12 @@ class LinearModel:
         self.design_matrix = pd.DataFrame()
         self.level_map = {}
         self._results = None
-        self.metrics = defaultdict(list)
+        self.gof_metrics = defaultdict(list)
+    
+    @property
+    def source(self) -> DataFrame:
+        """Get source data with cleaned column names"""
+        return self._source.rename(columns=self.columns_map)
     
     @property
     def target(self) -> str:
@@ -72,12 +78,12 @@ class LinearModel:
     @property
     def features(self) -> List[str]:
         """Get cleaned features (read-only)."""
-        return list(map(self.clean_feature_name, self._features))
+        return list(map(self.clean_column_name, self._features))
     
     @property
     def covariates(self) -> List[str]:
         """Get cleaned covariates (read-only)."""
-        return list(map(self.clean_feature_name, self._covariates))
+        return list(map(self.clean_column_name, self._covariates))
 
     @property
     def columns_map(self) -> Dict[str, str]:
@@ -138,8 +144,9 @@ class LinearModel:
         hierarchical_features = hierarchical(features)
         return all([f in features for f in hierarchical_features])
     
-    def add_metrics(self) -> None:
-        """Add different goodness-of-fit metric to `metrics` attribute
+    def add_gof_metrics(self) -> None:
+        """Add different goodness-of-fit metric to `gof_metrics`
+        attribute.
         
         Keys:
         - 'formula' = the corresponding regression formula
@@ -151,12 +158,12 @@ class LinearModel:
         params.
         - 'hierarchical' = boolean value if model is hierarchical
         """
-        self.metrics['formula'].append(self.formula)
-        self.metrics['least_feature'].append(self.least_feature())
+        self.gof_metrics['formula'].append(self.formula)
+        self.gof_metrics['least_feature'].append(self.least_feature())
         for metric in ['aic', 'rsquared', 'rsquared_adj']:
-            self.metrics[metric].append(getattr(self.results, metric))
-        self.metrics['p_least'].append(self.p_least)
-        self.metrics['hierarchical'].append(self.is_hierarchical())
+            self.gof_metrics[metric].append(getattr(self.results, metric))
+        self.gof_metrics['p_least'].append(self.p_least)
+        self.gof_metrics['hierarchical'].append(self.is_hierarchical())
     
     def _least_by_effect_(self) -> str:
         """Get the feature that has the smallest effect on the target
@@ -177,7 +184,7 @@ class LinearModel:
         return self._least_by_effect_() if no_p else self._least_by_pvalue_()
     
     def construct_design_matrix(
-            self, encoded: bool = True, complete: bool = False) -> None:
+            self, encoded: bool = False, complete: bool = False) -> Self:
         """Construct a design matrix by given target, features and 
         covariates. The created design matrix is then set to the 
         `design_matrix` attribute.
@@ -188,25 +195,29 @@ class LinearModel:
             Flag whether to encode the exogenous such that the lowest
             level is -1 and the highest level is 1. The interactions are
             the product of the main factors. Categorical values are 
-            one-hot encoded, by default True
+            one-hot encoded, by default False
         complete : bool, optional
             Flag whether to construct a predictor matrix that consists 
             a complete model, i.e. all combinations of interactions up 
             to the length of the features. No interactions are created
             for the covariates, by default False
         """
-        self.formula = (
-            f'{self.target} ~ '
-            + '*'.join(self.features) if complete else '+'.join(self.features)
-            + '+'.join(['', *self.covariates]) if self.covariates else '')
+        self.formula = f'{self.target}~'
+        formula = (
+            self.formula
+            + ('*'.join(self.features) if complete else '+'.join(self.features))
+            + ('+'.join(['', *self.covariates]) if self.covariates else ''))
         if encoded:
-            y, X, self.level_map = encoded_dmatrices(self.source, self.formula)
+            y, X, self.level_map = encoded_dmatrices(self.source, formula)
         else:
             y, X = patsy.dmatrices(
-                self.formula, self.source, return_type='dataframe')
+                formula, self.source, return_type='dataframe')
         self.design_matrix = pd.concat([X, y], axis=1)
+        self.formula += (
+            f'{"+".join([c for c in X.columns if c != ANOVA.INTERCEPT])}')
+        return self
     
-    def fit(self, **kwds) -> None:
+    def fit(self, **kwds) -> Self:
         """First create design matrix if not allready done. Then create
         and fit a ordinary least squares model using current formula. 
         Finally calculate some goodness-of-fit metrics and store them
@@ -218,12 +229,15 @@ class LinearModel:
             Additional keyword arguments for `ols` function of 
             `statsmodels.formula.api`.
         """
+        if self.design_matrix.empty:
+            self.construct_design_matrix()
         self._results = smf.ols(self.formula, self.design_matrix, **kwds).fit()
-        self.add_metrics()
+        self.add_gof_metrics()
+        return self
     
     def recursive_feature_elimination(
             self, alpha: float = 0.5, rsquared_max: float = 0.99,
-            ensure_hierarchy: bool = True) -> None:
+            ensure_hierarchy: bool = True) -> Self:
         """Perform a linear regression starting with complete model.
         Then recursive features are eliminated according to the highest
         p-value (two-tailed p values for the t-stats of the params).
@@ -241,20 +255,22 @@ class LinearModel:
             Adds features at the end to ensure model is hierarchical, 
             by default True
         """
-        self.metrics = defaultdict(list)
-        _features = self.features.copy()
+        self.gof_metrics = defaultdict(list)
+        _features = self.formula.split('~')[1].split('+')
         while len(_features) > 1:
             self.fit()
             if self.p_least <= alpha and self.results.rsquared <= rsquared_max:
                 break
-            if self.metrics['least_param'][-1] == ANOVA.INTERCEPT:
+            if self.gof_metrics['least_feature'][-1] == ANOVA.INTERCEPT:
                 _features.append('-1')
             else:
-                _features.remove(self.metrics['least'][-1])
+                _features.remove(self.gof_metrics['least_feature'][-1])
+            self.formula = f'{self.target}~{"+".join(_features)}'
 
         if ensure_hierarchy and not self.is_hierarchical:
             self.formula = f'{self.target}~{"+".join(hierarchical(_features))}'
             self.fit()
+        return self
 
     def highest_features(self) -> List[str]:
         """Get all main and interaction features that do not appear in a 
@@ -311,4 +327,7 @@ class LinearModel:
         y = self.results.predict(pd.DataFrame([X], columns=self.exogenous))
         return -y if negate else y
     #TODO optimizer
-    
+
+__all__ = [
+    LinearModel.__name__
+]
