@@ -41,7 +41,7 @@ class _Kw_:
     @property
     def CI_HANDLE(self) -> dict:
         """Keyword arguments for confidence interval handle"""
-        return dict(color=COLOR.HANDLES, alpha=COLOR.FILL_ALPHA)
+        return dict(color=COLOR.HANDLES, alpha=COLOR.CI_ALPHA)
     @property
     def LEGEND(self) -> dict:
         """Figure legend at right side of figure"""
@@ -137,7 +137,7 @@ class _Kw_:
     def STRIPES_CONFIDENCE(self) -> dict:
         """Keyword arguments for confidence area for stripes"""
         return dict(
-            alpha=COLOR.FILL_ALPHA, lw=0, zorder=0.6, color=COLOR.CI_STRIPES)
+            alpha=COLOR.CI_ALPHA, lw=0, zorder=0.6, color=COLOR.CI_STRIPES)
     @property
     def PARETO_V(self) -> dict:
         """Keyword arguments for adding percentage texts in pareto chart.
@@ -180,7 +180,7 @@ class _Color_:
     BLUR: str = '#ffffffaa'
     MARKER_ALPHA: float = 0.5
     FILL_ALPHA: float = 0.5
-    CI_ALPHA: float = 0.8
+    CI_ALPHA: float = 0.3
     CI_STRIPES: str = '#202020'
     @property
     def PALETTE(self) -> List[str]:
