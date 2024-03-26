@@ -371,10 +371,11 @@ class StripesFacets:
     
     @property
     def _d(self) -> int:
-        """Get decimals to format labels"""
-        if self.estimation.n_samples > 50: return 1
-        if self.estimation.n_samples > 5: return 2
-        if self.estimation.n_samples > 0.5: return 3
+        """Get decimals to format values for legend labels according
+        to estimation median value"""
+        if self.estimation.median > 50: return 1
+        if self.estimation.median > 5: return 2
+        if self.estimation.median > 0.5: return 3
         return 4    
     
     @property
@@ -451,7 +452,7 @@ class StripesFacets:
                 ax.axhline(value, **kwds)
             else:
                 ax.axvline(value, **kwds)
-            if ci is not None:
+            if ci is not None and self._confidence is not None:
                 low, upp = ci(self.confidence)
                 if target_on_y:
                     ax.axhspan(low, upp, **KW.STRIPES_CONFIDENCE)

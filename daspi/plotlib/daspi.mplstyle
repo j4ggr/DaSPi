@@ -513,7 +513,7 @@ contour.linewidth:          None                # {float, None} Size of the cont
 # ***************************************************************************
 # * ERRORBAR PLOTS                                                          *
 # ***************************************************************************
-errorbar.capsize: 5                             # length of end cap on error bars in pixels
+errorbar.capsize: 3                             # length of end cap on error bars in pixels
 
 
 # ***************************************************************************

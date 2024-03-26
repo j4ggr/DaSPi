@@ -933,8 +933,8 @@ class MultipleVariateChart(SimpleChart):
         axes_data : Series
             Containing all target data for each axes.
         """
-        columns = [c for c in (self.row, self.col) if c]
-        grouper = self.source.groupby(columns) if columns else (self.source, )
+        names = [c for c in (self.row, self.col) if c]
+        grouper = self.source.groupby(names) if names else [('', self.source)]
         for _, (_, data) in zip(self.axes_facets, grouper):
             axes_data = data[self.target]
             yield axes_data

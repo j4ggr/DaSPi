@@ -119,6 +119,12 @@ class LinearModel:
         return [n for n in self.exogenous if is_main_feature(n)]
     
     @property
+    def dm_features(self) -> List[str]:
+        """Get all feature names of design matrix excluding Intercept"""
+        columns = self.design_matrix.columns
+        return [c for c in columns if c not in (ANOVA.INTERCEPT, self.target)]
+    
+    @property
     def effects(self) -> pd.Series:
         """Calculates the impact of each factor on the target. The effects 
         are described as twice the parameter coefficients (read-only)."""
@@ -236,7 +242,7 @@ class LinearModel:
         return self
     
     def recursive_feature_elimination(
-            self, alpha: float = 0.5, rsquared_max: float = 0.99,
+            self, alpha: float = 0.05, rsquared_max: float = 0.99,
             ensure_hierarchy: bool = True) -> Self:
         """Perform a linear regression starting with complete model.
         Then recursive features are eliminated according to the highest
@@ -256,16 +262,19 @@ class LinearModel:
             by default True
         """
         self.gof_metrics = defaultdict(list)
-        _features = self.formula.split('~')[1].split('+')
-        while len(_features) > 1:
+        _features = self.dm_features
+        for step in range(len(_features)):
             self.fit()
-            if self.p_least <= alpha and self.results.rsquared <= rsquared_max:
+            if (self.p_least <= alpha 
+                and self.results.rsquared <= rsquared_max
+                or len(_features) == 1):
                 break
             if self.gof_metrics['least_feature'][-1] == ANOVA.INTERCEPT:
                 _features.append('-1')
             else:
                 _features.remove(self.gof_metrics['least_feature'][-1])
             self.formula = f'{self.target}~{"+".join(_features)}'
+            print(f'{step}/{len(self.dm_features)}: {self.formula}')
 
         if ensure_hierarchy and not self.is_hierarchical:
             self.formula = f'{self.target}~{"+".join(hierarchical(_features))}'

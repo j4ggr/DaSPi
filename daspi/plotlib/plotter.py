@@ -1058,13 +1058,14 @@ class CenterLocation(TransformPlotter):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        super().__init__(
-            source=source, target=target, feature=feature, f_base=f_base,
-            target_on_y=target_on_y, color=color, ax=ax, **kwds)
+        self._kind = 'mean'
         self.kind = kind
         self.show_line = show_line
         self.show_points = show_points
         self.marker = marker if marker else plt.rcParams['scatter.marker']
+        super().__init__(
+            source=source, target=target, feature=feature, f_base=f_base,
+            target_on_y=target_on_y, color=color, ax=ax)
 
     @property
     def kind(self)-> Literal['mean', 'median']:
@@ -1840,6 +1841,10 @@ class Errorbar(TransformPlotter):
     show_center : bool, optional
         Flag indicating whether to show the center points,
         by default True.
+    bars_same_color : bool, optional
+        Flag indicating whether to use same color for error bars as 
+        markers for center. If False, the error bars are black,
+        by default False
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
         the y-axis, by default True.
@@ -1854,10 +1859,11 @@ class Errorbar(TransformPlotter):
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
     """
-    __slots__ = ('lower', 'upper', 'show_center')
+    __slots__ = ('lower', 'upper', 'show_center', 'bars_same_color')
     lower: str
     upper: str
     show_center: bool
+    bars_same_color: bool
 
     def __init__(
             self,
@@ -1867,6 +1873,7 @@ class Errorbar(TransformPlotter):
             upper: str,
             feature: str = '',
             show_center: bool = True,
+            bars_same_color: bool = False,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -1874,6 +1881,7 @@ class Errorbar(TransformPlotter):
         self.lower = lower
         self.upper = upper
         self.show_center = show_center
+        self.bars_same_color = bars_same_color
         if not feature in source:
             feature = PLOTTER.FEATURE
             source[feature] = np.arange(len(source[target]))
@@ -1930,7 +1938,8 @@ class Errorbar(TransformPlotter):
         if self.show_center:
             kw_points = dict(color=self.color) | kw_points
             self.ax.scatter(self.x, self.y, **kw_points)
-        kwds = KW.ERROR_BAR | kwds
+        _color = dict(color=self.color) if self.bars_same_color else {}
+        kwds = KW.ERROR_BAR | _color | kwds
         if self.target_on_y:
             self.ax.errorbar(self.x, self.y, yerr=self.err, **kwds)
         else:
@@ -1954,6 +1963,10 @@ class StandardErrorMean(Errorbar):
     show_center : bool, optional
         Flag indicating whether to show the center points,
         by default True.
+    bars_same_color : bool, optional
+        Flag indicating whether to use same color for error bars as 
+        markers for center. If False, the error bars are black,
+        by default False
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
         the y-axis, by default True.
@@ -1974,6 +1987,7 @@ class StandardErrorMean(Errorbar):
             target: str,
             feature: str = '',
             show_center: bool = True,
+            bars_same_color: bool = False,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -1981,7 +1995,8 @@ class StandardErrorMean(Errorbar):
         super().__init__(
             source=source, target=target, lower=PLOTTER.ERR_LOW,
             upper=PLOTTER.ERR_UPP, feature=feature, show_center=show_center,
-            target_on_y=target_on_y, color=color, ax=ax)
+            bars_same_color=bars_same_color, target_on_y=target_on_y,
+            color=color, ax=ax)
 
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
@@ -2036,6 +2051,10 @@ class SpreadWidth(Errorbar):
     show_center : bool, optional
         Flag indicating whether to show the center points,
         by default True.
+    bars_same_color : bool, optional
+        Flag indicating whether to use same color for error bars as 
+        markers for center. If False, the error bars are black,
+        by default False
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
         the y-axis, by default True.
@@ -2064,6 +2083,7 @@ class SpreadWidth(Errorbar):
             agreement: float | int = 6,
             possible_dists: Tuple[str | rv_continuous] = DIST.COMMON,
             show_center: bool = True,
+            bars_same_color: bool = False,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -2075,7 +2095,8 @@ class SpreadWidth(Errorbar):
         super().__init__(
             source=source, target=target, lower=PLOTTER.ERR_LOW,
             upper=PLOTTER.ERR_UPP, feature=feature, show_center=show_center,
-            target_on_y=target_on_y, color=color, ax=ax)
+            bars_same_color=bars_same_color, target_on_y=target_on_y,
+            color=color, ax=ax)
 
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
@@ -2145,6 +2166,10 @@ class ConfidenceInterval(Errorbar):
     show_center : bool, optional
         Flag indicating whether to show the center points,
         by default True.
+    bars_same_color : bool, optional
+        Flag indicating whether to use same color for error bars as 
+        markers for center. If False, the error bars are black,
+        by default False
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
         the y-axis, by default True.
@@ -2176,6 +2201,7 @@ class ConfidenceInterval(Errorbar):
             target: str,
             feature: str = '',
             show_center: bool = True,
+            bars_same_color: bool = False,
             target_on_y: bool = True,
             confidence_level: float = 0.95,
             ci_func: Callable = mean_ci,
@@ -2189,7 +2215,8 @@ class ConfidenceInterval(Errorbar):
         super().__init__(
             source=source, target=target, lower=PLOTTER.ERR_LOW,
             upper=PLOTTER.ERR_UPP, feature=feature, show_center=show_center,
-            target_on_y=target_on_y, color=color, ax=ax)
+            bars_same_color=bars_same_color, target_on_y=target_on_y,
+            color=color, ax=ax)
     
     def transform(
             self, feature_data: float | int, target_data: Series
@@ -2244,6 +2271,10 @@ class MeanTest(ConfidenceInterval):
     show_center : bool, optional
         Flag indicating whether to show the center points,
         by default True.
+    bars_same_color : bool, optional
+        Flag indicating whether to use same color for error bars as 
+        markers for center. If False, the error bars are black,
+        by default False
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
         the y-axis, by default True.
@@ -2267,6 +2298,7 @@ class MeanTest(ConfidenceInterval):
             target: str,
             feature: str = '',
             show_center: bool = True,
+            bars_same_color: bool = False,
             target_on_y: bool = True,
             confidence_level: float = 0.95,
             color: str | None = None,
@@ -2274,9 +2306,9 @@ class MeanTest(ConfidenceInterval):
             **kwds) -> None:
         super().__init__(
             source=source, target=target, feature=feature,
-            show_center=show_center, target_on_y=target_on_y,
-            confidence_level=confidence_level, ci_func=mean_ci, color=color,
-            ax=ax)
+            show_center=show_center, bars_same_color=bars_same_color,
+            target_on_y=target_on_y, confidence_level=confidence_level,
+            ci_func=mean_ci, color=color, ax=ax)
 
 
 class VariationTest(ConfidenceInterval):
@@ -2303,6 +2335,10 @@ class VariationTest(ConfidenceInterval):
     show_center : bool, optional
         Flag indicating whether to show the center points,
         by default True.
+    bars_same_color : bool, optional
+        Flag indicating whether to use same color for error bars as 
+        markers for center. If False, the error bars are black,
+        by default False
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
         the y-axis, by default True.
@@ -2328,6 +2364,7 @@ class VariationTest(ConfidenceInterval):
             target: str,
             feature: str = '',
             show_center: bool = True,
+            bars_same_color: bool = False,
             target_on_y: bool = True,
             confidence_level: float = 0.95,
             kind: Literal['stdev', 'variance'] = 'stdev',
@@ -2337,9 +2374,9 @@ class VariationTest(ConfidenceInterval):
         ci_func = stdev_ci if kind == 'stdev' else variance_ci
         super().__init__(
             source=source, target=target, feature=feature,
-            show_center=show_center, target_on_y=target_on_y,
-            confidence_level=confidence_level, ci_func=ci_func, color=color,
-            ax=ax)
+            show_center=show_center, bars_same_color=bars_same_color,
+            target_on_y=target_on_y, confidence_level=confidence_level,
+            ci_func=ci_func, color=color, ax=ax)
 
                 
 __all__ = [
