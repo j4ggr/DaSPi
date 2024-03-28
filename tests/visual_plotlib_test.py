@@ -786,15 +786,17 @@ class TestSimpleChart:
         
         self.kind = 'simple'
         chart = SimpleChart(
-                source = load_dataset('blandaltman'),
-                target = 'B',
-                feature = 'A',
+                source = load_dataset('shoe-sole'),
+                target = 'new',
+                feature = 'old',
             ).plot(BlandAltman, feature_axis='mean')
         target_label = f'Difference {chart.plots[0].target}'
+        sub_title = 'Shoe sole materials dataset'
+        feature_label = 'Mean both measurements'
         chart = chart.label(
                 fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = 'Mean both measurements',
+                sub_title = sub_title,
+                feature_label = feature_label,
                 target_label = target_label,    
                 info = self.info_msg
             ).save(self.file_name
@@ -804,9 +806,9 @@ class TestSimpleChart:
         assert self.file_name.is_file()
         assert len(texts) == 5
         assert texts[0].get_text() == self.fig_title
-        assert texts[1].get_text() == self.sub_title
+        assert texts[1].get_text() == sub_title
         assert texts[2].get_text() == target_label
-        assert texts[3].get_text() == 'Mean both measurements'
+        assert texts[3].get_text() == feature_label
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
