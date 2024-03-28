@@ -24,19 +24,36 @@ from ..constants import ANOVA
 
 
 class LinearModel:
-    """
+    """This class is used to create and simplify linear models so that 
+    only significant features describe the model.
+    
+    Balanced models (DOEs or EVOPs) including covariates can be 
+    analyzed. With this class you can create an encoded design matrix
+    with all factor levels including their interactions. All
+    non-significant factors can then be automatically eliminated.
+    Furthermore, this class allows the main effects, the sum of squares
+    (explained variation) and the Anova table to be examined in more 
+    detail.
     
     Parameters
     ----------
     source : pandas DataFrame
-        Tabular data for the model
+        Pandas DataFrame as tabular data in a long format used for the
+        model.
     target : str
         Column name of endogene variable
     features : List[str]
         Column names of exogene variables
-    covariate
+    covariates : List[str], optional
+        Column names for covariates. Covariates are logged confounding
+        variables (features that cannot be specifically adjusted). No
+        interactions are taken into account in the model for these
+        features, by default []
+    alpha : float, optional
+        Threshold as alpha risk. All features including covariate and 
+        intercept that are smaller than alpha are removed during the
+        automatic elimination of the factors, by default 0.05
     """
-
     __slots__ = (
         '_source', '_target', '_features', '_covariates', '_alpha', 'formula',
         'design_matrix', 'level_map', '_model', 'gof_metrics')
@@ -141,8 +158,9 @@ class LinearModel:
     
     @property
     def effects(self) -> DataFrame:
-        """Calculates the impact of each factor on the target. The effects 
-        are described as twice the parameter coefficients (read-only)."""
+        """Calculates the impact of each factor on the target. The
+        effects are described as twice the parameter coefficients and 
+        occur as an absolute number (read-only)."""
         effects: Series = 2 * self.model.params
         if ANOVA.INTERCEPT in effects.index:
             effects.pop(ANOVA.INTERCEPT)
@@ -150,6 +168,7 @@ class LinearModel:
             .to_frame(ANOVA.EFFECTS)
             .reset_index(drop=False)
             .rename(columns={'index': ANOVA.FEATURES}))
+        effects[ANOVA.EFFECTS] = effects[ANOVA.EFFECTS].abs()
         return effects
     
     @staticmethod
@@ -209,7 +228,7 @@ class LinearModel:
         return self._least_by_effect_() if no_p else self._least_by_pvalue_()
     
     def construct_design_matrix(
-            self, encoded: bool = False, complete: bool = False) -> Self:
+            self, encode: bool = False, complete: bool = False) -> Self:
         """Construct a design matrix by given target, features and 
         covariates. The created design matrix is then set to the 
         `design_matrix` attribute.
@@ -232,7 +251,7 @@ class LinearModel:
             self.formula
             + ('*'.join(self.features) if complete else '+'.join(self.features))
             + ('+'.join(['', *self.covariates]) if self.covariates else ''))
-        if encoded:
+        if encode:
             y, X, self.level_map = encoded_dmatrices(self.source, formula)
         else:
             y, X = patsy.dmatrices(
@@ -346,11 +365,11 @@ class LinearModel:
         
         Parameters
         ----------
-        model : statsmodels RegressionResults
-            fitted OLS model
         xs : array_like
             The values for which you want to predict. Make sure the 
             order matches the `main_features` property.
+        intercept : Literal[0, 1], optional
+            Factor level for the intercept, either 0 or 1, by default 1
         negate : bool, optional
             If True, the predicted value is negated (used for 
             optimization), by default False

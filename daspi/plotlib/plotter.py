@@ -694,7 +694,8 @@ class ParallelCoordinate(Plotter):
             show_points: bool = True,
             target_on_y: bool = True,
             color: str | None = None,
-            ax: Axes | None = None) -> None:
+            ax: Axes | None = None,
+            **kwds) -> None:
         self.identities = identities
         self.show_points = show_points
         super().__init__(

@@ -1,0 +1,1 @@
+::: daspi.anova.model.LinearModel

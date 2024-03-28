@@ -36,7 +36,9 @@ plugins:
 nav:
   - Home: index.md
   - Installing: installing.md
-  - Anova: index.md
+  - Anova:
+    - anova/index.md
+    - anova/linear-model.md
   - Plotlib:
     - Chart:
       - plotlib/chart/index.md

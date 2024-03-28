@@ -5,6 +5,7 @@ import itertools
 import numpy as np
 import pandas as pd 
 
+from typing import Any
 from typing import List
 from typing import Dict
 from typing import Tuple
@@ -159,7 +160,7 @@ def is_main_feature(feature: str) -> bool:
     excluded)."""
     return feature != ANOVA.INTERCEPT and ANOVA.SEP not in feature
 
-def decode(value: str|float, mapper: dict, feature: str):
+def decode(value: str|float, mapper: dict, feature: str) -> Any:
     """Get original value of encoded value for given feature
 
     Parameters
@@ -174,12 +175,14 @@ def decode(value: str|float, mapper: dict, feature: str):
         feature name used as 1. level key in mapper
     
     Returns
-    orig : str or float
+    -------
+    orig : string, float or None
         value used in original data bevore encoding
     """
     for orig, code in mapper[feature].items():
         if isinstance(value, str): code = str(code)
         if code == value: return orig
+    return None
 
 def optimize(
         fun: Callable, x0: List[float], negate: bool, columns: List[str], 
