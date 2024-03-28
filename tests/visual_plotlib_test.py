@@ -41,6 +41,37 @@ matplotlib.use("Agg")
 
 savedir = Path(__file__).parent/'charts'
 savedir.mkdir(parents=True, exist_ok=True)
+df_aspirin = load_dataset('aspirin-dissolution')
+"""
+Number of observations: 48
+Number of features: 8 is composed of 5 factor levels and 3 covariates
+Target name: time
+    sum of preparation and dissolution
+    [time] = seconds
+Feature name difinitions:
+    employee = 3 levels
+        - A
+        - B
+        - C
+    stirrer = 2 levels
+        - wooden
+        - metal
+    brand = 2 levels
+        - ASS
+        - Godamed
+    catalyst = 2 levels
+        - False
+        - True
+    water = 2 levels
+        - carbonated
+        - tap
+    temperature = continuous (covariate)
+        [temperature] = °C
+    preparation = continuous (covariate)
+        [preparation] = s
+    dissolution = continuous (covariate)
+        [dissolution] = s
+"""
 df_affairs: DataFrame = sm.datasets.fair.load_pandas().data
 
 df_travel: DataFrame = sm.datasets.modechoice.load_pandas().data
