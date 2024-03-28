@@ -385,8 +385,8 @@ class LinearRegression(Plotter):
         used within chart objects).
     """
     __slots__ = (
-        'results', 'target_fit', 'show_points', 'show_fit_ci', 'show_pred_ci')
-    results: RegressionResults
+        'model', 'target_fit', 'show_points', 'show_fit_ci', 'show_pred_ci')
+    model: RegressionResults
     target_fit: str
     show_points: bool
     show_fit_ci: bool
@@ -414,8 +414,8 @@ class LinearRegression(Plotter):
             [[feature, target]]
             .dropna(axis=0, how='any')
             .reset_index(drop=True))
-        self.results = sm.OLS(df[target], sm.add_constant(df[feature])).fit()
-        df[self.target_fit] = self.results.fittedvalues
+        self.model = sm.OLS(df[target], sm.add_constant(df[feature])).fit()
+        df[self.target_fit] = self.model.fittedvalues
         df = pd.concat([df, self.ci_data()], axis=1)
         super().__init__(
             source=df, target=target, feature=feature, target_on_y=target_on_y,
@@ -437,8 +437,8 @@ class LinearRegression(Plotter):
         """Get confidence interval for prediction and fitted line as 
         DataFrame."""
         data = (
-            *fit_ci(self.results),
-            *prediction_ci(self.results))
+            *fit_ci(self.model),
+            *prediction_ci(self.model))
         ci_data = pd.DataFrame(
             data = np.array(data).T, 
             columns = PLOTTER.REGRESSION_CI_NAMES)

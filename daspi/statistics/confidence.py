@@ -387,14 +387,14 @@ def delta_proportions_ci(
     return delta, ci_low, ci_upp
 
 def fit_ci(
-        results: RegressionResults, level: float = 0.95
+        model: RegressionResults, level: float = 0.95
         ) -> Tuple[ndarray, ndarray]:
     """calculate confidence interval fitted line. Applies to fitted WLS 
     and OLS models, not to general GLS
     
     Parameters
     ----------
-    results : statsmodels RegressionResults
+    model : statsmodels RegressionResults
         fitted OLS or WLS model
     level : float in (0, 1), optional
         confidence level, by default 0.95
@@ -412,23 +412,23 @@ def fit_ci(
     statsmodels.stats.outliers_influence module, see: 
     https://www.statsmodels.org/dev/_modules/statsmodels/stats/outliers_influence.html
     """
-    influence = OLSInfluence(results)
+    influence = OLSInfluence(model)
     alpha = confidence_to_alpha(level)
-    tppf = t.isf(alpha, results.df_resid)
-    fit_se = np.sqrt(influence.hat_matrix_diag * results.mse_resid)             # standard error for predicted mean (fitted line)
-    fit_ci_low = results.fittedvalues - tppf * fit_se
-    fit_ci_upp = results.fittedvalues + tppf * fit_se
+    tppf = t.isf(alpha, model.df_resid)
+    fit_se = np.sqrt(influence.hat_matrix_diag * model.mse_resid)             # standard error for predicted mean (fitted line)
+    fit_ci_low = model.fittedvalues - tppf * fit_se
+    fit_ci_upp = model.fittedvalues + tppf * fit_se
     return fit_ci_low, fit_ci_upp
 
 def prediction_ci(
-        results: RegressionResults, level: float = 0.95
+        model: RegressionResults, level: float = 0.95
         ) -> Tuple[ndarray, ndarray]:
     """calculate confidence interval for prediction and to observe 
     outliers. Applies to fitted WLS and OLS models, not to general GLS.
     
     Parameters
     ----------
-    results : statsmodels RegressionResults
+    model : statsmodels RegressionResults
         fitted OLS or WLS model
     level : float in (0, 1), optional
         confidence level, by default 0.95
@@ -439,7 +439,7 @@ def prediction_ci(
         lower and upper confidence limits of prediction
     """
     alpha = confidence_to_alpha(level)
-    pred_ci_low, pred_ci_upp = wls_prediction_std(results, alpha=alpha)[1:]     # standard error for predicted observation
+    pred_ci_low, pred_ci_upp = wls_prediction_std(model, alpha=alpha)[1:]     # standard error for predicted observation
     return pred_ci_low, pred_ci_upp
 
 def dist_prob_fit_ci(

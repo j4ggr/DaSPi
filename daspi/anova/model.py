@@ -12,6 +12,7 @@ from typing import Literal
 from typing import DefaultDict
 from collections import defaultdict
 from pandas.core.frame import DataFrame
+from pandas.core.series import Series
 from scipy.optimize._optimize import OptimizeResult
 from statsmodels.regression.linear_model import RegressionResults
 
@@ -37,16 +38,17 @@ class LinearModel:
     """
 
     __slots__ = (
-        '_source', '_target', '_features', '_covariates', 'formula',
-        'design_matrix', 'level_map', '_results', 'gof_metrics')
+        '_source', '_target', '_features', '_covariates', '_alpha', 'formula',
+        'design_matrix', 'level_map', '_model', 'gof_metrics')
     _source: DataFrame
     _target: str
     _features: List[str]
     _covariates: List[str]
+    _alpha: float
     formula: str
     design_matrix: DataFrame
     level_map: dict
-    _results: RegressionResults | None
+    _model: RegressionResults | None
     gof_metrics: DefaultDict
 
     def __init__(
@@ -54,15 +56,18 @@ class LinearModel:
             source: DataFrame,
             target: str,
             features: List[str],
-            covariates: List[str] = []) -> None:
+            covariates: List[str] = [],
+            alpha: float = 0.05) -> None:
         self._source = source
         self._target = target
         self._features = features
         self._covariates = covariates
+        self._alpha = 0.05
+        self.alpha = alpha
         self.formula = ''
         self.design_matrix = pd.DataFrame()
         self.level_map = {}
-        self._results = None
+        self._model = None
         self.gof_metrics = defaultdict(list)
     
     @property
@@ -84,6 +89,16 @@ class LinearModel:
     def covariates(self) -> List[str]:
         """Get cleaned covariates (read-only)."""
         return list(map(self.clean_column_name, self._covariates))
+    
+    @property
+    def alpha(self) -> float:
+        """Alpha risk as significance threshold for p-value of exegenous
+        factors."""
+        return self._alpha
+    @alpha.setter
+    def alpha(self, alpha: float):
+        assert 0 < alpha < 1, 'Alpha risk must be between 0 and 1'
+        self._alpha = alpha
 
     @property
     def columns_map(self) -> Dict[str, str]:
@@ -94,28 +109,28 @@ class LinearModel:
         return {o: c for o, c in zip(originals, cleaned)}
     
     @property
-    def results(self) -> RegressionResults:
-        """Get fitted regression results. Raises AssertionError if no
-        model is fitted yet (read-only)."""
-        assert self._results is not None, (
+    def model(self) -> RegressionResults:
+        """Get regression results of fitted model. Raises AssertionError
+        if no model is fitted yet (read-only)."""
+        assert self._model is not None, (
             'Model not fitted yet, pls call `fit` method first.')
-        return self._results
+        return self._model
 
     @property
     def p_least(self) -> float:
         """Get highest p-value (read-only)."""
-        return self.results.pvalues.max()
+        return self.model.pvalues.max()
 
     @property
     def exogenous(self) -> List[str]:
-        """Get column names of exogene values of fitted model
+        """Get column names of all exogene values of fitted model
         (read-only)."""
-        return self.exogene_names
+        return [e.strip() for e in self.formula.split('~')[1].split('+')]
     
     @property
     def main_features(self) -> List[str]:
-        """Get all main parameters of current regression results
-        excluding intercept (read-only)."""
+        """Get all main parameters of current model excluding intercept
+        (read-only)."""
         return [n for n in self.exogenous if is_main_feature(n)]
     
     @property
@@ -125,12 +140,16 @@ class LinearModel:
         return [c for c in columns if c not in (ANOVA.INTERCEPT, self.target)]
     
     @property
-    def effects(self) -> pd.Series:
+    def effects(self) -> DataFrame:
         """Calculates the impact of each factor on the target. The effects 
         are described as twice the parameter coefficients (read-only)."""
-        effects = 2 * self.results.params
+        effects: Series = 2 * self.model.params
         if ANOVA.INTERCEPT in effects.index:
-            effects.loc[ANOVA.INTERCEPT] = np.nan
+            effects.pop(ANOVA.INTERCEPT)
+        effects = (effects
+            .to_frame(ANOVA.EFFECTS)
+            .reset_index(drop=False)
+            .rename(columns={'index': ANOVA.FEATURES}))
         return effects
     
     @staticmethod
@@ -146,7 +165,7 @@ class LinearModel:
     
     def is_hierarchical(self) -> bool:
         """Check if current fitted model is hierarchical."""
-        features = list(self.results.params.index)
+        features = list(self.model.params.index)
         hierarchical_features = hierarchical(features)
         return all([f in features for f in hierarchical_features])
     
@@ -167,7 +186,7 @@ class LinearModel:
         self.gof_metrics['formula'].append(self.formula)
         self.gof_metrics['least_feature'].append(self.least_feature())
         for metric in ['aic', 'rsquared', 'rsquared_adj']:
-            self.gof_metrics[metric].append(getattr(self.results, metric))
+            self.gof_metrics[metric].append(getattr(self.model, metric))
         self.gof_metrics['p_least'].append(self.p_least)
         self.gof_metrics['hierarchical'].append(self.is_hierarchical())
     
@@ -181,12 +200,12 @@ class LinearModel:
 
     def _least_by_pvalue_(self) -> str:
         """Get the feature with the least two-tailed p value for the t-stats."""
-        index = self.results.pvalues.argmax()
-        return self.results.pvalues.index[index]
+        index = self.model.pvalues.argmax()
+        return self.model.pvalues.index[index]
 
     def least_feature(self) -> str:
         """Get the least significant feature (parameter) for the model"""
-        no_p = any(self.results.pvalues.isna())
+        no_p = any(self.model.pvalues.isna())
         return self._least_by_effect_() if no_p else self._least_by_pvalue_()
     
     def construct_design_matrix(
@@ -237,13 +256,13 @@ class LinearModel:
         """
         if self.design_matrix.empty:
             self.construct_design_matrix()
-        self._results = smf.ols(self.formula, self.design_matrix, **kwds).fit()
+        self._model = smf.ols(self.formula, self.design_matrix, **kwds).fit()
         self.add_gof_metrics()
         return self
     
     def recursive_feature_elimination(
-            self, alpha: float = 0.05, rsquared_max: float = 0.99,
-            ensure_hierarchy: bool = True) -> Self:
+            self, rsquared_max: float = 0.99, ensure_hierarchy: bool = True
+            ) -> Self:
         """Perform a linear regression starting with complete model.
         Then recursive features are eliminated according to the highest
         p-value (two-tailed p values for the t-stats of the params).
@@ -252,8 +271,6 @@ class LinearModel:
 
         Parameters
         ----------
-        alpha : float in (0, 1), optional
-            Significance threshold for p-value, by default 0.05
         rsquared_max : float in (0, 1), optional
             If given, the model must have a lower R^2 value than the given 
             threshold, by default 0.99
@@ -265,8 +282,8 @@ class LinearModel:
         _features = self.dm_features
         for step in range(len(_features)):
             self.fit()
-            if (self.p_least <= alpha 
-                and self.results.rsquared <= rsquared_max
+            if (self.p_least <= self.alpha 
+                and self.model.rsquared <= rsquared_max
                 or len(_features) == 1):
                 break
             if self.gof_metrics['least_feature'][-1] == ANOVA.INTERCEPT:
@@ -274,12 +291,22 @@ class LinearModel:
             else:
                 _features.remove(self.gof_metrics['least_feature'][-1])
             self.formula = f'{self.target}~{"+".join(_features)}'
-            print(f'{step}/{len(self.dm_features)}: {self.formula}')
 
         if ensure_hierarchy and not self.is_hierarchical:
             self.formula = f'{self.target}~{"+".join(hierarchical(_features))}'
             self.fit()
         return self
+    
+    def anova(self) -> DataFrame:
+        """Calculate anova table for fitted model. If the fitted model
+        has sigificant interactions anova typ II is performed, otherwise
+        typ I (https://stats.stackexchange.com/a/93031)."""
+        typ = 'II' if self.significant_interactions() else 'I'
+        anova = (sm.stats
+            .anova_lm(self.model, typ=typ)
+            .reset_index(drop=False)
+            .rename(columns={'index': ANOVA.FEATURES}))
+        return anova
 
     def highest_features(self) -> List[str]:
         """Get all main and interaction features that do not appear in a 
@@ -302,6 +329,14 @@ class LinearModel:
                 if len(check) < level:
                     features.append(fs)
         return [ANOVA.SEP.join(f) for f in features if f not in exclude]
+    
+    def significant_interactions(self) -> bool:
+        """True if fitted model has significant interactions."""
+        for feature in self.highest_features():
+            if ANOVA.SEP not in feature: continue
+            if self.model.pvalues[feature] < self.alpha:
+                return True
+        return False
     
     def predict(
             self, xs: List[float], intercept: Literal[0, 1] = 1,
@@ -333,7 +368,7 @@ class LinearModel:
             if ANOVA.SEP in name:
                 continue
             X[i] = xs[i] if name != ANOVA.INTERCEPT else intercept
-        y = self.results.predict(pd.DataFrame([X], columns=self.exogenous))
+        y = self.model.predict(pd.DataFrame([X], columns=self.exogenous))
         return -y if negate else y
     #TODO optimizer
 

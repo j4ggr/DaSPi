@@ -299,6 +299,8 @@ DEFAULT = _Default_()
 class _Anova_:
     SEP: str = ':'
     INTERCEPT: str = 'Intercept'
+    EFFECTS: str = 'effects'
+    FEATURES: str = 'features'
     CAT: str = '[T.'
     SMALLEST_INTERACTION = 2 # smallest possible interaction
 ANOVA = _Anova_()
