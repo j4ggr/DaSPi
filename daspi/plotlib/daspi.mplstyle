@@ -350,8 +350,7 @@ axes.unicode_minus: True                    # use Unicode for the minus symbol r
 
                                             # Generate palette with: https://medialab.github.io/iwanthue/
                                             # used params: H 0-360; C 35-85; C 35-85
-# axes.prop_cycle: cycler('color', ['3dc2e0', 'd24a41', '76c147', '8159d0', 'c7b043', 'c54cb3', '5ec289', 'cb4d7b', '627f33', '6678c9', 'c57741', 'c784c8'])
-axes.prop_cycle: cycler('color', ['0091DCCC', '00D8ADCC', 'DB00DBCC', 'DB7800CC', 'ADD800CC', 'A4B2BDCC', '0054D3CC', '00D659CC', 'D60040CC', 'DBCC00CC','144A66CC', '146648CC', '661466CC', '664214CC', '576614CC', '000000CC', 'B4D2E6CC', 'B7E5DCCC', 'E5B7E5CC', 'E5D0B7CC', 'DDE5B7CC'])
+axes.prop_cycle: cycler('color', ['0091DC', '00D8AD', 'DB00DB', 'DB7800', 'ADD800', 'A4B2BD', '3DC2E0', 'D24A41', '76C147', '8159D0', 'C7B043','144A66', '146648', '661466', '664214', '576614', '000000', 'B4D2E6', 'B7E5DC', 'E5B7E5', 'E5D0B7', 'DDE5B7'])
                                             #                                                                                                                                                                                                                  , 'E5B7B7CC', 'B9B7E5CC', 'B7E5BBCC'
                                             # color cycle for plot lines as list of string color specs:
                                             # single letter, long name, or web-style hex

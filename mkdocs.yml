@@ -40,6 +40,7 @@ nav:
     - anova/index.md
     - anova/linear-model.md
   - Plotlib:
+    - plotlib/index.md
     - Chart:
       - plotlib/chart/index.md
       - plotlib/chart/chart.md

@@ -118,16 +118,16 @@ def get_texts(chart: SimpleChart) -> List[Text]:
 class TestSimpleChart:
     
     fig_title: str = 'SimpleChart'
-    _sub_title: str = 'Traveling Mode Dataset'
-    target_label: str = 'In vehicle cost ($)'
-    feature_label: str = 'Individual'
-    target: str = 'gc'
-    feature: str = 'hinc'
+    _sub_title: str = 'Aspirin Dissolution Dataset'
+    target_label: str = 'Dissolution time (s)'
+    feature_label: str = 'Water temperature (°C)'
+    target: str = 'dissolution'
+    feature: str = 'temperature'
     kind: str = ''
     info_msg: str = 'Pytest figure, additional info message'
-    cat1 = 'mode'
-    cat2 ='choice'
-    size = 'invt'
+    cat1 = 'employee'
+    cat2 ='brand'
+    size = 'preparation'
 
     @property
     def sub_title(self) -> str:
@@ -142,9 +142,9 @@ class TestSimpleChart:
 
         self.kind = 'hue'
         chart = SimpleChart(
-                df_travel,
-                target = 'invc',
-                feature = 'individual',
+                source = df_aspirin,
+                target = self.target,
+                feature = self.feature,
                 hue = self.cat1
             ).plot(Line
             ).label(
@@ -164,17 +164,17 @@ class TestSimpleChart:
         assert legend_artists[0].get_children()[0].get_text() == self.cat1
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
-        assert texts[2].get_text() == 'invc'
-        assert texts[3].get_text() == 'individual'
+        assert texts[2].get_text() == self.target
+        assert texts[3].get_text() == self.feature
         assert STR.TODAY in texts[4].get_text()
         assert STR.USERNAME in texts[4].get_text()
         assert self.info_msg not in info_msg
 
         self.kind = 'hue_size'
         chart =SimpleChart(
-                df_travel,
-                target = 'invc',
-                feature = 'individual',
+                source = df_aspirin,
+                target = self.target,
+                feature = self.feature,
                 hue = self.cat1,
                 size = self.size
             ).plot(Line
@@ -182,8 +182,8 @@ class TestSimpleChart:
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,
-                feature_label = 'Individual',
-                target_label = 'In vehicle cost ($)', 
+                feature_label = self.feature_label,
+                target_label = self.target_label, 
                 info = self.info_msg, 
             ).save(self.file_name
             ).close()
@@ -198,8 +198,8 @@ class TestSimpleChart:
         assert legend_artists[2].get_children()[0].get_text() == self.size
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
-        assert texts[2].get_text() == 'In vehicle cost ($)'
-        assert texts[3].get_text() == 'Individual'
+        assert texts[2].get_text() == self.target_label
+        assert texts[3].get_text() == self.feature_label
         assert STR.TODAY in texts[4].get_text()
         assert STR.USERNAME in texts[4].get_text()
         assert self.info_msg in info_msg
@@ -210,7 +210,7 @@ class TestSimpleChart:
 
         self.kind = 'simple'
         chart = SimpleChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.feature
             ).plot(Scatter
@@ -227,7 +227,7 @@ class TestSimpleChart:
 
         self.kind = 'transposed'
         chart =SimpleChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
             ).plot(Scatter, target_on_y=False
@@ -248,7 +248,7 @@ class TestSimpleChart:
 
         self.kind = 'hue'
         chart = SimpleChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
                 hue = self.cat1
@@ -277,7 +277,7 @@ class TestSimpleChart:
 
         self.kind = 'shape'
         chart = SimpleChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
                 shape = self.cat2
@@ -306,7 +306,7 @@ class TestSimpleChart:
 
         self.kind = 'size'
         chart = SimpleChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
                 size = self.size
@@ -335,7 +335,7 @@ class TestSimpleChart:
 
         self.kind = 'hue-size'
         chart = SimpleChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
                 hue = self.cat1,
@@ -367,7 +367,7 @@ class TestSimpleChart:
 
         self.kind = 'hue-shape'
         chart = SimpleChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
                 hue = self.cat1,
@@ -399,7 +399,7 @@ class TestSimpleChart:
 
         self.kind = 'size-shape'
         chart = SimpleChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
                 size = self.size,
@@ -431,7 +431,7 @@ class TestSimpleChart:
 
         self.kind = 'full'
         chart = SimpleChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
                 hue = self.cat1,
@@ -467,7 +467,7 @@ class TestSimpleChart:
         self.base = f'{self.fig_title}_pareto'
         with pytest.raises(AssertionError) as err:
             chart = SimpleChart(
-                    df_travel,
+                    source = df_aspirin,
                     target = self.target,
                     feature = self.cat1,
                     categorical_feature = True
@@ -477,7 +477,7 @@ class TestSimpleChart:
         
         self.kind = 'simple'
         chart = SimpleChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.cat1,
             ).plot(
@@ -505,7 +505,7 @@ class TestSimpleChart:
 
         self.kind = 'transposed'
         chart = SimpleChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.cat1,
                 target_on_y = False
@@ -537,7 +537,7 @@ class TestSimpleChart:
 
         self.kind = 'simple'
         chart = SimpleChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 target_on_y = False
             ).plot(
@@ -557,7 +557,7 @@ class TestSimpleChart:
 
         self.kind = 'multiple'
         chart = SimpleChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 hue = self.cat1,
                 target_on_y = True
@@ -589,7 +589,7 @@ class TestSimpleChart:
 
         self.kind = 'simple'
         chart = SimpleChart(
-                source = df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.cat1, 
                 categorical_feature = True,
@@ -612,7 +612,7 @@ class TestSimpleChart:
         
         self.kind = 'multiple'
         chart = SimpleChart(
-                source = df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.cat1, 
                 hue = self.cat2,
@@ -640,7 +640,7 @@ class TestSimpleChart:
 
         self.kind = 'mono'
         chart = SimpleChart(
-                source = df_travel,
+                source = df_aspirin,
                 target = self.target,
             ).plot(Violine
             ).label(
@@ -661,7 +661,7 @@ class TestSimpleChart:
 
         self.kind = 'simple'
         chart = SimpleChart(
-                source = df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.cat1, 
             ).plot(Violine
@@ -683,7 +683,7 @@ class TestSimpleChart:
         
         self.kind = 'multiple'
         chart = SimpleChart(
-                source = df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.cat1, 
                 hue = self.cat2,
@@ -710,7 +710,7 @@ class TestSimpleChart:
 
         self.kind = 'sem'
         chart = SimpleChart(
-                source = df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.cat1, 
                 hue = self.cat2,
@@ -736,9 +736,9 @@ class TestSimpleChart:
         
         self.kind = 'mean-test'
         chart = SimpleChart(
-                source = df_travel,
-                target = 'gc',
-                feature = 'mode',
+                source = df_aspirin,
+                target = self.target,
+                feature = self.cat1,
                 categorical_feature = True,
                 target_on_y = False
             ).plot(
@@ -761,9 +761,9 @@ class TestSimpleChart:
         
         self.kind = 'var-test'
         chart = SimpleChart(
-                source = df_travel,
-                target = 'gc',
-                feature = 'mode',
+                source = df_aspirin,
+                target = self.target,
+                feature = self.cat1,
                 categorical_feature = True,
                 target_on_y = False
             ).plot(
@@ -787,9 +787,9 @@ class TestSimpleChart:
         
         self.kind = 'std-test'
         chart = SimpleChart(
-                source = df_travel,
-                target = 'gc',
-                feature = 'mode',
+                source = df_aspirin,
+                target = self.target,
+                feature = self.cat1,
                 categorical_feature = True,
                 target_on_y = False,
             ).plot(
@@ -847,16 +847,16 @@ class TestSimpleChart:
 class TestJointChart:
 
     fig_title: str = 'JointChart'
-    _sub_title: str = 'Traveling Mode Dataset'
-    target_label: str = 'In vehicle cost ($)'
-    feature_label: str = 'Individual'
-    target: str = 'gc'
-    feature: str = 'hinc'
+    _sub_title: str = 'Aspirin Dissolution Dataset'
+    target_label: str = 'Dissolution time (s)'
+    feature_label: str = 'Water temperature (°C)'
+    target: str = 'dissolution'
+    feature: str = 'temperature'
     kind: str = ''
     info_msg: str = 'Pytest figure, additional info message'
-    cat1 = 'mode'
-    cat2 ='choice'
-    size = 'invt'
+    cat1 = 'employee'
+    cat2 ='brand'
+    size = 'preparation'
 
     @property
     def sub_title(self) -> str:
@@ -869,7 +869,7 @@ class TestJointChart:
     def test_raises(self):
         with pytest.raises(AssertionError) as err:
             JointChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.cat1,
                 nrows = 2,
@@ -889,7 +889,7 @@ class TestJointChart:
         
         self.kind = 'mixed-kde'
         chart = JointChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.cat1,
                 hue = self.cat2,
@@ -915,7 +915,7 @@ class TestJointChart:
         assert self.file_name.is_file()
         assert len(texts) == 0 # No text added to figure only to axes
         assert legend_artists[0].get_children()[0].get_text() == self.cat2
-        assert yticklabels1 == sorted(df_travel[self.cat1].unique())
+        assert yticklabels1 == sorted(df_aspirin[self.cat1].unique())
         assert bool(xticklabels0) == False
         assert bool(xticklabels1) == True
         assert chart.axes[0][0].get_xlabel() == ''
@@ -1014,15 +1014,17 @@ class TestJointChart:
         assert self.info_msg in info_msg
 
     def test_regression_joint(self) -> None:
-        self.base = f'{self.fig_title}_probability'
+        self.base = f'{self.fig_title}_regression'
 
         self.kind = 'kde'
+        feature_labels = ('', '', 'In vehicle cost ($)', '')
+        target_labels = ('', '', 'In vehicle time (s)', '')
         chart = JointChart(
                 source = df_travel,
                 target = ('invc', '', 'invt', 'invt'),
                 feature = ('', '', 'invc', ''),
                 target_on_y = [False, False, True, True],
-                hue = self.cat1,
+                hue = 'mode',
                 nrows = 2,
                 ncols = 2,
                 sharex = 'col',
@@ -1031,14 +1033,30 @@ class TestJointChart:
                 height_ratios = [1, 5],
                 stretch_figsize = False
         ).plot([
-            (GaussianKDE, {'show_density_axis': False}),
+            (GaussianKDE, dict(show_density_axis=False)),
             (None, {}),
-            (LinearRegression, dict(show_points=True, show_fit_ci=True, show_pred_ci=True)),
-            (GaussianKDE, {'show_density_axis': False})]
+            (LinearRegression, dict(show_points=True, show_fit_ci=True)),
+            (GaussianKDE, dict(show_density_axis=False))]
         ).label(
+            feature_label = feature_labels,
+            target_label = target_labels,
+            fig_title = self.fig_title,
+            sub_title = 'Traveling Mode Dataset',
+            info = self.info_msg
         ).save(self.file_name
         ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
+        assert len(texts) == 3
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == 'Traveling Mode Dataset'
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+        for ax, flabel, tlabel in zip(chart.axes.flat, feature_labels, target_labels):
+            assert ax.get_xlabel() == flabel
+            assert ax.get_ylabel() == tlabel
 
     def test_bar_plots(self) -> None:
         self.base = f'{self.fig_title}_bar'
@@ -1049,12 +1067,12 @@ class TestJointChart:
             'Generalized cost measure sum ($)')
         feature_label = 'Traveler chosen mode'
         chart = JointChart(
-                source = df_travel,
+                source = df_aspirin,
                 target = self.target,
-                feature = 'mode',
+                feature = self.cat1,
                 nrows = 2,
                 ncols = 1,
-                hue = 'choice',
+                hue = self.cat2,
                 categorical_feature = True,
                 target_on_y = (False, False),
                 dodge = (False, True)
@@ -1087,7 +1105,7 @@ class TestJointChart:
         self.base = f'{self.fig_title}_pareto'
         with pytest.raises(AssertionError) as err:
             JointChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.cat1,
                 nrows = 3,
@@ -1099,7 +1117,7 @@ class TestJointChart:
 
         self.kind = 'marked'
         chart = JointChart(
-                df_travel,
+                source = df_aspirin,
                 target = self.target,
                 feature = self.cat1,
                 nrows = 2,

@@ -154,7 +154,7 @@ class LabelFacets:
         else:
             for ax, ylabel in zip(self.plot_axes.flat, self.ylabel):
                 if (len(ax.yaxis._get_shared_axis()) == 1 
-                    or ax in self.plot_axes.T[-1]): 
+                    or ax in self.plot_axes.T[0]): 
                     ax.set(ylabel=ylabel)
 
     def add_row_labels(self) -> None:

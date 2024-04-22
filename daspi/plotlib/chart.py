@@ -16,10 +16,10 @@ to produce consistent charts for very different plots.
 ## Classes
 
 - *Chart:* Abstract base class for creating chart visualizations.
-- *SimpleChart:* Represents a basic chart visualization with
-  customizable features.
+- *SimpleChart:* Represents a basic chart containing one Axes for 
+  visualization with customizable features.
 - *JointChart:* Represents a joint chart visualization combining
-  multiple SimpleCharts.
+  multiple individual Axes.
 - *MultipleVariateChart:* Represents a chart visualization handling 
   multiple variables simultaneously.
 

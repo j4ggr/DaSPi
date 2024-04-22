@@ -1053,7 +1053,7 @@ class CenterLocation(TransformPlotter):
             kind: Literal['mean', 'median'] = 'mean',
             marker: str | None = None,
             show_line: bool = True,
-            show_points: bool = True,
+            show_points: bool = True, #FIXME does not work as individual points only for center points: change to center
             f_base: int | float = PLOTTER.DEFAULT_F_BASE,
             target_on_y: bool = True,
             color: str | None = None,
