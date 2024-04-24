@@ -108,15 +108,15 @@ class Chart(ABC):
     label_facets: LabelFacets | None
     nrows: int
     ncols: int
-    _data: DataFrame
+    _data: DataFrame | None
     _xlabel: str
     _ylabel: str
     _plots: List[Plotter]
 
     def __init__(
-            self, source: DataFrame, target: str | Tuple[str], 
-            feature: str | Tuple[str]= '', target_on_y: bool = True, 
-            axes_facets: AxesFacets | None = None, **kwds) -> None:
+            self, source: DataFrame, target: str, feature: str = '',
+            target_on_y: bool = True, axes_facets: AxesFacets | None = None, 
+            **kwds) -> None:
         self.source = source
         self.target = target
         self.feature = feature
@@ -131,7 +131,7 @@ class Chart(ABC):
         self.target_on_y = target_on_y
         for ax in self.axes.flat:
             getattr(ax, f'set_{"x" if self.target_on_y else "y"}margin')(0)
-        self._data: DataFrame | None = None
+        self._data = None
         self._xlabel = ''
         self._ylabel = ''
         self._plots = []
@@ -168,7 +168,7 @@ class Chart(ABC):
         return self._plots
     
     def set_axis_label(
-            self, label: Any, is_target: bool) -> str:
+            self, label: Any, is_target: bool) -> None:
         """Set axis label according to given kind of label, taking into
         account the `target_on_y` attribute.
         
@@ -277,8 +277,8 @@ class SimpleChart(Chart):
     shape: str
     size: str
     marking: ShapeLabel
-    sizing: SizeLabel
-    _sizes: NDArray
+    sizing: SizeLabel | None
+    _sizes: NDArray | None
     categorical_feature: bool
     coloring: HueLabel
     dodging: Dodger
@@ -318,7 +318,7 @@ class SimpleChart(Chart):
                 self.source[self.size].min(), self.source[self.size].max())
         else:
             self.sizing = None
-        self._sizes: NDArray | None = None
+        self._sizes = None
         self._variate_names = (self.hue, self.shape)
         self._current_variate = {}
         self._last_variate = {}
@@ -332,21 +332,18 @@ class SimpleChart(Chart):
     @property
     def color(self) -> str:
         """Get color for current variate"""
-        hue_variate = self._current_variate.get(self.hue, None)
-        return self.coloring[hue_variate]
+        return self.coloring[self._current_variate.get(self.hue, None)]
     
     @property
     def marker(self) -> str:
         """Get marker for current variate"""
-        marker_variate = self._current_variate.get(self.shape, None)
-        return self.marking[marker_variate]
+        return self.marking[self._current_variate.get(self.shape, None)]
 
     @property
     def sizes(self) -> NDArray | None:
         """Get sizes for current variate, is set in grouped data 
         generator."""
-        if not self.size: return None
-        return self.sizing(self._data[self.size])
+        return self.sizing(self._data[self.size]) if self.size else None
     
     @property
     def legend_handles_labels(self) -> Dict[str, Tuple[tuple]]:
@@ -373,7 +370,8 @@ class SimpleChart(Chart):
         Tuple:
             Sorted unique elements of the given column name.
         """
-        if not colname: return ()
+        if not colname:
+            return ()
         return tuple(sorted(np.unique(self.source[colname])))
     
     def _reset_variate_(self) -> None:
@@ -391,7 +389,8 @@ class SimpleChart(Chart):
             The combination of variables coming from the DataFrame 
             groupby function.
         """
-        if not isinstance(combination, tuple): combination = (combination, )
+        if not isinstance(combination, tuple): 
+            combination = (combination, )
         self._last_variate = deepcopy(self._current_variate)
         for key, name in zip(self.variate_names, combination):
             self._current_variate[key] = name
@@ -399,7 +398,8 @@ class SimpleChart(Chart):
     def dodge(self) -> None:
         """Converts the feature data to tick positions, taking dodging 
         into account."""
-        if not self.dodging: return
+        if not self.dodging:
+            return
         hue_variate = self._current_variate.get(self.hue, None)
         self._data[self.feature] = self.dodging(
             self._data[self.feature], hue_variate)
@@ -747,7 +747,8 @@ class JointChart(Chart):
         for chart, (plotter, kwds) in zip(self.itercharts(), plotters_kwds):
             ax = next(_axs)
             if plotter is None:
-                if hide_none: ax.set_axis_off()
+                if hide_none:
+                    ax.set_axis_off()
                 continue
             chart.plot(plotter, **kwds)
             self._plots.extend(chart.plots)
@@ -832,7 +833,8 @@ class JointChart(Chart):
             The JointChart instance.
         """
         for chart in self.itercharts():
-            if not chart.categorical_feature: continue
+            if not chart.categorical_feature:
+                continue
             chart._categorical_feature_axis_()
         self._xlabel = ''
         self._ylabel = ''
@@ -943,7 +945,8 @@ class MultipleVariateChart(SimpleChart):
         ax = None
         _ax = iter(self.axes_facets)
         for data in self:
-            if self.row_or_col_changed or ax is None: ax = next(_ax)
+            if self.row_or_col_changed or ax is None:
+                ax = next(_ax)
             plot = plotter(
                 source=data, target=self.target, feature=self.feature,
                 target_on_y=self.target_on_y, color=self.color, ax=ax, 
@@ -955,8 +958,8 @@ class MultipleVariateChart(SimpleChart):
     
     def stripes(
             self, mean: bool = False, median: bool = False,
-            control_limits: bool = False, 
-            spec_limits: Tuple[float, float] | Tuple[Tuple] = (None, None), 
+            control_limits: bool = False,
+            spec_limits: Tuple[float, float] | Tuple[Tuple] = (None, None),
             confidence: float | None = None, **kwds) -> Self:
         if not isinstance(spec_limits[0], tuple):
             spec_limits = tuple(spec_limits for _ in self.axes_facets)

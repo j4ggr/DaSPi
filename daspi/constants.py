@@ -257,7 +257,7 @@ class _Category_:
         """Used for scatter plots. The area must be specified there 
         instead of the height, as with markers in line plots.
         See: https://stackoverflow.com/a/14860958/11362192"""
-        return tuple(s**2 for s in self.MARKERSIZE_LIMITS)
+        return (self.MARKERSIZE_LIMITS[0]**2, self.MARKERSIZE_LIMITS[1]**2)
     @property
     def HANDLE_SIZES(self) -> Tuple[int, ...]:
         """Get marker sizes for legend handles"""
@@ -308,7 +308,6 @@ ANOVA = _Anova_()
 __all__ = [
     'KW',
     'RE',
-    'KDE',
     'DIST',
     'COLOR',
     'LABEL',
