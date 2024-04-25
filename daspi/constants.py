@@ -274,7 +274,7 @@ CATEGORY = _Category_()
 @dataclass(frozen=True)
 class _Distribution_:
     _ignore_: Tuple[str, str] = ('levy_stable', 'studentized_range')
-    COMMON: Tuple[str, ...] = (
+    COMMON: Tuple[str] = (
         'norm', 'chi2', 'foldnorm', 'rayleigh', 'weibull_min', 'gamma', 'wald',
         'expon', 'logistic', 'lognorm')
     @property
