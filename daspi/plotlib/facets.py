@@ -9,7 +9,6 @@ from typing import Literal
 from typing import Callable
 from typing import Sequence
 from typing import Generator
-from typing import TypeAlias
 from numpy.typing import NDArray
 from numpy.typing import ArrayLike
 from matplotlib.axes import Axes
@@ -18,14 +17,14 @@ from matplotlib.figure import Figure
 from matplotlib.legend import Legend
 from matplotlib.patches import Patch
 
+from ..typing import SpecLimit
+from ..typing import LegendHandles
 from ..strings import STR
 from ..constants import KW
 from ..constants import LABEL
 from ..constants import DEFAULT
 from ..statistics.estimation import ProcessEstimator
 
-SpecLimit: TypeAlias = float | int | None
-LegendHandles: TypeAlias = Tuple[*Tuple[Line2D, ...], Patch] | Tuple[Line2D, ...]
 
 class LabelFacets:
 

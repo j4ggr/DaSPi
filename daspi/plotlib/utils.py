@@ -15,12 +15,14 @@ from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
+from ..typing import LegendHandles
 from ..constants import KW
 from ..constants import CATEGORY
 
 
 def shared_axes(
-        ax: Axes, which: Literal['x', 'y'], exclude: bool = True) -> List[bool]:
+        ax: Axes, which: Literal['x', 'y'], exclude: bool = True
+        ) -> List[bool]:
     """Get all the axes from the figure of the given `ax` and compare 
     whether the `ax` share the given axis. 
     Get a map of boolean values as a list where all are `True` when the 
@@ -42,7 +44,7 @@ def shared_axes(
     """
     assert which in ('x', 'y')
     view = getattr(ax, f'get_shared_{which}_axes')()
-    axes = [_ax for _ax in ax.figure.axes] if exclude else ax.figure.axes
+    axes = [_ax for _ax in ax.figure.axes] if exclude else ax.figure.axes  # type: ignore
     return [view.joined(ax, _ax) for _ax in axes]
 
 
@@ -71,18 +73,18 @@ class _CategoryLabel(ABC):
         return self._default
 
     @property
-    def labels(self) -> Tuple:
+    def labels(self) -> Tuple[str]:
         return self._labels
     @labels.setter
-    def labels(self, labels: Tuple):
+    def labels(self, labels: Tuple[str]) -> None:
         assert self.n_used <= self.n_allowed, (
             f'{self} can handle {self.n_allowed} categories, got {len(labels)}')
         assert self.n_used == len(set(labels)), (
-            f'Labels occur more than once, only unique labels are allowed')
+            'Labels occur more than once, only unique labels are allowed')
         self._labels = labels
 
     @property
-    def n_used(self):
+    def n_used(self) -> int:
         """Get amount of used categories"""
         return self._n
 
@@ -91,7 +93,7 @@ class _CategoryLabel(ABC):
         """Allowed amount of categories"""
         return len(self.categories)
     
-    def __getitem__(self, label: Any) -> str:
+    def __getitem__(self, label: Any) -> Any:
         if label is not None: 
             try:
                 idx = self.labels.index(label)
@@ -106,42 +108,42 @@ class _CategoryLabel(ABC):
     def __str__(self) -> str:
         return self.__class__.__name__
     
-    def __bool__(self) -> str:
+    def __bool__(self) -> bool:
         return bool(self._n)
     
     @abstractmethod
-    def handles_labels(self) -> Tuple[Tuple[Patch | Line2D], Tuple[str]]: ...
+    def handles_labels(self) -> Tuple[LegendHandles, Tuple[str, ...]]: ...
 
 
 class HueLabel(_CategoryLabel):
 
-    _categories: Tuple[str] = CATEGORY.COLORS
+    _categories: Tuple[str, ...] = CATEGORY.COLORS
 
     def __init__(self, labels: Tuple[str]) -> None:
         super().__init__(labels)
     
     @property
-    def colors(self):
+    def colors(self) -> Tuple[str, ...]:
         return self.categories[:self.n_used]
 
-    def handles_labels(self) -> Tuple[Tuple[Patch | Line2D], Tuple[str]]:
+    def handles_labels(self) -> Tuple[LegendHandles, Tuple[str, ...]]:
         handles = tuple(Patch(color=c, **KW.HUE_HANDLES) for c in self.colors)
         return handles, self.labels
 
 
 class ShapeLabel(_CategoryLabel):
 
-    _categories: Tuple[str] = CATEGORY.MARKERS
+    _categories: Tuple[str, ...] = CATEGORY.MARKERS
 
     def __init__(self, labels: Tuple) -> None:
         super().__init__(labels)
     
     @property
-    def markers(self):
+    def markers(self) -> Tuple[str, ...]:
         """Get used markers"""
         return self.categories[:self.n_used]
 
-    def handles_labels(self) -> Tuple[Tuple[Patch | Line2D], Tuple[str]]:
+    def handles_labels(self) -> Tuple[LegendHandles, Tuple[str, ...]]:
         handles = tuple(
             Line2D(marker=m, **KW.SHAPE_HANDLES) for m in self.markers)
         return handles, self.labels
@@ -150,7 +152,7 @@ class ShapeLabel(_CategoryLabel):
 class SizeLabel(_CategoryLabel):
 
     __slots__ = ('_min', '_max')
-    _categories: Tuple[int] = CATEGORY.HANDLE_SIZES
+    _categories: Tuple[int, ...] = CATEGORY.HANDLE_SIZES
     _min: int | float
     _max: int | float
 
@@ -181,13 +183,14 @@ class SizeLabel(_CategoryLabel):
         low, upp = CATEGORY.MARKERSIZE_LIMITS
         return (upp - low)/(self._max - self._min)
     
-    def handles_labels(self) -> Tuple[Tuple[Patch | Line2D], Tuple[str]]:
+    def handles_labels(self) -> Tuple[LegendHandles, Tuple[str, ...]]:
         handles = tuple(
             Line2D(markersize=s, **KW.SIZE_HANDLES) for s in self.categories)
         return handles, self.labels
     
     def __getitem__(self, item: int | float | None) -> float:
-        if item is None: return self.default
+        if item is None:
+            return self.default
         return self([item])[0]
     
     def __call__(self, values: ArrayLike) -> NDArray:
@@ -203,7 +206,7 @@ class Dodger:
         'categories', 'ticks', 'tick_lables', 'amount', 'width', 'dodge',
         '_default')
     categories: Tuple[str]
-    ticks: Tuple[int]
+    ticks: NDArray[np.int_]
     tick_lables: Tuple[str]
     width: float
     amount: int
@@ -221,18 +224,21 @@ class Dodger:
 
         offset = (space - CATEGORY.FEATURE_SPACE) / 2
         _dodge = tuple(i*space + offset for i in range(self.amount))
-        self.dodge = {l: d for l, d in zip(self.categories, _dodge)}
+        self.dodge = {c: d for c, d in zip(self.categories, _dodge)}
         self._default = 0
     
     def __getitem__(self, category: str | None) -> float | int:
         """Get the dodge value for given category"""
-        if category is None: return self._default
+        if category is None:
+            return self._default
         return self.dodge.get(category, self._default)
     
     def __call__(self, values: Series, category: str) -> pd.Series:
         """Replace source values to dodged ticks using given category"""
-        if not self: return values
-        if not isinstance(values, pd.Series): values = pd.Series(values)
+        if not self:
+            return values
+        if not isinstance(values, pd.Series):
+            values = pd.Series(values)
         ticks = self.ticks + self[category]
         return values.replace(dict(zip(self.tick_lables, ticks)))
     
@@ -240,9 +246,9 @@ class Dodger:
         return len(self.categories) > 1
 
 __all__ = [
-    shared_axes.__name__,
-    HueLabel.__name__,
-    ShapeLabel.__name__,
-    SizeLabel.__name__,
-    Dodger.__name__,
+    'shared_axes',
+    'HueLabel',
+    'ShapeLabel',
+    'SizeLabel',
+    'Dodger',
     ]

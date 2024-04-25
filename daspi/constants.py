@@ -3,8 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from re import Pattern
-from typing import Tuple
 from typing import List
+from typing import Tuple
 from dataclasses import dataclass
 from scipy.stats._continuous_distns import _distn_names
 
