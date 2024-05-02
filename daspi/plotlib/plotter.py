@@ -944,8 +944,9 @@ class TransformPlotter(Plotter):
             feature grouped target data used for transformation.
         """
         if self.feature and self.feature != PLOTTER.TRANSFORMED_FEATURE:
-            grouper = source.groupby(self.feature, sort=True)
-            for i, (f_value, group) in enumerate(grouper, start=1):
+            for i, (f_value, group) in enumerate(
+                    source.groupby(self.feature, sort=True),
+                    start=PLOTTER.DEFAULT_F_BASE):
                 self._original_f_values = self._original_f_values + (f_value, )
                 if isinstance(f_value, (float, int)):
                     feature_data = f_value
@@ -985,10 +986,11 @@ class TransformPlotter(Plotter):
         """
     
     @abstractmethod
-    def __call__(self):
+    def __call__(self) -> None:
         """Perform the plotting operation.
 
-        This method should be overridden by subclasses to provide the specific plotting functionality.
+        This method should be overridden by subclasses to provide the
+        specific plotting functionality.
         """
 
 

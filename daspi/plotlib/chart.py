@@ -373,7 +373,8 @@ class SimpleChart(Chart):
         Tuple:
             Sorted unique elements of the given column name.
         """
-        if not colname: return ()
+        if not colname:
+            return ()
         return tuple(sorted(np.unique(self.source[colname])))
     
     def _reset_variate_(self) -> None:
@@ -399,7 +400,8 @@ class SimpleChart(Chart):
     def dodge(self) -> None:
         """Converts the feature data to tick positions, taking dodging 
         into account."""
-        if not self.dodging: return
+        if not self.dodging:
+            return
         hue_variate = self._current_variate.get(self.hue, None)
         self._data[self.feature] = self.dodging(
             self._data[self.feature], hue_variate)
@@ -415,11 +417,10 @@ class SimpleChart(Chart):
     def _categorical_feature_ticks_(self) -> None:
         """Set one major tick for each category and label it."""
         xy = 'x' if self.target_on_y else 'y'
-        _ticks = self.dodging.ticks
         settings = {
             f'{xy}ticks': self.dodging.ticks,
             f'{xy}ticklabels': self.dodging.tick_lables,
-            f'{xy}lim': (np.min(_ticks) - 0.5, np.max(_ticks) + 0.5)}
+            f'{xy}lim': self.dodging.lim}
         self.axes_facets.ax.set(**settings)
         self.axes_facets.ax.tick_params(which='minor', color=COLOR.TRANSPARENT)
         

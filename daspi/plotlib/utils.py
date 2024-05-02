@@ -16,6 +16,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
 from ..constants import KW
+from ..constants import PLOTTER
 from ..constants import CATEGORY
 
 
@@ -214,7 +215,7 @@ class Dodger:
             self, categories: Tuple[str], tick_labels: Tuple[str]) -> None:
         self.categories = categories
         self.tick_lables = tick_labels
-        self.ticks = np.arange(1, len(tick_labels) + 1)
+        self.ticks = np.arange(len(tick_labels)) + PLOTTER.DEFAULT_F_BASE
         self.amount = max(len(self.categories), 1)
         space = CATEGORY.FEATURE_SPACE/self.amount
         self.width = space - CATEGORY.FEATURE_PAD
@@ -223,6 +224,11 @@ class Dodger:
         _dodge = tuple(i*space + offset for i in range(self.amount))
         self.dodge = {l: d for l, d in zip(self.categories, _dodge)}
         self._default = 0
+    
+    @property
+    def lim(self) -> Tuple[float, float]:
+        """Get the required axis limits."""
+        return (np.min(self.ticks) - 0.5, np.max(self.ticks) + 0.5)
     
     def __getitem__(self, category: str | None) -> float | int:
         """Get the dodge value for given category"""
