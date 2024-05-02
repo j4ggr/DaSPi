@@ -3,8 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from re import Pattern
-from typing import Tuple
 from typing import List
+from typing import Tuple
 from dataclasses import dataclass
 from scipy.stats._continuous_distns import _distn_names
 
@@ -257,7 +257,7 @@ class _Category_:
         """Used for scatter plots. The area must be specified there 
         instead of the height, as with markers in line plots.
         See: https://stackoverflow.com/a/14860958/11362192"""
-        return tuple(s**2 for s in self.MARKERSIZE_LIMITS)
+        return (self.MARKERSIZE_LIMITS[0]**2, self.MARKERSIZE_LIMITS[1]**2)
     @property
     def HANDLE_SIZES(self) -> Tuple[int, ...]:
         """Get marker sizes for legend handles"""
@@ -274,7 +274,7 @@ CATEGORY = _Category_()
 @dataclass(frozen=True)
 class _Distribution_:
     _ignore_: Tuple[str, str] = ('levy_stable', 'studentized_range')
-    COMMON: Tuple[str, ...] = (
+    COMMON: Tuple[str] = (
         'norm', 'chi2', 'foldnorm', 'rayleigh', 'weibull_min', 'gamma', 'wald',
         'expon', 'logistic', 'lognorm')
     @property
@@ -308,7 +308,6 @@ ANOVA = _Anova_()
 __all__ = [
     'KW',
     'RE',
-    'KDE',
     'DIST',
     'COLOR',
     'LABEL',

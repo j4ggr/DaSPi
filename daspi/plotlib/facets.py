@@ -5,17 +5,20 @@ from typing import Self
 from typing import List
 from typing import Dict
 from typing import Tuple
+from typing import Literal
+from typing import Callable
 from typing import Sequence
-from typing import Iterable
 from typing import Generator
 from numpy.typing import NDArray
+from numpy.typing import ArrayLike
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.figure import Figure
 from matplotlib.legend import Legend
-from matplotlib.artist import Artist
 from matplotlib.patches import Patch
 
+from ..typing import SpecLimit
+from ..typing import LegendHandles
 from ..strings import STR
 from ..constants import KW
 from ..constants import LABEL
@@ -31,14 +34,14 @@ class LabelFacets:
             axes: NDArray,
             fig_title: str = '', 
             sub_title: str = '',
-            xlabel: str | Tuple[str] = '',
-            ylabel: str | Tuple[str] = '',
+            xlabel: str | Tuple[str, ...] = '',
+            ylabel: str | Tuple[str, ...] = '',
             info: bool | str = False,
-            rows: Tuple[str] = (),
-            cols: Tuple[str] = (),
+            rows: Tuple[str, ...] = (),
+            cols: Tuple[str, ...] = (),
             row_title: str = '',
             col_title: str = '',
-            axes_titles: Tuple[str] = (),
+            axes_titles: Tuple[str, ...] = (),
             legends: Dict[str, List] = {}
             ) -> None:
         self.figure = figure
@@ -97,12 +100,6 @@ class LabelFacets:
         """Get legend added to figure."""
         return self._legend
 
-    @property
-    def legend_box(self) -> Artist | None:
-        """Get legend box holding title, handles and labels."""
-        if not self.legend: return None
-        return self.legend.get_children()[0]
-
     def add_legend(
             self, handles: List[Patch | Line2D], labels: List[str], title: str
             ) -> None:
@@ -131,10 +128,11 @@ class LabelFacets:
             self._legend = legend
         else:
             new_children = legend.get_children()[0].get_children()
-            self.legend_box.get_children().extend(new_children)
+            self.legend.get_children()[0].get_children().extend(new_children)
 
     def add_xlabel(self) -> None:
-        if not self.xlabel: return
+        if not self.xlabel:
+            return
         if isinstance(self.xlabel, str):
             kw = KW.XLABEL
             kw['y'] = kw['y'] - LABEL.AXES_PADDING * self.shift_text_y
@@ -146,7 +144,8 @@ class LabelFacets:
                     ax.set(xlabel=xlabel)
 
     def add_ylabel(self) -> None:
-        if not self.ylabel: return
+        if not self.ylabel:
+            return
         if isinstance(self.ylabel, str):
             kw = KW.YLABEL
             kw['x'] = kw['x'] - LABEL.AXES_PADDING * self.shift_text_x
@@ -159,7 +158,8 @@ class LabelFacets:
 
     def add_row_labels(self) -> None:
         """Add row labels and row title"""
-        if not self.rows: return
+        if not self.rows:
+            return
         for axs, label in zip(self.plot_axes, self.rows):
             ax = axs[-1]
             kwds = KW.ROW_LABEL | {'transform': ax.transAxes}
@@ -168,7 +168,8 @@ class LabelFacets:
     
     def add_col_labels(self) -> None:
         """Add column labels and column title"""
-        if not self.cols: return
+        if not self.cols:
+            return
         for ax, label in zip(self.plot_axes[0], self.cols):
             kwds = KW.COL_LABEL | {'transform': ax.transAxes}
             ax.text(s=label, **kwds)
@@ -176,14 +177,15 @@ class LabelFacets:
     
     def add_axes_titles(self) -> None:
         """Add given titles to each axes."""
-        if not self.axes_titles: return
+        if not self.axes_titles:
+            return
         for ax, title in zip(self.plot_axes.flat, self.axes_titles):
             ax.set(title=title)
 
     def add_titles(self) -> None:
         """Add figure and sub title at the top."""
-        if not self.fig_title and not self.sub_title: return
-
+        if not self.fig_title and not self.sub_title:
+            return
         kw_fig = KW.FIG_TITLE
         kw_sub = KW.SUB_TITLE
         kw_sub['y'] = kw_sub['y'] + self.shift_sub_title
@@ -198,12 +200,14 @@ class LabelFacets:
         figure. By default, the info text contains today's date and the 
         user name. If self.info is a string, it is added to the 
         info text separated by a comma."""
-        if not self.info: return
+        if not self.info:
+            return
         info_text = f'{STR.TODAY} {STR.USERNAME}'
         if isinstance(self.info, str):
             info_text = f'{info_text}, {self.info}'
         kwds = KW.INFO
-        if self.xlabel: kwds['y'] = kwds['y'] - self.shift_text_y
+        if self.xlabel:
+            kwds['y'] = kwds['y'] - self.shift_text_y
         self.figure.text(s=info_text, **kwds)
     
     def draw(self) -> None:
@@ -220,8 +224,10 @@ class LabelFacets:
 class AxesFacets:
 
     def __init__(
-            self, nrows: int = 1, ncols: int = 1, sharex: str = 'none', 
-            sharey: str = 'none', width_ratios: Sequence[float] | None = None,
+            self, nrows: int = 1, ncols: int = 1, 
+            sharex: bool | Literal['none', 'all', 'row', 'col'] = 'none', 
+            sharey: bool | Literal['none', 'all', 'row', 'col'] = 'none', 
+            width_ratios: Sequence[float] | None = None,
             height_ratios: Sequence[float] | None = None, 
             stretch_figsize: bool = True, **kwds
             ) -> None:
@@ -283,10 +289,11 @@ class AxesFacets:
         self._ax: Axes | None = None
         self._nrows: int = nrows
         self._ncols: int = ncols
-        if self.nrows == self.ncols == 1: self._ax = self.axes[0, 0]
+        if self.nrows == self.ncols == 1:
+            self._ax = self.axes[0, 0]
 
     @property
-    def ax(self) -> Axes:
+    def ax(self) -> Axes | None:
         """Get the axes that is currently being worked on. This property
         is automatically kept current when iterating through this 
         class (read-only).
@@ -297,7 +304,8 @@ class AxesFacets:
     def row_idx(self) -> int | None:
         """Get the index of the row from which the current axes 
         originates."""
-        if self.ax is None: return None
+        if self.ax is None:
+            return None
         for i, axs in enumerate(self.axes):
             if self.ax in axs:
                 return i
@@ -306,7 +314,8 @@ class AxesFacets:
     def col_idx(self) -> int | None:
         """Get the index of the column from which the current axes 
         originates."""
-        if self.ax is None: return None
+        if self.ax is None:
+            return None
         for i, axs in enumerate(self.axes.T):
             if self.ax in axs:
                 return i
@@ -320,12 +329,12 @@ class AxesFacets:
         return self._ncols
     
     def __iter__(self) -> Generator[Axes, Self, None]:
-        def ax_gen() -> Generator[Axes, None, None]:
+        def ax_gen(self) -> Generator[Axes, Self, None]:
             for ax in self.axes.flat:
                 self._ax = ax
                 yield ax
             self._ax = None
-        return ax_gen()
+        return ax_gen(self)
     
     def __next__(self) -> Axes:
         return next(self)
@@ -344,17 +353,17 @@ class StripesFacets:
     estimation: ProcessEstimator
     mask: Tuple[bool, ...]
     _confidence: float | None
-    spec_limits: Tuple[float | int, ...]
+    spec_limits: Tuple[SpecLimit, SpecLimit] 
     single_axes: bool
     
     def __init__(
         self,
-        target: Iterable,
+        target: ArrayLike,
         single_axes: bool, 
         mean: bool = False,
         median: bool = False,
         control_limits: bool = False,
-        spec_limits: Tuple[float | int | None] = (None, None),
+        spec_limits: Tuple[SpecLimit, SpecLimit] = (None, None),
         confidence: float | None = None,
         **kwds) -> None:
         assert len(spec_limits) == 2, (
@@ -365,7 +374,7 @@ class StripesFacets:
         self._confidence = confidence
         self.mask = (
             mean, median, *[control_limits]*2,
-            *list(map(lambda l: l is not None, self.spec_limits)))
+            *list(map(lambda lim: lim is not None, self.spec_limits)))
         self.estimation = ProcessEstimator(
             samples=target, lsl=spec_limits[0], usl=spec_limits[1], **kwds)
     
@@ -373,10 +382,15 @@ class StripesFacets:
     def _d(self) -> int:
         """Get decimals to format values for legend labels according
         to estimation median value"""
-        if self.estimation.median > 50: return 1
-        if self.estimation.median > 5: return 2
-        if self.estimation.median > 0.5: return 3
-        return 4    
+        median = self.estimation.median
+        if median <= 0.5:
+            return 4
+        elif median <= 5:
+            return 3
+        elif median <= 50:
+            return 2
+        else:
+            return 1 
     
     @property
     def kwds(self) -> Tuple[dict, ...]:
@@ -387,7 +401,7 @@ class StripesFacets:
         return kwds
     
     @property
-    def ci_functions(self) -> Tuple[str, ...]:
+    def ci_functions(self) -> Tuple[Callable, ...]:
         """Get confidence interval functions"""
         ci = self._filter((
             self.estimation.mean_ci, self.estimation.median_ci, 
@@ -400,7 +414,7 @@ class StripesFacets:
         attrs = ('mean', 'median', 'lcl', 'ucl')
         values = self._filter(
             [getattr(self.estimation, a) for a in attrs]
-            + [l for l in self.spec_limits if l is not None])
+            + [lim for lim in self.spec_limits if lim is not None])
         return values
     
     @property
@@ -422,15 +436,15 @@ class StripesFacets:
             (r'\bar x', r'x_{0.5}', lcl, ucl, STR['lsl'], STR['usl']))
         if self.single_axes:
             labels = tuple(
-                f'${l}={v:.{self._d}f}$' for l, v in zip(labels, self.values))
+                f'${L}={v:.{self._d}f}$' for L, v in zip(labels, self.values))
         else:
-            labels = tuple(f'${l}$' for l in labels)
+            labels = tuple(f'${label}$' for label in labels)
         if self._confidence is not None:
             labels = labels + (f'{100*self.confidence:.0f} %-{STR["ci"]}',)
         return labels
     
     @property
-    def handles(self) -> Tuple[*Tuple[Line2D, ...], Patch] | Tuple[Line2D, ...]:
+    def handles(self) -> LegendHandles:
         """Get legend handles for added lines and spans"""
         handles = tuple(
             Line2D([], [], markersize=0, **kwds) for kwds in self.kwds)
@@ -438,7 +452,7 @@ class StripesFacets:
             handles = handles + (Patch(**KW.CI_HANDLE),)
         return handles
     
-    def handles_labels(self) -> Tuple[Tuple[Patch | Line2D], Tuple[str]]:
+    def handles_labels(self) -> Tuple[LegendHandles, Tuple[str, ...]]:
         """Get legend handles and labels for added lines and spans"""
         return self.handles, self.labels
     
@@ -461,7 +475,7 @@ class StripesFacets:
 
 
 __all__ = [
-    LabelFacets.__name__,
-    AxesFacets.__name__,
-    StripesFacets.__name__,
+    "LabelFacets",
+    "AxesFacets",
+    "StripesFacets",
 ]

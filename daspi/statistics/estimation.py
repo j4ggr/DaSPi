@@ -3,11 +3,11 @@
 import numpy as np
 import pandas as pd
 
-from typing import List
 from typing import Tuple
 from typing import Literal
 from typing import Optional
 from typing import Callable
+from numpy.typing import NDArray
 from numpy.typing import ArrayLike
 from pandas.core.series import Series
 from scipy.stats._distn_infrastructure import rv_continuous
@@ -864,7 +864,7 @@ def estimate_distribution(
 def estimate_kernel_density(
         data: ArrayLike, stretch: float = 1, height: float | None = None, 
         base: float = 0, n_points: int = PLOTTER.KD_SEQUENCE_LEN
-        ) -> Tuple[ArrayLike, ArrayLike]:
+        ) -> Tuple[NDArray, NDArray]:
     """Estimates the kernel density of data and returns values that are 
     useful for a plot. If those values are plotted in combination with 
     a histogram, set height as max value of the hostogram.

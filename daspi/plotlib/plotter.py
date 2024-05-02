@@ -102,8 +102,10 @@ from abc import abstractmethod
 from typing import Any
 from typing import Self
 from typing import List
+from typing import Dict
 from typing import Tuple
 from typing import Literal
+from typing import Hashable
 from typing import Callable
 from typing import Iterable
 from typing import Generator
@@ -120,7 +122,7 @@ from scipy import stats
 from scipy.stats._distn_infrastructure import rv_continuous
 
 from statsmodels.graphics.gofplots import ProbPlot
-from statsmodels.regression.linear_model import RegressionResults
+from statsmodels.regression.linear_model import OLSResults
 
 from pandas.api.types import is_scalar
 from pandas.core.frame import DataFrame
@@ -170,7 +172,7 @@ class Plotter(ABC):
     source: DataFrame
     target: str
     feature: str
-    _color: str
+    _color: str | None
     target_on_y: bool
     fig: Figure
     ax: Axes
@@ -192,7 +194,7 @@ class Plotter(ABC):
         self.feature = feature
         self.target = target
         
-        self.fig, self.ax = plt.subplots(1, 1) if ax is None else ax.figure, ax
+        self.fig, self.ax = plt.subplots(1, 1) if ax is None else ax.figure, ax # type: ignore
         self._color = color
     
     @property
@@ -288,10 +290,10 @@ class Scatter(Plotter):
             Additional keyword arguments to be passed to the Axes 
             `scatter` method.
         """
-        kwds = dict(
+        _kwds: Dict[str, Any] = dict(
             c=self.color, marker=self.marker, s=self.size,
             alpha=COLOR.MARKER_ALPHA) | kwds
-        self.ax.scatter(self.x, self.y, **kwds)
+        self.ax.scatter(self.x, self.y, **_kwds)
 
 
 class Line(Plotter):
@@ -344,8 +346,9 @@ class Line(Plotter):
             method.
         """
         alpha = None if marker is None else COLOR.MARKER_ALPHA
-        kwds = dict(c=self.color, marker=marker, alpha=alpha) | kwds
-        self.ax.plot(self.x, self.y, **kwds)
+        _kwds: Dict[str, Any] = dict(
+            c=self.color, marker=marker, alpha=alpha) | kwds
+        self.ax.plot(self.x, self.y, **_kwds)
             
 
 class LinearRegression(Plotter):
@@ -386,7 +389,7 @@ class LinearRegression(Plotter):
     """
     __slots__ = (
         'model', 'target_fit', 'show_points', 'show_fit_ci', 'show_pred_ci')
-    model: RegressionResults
+    model: OLSResults
     target_fit: str
     show_points: bool
     show_fit_ci: bool
@@ -414,7 +417,7 @@ class LinearRegression(Plotter):
             [[feature, target]]
             .dropna(axis=0, how='any')
             .reset_index(drop=True))
-        self.model = sm.OLS(df[target], sm.add_constant(df[feature])).fit()
+        self.model = sm.OLS(df[target], sm.add_constant(df[feature])).fit() # type: ignore
         df[self.target_fit] = self.model.fittedvalues
         df = pd.concat([df, self.ci_data()], axis=1)
         super().__init__(
@@ -466,8 +469,8 @@ class LinearRegression(Plotter):
             plot (Axes `plot` method).
         """
         color = dict(color=self.color)
-        kwds = KW.FIT_LINE | color | kwds
-        self.ax.plot(self.x_fit, self.y_fit, **kwds)
+        _kwds: Dict[str, Any] = KW.FIT_LINE | color | kwds
+        self.ax.plot(self.x_fit, self.y_fit, **_kwds)
         
         if self.show_points:
             kw_scatter = color | kw_scatter
@@ -565,7 +568,7 @@ class Probability(LinearRegression):
 
         self.kind = kind
         self.dist = dist if not isinstance(dist, str) else getattr(stats, dist)
-        self.prob_fit = ProbPlot(source[target], self.dist, fit=True)
+        self.prob_fit = ProbPlot(source[target], self.dist, fit=True) # type: ignore
         
         feature_kind = 'quantiles' if self.kind[1] == "q" else 'percentiles'
         feature = f'{self.dist.name}_{feature_kind}'
@@ -593,7 +596,7 @@ class Probability(LinearRegression):
             xscale, yscale = yscale, xscale
         return xscale, yscale
         
-    def format_axis(self):
+    def format_axis(self) -> None:
         """Format the x-axis and y-axis based on the probability plot 
         type."""
         xscale, yscale = self._xy_scale_()
@@ -609,9 +612,12 @@ class Probability(LinearRegression):
     def sample_data(self) -> NDArray:
         """Get fitted samples (target data) according to given kind"""
         match self.kind[0]:
-            case 'q': data = self.prob_fit.sample_percentiles
-            case 'p': data = self.prob_fit.sample_percentiles
-            case 's': data = self.prob_fit.sorted_data
+            case 'q':
+                data = self.prob_fit.sample_percentiles
+            case 'p':
+                data = self.prob_fit.sample_percentiles
+            case 's' | _:
+                data = self.prob_fit.sorted_data
         return data
 
     @property
@@ -619,8 +625,10 @@ class Probability(LinearRegression):
         """Get theoretical data (quantiles or percentiles) according to 
         the given kind."""
         match self.kind[1]:
-            case 'q': data = self.prob_fit.theoretical_quantiles
-            case 'p': data = self.prob_fit.theoretical_percentiles
+            case 'q':
+                data = self.prob_fit.theoretical_quantiles
+            case 'p' | _:
+                data = self.prob_fit.theoretical_percentiles
         return data
     
     def __call__(
@@ -713,7 +721,7 @@ class ParallelCoordinate(Plotter):
         marker = kwds.pop('marker', plt.rcParams['lines.marker'])
         if not self.show_points:
             marker = None
-        _kwds = dict(color=self.color, marker=marker) | kwds
+        _kwds: Dict[str, Any] = dict(color=self.color, marker=marker) | kwds
         for identity, group in self.source.groupby(self.identities):
             self.ax.plot(group[self.x_column], group[self.y_column], **_kwds)
 
@@ -822,7 +830,7 @@ class BlandAltman(Plotter):
         if feature_axis == 'mean':
             _feature = feature_axis
             df[_feature] = (np
-                .vstack((source[target].values, source[feature].values))
+                .vstack((source[target].values, source[feature].values)) # type: ignore
                 .mean(axis=0))
         else:
             _feature = feature
@@ -843,8 +851,8 @@ class BlandAltman(Plotter):
             Additional keyword arguments to be passed to the Axes
             `scatter` method.
         """
-        kwds = dict(color=self.color) | kwds
-        self.ax.scatter(self.x, self.y, **kwds)
+        _kwds: Dict[str, Any] = dict(color=self.color) | kwds
+        self.ax.scatter(self.x, self.y, **_kwds)
         
         kws = (KW.CONTROL_LINE, KW.CONTROL_LINE, KW.MEAN_LINE)
         attrs = ('lcl', 'ucl', 'mean')
@@ -1123,10 +1131,10 @@ class CenterLocation(TransformPlotter):
         marker = self.marker if self.show_points else ''
         linestyle = plt.rcParams['lines.linestyle'] if self.show_line else ''
         alpha = None if marker is None else COLOR.MARKER_ALPHA
-        kwds = dict(
+        _kwds: Dict[str, Any] = dict(
             c=self.color, marker=marker, linestyle=linestyle, alpha=alpha
             ) | kwds
-        self.ax.plot(self.x, self.y, **kwds)
+        self.ax.plot(self.x, self.y, **_kwds)
 
 
 class Bar(TransformPlotter):
@@ -1217,7 +1225,7 @@ class Bar(TransformPlotter):
         """Get the base values for the bars (target), contains zeros 
         when not stacked."""
         feature_ticks = self.source[self.feature]
-        t_base = np.zeros(len(feature_ticks))
+        t_base: NDArray = np.zeros(len(feature_ticks))
         if not self.stack: 
             return t_base
 
@@ -1227,10 +1235,11 @@ class Bar(TransformPlotter):
                 low, upp = map(tuple, zip(*[(b.x0, b.x1) for b in boxs]))
             else:
                 low, upp = map(tuple, zip(*[(b.y0, b.y1) for b in boxs]))
+            data_values: NDArray = np.array(bar.datavalues)
             if (all(np.greater(feature_ticks, low))
                 and all(np.less(feature_ticks, upp))
-                and any(np.greater(bar.datavalues, t_base))):
-                t_base = bar.datavalues
+                and any(np.greater(data_values, t_base))):
+                t_base = data_values
         return t_base
     
     def transform(
@@ -1402,7 +1411,7 @@ class Pareto(Bar):
         return any(shared_axes(self.ax, 'x' if self.target_on_y else 'y', True))
 
     @property
-    def indices(self) -> List[int]:
+    def indices(self) -> List[int] | List[Hashable]:
         """Get arranged index values to access the target data (from 
         source data) in the order to be plotted."""
         indices = (self.source
@@ -1418,24 +1427,24 @@ class Pareto(Bar):
         return indices
     
     @property
-    def x(self):
+    def x(self) -> Any:
         """Get the values used for the x-axis so that the target is 
         displayed in descending order and the highlighted bar is at the
         end (if so specified)."""
         if self.target_on_y:
-            return self.source.loc[self.indices, self.feature]
+            return self.source.loc[self.indices, self.feature] # type: ignore
         else:
-            return self.source.loc[self.indices, self.target]
+            return self.source.loc[self.indices, self.target] # type: ignore
     
     @property
-    def y(self):
+    def y(self) -> Any:
         """Get the values used for the y-axis so that the target is 
         displayed in descending order and the highlighted bar is at the
         end (if so specified)."""
         if not self.target_on_y:
-            return self.source.loc[self.indices, self.feature]
+            return self.source.loc[self.indices, self.feature] # type: ignore
         else:
-            return self.source.loc[self.indices, self.target]
+            return self.source.loc[self.indices, self.target] # type: ignore
 
     def _highlight_bar_(self, bars: BarContainer) -> None:
         """Highlight the specified bar if `highlight` is set True."""
@@ -1481,7 +1490,7 @@ class Pareto(Bar):
             for pos, text in zip(positions, texts):
                 self.ax.text(
                     x=pos, s=text, transform=self.ax.transAxes, **KW.PARETO_H)
-        self.ax.has_pc_texts = True
+        self.ax.has_pc_texts = True # type: ignore
 
     def __call__(self, **kwds) -> None:
         """Perform the pareto plot operation.
@@ -1613,8 +1622,8 @@ class Jitter(TransformPlotter):
             Additional keyword arguments to be passed to the Axes 
             `scatter` method.
         """
-        kwds = dict(color=self.color) | kwds
-        self.ax.scatter(self.x, self.y, **kwds)
+        _kwds: Dict[str, Any] = dict(color=self.color) | kwds
+        self.ax.scatter(self.x, self.y, **_kwds)
 
 
 class GaussianKDE(TransformPlotter):
@@ -1686,7 +1695,7 @@ class GaussianKDE(TransformPlotter):
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
         
     @property
-    def height(self) -> float:
+    def height(self) -> float | None:
         """Height of kde curve at its maximum."""
         return self._height
     
@@ -1747,11 +1756,11 @@ class GaussianKDE(TransformPlotter):
             method, by default {}.
         """
         self.ax.plot(self.x, self.y, **kw_line)
-        kw_fill = dict(alpha=COLOR.FILL_ALPHA) | kw_fill
+        _kw_fill: Dict[str, Any] = dict(alpha=COLOR.FILL_ALPHA) | kw_fill
         if self.target_on_y:
-            self.ax.fill_betweenx(self.y, self._f_base, self.x, **kw_fill)
+            self.ax.fill_betweenx(self.y, self._f_base, self.x, **_kw_fill)
         else:
-            self.ax.fill_between(self.x, self._f_base, self.y, **kw_fill)
+            self.ax.fill_between(self.x, self._f_base, self.y, **_kw_fill)
         if not self.show_density_axis:
             self.hide_density_axis()
 
@@ -1813,15 +1822,16 @@ class Violine(GaussianKDE):
         **kwds : dict, optional
             Additional keyword arguments for the fill plot, by default {}.
         """
-        kwds = dict(color=self.color, alpha=COLOR.FILL_ALPHA) | kwds
+        _kwds: Dict[str, Any] = dict(
+            color=self.color, alpha=COLOR.FILL_ALPHA) | kwds
         for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME):
             estim_upp = group[self.feature]
-            estim_low = 2*f_base - estim_upp
+            estim_low = 2*f_base - estim_upp # type: ignore
             sequence = group[self.target]
             if self.target_on_y:
-                self.ax.fill_betweenx(sequence, estim_low, estim_upp, **kwds)
+                self.ax.fill_betweenx(sequence, estim_low, estim_upp, **_kwds)
             else:
-                self.ax.fill_between(sequence, estim_low, estim_upp, **kwds)
+                self.ax.fill_between(sequence, estim_low, estim_upp, **_kwds)
 
 
 class Errorbar(TransformPlotter):
@@ -1885,7 +1895,7 @@ class Errorbar(TransformPlotter):
         self.upper = upper
         self.show_center = show_center
         self.bars_same_color = bars_same_color
-        if not feature in source:
+        if feature not in source:
             feature = PLOTTER.FEATURE
             source[feature] = np.arange(len(source[target]))
 
@@ -1942,11 +1952,11 @@ class Errorbar(TransformPlotter):
             kw_points = dict(color=self.color) | kw_points
             self.ax.scatter(self.x, self.y, **kw_points)
         _color = dict(color=self.color) if self.bars_same_color else {}
-        kwds = KW.ERROR_BAR | _color | kwds
+        _kwds: Dict[str, Any] = KW.ERROR_BAR | _color | kwds
         if self.target_on_y:
-            self.ax.errorbar(self.x, self.y, yerr=self.err, **kwds)
+            self.ax.errorbar(self.x, self.y, yerr=self.err, **_kwds)
         else:
-            self.ax.errorbar(self.x, self.y, xerr=self.err, **kwds)
+            self.ax.errorbar(self.x, self.y, xerr=self.err, **_kwds)
 
 
 class StandardErrorMean(Errorbar):
@@ -2073,8 +2083,8 @@ class SpreadWidth(Errorbar):
         (occurs when this class is used within chart objects).
     """#TODO copy docstring from Estimator
     __slots__ = ('strategy', 'agreement', 'possible_dists')
-    strategy: str
-    agreement: int
+    strategy: Literal['eval', 'fit', 'norm', 'data']
+    agreement: float | int
     possible_dists: Tuple[str | rv_continuous]
 
     def __init__(
@@ -2130,7 +2140,7 @@ class SpreadWidth(Errorbar):
             self.upper: [estimation.ucl]})
         return data
     
-    def __call__(self, kw_points: dict = {}, **kwds):
+    def __call__(self, kw_points: dict = {}, **kwds) -> None:
         """Perform the plotting operation.
 
         Parameters
@@ -2383,23 +2393,23 @@ class VariationTest(ConfidenceInterval):
 
                 
 __all__ = [
-    Plotter.__name__,
-    Scatter.__name__,
-    Line.__name__,
-    LinearRegression.__name__,
-    Probability.__name__,
-    BlandAltman.__name__,
-    TransformPlotter.__name__,
-    CenterLocation.__name__,
-    Bar.__name__,
-    Pareto.__name__,
-    Jitter.__name__,
-    GaussianKDE.__name__,
-    Violine.__name__,
-    Errorbar.__name__,
-    StandardErrorMean.__name__,
-    SpreadWidth.__name__,
-    ConfidenceInterval.__name__,
-    MeanTest.__name__,
-    VariationTest.__name__,
+    'Plotter',
+    'Scatter',
+    'Line',
+    'LinearRegression',
+    'Probability',
+    'BlandAltman',
+    'TransformPlotter',
+    'CenterLocation',
+    'Bar',
+    'Pareto',
+    'Jitter',
+    'GaussianKDE',
+    'Violine',
+    'Errorbar',
+    'StandardErrorMean',
+    'SpreadWidth',
+    'ConfidenceInterval',
+    'MeanTest',
+    'VariationTest',
     ]
