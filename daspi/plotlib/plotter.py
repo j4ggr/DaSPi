@@ -167,6 +167,10 @@ class Plotter(ABC):
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure ovject with
         one Axes is created, by default None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
     """
     __slots__ = (
         'source', 'target', 'feature', '_color', 'target_on_y', 'fig', 'ax')
@@ -186,7 +190,7 @@ class Plotter(ABC):
             target_on_y : bool = True,
             color: str | None = None,
             ax: Axes | None = None,
-            ) -> None:
+            **kwds) -> None:
         self.target_on_y = target_on_y
         self.source = source
         if not feature:
@@ -226,7 +230,7 @@ class Plotter(ABC):
         return self._color
 
     @abstractmethod
-    def __call__(self):
+    def __call__(self) -> None:
         """
         Perform the plotting operation.
 
@@ -260,6 +264,10 @@ class Scatter(Plotter):
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure ovject with
         one Axes is created, by default None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
     """
     __slots__ = ('marker', 'size')
     marker: str | None
@@ -319,6 +327,10 @@ class Line(Plotter):
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure ovject with
         one Axes is created, by default None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
     """
     def __init__(
             self,

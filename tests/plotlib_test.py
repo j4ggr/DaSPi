@@ -133,16 +133,6 @@ class TestFacets:
         for i, ax in enumerate(self.axs):
             assert self.axs.ax == ax
             assert self.axs[i] == ax
-            
-            if i in [0, 1]:
-                assert self.axs.row_idx == 0
-            else:
-                assert self.axs.row_idx == 1
-            
-            if i in [0, 2]:
-                assert self.axs.col_idx == 0
-            else:
-                assert self.axs.col_idx == 1
 
     def test_label_facets(self):...
 

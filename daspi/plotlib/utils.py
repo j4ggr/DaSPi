@@ -15,7 +15,7 @@ from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
-from ..typing import LegendHandles
+from .._typing import LegendHandlesLabels
 from ..constants import KW
 from ..constants import DEFAULT
 from ..constants import CATEGORY
@@ -54,10 +54,10 @@ class _CategoryLabel(ABC):
     __slots__ = ('_categories', '_default', '_labels', '_n')
     _categories: Tuple
     _default: Any
-    _labels: Tuple
+    _labels: Tuple[str, ...]
     _n: int
     
-    def __init__(self, labels: Tuple) -> None:
+    def __init__(self, labels: Tuple[str, ...]) -> None:
         self._n = len(labels)
         self._default = None
         self.labels = labels
@@ -74,10 +74,10 @@ class _CategoryLabel(ABC):
         return self._default
 
     @property
-    def labels(self) -> Tuple[str]:
+    def labels(self) -> Tuple[str, ...]:
         return self._labels
     @labels.setter
-    def labels(self, labels: Tuple[str]) -> None:
+    def labels(self, labels: Tuple[str, ...]) -> None:
         assert self.n_used <= self.n_allowed, (
             f'{self} can handle {self.n_allowed} categories, got {len(labels)}')
         assert self.n_used == len(set(labels)), (
@@ -113,7 +113,7 @@ class _CategoryLabel(ABC):
         return bool(self._n)
     
     @abstractmethod
-    def handles_labels(self) -> Tuple[LegendHandles, Tuple[str, ...]]: ...
+    def handles_labels(self) -> LegendHandlesLabels: ...
 
 
 class HueLabel(_CategoryLabel):
@@ -128,7 +128,7 @@ class HueLabel(_CategoryLabel):
     def colors(self) -> Tuple[str, ...]:
         return self.categories[:self.n_used]
 
-    def handles_labels(self) -> Tuple[LegendHandles, Tuple[str, ...]]:
+    def handles_labels(self) -> LegendHandlesLabels:
         handles = tuple(Patch(color=c, **KW.HUE_HANDLES) for c in self.colors)
         return handles, self.labels
 
@@ -145,7 +145,7 @@ class ShapeLabel(_CategoryLabel):
         """Get used markers"""
         return self.categories[:self.n_used]
 
-    def handles_labels(self) -> Tuple[LegendHandles, Tuple[str, ...]]:
+    def handles_labels(self) -> LegendHandlesLabels:
         handles = tuple(
             Line2D(marker=m, **KW.SHAPE_HANDLES) for m in self.markers)
         return handles, self.labels
@@ -185,7 +185,7 @@ class SizeLabel(_CategoryLabel):
         low, upp = CATEGORY.MARKERSIZE_LIMITS
         return (upp - low)/(self._max - self._min)
     
-    def handles_labels(self) -> Tuple[LegendHandles, Tuple[str, ...]]:
+    def handles_labels(self) -> LegendHandlesLabels:
         handles = tuple(
             Line2D(markersize=s, **KW.SIZE_HANDLES) for s in self.categories)
         return handles, self.labels
@@ -201,7 +201,7 @@ class SizeLabel(_CategoryLabel):
         sizes = np.square(sizes)
         return sizes
 
-    
+
 class Dodger:
 
     __slots__ = (
