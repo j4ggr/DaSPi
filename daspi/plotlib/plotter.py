@@ -711,7 +711,7 @@ class ParallelCoordinate(Plotter):
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
 
-    def __call__(self, **kwds):
+    def __call__(self, **kwds) -> None:
         """Perform the parallel coordinate plot
 
         Parameters
@@ -1069,8 +1069,7 @@ class CenterLocation(TransformPlotter):
             marker: str | None = None,
             show_line: bool = True,
             show_points: bool = True, #FIXME does not work as individual points only for center points: change to center
-            f_base: int | float = DEFAULT.FEATURE_BASE
-,
+            f_base: int | float = DEFAULT.FEATURE_BASE,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -1086,7 +1085,8 @@ class CenterLocation(TransformPlotter):
 
     @property
     def kind(self)-> Literal['mean', 'median']:
-        """Get and set the type of location to plot ('mean' or 'median')
+        """Get and set the type of location ('mean' or 'median') to 
+        plot.
         
         Raises
         ------
@@ -1095,7 +1095,7 @@ class CenterLocation(TransformPlotter):
         """
         return self._kind
     @kind.setter
-    def kind(self, kind: Literal['mean', 'median']):
+    def kind(self, kind: Literal['mean', 'median']) -> None:
         assert kind in ('mean', 'median')
         self._kind = kind
     
@@ -1751,15 +1751,15 @@ class GaussianKDE(TransformPlotter):
         getattr(self.ax, axis).set_visible(False)
         self.ax.spines[spine].set_visible(False)
         
-    def __call__(self, kw_line: dict = {}, **kw_fill) -> None:
+    def __call__(self, kw_line: Dict[str, Any] = {}, **kw_fill) -> None:
         """Perform the plotting operation.
 
         Parameters
         ----------
-        kw_line : dict, optional
+        kw_line : Dict[str, Any], optional
             Additional keyword arguments for the axes `plot` method,
             by default {}.
-        **kw_fill : dict, optional
+        **kw_fill : Dict[str, Any], optional
             Additional keyword arguments for the axes `fill_between`
             method, by default {}.
         """
@@ -1821,25 +1821,29 @@ class Violine(GaussianKDE):
             height=width/2, target_on_y=target_on_y, color=color, ax=ax,
             show_density_axis=True, **kwds)
 
-    def __call__(self, **kwds) -> None:
-        """
-        Perform the plotting operation.
+    def __call__(self, kw_line: Dict[str, Any] = {}, **kw_fill) -> None:
+        """Perform the plotting operation.
 
         Parameters
         ----------
         **kwds : dict, optional
             Additional keyword arguments for the fill plot, by default {}.
         """
-        _kwds: Dict[str, Any] = dict(
-            color=self.color, alpha=COLOR.FILL_ALPHA) | kwds
+        _kw_fill: Dict[str, Any] = dict(
+            color=self.color, alpha=COLOR.FILL_ALPHA) | kw_fill
+        _kw_line: Dict[str, Any] = dict(color=COLOR.DARKEN) | kw_line
         for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME):
             estim_upp = group[self.feature]
             estim_low = 2*f_base - estim_upp # type: ignore
             sequence = group[self.target]
             if self.target_on_y:
-                self.ax.fill_betweenx(sequence, estim_low, estim_upp, **_kwds)
+                self.ax.fill_betweenx(
+                    sequence, estim_low, estim_upp, **_kw_fill)
             else:
-                self.ax.fill_between(sequence, estim_low, estim_upp, **_kwds)
+                self.ax.fill_between(
+                    sequence, estim_low, estim_upp, **_kw_fill)
+            self.ax.plot(
+                estim_low, sequence, estim_upp, sequence, **_kw_line)
 
 
 class Errorbar(TransformPlotter):
@@ -1945,7 +1949,7 @@ class Errorbar(TransformPlotter):
             self.source[self.upper] - self.source[self.target]])
         return err
     
-    def __call__(self, kw_points: dict = {}, **kwds):
+    def __call__(self, kw_points: dict = {}, **kwds) -> None:
         """Perform the plotting operation.
 
         Parameters
@@ -2093,7 +2097,7 @@ class SpreadWidth(Errorbar):
     __slots__ = ('strategy', 'agreement', 'possible_dists')
     strategy: Literal['eval', 'fit', 'norm', 'data']
     agreement: float | int
-    possible_dists: Tuple[str | rv_continuous]
+    possible_dists: Tuple[str | rv_continuous, ...]
 
     def __init__(
             self,
@@ -2102,7 +2106,7 @@ class SpreadWidth(Errorbar):
             feature: str = '',
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: float | int = 6,
-            possible_dists: Tuple[str | rv_continuous] = DIST.COMMON,
+            possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
             show_center: bool = True,
             bars_same_color: bool = False,
             target_on_y: bool = True,

@@ -57,7 +57,7 @@ class Estimator:
     _dist_params: tuple | None
     _strategy: str
     _agreement: int | float
-    possible_dists: Tuple[str | rv_continuous]
+    possible_dists: Tuple[str | rv_continuous, ...]
     _k: float
     _evaluate: Callable | None
     _q_low: float | None
@@ -68,7 +68,7 @@ class Estimator:
             samples: ArrayLike, 
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: int | float = 6, 
-            possible_dists: Tuple[str | rv_continuous] = DIST.COMMON,
+            possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
             evaluate: Callable | None = None
             ) -> None:
         """An object for various statistical estimators
@@ -608,7 +608,7 @@ class ProcessEstimator(Estimator):
     _usl: float | None
     _n_ok: int | None
     _n_nok: int | None
-    _error_values: Tuple[float]
+    _error_values: Tuple[float, ...]
     _n_errrors: int
     _cp: int | None
     _cpk: int | None
@@ -618,10 +618,10 @@ class ProcessEstimator(Estimator):
             samples: ArrayLike,
             lsl: Optional[float] = None, 
             usl: Optional[float] = None, 
-            error_values: Tuple[float] = (),
+            error_values: Tuple[float, ...] = (),
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: float | int = 6, 
-            possible_dists: Tuple[str | rv_continuous] = DIST.COMMON
+            possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON
             ) -> None:
         """"An object for various statistical estimators. This class 
         extends the estimator with process-specific statistics such as 

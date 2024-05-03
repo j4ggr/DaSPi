@@ -231,7 +231,9 @@ class _Color_:
     TRANSPARENT: str = '#ffffff00'
     """Transparent 'color' to hide ticks or other stuff."""
     BLUR: str = '#ffffffaa'
-    """Color to blur others."""
+    """Color to blur other colors, by adding 2/3 white."""
+    DARKEN: str = '#00000025'
+    """Color to darken other colors, by adding 10 % black."""
     MARKER_ALPHA: float = 0.5
     """The transparency of markers."""
     FILL_ALPHA: float = 0.5
