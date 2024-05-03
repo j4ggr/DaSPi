@@ -15,6 +15,7 @@ from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.figure import Figure
 from matplotlib.legend import Legend
+from matplotlib.artist import Artist
 from matplotlib.patches import Patch
 
 from ..typing import SpecLimit
@@ -58,6 +59,11 @@ class LabelFacets:
         self.axes_titles = axes_titles
         self._legends = legends
         self._legend: Legend | None = None
+    
+    @staticmethod
+    def get_legend_artists(legend: Legend) -> List[Artist]:
+        """Get inner childs of legend"""
+        return legend.get_children()[0].get_children()
 
     @property
     def shift_text_y(self) -> float:
@@ -99,6 +105,13 @@ class LabelFacets:
     def legend(self) -> Legend | None:
         """Get legend added to figure."""
         return self._legend
+    
+    @property
+    def legend_artists(self) -> List[Artist]:
+        """Get legend artists (read-only)."""
+        if self.legend is None:
+            return []
+        return self.get_legend_artists(self.legend)
 
     def add_legend(
             self, handles: List[Patch | Line2D], labels: List[str], title: str
@@ -124,11 +137,11 @@ class LabelFacets:
         legend = Legend(
             self.plot_axes[0, -1], handles, labels, title=title, **kw)
         if not self.legend:
-            self.figure.legends.append(legend)
+            self.figure.legends.append(legend) # type: ignore
             self._legend = legend
         else:
-            new_children = legend.get_children()[0].get_children()
-            self.legend.get_children()[0].get_children().extend(new_children)
+            new_artists = self.get_legend_artists(legend)
+            self.legend_artists.extend(new_artists)
 
     def add_xlabel(self) -> None:
         if not self.xlabel:

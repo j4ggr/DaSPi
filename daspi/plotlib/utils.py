@@ -17,7 +17,7 @@ from matplotlib.patches import Patch
 
 from ..typing import LegendHandles
 from ..constants import KW
-from ..constants import PLOTTER
+from ..constants import DEFAULT
 from ..constants import CATEGORY
 
 
@@ -118,7 +118,8 @@ class _CategoryLabel(ABC):
 
 class HueLabel(_CategoryLabel):
 
-    _categories: Tuple[str, ...] = CATEGORY.COLORS
+    _categories: Tuple[str, ...] = DEFAULT.PALETTE
+
 
     def __init__(self, labels: Tuple[str]) -> None:
         super().__init__(labels)
@@ -206,19 +207,23 @@ class Dodger:
     __slots__ = (
         'categories', 'ticks', 'tick_lables', 'amount', 'width', 'dodge',
         '_default')
-    categories: Tuple[str]
+    
+    categories: Tuple[str, ...]
     ticks: NDArray[np.int_]
-    tick_lables: Tuple[str]
+    tick_lables: Tuple[str, ...]
     width: float
     amount: int
     dodge: Dict[str, float]
     _default: int
 
     def __init__(
-            self, categories: Tuple[str], tick_labels: Tuple[str]) -> None:
+            self,
+            categories: Tuple[str, ...],
+            tick_labels: Tuple[str, ...]) -> None:
         self.categories = categories
         self.tick_lables = tick_labels
-        self.ticks = np.arange(len(tick_labels)) + PLOTTER.DEFAULT_F_BASE
+        self.ticks = np.arange(len(tick_labels)) + DEFAULT.FEATURE_BASE
+
         self.amount = max(len(self.categories), 1)
         space = CATEGORY.FEATURE_SPACE/self.amount
         self.width = space - CATEGORY.FEATURE_PAD
@@ -231,7 +236,7 @@ class Dodger:
     @property
     def lim(self) -> Tuple[float, float]:
         """Get the required axis limits."""
-        return (np.min(self.ticks) - 0.5, np.max(self.ticks) + 0.5)
+        return (min(self.ticks) - 0.5, max(self.ticks) + 0.5)
     
     def __getitem__(self, category: str | None) -> float | int:
         """Get the dodge value for given category"""

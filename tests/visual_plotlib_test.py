@@ -156,7 +156,7 @@ class TestSimpleChart:
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
-        legend_artists = chart.label_facets.legend_box.get_children()
+        legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
@@ -189,7 +189,7 @@ class TestSimpleChart:
             ).close()
         assert self.file_name.is_file()
         texts = get_texts(chart)
-        legend_artists = chart.label_facets.legend_box.get_children()
+        legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
@@ -221,7 +221,7 @@ class TestSimpleChart:
         texts = get_texts(chart)
         assert self.file_name.is_file()
         assert len(texts) == 1
-        assert chart.label_facets.legend_box is None
+        assert chart.label_facets.legend is None
         assert texts[0].get_text() == self.sub_title
 
 
@@ -240,7 +240,7 @@ class TestSimpleChart:
         texts = get_texts(chart)
         assert self.file_name.is_file()
         assert len(texts) == 3
-        assert chart.label_facets.legend_box is None
+        assert chart.label_facets.legend is None
         assert texts[0].get_text() == self.sub_title
         assert texts[1].get_text() == self.feature
         assert texts[2].get_text() == self.target
@@ -261,7 +261,7 @@ class TestSimpleChart:
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
-        legend_artists = chart.label_facets.legend_box.get_children()
+        legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 4
@@ -290,7 +290,7 @@ class TestSimpleChart:
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
-        legend_artists = chart.label_facets.legend_box.get_children()
+        legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 4
@@ -319,7 +319,7 @@ class TestSimpleChart:
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
-        legend_artists = chart.label_facets.legend_box.get_children()
+        legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 4
@@ -350,7 +350,7 @@ class TestSimpleChart:
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
-        legend_artists = chart.label_facets.legend_box.get_children()
+        legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
@@ -382,7 +382,7 @@ class TestSimpleChart:
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
-        legend_artists = chart.label_facets.legend_box.get_children()
+        legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
@@ -414,7 +414,7 @@ class TestSimpleChart:
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
-        legend_artists = chart.label_facets.legend_box.get_children()
+        legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
@@ -447,7 +447,7 @@ class TestSimpleChart:
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
-        legend_artists = chart.label_facets.legend_box.get_children()
+        legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
@@ -494,7 +494,7 @@ class TestSimpleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert chart.label_facets.legend_box is None
+        assert chart.label_facets.legend is None
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target_label
@@ -523,7 +523,7 @@ class TestSimpleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert chart.label_facets.legend_box is None
+        assert chart.label_facets.legend is None
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.cat1
@@ -551,7 +551,7 @@ class TestSimpleChart:
         texts = get_texts(chart)
         assert self.file_name.is_file()
         assert len(texts) == 2 # feature label should not appear
-        assert chart.label_facets.legend_box is None
+        assert chart.label_facets.legend is None
         assert texts[0].get_text() == self.sub_title
         assert texts[1].get_text() == self.target
 
@@ -572,7 +572,7 @@ class TestSimpleChart:
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
-        legend_artists = chart.label_facets.legend_box.get_children()
+        legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 4 # feature label should not appear
@@ -908,7 +908,7 @@ class TestJointChart:
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
-        legend_artists = chart.label_facets.legend_box.get_children()
+        legend_artists = chart.label_facets.legend_artists
         yticklabels1 = [t.get_text() for t in chart.axes[1][0].get_yticklabels()]
         xticklabels0 = [t.get_text() for t in chart.axes[0][0].get_xticklabels()]
         xticklabels1 = [t.get_text() for t in chart.axes[1][0].get_xticklabels()]

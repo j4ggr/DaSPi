@@ -13,6 +13,7 @@ from pandas.core.frame import DataFrame
 
 sys.path.append(Path(__file__).parent.resolve())
 
+from daspi.constants import DEFAULT
 from daspi.constants import CATEGORY
 from daspi.plotlib.utils import Dodger
 from daspi.plotlib.utils import HueLabel
@@ -63,10 +64,10 @@ class TestCategoryLabel:
         assert len(handles) == CATEGORY.N_SIZE_BINS
 
     def test_getitem(self):
-        assert self.colors['alpha'] == CATEGORY.COLORS[0]
-        assert self.colors['beta'] == CATEGORY.COLORS[1]
-        assert self.colors['gamma'] == CATEGORY.COLORS[2]
-        assert self.colors['delta'] == CATEGORY.COLORS[3]
+        assert self.colors['alpha'] == DEFAULT.PALETTE[0]
+        assert self.colors['beta'] == DEFAULT.PALETTE[1]
+        assert self.colors['gamma'] == DEFAULT.PALETTE[2]
+        assert self.colors['delta'] == DEFAULT.PALETTE[3]
 
         assert self.markers['foo'] == CATEGORY.MARKERS[0]
         assert self.markers['bar'] == CATEGORY.MARKERS[1]

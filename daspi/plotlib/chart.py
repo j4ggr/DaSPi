@@ -48,6 +48,7 @@ from abc import ABC
 from abc import abstractmethod
 from copy import deepcopy
 from typing import Any
+from typing import Type
 from typing import Self
 from typing import Dict
 from typing import List
@@ -84,9 +85,9 @@ class Chart(ABC):
     source : pandas DataFrame
         A pandas DataFrame containing the data in long-format.
     target : str or Tuple[str]
-        The target variable (column) to visualize.
+        Column name for the target variable to be visualized.
     feature : str or Tuple[str]
-        The feature variable (column) to use for the visualization.
+        Column name for the feature variable to be visualized.
     target_on_y : bool
         If True, the target variable is plotted on the y-axis.
     axes_facets : AxesFacets
@@ -99,10 +100,16 @@ class Chart(ABC):
         'source', 'target', 'feature', 'target_on_y', 'axes_facets',
         'label_facets', 'stripes_facets', 'nrows', 'ncols', '_data', '_xlabel',
         '_ylabel', '_plots')
+    
     source: DataFrame
+    """Pandas DataFrame containing the source data in long-format."""
     target: str
+    """Column name for the target variable to be visualized."""
     feature: str
+    """Column name for the feature variable to be visualized."""
     target_on_y: bool
+    """Flag indicating whether the target variable is plotted on the 
+    y-axis."""
     stripes_facets: StripesFacets | None
     axes_facets: AxesFacets
     label_facets: LabelFacets | None
@@ -208,7 +215,7 @@ class Chart(ABC):
         return next(self)
     
     @abstractmethod
-    def plot(self, plotter: Plotter): ...
+    def plot(self, plotter: Type[Plotter]): ...
 
     @abstractmethod
     def stripes(self, **stripes): ...
@@ -454,12 +461,12 @@ class SimpleChart(Chart):
         self._reset_variate_()
 
     def plot(
-            self, plotter: Plotter, **kwds) -> Self:
+            self, plotter: Type[Plotter], **kwds) -> Self:
         """Plot the chart.
 
         Parameters
         ----------
-        plotter : Plotter
+        plotter : Type[Plotter]
             The plotter object.
         **kwds:
             Additional keyword arguments for the plotter object.
@@ -940,7 +947,7 @@ class MultipleVariateChart(SimpleChart):
             axes_data = data[self.target]
             yield axes_data
 
-    def plot(self, plotter: Plotter, **kwds) -> Self:
+    def plot(self, plotter: Type[Plotter], **kwds) -> Self:
         ax = None
         _ax = iter(self.axes_facets)
         for data in self:

@@ -133,6 +133,7 @@ from .utils import shared_axes
 from ..constants import KW
 from ..constants import DIST
 from ..constants import COLOR
+from ..constants import DEFAULT
 from ..constants import PLOTTER
 from ..constants import CATEGORY
 from ..statistics.confidence import fit_ci
@@ -449,7 +450,7 @@ class LinearRegression(Plotter):
     
     def __call__(
             self, kw_scatter: dict = {}, kw_fit_ci: dict = {},
-            kw_pred_ci: dict = {}, **kwds):
+            kw_pred_ci: dict = {}, **kwds) -> None:
         """
         Perform the linear regression plot operation.
 
@@ -889,7 +890,8 @@ class TransformPlotter(Plotter):
     f_base : int | float, optional
         Value that serves as the base location (offset) of the 
         feature values. Only taken into account if feature is not 
-        given, by default `PLOTTER.DEFAULT_F_BASE`.
+        given, by default `DEFAULT.FEATURE_BASE
+`.
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
         the y-axis, by default True
@@ -914,7 +916,8 @@ class TransformPlotter(Plotter):
             source: DataFrame,
             target: str,
             feature: str = '',
-            f_base: int | float = PLOTTER.DEFAULT_F_BASE,
+            f_base: int | float = DEFAULT.FEATURE_BASE
+,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -954,7 +957,8 @@ class TransformPlotter(Plotter):
         if self.feature and self.feature != PLOTTER.TRANSFORMED_FEATURE:
             for i, (f_value, group) in enumerate(
                     source.groupby(self.feature, sort=True),
-                    start=PLOTTER.DEFAULT_F_BASE):
+                    start=DEFAULT.FEATURE_BASE
+):
                 self._original_f_values = self._original_f_values + (f_value, )
                 if isinstance(f_value, (float, int)):
                     feature_data = f_value
@@ -1032,7 +1036,8 @@ class CenterLocation(TransformPlotter):
     f_base : int | float, optional
         Value that serves as the base location (offset) of the 
         feature values. Only taken into account if feature is not 
-        given, by default `PLOTTER.DEFAULT_F_BASE`.
+        given, by default `DEFAULT.FEATURE_BASE
+`.
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
         the y-axis, by default True
@@ -1064,7 +1069,8 @@ class CenterLocation(TransformPlotter):
             marker: str | None = None,
             show_line: bool = True,
             show_points: bool = True, #FIXME does not work as individual points only for center points: change to center
-            f_base: int | float = PLOTTER.DEFAULT_F_BASE,
+            f_base: int | float = DEFAULT.FEATURE_BASE
+,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -1166,7 +1172,8 @@ class Bar(TransformPlotter):
     f_base : int | float, optional
         Value that serves as the base location (offset) of the 
         feature values. Only taken into account if feature is not 
-        given, by default `PLOTTER.DEFAULT_F_BASE`.
+        given, by default `DEFAULT.FEATURE_BASE
+`.
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
         the y-axis, by default True
@@ -1196,7 +1203,8 @@ class Bar(TransformPlotter):
             width: float = CATEGORY.FEATURE_SPACE,
             method: str | None = None,
             kw_method: dict = {},
-            f_base: int | float = PLOTTER.DEFAULT_F_BASE,
+            f_base: int | float = DEFAULT.FEATURE_BASE
+,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
