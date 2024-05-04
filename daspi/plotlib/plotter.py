@@ -993,7 +993,7 @@ class TransformPlotter(Plotter):
         """
     
     @abstractmethod
-    def __call__(self):
+    def __call__(self) -> None:
         """Perform the plotting operation.
 
         This method should be overridden by subclasses to provide the specific plotting functionality.
@@ -1811,7 +1811,7 @@ class Violine(GaussianKDE):
             height=width/2, target_on_y=target_on_y, color=color, ax=ax,
             show_density_axis=True, **kwds)
 
-    def __call__(self, **kwds) -> None:
+    def __call__(self, **kwds) -> None: # type: ignore
         """
         Perform the plotting operation.
 
@@ -1935,7 +1935,7 @@ class Errorbar(TransformPlotter):
             self.source[self.upper] - self.source[self.target]])
         return err
     
-    def __call__(self, kw_points: dict = {}, **kwds):
+    def __call__(self, kw_points: dict = {}, **kwds) -> None:
         """Perform the plotting operation.
 
         Parameters

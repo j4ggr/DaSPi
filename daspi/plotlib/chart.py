@@ -42,6 +42,7 @@ customize a wide range of chart visualizations.
 """
 
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from abc import ABC
@@ -70,6 +71,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.ticker import AutoMinorLocator
 
+from .._typing import LegendHandles
 from ..strings import STR
 from ..constants import KW
 from ..constants import COLOR
@@ -108,7 +110,7 @@ class Chart(ABC):
     label_facets: LabelFacets | None
     nrows: int
     ncols: int
-    _data: DataFrame | None
+    _data: DataFrame
     _xlabel: str
     _ylabel: str
     _plots: List[Plotter]
@@ -131,7 +133,7 @@ class Chart(ABC):
         self.target_on_y = target_on_y
         for ax in self.axes.flat:
             getattr(ax, f'set_{"x" if self.target_on_y else "y"}margin')(0)
-        self._data = None
+        self._data = pd.DataFrame()
         self._xlabel = ''
         self._ylabel = ''
         self._plots = []
@@ -196,7 +198,7 @@ class Chart(ABC):
         else:
             self._xlabel = _label
         
-    @abstractmethod
+    @abstractmethod # TODO: This is not consistent implemented in the child classes
     def _data_genenator_(self) -> Generator[Tuple, Self, None]:
         """Implement the data generator and add the currently yielded 
         data to self._data so that it can be used internally."""
@@ -208,13 +210,22 @@ class Chart(ABC):
         return next(self)
     
     @abstractmethod
-    def plot(self, plotter: Plotter): ...
+    def plot(self, plotter: Plotter) -> Self:
+        """Overwrite this method to apply the given `Plotter` to the 
+        chart `Axes`."""
+        return self
 
     @abstractmethod
-    def stripes(self, **stripes): ...
+    def stripes(self, **stripes) -> Self:
+        """Overwrite this method to draw stripes to the chart `Axes`,
+        using the `plotlib.facets.StripesFacets` object."""
+        return self
 
     @abstractmethod
-    def label(self, **labels): ...
+    def label(self, **labels) -> Self:
+        """Overwrite this method to add labels to the chart, using the 
+        `plotlib.facets.LabelFacets` object."""
+        return self
     
     def save(self, file_name: str | Path, **kwds) -> Self:
         kw = KW.SAVE_CHART | kwds
@@ -326,28 +337,30 @@ class SimpleChart(Chart):
     
     @property
     def variate_names(self) -> List[str]:
-        """Get names of all set variates"""
+        """Get names of all set variates (read-only)."""
         return [v for v in self._variate_names if v]
     
     @property
     def color(self) -> str:
-        """Get color for current variate"""
+        """Get color for current variate (read-only)."""
         return self.coloring[self._current_variate.get(self.hue, None)]
     
     @property
     def marker(self) -> str:
-        """Get marker for current variate"""
+        """Get marker for current variate (read-only)."""
         return self.marking[self._current_variate.get(self.shape, None)]
 
     @property
     def sizes(self) -> NDArray | None:
         """Get sizes for current variate, is set in grouped data 
-        generator."""
-        return self.sizing(self._data[self.size]) if self.size else None
+        generator (read-only)."""
+        if self.sizing is not None:
+            return self.sizing(self._data[self.size])
     
     @property
-    def legend_handles_labels(self) -> Dict[str, Tuple[tuple]]:
-        """Get dictionary of handles and labels
+    def legend_handles_labels(
+            self) -> Dict[str, Tuple[LegendHandles, Tuple[str, ...]]]:
+        """Get dictionary of handles and labels (read-only):
         - keys: titles as str
         - values: handles and labels as tuple of tuples"""
         handlers = (self.coloring, self.marking, self.sizing)
@@ -355,7 +368,7 @@ class SimpleChart(Chart):
         if self.stripes_facets is not None:
             handlers = handlers + (self.stripes_facets,)
             titles = titles + (STR['stripes'], )
-        return {t: h.handles_labels() for t, h in zip(titles, handlers) if t}
+        return {t: h.handles_labels() for t, h in zip(titles, handlers) if h}
     
     def get_categorical_labels(self, colname: str) -> Tuple[Any, ...]:
         """Get sorted unique elements of given column name if in source.
@@ -414,6 +427,8 @@ class SimpleChart(Chart):
     
     def _categorical_feature_ticks_(self) -> None:
         """Set one major tick for each category and label it."""
+        if self.axes_facets.ax is None:
+            return # TODO: add logging
         xy = 'x' if self.target_on_y else 'y'
         _ticks = self.dodging.ticks
         settings = {
@@ -578,25 +593,55 @@ class JointChart(Chart):
 
     Inherits from Chart.
 
-    Attributes
+    Parameters
     ----------
-    charts : List of SimpleChart
-        List of SimpleChart instances to be combined.
-    hue : str or Tuple[str]
-        The hue variable (column) for color differentiation.
-    shape : str or Tuple[str]
-        The shape variable (column) for marker differentiation.
-    size : str or Tuple[str]
-        The size variable (column) for marker size differentiation.
-    dodge : bool or Tuple[bool]
-        Flag indicating if dodging is enabled.
+    source : DataFrame
+        The source data.
+    target : str or Tuple[str]
+        The target variable(s).
+    feature : str or Tuple[str]
+        The feature variable(s).
+    nrows : int
+        Number of rows in the subplot grid.
+    ncols : int
+        Number of columns in the subplot grid.
+    hue : str or Tuple[str], optional
+        The hue variable(s), by default ''.
+    shape : str or Tuple[str], optional
+        The shape variable(s), by default ''.
+    size : str or Tuple[str], optional
+        The size variable(s), by default ''.
+    dodge : bool or Tuple[bool], optional
+        Flag indicating if dodging is enabled, by default False.
+    categorical_feature : bool or Tuple[str], optional
+        Flag indicating if feature is categorical, by default False.
+    target_on_y : bool or List[bool], optional
+        Flag indicating if target is on y-axis, by default True.
+    sharex : bool or str, optional
+        Flag indicating if x-axis should be shared among subplots, by default False.
+    sharey : bool or str, optional
+        Flag indicating if y-axis should be shared among subplots, by default False.
+    width_ratios : List[float], optional
+        The width ratios for the subplot grid, by default None.
+    height_ratios : List[float], optional
+        The height ratios for the subplot grid, by default None.
+    stretch_figsize : bool, optional
+        Flag indicating if figure size should be stretched to fill the grid, by default True.
+    **kwds : dict
+        Additional keyword arguments for Chart initialization.
     """
     __slots__ = ('charts', '_target', '_feature')
+
     charts: List[SimpleChart]
+    """List of SimpleChart instances to be combined."""
     hue: str | Tuple[str]
+    """The hue variable (column) for color differentiation."""
     shape: str | Tuple[str]
+    """The shape variable (column) for marker differentiation."""
     size: str | Tuple[str]
+    """The size variable (column) for marker size differentiation."""
     dodge: bool | Tuple[bool]
+    """Flag indicating if dodging is enabled."""
 
     def __init__(
             self,

@@ -15,7 +15,7 @@ from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
-from ..typing import LegendHandles
+from .._typing import LegendHandles
 from ..constants import KW
 from ..constants import CATEGORY
 
@@ -205,16 +205,17 @@ class Dodger:
     __slots__ = (
         'categories', 'ticks', 'tick_lables', 'amount', 'width', 'dodge',
         '_default')
-    categories: Tuple[str]
+    categories: Tuple[str, ...]
     ticks: NDArray[np.int_]
-    tick_lables: Tuple[str]
+    tick_lables: Tuple[str, ...]
     width: float
     amount: int
     dodge: Dict[str, float]
     _default: int
 
     def __init__(
-            self, categories: Tuple[str], tick_labels: Tuple[str]) -> None:
+            self, categories: Tuple[str, ...], tick_labels: Tuple[str, ...]
+            ) -> None:
         self.categories = categories
         self.tick_lables = tick_labels
         self.ticks = np.arange(1, len(tick_labels) + 1)

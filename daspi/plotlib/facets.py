@@ -17,8 +17,8 @@ from matplotlib.figure import Figure
 from matplotlib.legend import Legend
 from matplotlib.patches import Patch
 
-from ..typing import SpecLimit
-from ..typing import LegendHandles
+from .._typing import SpecLimit
+from .._typing import LegendHandles
 from ..strings import STR
 from ..constants import KW
 from ..constants import LABEL
