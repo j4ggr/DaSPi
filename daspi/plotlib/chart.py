@@ -42,7 +42,6 @@ customize a wide range of chart visualizations.
 """
 
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 
 from abc import ABC
@@ -74,6 +73,7 @@ from matplotlib.axis import YAxis
 from matplotlib.figure import Figure
 from matplotlib.ticker import AutoMinorLocator
 
+from .._typing import LegendHandles
 from ..strings import STR
 from .._typing import LegendHandlesLabels
 
@@ -343,12 +343,12 @@ class SimpleChart(Chart):
     
     @property
     def variate_names(self) -> List[str]:
-        """Get names of all set variates"""
+        """Get names of all set variates (read-only)."""
         return [v for v in self._variate_names if v]
     
     @property
     def color(self) -> str:
-        """Get color for current variate"""
+        """Get color for current variate (read-only)."""
         return self.coloring[self._current_variate.get(self.hue, None)]
     
     @property
@@ -605,25 +605,55 @@ class JointChart(Chart):
 
     Inherits from Chart.
 
-    Attributes
+    Parameters
     ----------
-    charts : List of SimpleChart
-        List of SimpleChart instances to be combined.
-    hue : str or Tuple[str]
-        The hue variable (column) for color differentiation.
-    shape : str or Tuple[str]
-        The shape variable (column) for marker differentiation.
-    size : str or Tuple[str]
-        The size variable (column) for marker size differentiation.
-    dodge : bool or Tuple[bool]
-        Flag indicating if dodging is enabled.
+    source : DataFrame
+        The source data.
+    target : str or Tuple[str]
+        The target variable(s).
+    feature : str or Tuple[str]
+        The feature variable(s).
+    nrows : int
+        Number of rows in the subplot grid.
+    ncols : int
+        Number of columns in the subplot grid.
+    hue : str or Tuple[str], optional
+        The hue variable(s), by default ''.
+    shape : str or Tuple[str], optional
+        The shape variable(s), by default ''.
+    size : str or Tuple[str], optional
+        The size variable(s), by default ''.
+    dodge : bool or Tuple[bool], optional
+        Flag indicating if dodging is enabled, by default False.
+    categorical_feature : bool or Tuple[str], optional
+        Flag indicating if feature is categorical, by default False.
+    target_on_y : bool or List[bool], optional
+        Flag indicating if target is on y-axis, by default True.
+    sharex : bool or str, optional
+        Flag indicating if x-axis should be shared among subplots, by default False.
+    sharey : bool or str, optional
+        Flag indicating if y-axis should be shared among subplots, by default False.
+    width_ratios : List[float], optional
+        The width ratios for the subplot grid, by default None.
+    height_ratios : List[float], optional
+        The height ratios for the subplot grid, by default None.
+    stretch_figsize : bool, optional
+        Flag indicating if figure size should be stretched to fill the grid, by default True.
+    **kwds : dict
+        Additional keyword arguments for Chart initialization.
     """
     __slots__ = ('charts', '_target', '_feature')
+
     charts: List[SimpleChart]
+    """List of SimpleChart instances to be combined."""
     hue: str | Tuple[str]
+    """The hue variable (column) for color differentiation."""
     shape: str | Tuple[str]
+    """The shape variable (column) for marker differentiation."""
     size: str | Tuple[str]
+    """The size variable (column) for marker size differentiation."""
     dodge: bool | Tuple[bool]
+    """Flag indicating if dodging is enabled."""
 
     def __init__(
             self,
