@@ -1285,7 +1285,7 @@ class Bar(TransformPlotter):
     @property
     def default_kwds(self) -> Dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        facecolor = mcolors.to_rgba(self.color, alpha=COLOR.FILL_ALPHA)
+        facecolor = mcolors.to_rgba(self.color, alpha=COLOR.FILL_ALPHA) # type: ignore[attr-defined]
         kwds = dict(
             facecolor=facecolor, edgecolor=self.color,
             linewidth=plt.rcParams['lines.linewidth'])
@@ -1927,11 +1927,13 @@ class Violine(GaussianKDE):
             if self.target_on_y:
                 self.ax.fill_betweenx(
                     sequence, estim_low, estim_upp, **_kw_fill)
+                self.ax.plot(
+                    estim_low, sequence, estim_upp, sequence, **_kw_line)
             else:
                 self.ax.fill_between(
                     sequence, estim_low, estim_upp, **_kw_fill)
-            self.ax.plot(
-                estim_low, sequence, estim_upp, sequence, **_kw_line)
+                self.ax.plot(
+                    sequence, estim_low, sequence, estim_upp, **_kw_line)
 
 
 class Errorbar(TransformPlotter):
