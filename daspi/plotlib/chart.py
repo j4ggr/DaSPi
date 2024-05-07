@@ -67,14 +67,16 @@ from .facets import AxesFacets
 from .facets import LabelFacets
 from .facets import StripesFacets
 from .plotter import Plotter
+from .plotter import HideSubplot
 from matplotlib.axes import Axes
 from matplotlib.axis import XAxis
 from matplotlib.axis import YAxis
 from matplotlib.figure import Figure
 from matplotlib.ticker import AutoMinorLocator
 
-from .._typing import LegendHandles
 from ..strings import STR
+from .._typing import SpecLimit
+from .._typing import SpecLimits
 from .._typing import LegendHandlesLabels
 
 from ..constants import KW
@@ -99,7 +101,8 @@ class Chart(ABC):
         An instance containing the subplots' Axes and their arrangement.
     **kwds
         Additional key word arguments to instantiate the `AxesFacets`
-        object. Only taken into account if axes_facets is not specified.
+        object. Only taken into account if `axes_facets` is not
+        provided.
     """
     __slots__ = (
         'source', 'target', 'feature', 'target_on_y', 'axes_facets',
@@ -115,15 +118,24 @@ class Chart(ABC):
     target_on_y: bool
     """Flag indicating whether the target variable is plotted on the 
     y-axis."""
-    stripes_facets: StripesFacets | None
+    stripes_facets: StripesFacets
+    """StripesFacets instance for creating location and spread width
+    lines, specification limits and/or confidence interval areas as
+    stripes on each Axes."""
     axes_facets: AxesFacets
-    label_facets: LabelFacets | None
+    """AcesFacets instance for creating a grid of subplots with
+    customizable sharing and sizing options."""
+    label_facets: LabelFacets
+    """LabelFacets instance for adding labels and titles to facets of a
+    figure."""
     nrows: int
+    """Number of rows of subplots in the grid."""
     ncols: int
+    """Number of columns of subplots in the grid."""
     _data: DataFrame
-    _xlabel: str
-    _ylabel: str
+    """Current source data subset used for current Axes."""
     _plots: List[Plotter]
+    """All plotter objects used in `plot` method."""
 
     def __init__(
             self, source: DataFrame, target: str, feature: str = '',
@@ -138,13 +150,9 @@ class Chart(ABC):
             self.axes_facets = AxesFacets(self.nrows, self.ncols, **kwds)
         else:
             self.axes_facets = axes_facets
-        self.stripes_facets = None
-        self.label_facets = None
         self.target_on_y = target_on_y
         for ax in self.axes.flat:
             getattr(ax, f'set_{"x" if self.target_on_y else "y"}margin')(0)
-        self._xlabel = ''
-        self._ylabel = ''
         self._plots = []
 
     @property
@@ -162,73 +170,133 @@ class Chart(ABC):
     def n_axes(self) -> int:
         """Get amount of axes"""
         return self.ncols * self.nrows
-
-    @property
-    def xlabel(self) -> str:
-        """Get label for x axis, set with `set_axis_label` method"""
-        return self._xlabel
-    
-    @property
-    def ylabel(self) -> str:
-        """Get label for y axis, set with `set_axis_label` method"""
-        return self._ylabel
     
     @property
     def plots(self) -> List[Plotter]:
         """Get plotter objects used in `plot` method"""
         return self._plots
     
-    def set_axis_label(
-            self, label: Any, is_target: bool) -> None:
-        """Set axis label according to given kind of label, taking into
-        account the `target_on_y` attribute.
-        
-        Parameters
-        ----------
-        label : Any
-            If a string is passed, it will be taken. If True, labels of 
-            given feature or target name are used taking into account 
-            the target_on_y attribute. If False or None, empty string is 
-            used, by default ''
-        is_target : Bool
-            Set True if the label is for the target axis
+    @abstractmethod
+    def _axis_label_(
+            self, label: Any, is_target: bool) -> str | Tuple[str, ...]:
+        """Helper method to get the axis label based on the provided 
+        label and is_target flag.
         """
-
-        match label:
-            case None | False: 
-                _label = ''
-            case True: 
-                _label = self.target if is_target else self.feature
-            case _:
-                _label = str(label)
         
-        if is_target == self.target_on_y:
-            self._ylabel = _label
-        else:
-            self._xlabel = _label
+    @abstractmethod
+    def axis_labels(
+            self, feature_label: Any, target_label: Any
+            ) -> Tuple[str | Tuple[str, ...], str | Tuple[str, ...]]:
+        """Get the x and y axis labels based on the provided 
+        `feature_label` and `target_label`.
+        """
         
     @abstractmethod
     def _data_genenator_(self) -> Generator[DataFrame, Self, None]:
         """Implement the data generator and add the currently yielded 
-        data to self._data so that it can be used internally."""
+        data to self._data so that it can be used internally.
+        
+        Returns
+        -------
+        Generator[DataFrame, Self, None]
+            A generator object yielding DataFrames as subsets of the 
+            source data, used as plotting data for each Axes.
+        """
     
     def __iter__(self) -> Generator[DataFrame, Self, None]:
+        """Iterate over the Chart object.
+
+        Returns
+        -------
+        Generator[DataFrame, Self, None]
+            A generator object yielding DataFrames as subsets of the 
+            source data, used as plotting data for each Axes.
+        """
         return self._data_genenator_()
         
-    def __next__(self) -> Axes:
+    def __next__(self) -> DataFrame:
+        """Get the next subset of the source data.
+
+        Returns
+        -------
+        DataFrame
+            The next subset of the source data.
+        """
         return next(self)
     
     @abstractmethod
-    def plot(self, plotter: Type[Plotter]) -> Self: ...
+    def plot(self, plotter: Type[Plotter]) -> Self:
+        """Plot the chart using the specified plotter.
+
+        Parameters
+        ----------
+        plotter:Type[Plotter]
+            The type of plotter to use.
+
+        Returns
+        -------
+        Self
+            The updated Chart object.
+        """
 
     @abstractmethod
-    def stripes(self, **kwds) -> Self: ...
+    def stripes(self, **kwds) -> Self:
+        """Add stripes to the chart.
+
+        Parameters
+        ----------
+        kwds : 
+            Additional keyword arguments.
+
+        Returns
+        -------
+        Self
+            The updated Chart object.
+        """
 
     @abstractmethod
     def label(
         self, fig_title: str = '', sub_title: str = '',
         feature_label: bool | str = '', target_label: bool | str = '',
-        info: bool | str = False) -> Self: ...
+        info: bool | str = False) -> Self:
+        """Add labels and titles to the chart.
+
+        This method sets various labels and titles for the chart,
+        including figure title, subplot title, axis labels, row and
+        column titles, and additional information.
+
+        Parameters
+        ----------
+        fig_title : str, optional
+            The main title for the entire figure, by default ''.
+        sub_title : str, optional
+            The subtitle for the entire figure, by default ''.
+        feature_label : str | bool | None, optional
+            The label for the feature variable (x-axis), by default ''.
+            If set to True, the feature variable name will be used.
+            If set to False or None, no label will be added.
+        target_label : str | bool | None, optional
+            The label for the target variable (y-axis), by default ''.
+            If set to True, the target variable name will be used.
+            If set to False or None, no label will be added.
+        info : bool | str, optional
+            Additional information to display on the chart. If True,
+            the date and user information will be automatically added at
+            the lower left corner of the figure. If a string is
+            provided, it will be shown next to the date and user,
+            separated by a comma. By default, no additional information
+            is displayed.
+
+        Returns
+        -------
+        Self
+            The instance with updated labels and titles.
+
+        Notes
+        -----
+        This method allows customization of chart labels and titles to
+        enhance readability and provide context for the visualized data.
+        """
     
     def save(self, file_name: str | Path, **kwds) -> Self:
         kw = KW.SAVE_CHART | kwds
@@ -244,6 +312,10 @@ class Chart(ABC):
 class SimpleChart(Chart):
     """Represents a basic chart visualization with customizable
     features.
+
+    This class provides a foundation for creating customizable chart
+    visualizations. Customize the appearance and behavior of the chart
+    using various parameters and keyword arguments.
 
     Parameters
     ----------
@@ -271,11 +343,11 @@ class SimpleChart(Chart):
         derived. The range (minimum to maximum) of the variable is
         mapped to the marker size, by default ''
     categorical_feature : bool
-        Flag indicating if the features are categorical. If True, the 
-        feature values are transferred to the feature axis and the major 
-        grid is removed. However, a minor grid is created so that the 
-        categories are visually better separated. This attribute is set 
-        to True if `dodge` is set to True, by default False
+        Flag indicating whether the features are categorical. If True,
+        the feature values are transferred to the feature axis and the
+        major grid is removed. However, a minor grid is created so that
+        the categories are visually better separated. This attribute is
+        set to True if `dodge` is set to True, by default False.
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on the
         y-axis, by default True
@@ -283,20 +355,35 @@ class SimpleChart(Chart):
         Additional key word arguments to instantiate the `AxesFacets`
         object.
     """
+
     __slots__ = (
-        'hue', 'shape', 'size', 'sizing', 'marking', 'coloring', 'dodging',
+        'hue', 'shape', 'size', 'sizing', 'shaping', 'hueing', 'dodging',
         'categorical_feature', '_variate_names', '_current_variate',
         '_last_variate', )
+    
     hue: str
+    """The hue variable (column) for color differentiation."""
     shape: str
+    """The categorical shape variable (column) for marker differentiation."""
     size: str
+    """The numeric variable (column) from which the marker size is derived."""
     sizing: SizeLabel
-    marking: ShapeLabel
-    coloring: HueLabel
+    """A label handler for marker sizes based on the given size
+    variable (column)."""
+    shaping: ShapeLabel
+    """A label handler for marker shapes based on the given shape
+    variable (column)."""
+    hueing: HueLabel
+    """A label handler for color differentiation based on the given hue
+    variable column."""
     dodging: Dodger
+    """A handler for dodging categorical features along the axis."""
     categorical_feature: bool
+    """Flag indicating whether the features are categorical."""
     _current_variate: dict
+    """Dictionary to store current variate information."""
     _last_variate: dict
+    """Dictionary to store last variate information."""
 
     def __init__(
             self,
@@ -317,15 +404,15 @@ class SimpleChart(Chart):
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, **kwds)
-        self.coloring = HueLabel(self.get_categorical_labels(self.hue))
+        self.hueing = HueLabel(self.get_categorical_labels(self.hue))
         feature_tick_labels = ()
         if self.categorical_feature:
             assert feature in source, (
                 'categorical_feature is True, but features is not present')
             feature_tick_labels = self.get_categorical_labels(feature)
-        dodge_categories = tuple(self.coloring.labels) if dodge else ()
+        dodge_categories = tuple(self.hueing.labels) if dodge else ()
         self.dodging = Dodger(dodge_categories, feature_tick_labels)
-        self.marking = ShapeLabel(self.get_categorical_labels(self.shape))
+        self.shaping = ShapeLabel(self.get_categorical_labels(self.shape))
         if self.size:
             self.sizing = SizeLabel(
                 self.source[self.size].min(), self.source[self.size].max())
@@ -336,6 +423,7 @@ class SimpleChart(Chart):
     
     @property
     def ax(self) -> Axes:
+        """Get the axes instance (read-only)."""
         if self.axes_facets.ax is None:
             raise AttributeError(
                 'Chart has no Axes.')
@@ -349,12 +437,12 @@ class SimpleChart(Chart):
     @property
     def color(self) -> str:
         """Get color for current variate (read-only)."""
-        return self.coloring[self._current_variate.get(self.hue, None)]
+        return self.hueing[self._current_variate.get(self.hue, None)]
     
     @property
     def marker(self) -> str:
         """Get marker for current variate (read-only)"""
-        return self.marking[self._current_variate.get(self.shape, None)]
+        return self.shaping[self._current_variate.get(self.shape, None)]
 
     @property
     def sizes(self) -> NDArray | None:
@@ -365,21 +453,74 @@ class SimpleChart(Chart):
         return self.sizing(self._data[self.size])
     
     @property
-    def legend_handles_labels(self) -> Dict[str, LegendHandlesLabels
-]:
+    def legend_data(self) -> Dict[str, LegendHandlesLabels]:
         """Get dictionary of handles and labels (read-only).
         - keys: titles as str
         - values: handles and labels as tuple of tuples"""
         handle_label = {}
         if self.hue:
-            handle_label[self.hue] = self.coloring.handles_labels()
+            handle_label[self.hue] = self.hueing.handles_labels()
         if self.shape:
-            handle_label[self.shape] = self.marking.handles_labels()
+            handle_label[self.shape] = self.shaping.handles_labels()
         if self.size:
             handle_label[self.size] = self.sizing.handles_labels()
-        if self.stripes_facets is not None:
+        if hasattr(self, 'stripes_facets'):
             handle_label[STR['stripes']] = self.stripes_facets.handles_labels()
         return handle_label
+    
+    def _axis_label_(
+            self, label: str | bool | None, is_target: bool) -> str:
+        """Helper method to get the axis label based on the provided 
+        label and is_target flag.
+
+        Parameters
+        ----------
+        label: Any
+            The label to use for the feature or target axis.
+        is_target: bool
+            Flag indicating whether the label is for the target variable.
+
+        Returns
+        -------
+        str
+            The axis label.
+        """
+        match label:
+            case None | False: 
+                return ''
+            case True: 
+                return self.target if is_target else self.feature
+            case _:
+                return str(label)
+    
+    def axis_labels(
+            self, feature_label: bool | str | None, 
+            target_label: bool | str | None
+            ) -> Tuple[str, str]:
+        """Get the x and y axis labels based on the provided 
+        `feature_label` and `target_label`.
+            - If a string is passed, it will be taken.
+            - If True, labels of given feature or target name are used.
+            - If False or None, empty string is used.
+
+        Parameters
+        ----------
+        feature_label: bool | str | None
+            Flag or label for the feature variable.
+        target_label: bool | str | None
+            Flag or label for the target variable.
+
+        Returns
+        -------
+        Tuple[str, str]
+            A tuple containing the x-axis label (xlabel) and y-axis 
+            label (ylabel).
+        """
+        xlabel = self._axis_label_(feature_label, is_target=False)
+        ylabel = self._axis_label_(target_label, is_target=True)
+        if not self.target_on_y:
+            xlabel, ylabel = ylabel, xlabel
+        return xlabel, ylabel
     
     def get_categorical_labels(self, colname: str) -> Tuple[Any, ...]:
         """Get sorted unique elements of given column name if in source.
@@ -513,9 +654,12 @@ class SimpleChart(Chart):
     def stripes(
             self, mean: bool = False, median: bool = False,
             control_limits: bool = False, 
-            spec_limits: Tuple[float | None, float | None] = (None, None), 
+            spec_limits: Tuple[SpecLimit, SpecLimit] = (None, None), 
             confidence: float | None = None, **kwds) -> Self:
-        """Plot stripes on the chart axes.
+        """Plot location and spread width lines, specification limits 
+        and/or confidence interval areas as stripes on each Axes. The
+        location and spread (and their confidence bands) represent the 
+        data per axes.
 
         Parameters
         ----------
@@ -564,35 +708,53 @@ class SimpleChart(Chart):
         self, fig_title: str = '', sub_title: str = '',
         feature_label: bool | str = '', target_label: bool | str = '',
         info: bool | str = False) -> Self:
-        """Add labels to the chart.
+        """Add labels and titles to the chart.
+
+        This method sets various labels and titles for the chart,
+        including figure title, subplot title, axis labels, row and
+        column titles, and additional information.
 
         Parameters
         ----------
         fig_title : str, optional
-            The figure title, by default ''.
+            The main title for the entire figure, by default ''.
         sub_title : str, optional
-            The subtitle, by default ''.
-        feature_label : bool | str, optional
-            The feature label, by default ''.
-        target_label : bool | str, optional
-            The target label, by default ''.
+            The subtitle for the entire figure, by default ''.
+        feature_label : str | bool | None, optional
+            The label for the feature variable (x-axis), by default ''.
+            If set to True, the feature variable name will be used.
+            If set to False or None, no label will be added.
+        target_label : str | bool | None, optional
+            The label for the target variable (y-axis), by default ''.
+            If set to True, the target variable name will be used.
+            If set to False or None, no label will be added.
         info : bool | str, optional
-            Additional information label, by default False.
+            Additional information to display on the chart. If True,
+            the date and user information will be automatically added at
+            the lower left corner of the figure. If a string is
+            provided, it will be shown next to the date and user,
+            separated by a comma. By default, no additional information
+            is displayed.
 
-        Returns:
-        --------
-        Self:
-            The SimpleChart instance.
+        Returns
+        -------
+        SimpleChart
+            The instance of the SimpleChart with updated labels and 
+            titles.
+
+        Notes
+        -----
+        This method allows customization of chart labels and titles to
+        enhance readability and provide context for the visualized data.
         """
         if self.categorical_feature:
             self._categorical_feature_axis_()
-        self.set_axis_label(feature_label, is_target=False)
-        self.set_axis_label(target_label, is_target=True)
+        xlabel, ylabel = self.axis_labels(feature_label, target_label)
 
         self.label_facets = LabelFacets(
             figure=self.figure, axes=self.axes, fig_title=fig_title,
-            sub_title=sub_title, xlabel=self._xlabel, ylabel=self._ylabel,
-            info=info, legends=self.legend_handles_labels)
+            sub_title=sub_title, xlabel=xlabel, ylabel=ylabel,
+            info=info, legend_data=self.legend_data)
         self.label_facets.draw()
 
         return self
@@ -624,50 +786,75 @@ class JointChart(Chart):
     size : str or Tuple[str], optional
         The size variable(s), by default ''.
     dodge : bool or Tuple[bool], optional
-        Flag indicating if dodging is enabled, by default False.
+        Flag indicating whether dodging is enabled, by default False.
     categorical_feature : bool or Tuple[str], optional
-        Flag indicating if feature is categorical, by default False.
+        Flag indicating whether feature is categorical, by default
+        False.
     target_on_y : bool or List[bool], optional
-        Flag indicating if target is on y-axis, by default True.
+        Flag indicating whether target is on y-axis, by default True.
     sharex : bool or str, optional
-        Flag indicating if x-axis should be shared among subplots, by default False.
+        Flag indicating whether x-axis should be shared among subplots,
+        by default False.
     sharey : bool or str, optional
-        Flag indicating if y-axis should be shared among subplots, by default False.
+        Flag indicating whether y-axis should be shared among subplots,
+        by default False.
     width_ratios : List[float], optional
         The width ratios for the subplot grid, by default None.
     height_ratios : List[float], optional
         The height ratios for the subplot grid, by default None.
     stretch_figsize : bool, optional
-        Flag indicating if figure size should be stretched to fill the grid, by default True.
+        Flag indicating whether figure size should be stretched to fill
+        the grid, by default True.
     **kwds : dict
         Additional keyword arguments for Chart initialization.
     """
-    __slots__ = ('charts', '_target', '_feature')
+    __slots__ = (
+        'charts', '_last_chart', '_chart_iterator', 'targets', 'features', 
+        'hues', 'shapes', 'sizes', 'dodges', 'categorical_feature',
+        'target_on_ys')
 
     charts: List[SimpleChart]
-    """List of SimpleChart instances to be combined."""
-    hue: str | Tuple[str]
-    """The hue variable (column) for color differentiation."""
-    shape: str | Tuple[str]
-    """The shape variable (column) for marker differentiation."""
-    size: str | Tuple[str]
-    """The size variable (column) for marker size differentiation."""
-    dodge: bool | Tuple[bool]
-    """Flag indicating if dodging is enabled."""
+    """List of SimpleChart instances created for each Axis throughout
+    the chart."""
+    _last_chart: SimpleChart | None
+    """Last SimpleChart instance worked on."""
+    _chart_iterator: Generator[SimpleChart, Self, None]
+    """Iterator over SimpleChart instances."""
+    targets: Tuple[str, ...]
+    """Column names for the target variable to be visualized for each
+    axes."""
+    features: Tuple[str, ...]
+    """Column names for the feature variable to be visualized for each
+    axes."""
+    hues: Tuple[str, ...]
+    """The hue variable (column) for color differentiation for each
+    axes."""
+    shapes: Tuple[str, ...]
+    """The shape variables (column) for marker differentiation for each
+    axes."""
+    sizes: Tuple[str, ...]
+    """The size variable (column) for marker size differentiation for
+    each axes."""
+    dodges: Tuple[bool, ...]
+    """Flag indicating whether dodging is enabled for each axes."""
+    categorical_feature: bool | Tuple[bool, ...]
+    """Flags indicating if feature is categorical for each axes."""
+    target_on_ys: Tuple[bool, ...]
+    """Flags indicating whether target is on y-axis for each axes."""
 
     def __init__(
             self,
             source: DataFrame,
-            target: str,
-            feature: str | Tuple[str],
+            target: str | Tuple[str, ...],
+            feature: str | Tuple[str, ...],
             nrows: int,
             ncols: int,
-            hue: str | Tuple[str] = '',
-            shape: str | Tuple[str] = '',
-            size: str | Tuple[str] = '',
-            dodge: bool | Tuple[bool] = False,
-            categorical_feature: bool | Tuple[str] = False,
-            target_on_y: bool | List[bool] = True,
+            hue: str | Tuple[str, ...] = '',
+            shape: str | Tuple[str, ...] = '',
+            size: str | Tuple[str, ...] = '',
+            dodge: bool | Tuple[bool, ...] = False,
+            categorical_feature: bool | Tuple[str, ...] = False,
+            target_on_y: bool | Tuple[bool, ...] = True,
             sharex: bool | str = False,
             sharey: bool | str = False,
             width_ratios: List[float] | None = None,
@@ -676,89 +863,79 @@ class JointChart(Chart):
             **kwds) -> None:
 
         self.charts = []
+        self._last_chart = None
         self.ncols = ncols
         self.nrows = nrows
-        target = self.ensure_tuple(target)
-        feature = self.ensure_tuple(feature)
+
         super().__init__(
-            source=source, target=target, feature=feature, 
+            source=source, target='', feature='', 
             sharex=sharex, sharey=sharey, width_ratios=width_ratios,
             height_ratios=height_ratios, stretch_figsize=stretch_figsize,
             nrows=nrows, ncols=ncols, **kwds)
-        
-        charts_data = dict(
-            target = self._target,
-            feature = self._feature,
-            hue = self.ensure_tuple(hue),
-            shape = self.ensure_tuple(shape),
-            size = self.ensure_tuple(size),
-            dodge = self.ensure_tuple(dodge),
-            categorical_feature = self.ensure_tuple(categorical_feature),
-            target_on_y = self.ensure_tuple(target_on_y))
-        _kwds = dict(
-            source=self.source, axes_facets=self.axes_facets)
-        for values in zip(*charts_data.values()):
-            kwds = _kwds | dict(zip(charts_data.keys(), values))
-            self.charts.append(SimpleChart(**kwds))
-    
-    @property
-    def _idx(self) -> int:
-        """Get the index of current ax in flatten axes"""
-        for idx, ax in enumerate(self.axes.flat):
-            if self.axes_facets.ax == ax:
-                return idx
-        return 0
-    
-    @property
-    def feature(self) -> str:
-        return self._feature[self._idx]
-    @feature.setter
-    def feature(self, feature: str | Tuple[str]) -> None:
-        self._feature: Tuple[str] = self.ensure_tuple(feature)
-    
-    @property
-    def target(self) -> str:
-        return self._target[self._idx]
-    @target.setter
-    def target(self, target: str | Tuple[str]) -> None:
-        self._target: Tuple[str] = self.ensure_tuple(target)
-    
-    @property
-    def target_on_y(self) -> List[bool]:
-        """Get target_on_y of each sub chart as list
-
-        Set target_on_y for all sub charts. if only one value is given, 
-        it is adopted for all sub charts. If list or tuple, the values 
-        are assigned to the subcharts in order"""
-        return [c.target_on_y for c in self.charts]
-    @target_on_y.setter
-    def target_on_y(self, target_on_y: bool | List[bool] | Tuple[bool]) -> None:
-        for toy, chart in zip(self.ensure_tuple(target_on_y), self.charts):
-            chart.target_on_y = toy
+        self.targets = self.ensure_tuple(target)
+        self.features = self.ensure_tuple(feature)
+        self.hues = self.ensure_tuple(hue)
+        self.shapes = self.ensure_tuple(shape)
+        self.sizes = self.ensure_tuple(size)
+        self.dodges = self.ensure_tuple(dodge)
+        self.categorical_feature = self.ensure_tuple(categorical_feature)
+        self.target_on_ys = self.ensure_tuple(target_on_y)
+        for i in [self.axes_facets.index for _ in self.axes_facets]:
+            self.charts.append(SimpleChart(
+                source=self.source, target=self.targets[i],
+                feature=self.features[i], hue=self.hues[i],
+                dodge=self.dodges[i], shape=self.shapes[i], size=self.sizes[i],
+                categorical_feature=self.categorical_feature[i],
+                target_on_y=self.target_on_ys[i], axes_facets=self.axes_facets))
 
     @property
     def same_target_on_y(self) -> bool:
         """True if all target_on_y have the same boolean value."""
-        return all(toy == self.target_on_y[0] for toy in self.target_on_y)
+        reference = self.charts[0].target_on_y
+        return all(chart.target_on_y == reference for chart in self.charts)
     
     @property
-    def legend_handles_labels(self) -> Dict:
-        legend_hl = {}
+    def legend_data(self) -> Dict[str, LegendHandlesLabels]:
+        """Get dictionary of handles and labels (read-only).
+            - keys: titles as str
+            - values: handles and labels as tuple of tuples"""
+        legend_data = {}
         for chart in self.charts:
-            legend_hl = legend_hl | chart.legend_handles_labels
-        return legend_hl
+            legend_data = legend_data | chart.legend_data
+        return legend_data
     
-    @property
-    def xlabel(self) -> str | Tuple[str]:
-        if not self._xlabel:
-            self._xlabel = tuple((c.xlabel for c in self.charts))
-        return self._xlabel
+    def _single_label_allowed_(self, is_target: bool) -> bool:
+        """Determines whether a single label is allowed for the 
+        specified axis.
+        
+        This method checks whether a single axis label is allowed for 
+        either target or feature dimensions based on certain conditions.
+        The `same_target_on_y` attribute and the number of unique labels
+        are considered.
+        
+        Parameters
+        ----------
+        is_target : bool
+            If True, checks for target labels; otherwise, checks for 
+            feature labels.
+
+        Returns
+        -------
+        bool
+            True if a single label is allowed, False otherwise.
+        """
+        allowed = all([
+            self.same_target_on_y,
+            len(set(self.targets if is_target else self.features)) == 1])
+        return allowed 
     
-    @property
-    def ylabel(self) -> str | Tuple[str]:
-        if not self._ylabel: 
-            self._ylabel = tuple((c.ylabel for c in self.charts))
-        return self._ylabel
+    def _next_chart_(self) -> SimpleChart:
+        """Get next SimpleChart instance to work on (read-only)."""
+        if (self._last_chart in (None, self.charts[-1]) 
+            or not hasattr(self, '_chart_iterator')):
+            self._chart_iterator = self.itercharts()
+        self._last_chart = next(self._chart_iterator)
+        return self._last_chart
     
     def itercharts(self) -> Generator[SimpleChart, Self, None]:
         """Iter over charts simultaneosly iters over axes of 
@@ -767,56 +944,142 @@ class JointChart(Chart):
         for _, chart in zip(self.axes_facets, self.charts):
             yield chart
     
-    def ensure_tuple(self, attribute: Any) -> Tuple[Any]:
+    def ensure_tuple(
+            self, attribute: str | bool | Tuple | List) -> Tuple:
         """Ensures that the specified attribute is a tuple with the same
         length as the axes. If only one value is specified, it will be
         copied accordingly."""
-        if isinstance(attribute, tuple):
-            new_attribute = attribute
+        if isinstance(attribute, (str, bool)):
+            _attribute = tuple(attribute for _ in range(self.n_axes))
+        elif isinstance(attribute, tuple):
+            _attribute = attribute
         elif isinstance(attribute, list):
-            new_attribute = tuple(attribute)
+            _attribute = tuple(attribute)
         else:
-            new_attribute = tuple(attribute for _ in range(self.n_axes))
-        assert len(new_attribute) == self.n_axes, (
-            f'{attribute} does not have enough values, needed {self.n_axes}')
-        return new_attribute
+            raise ValueError(f'Not supported type {type(attribute)}')
 
-    def set_axis_label(
-            self, label: Any, is_target: bool) -> None:
-        if label and isinstance(label, str):
-            assert self.same_target_on_y, (
-                'For a single label, all axes must have the same orientation')
-            if is_target == all(self.target_on_y):
-                self._ylabel = label
-            else:
-                self._xlabel = label
-        else:
-            for _label, chart in zip(self.ensure_tuple(label), self.charts):
-                chart.set_axis_label(_label, is_target=is_target)
+        assert len(_attribute) == self.n_axes, (
+            f'{attribute} does not have enough values, needed {self.n_axes}')
+
+        return _attribute
     
-    def _data_genenator_(self) -> Generator[Tuple, Self, None]:
+    def _data_genenator_(self) -> Generator[DataFrame, Self, None]:
         return super()._data_genenator_()
-        
-    def plot(
-            self, plotters_kwds: List[Tuple[Plotter | None, Dict]],
-            hide_none: bool = True) -> Self:
-        _axs = iter(self.axes_facets)
-        for chart, (plotter, kwds) in zip(self.itercharts(), plotters_kwds):
-            ax = next(_axs)
-            if plotter is None:
-                if hide_none:
-                    ax.set_axis_off()
-                continue
-            chart.plot(plotter, **kwds)
-            self._plots.extend(chart.plots)
-        return self
     
+    def _axis_label_(
+            self, label: str | bool | None | Tuple[str | bool | None],
+            is_target: bool) -> str | Tuple[str, ...]:
+        """Helper method to get the axis label based on the provided 
+        label and is_target flag.
+
+        Parameters
+        ----------
+        label: str | bool | None | Tuple[str | bool | None]
+            The label to use for the feature or target axis.
+        is_target: bool
+            Flag indicating whether the label is for the target variable.
+
+        Returns
+        -------
+        str | Tuple[str, ...]
+            The axis label as a string for a global axis label or a
+            tuple containing an individual label for each axis.
+        """
+        if label in (False, None, ''):
+            return tuple('' for _ in self.charts)
+        elif isinstance(label, (tuple, list, set)):
+            label_chart = zip(label, self.charts)
+            return tuple(c._axis_label_(l, is_target) for l, c in label_chart)
+        elif label is True:
+            _label = self.targets[0] if is_target else self.features[0]
+        else:
+            _label = str(label)
+
+        _kind = "target" if is_target else "feature"
+        assert self._single_label_allowed_(is_target), (
+            f'Single label not allowed for the {_kind} axis. '
+            f'Ensure all subplots have the same orientation and {_kind}')
+        return _label
+
+    def _swap_labels_(
+            self, xlabel: str | Tuple[str, ...], ylabel: str | Tuple[str, ...]
+            ) -> Tuple[str | Tuple[str, ...], str | Tuple[str, ...]]:
+        """Swaps axis labels based on certain conditions.
+
+        If one of the label is a string, the method swaps the `xlabel` 
+        and `ylabel` if `target_on_y` attribute is not True for the 
+        first chart. If both labels are tuples, it processes each chart 
+        in the list and swaps labels accordingly.
+
+        Parameters
+        ----------
+        xlabel : str | Tuple[str, ...]
+            The x-axis label(s) coming from `_axis_label_` method.
+        ylabel : str | Tuple[str, ...]
+            The y-axis label(s) coming from `_axis_label_` method.
+
+        Returns
+        -------
+        Tuple[str | Tuple[str, ...], str | Tuple[str, ...]]
+            The swapped x-axis label(s) and y-axis label(s).
+        """
+        if isinstance(xlabel, str) or isinstance(ylabel, str):
+            if not self.target_on_ys[0]:
+                xlabel, ylabel = ylabel, xlabel
+        else:
+            xy = []
+            for x, y, chart in zip(xlabel, ylabel, self.charts):
+                xy.append((x, y) if chart.target_on_y  else (y, x))
+            xlabel, ylabel = tuple(zip(*xy))
+        return xlabel, ylabel
+    
+    def axis_labels(
+            self, feature_label: str | bool | None | Tuple[str | bool | None], 
+            target_label: str | bool | None | Tuple[str | bool | None]
+            ) -> Tuple[str | Tuple[str, ...], str | Tuple[str, ...]]:
+        """Get the x and y axis labels based on the provided 
+        `feature_label` and `target_label`."""
+        xlabel = self._axis_label_(feature_label, False)
+        ylabel = self._axis_label_(target_label, True)
+        xlabel, ylabel = self._swap_labels_(xlabel, ylabel)
+        return xlabel, ylabel
+    
+    def plot(self, plotter: Type[Plotter], **kwds) -> Self:
+        """Plot the data using the specified plotter.
+        
+        Parameters
+        ----------
+        plotter : Type[Plotter]
+            The plotter class to use for visualization.
+        **kwds
+            Additional keyword arguments to pass to the plotter.
+
+        Returns
+        -------
+        JointChart
+            The updated JointChart instance after plotting.
+        
+        Notes
+        -----
+        Call the plot method for each individual Axes in the flattened 
+        grid. You can specify the desired plotter for each chart 
+        individually. The order of plotting corresponds to the flattened 
+        arrangement of the subplots. Feel free to use this method to 
+        create customized visualizations for each subplot.
+        """
+        chart = self._next_chart_()
+        chart.plot(plotter, **kwds)
+        return self
+
     def stripes(
             self, mean: bool = False, median: bool = False,
             control_limits: bool = False, 
             spec_limits: Tuple[float | None, float | None] = (None, None), 
             confidence: float | None = None, **kwds) -> Self:
-        """Plot stripes on the chart axes.
+        """Plot location and spread width lines, specification limits 
+        and/or confidence interval areas as stripes on each Axes. The
+        location and spread (and their confidence bands) represent the 
+        data per axes.
 
         Parameters
         ----------
@@ -869,67 +1132,110 @@ class JointChart(Chart):
             target_label: str | bool | Tuple = '', 
             info: bool | str = False, row_title: str = '', col_title: str = ''
             ) -> Self:
-        """Add labels to the chart.
+        """Add labels and titles to the chart.
+
+        This method sets various labels and titles for the chart,
+        including figure title, subplot title, axis labels, row and
+        column titles, and additional information.
 
         Parameters
         ----------
         fig_title : str, optional
-            The figure title, by default ''.
+            The main title for the entire figure, by default ''.
         sub_title : str, optional
-            The subtitle, by default ''.
-        feature_label : bool | str, optional
-            The feature label, by default ''.
-        target_label : bool | str, optional
-            The target label, by default ''.
+            The subtitle for the entire figure, by default ''.
+        feature_label : str | bool | None, optional
+            The label for the feature variable (x-axis), by default ''.
+            If set to True, the feature variable name will be used.
+            If set to False or None, no label will be added.
+        target_label : str | bool | None, optional
+            The label for the target variable (y-axis), by default ''.
+            If set to True, the target variable name will be used.
+            If set to False or None, no label will be added.
         info : bool | str, optional
-            Additional information label, by default False.
+            Additional information to display on the chart. If True,
+            the date and user information will be automatically added at
+            the lower left corner of the figure. If a string is
+            provided, it will be shown next to the date and user,
+            separated by a comma. By default, no additional information
+            is displayed.
 
-        Returns:
-        --------
-        Self:
-            The JointChart instance.
+        Returns
+        -------
+        JointChart
+            The instance of the JointChart with updated labels and 
+            titles.
+
+        Notes
+        -----
+        This method allows customization of chart labels and titles to
+        enhance readability and provide context for the visualized data.
         """
         for chart in self.itercharts():
             if not chart.categorical_feature:
                 continue
             chart._categorical_feature_axis_()
-        self._xlabel = ''
-        self._ylabel = ''
-        self.set_axis_label(feature_label, is_target=False)
-        self.set_axis_label(target_label, is_target=True)
+        xlabel, ylabel = self.axis_labels(feature_label, target_label)
 
         self.label_facets = LabelFacets(
             figure=self.figure, axes=self.axes, fig_title=fig_title,
-            sub_title=sub_title, xlabel=self.xlabel, ylabel=self.ylabel,
+            sub_title=sub_title, xlabel=xlabel, ylabel=ylabel,
             info=info, row_title=row_title, col_title=col_title,
-            legends=self.legend_handles_labels)
+            legend_data=self.legend_data)
         self.label_facets.draw()
         return self
 
 
 class MultipleVariateChart(SimpleChart):
-    """
-    Represents a chart visualization handling multiple variables simultaneously.
+    """Represents a chart visualization that handles multiple variables
+    simultaneously.
 
-    Inherits from SimpleChart.
+    This class extends the functionality of SimpleChart to create 
+    visualizations for multiple variables, allowing for comparisons and
+    insights across different dimensions.
 
-    Attributes
+    Parameters
     ----------
-    col : str
-        The column used for column-wise differentiation.
-    row : str
-        The column used for row-wise differentiation.
-    row_labels : tuple
-        Tuple of sorted unique elements of the row column.
-    col_labels : tuple
-        Tuple of sorted unique elements of the column column.
+    source : DataFrame
+        The source data for the chart.
+    target : str
+        The target variable (dependent variable).
+    feature : str, optional
+        The feature variable (independent variable), by default ''.
+    hue : str, optional
+        The hue variable (color grouping), by default ''.
+    shape : str, optional
+        The shape variable (marker grouping), by default ''.
+    size : str, optional
+        The size variable (marker size grouping), by default ''.
+    col : str, optional
+        The column variable for facetting, by default ''.
+    row : str, optional
+        The row variable for facetting, by default ''.
+    dodge : bool, optional
+        Whether to dodge categorical variables, by default False.
+    stretch_figsize : bool, optional
+        Whether to stretch the figure size, by default True.
+    categorical_feature : bool, optional
+        Whether the feature variable is categorical. If `dodge` is True,
+        this will be automatically set to True, by default False.
+
+    Examples
+    --------
+    >>> chart = MultipleVariateChart(source=data, target='sales', col='region', hue='product')
+    >>> chart.plot(MyPlotter, param1=42, param2='abc')
     """
 
     __slots__ = ('col', 'row', 'row_labels', 'col_labels')
     col: str
+    """The column variable for facetting (if applicable)."""
     row: str
+    """The row variable for facetting (if applicable)."""
     row_labels: tuple
+    """Labels corresponding to categorical values in the row variable."""
     col_labels: tuple
+    """Labels corresponding to categorical values in the column 
+    variable."""
 
     def __init__(
             self,
@@ -971,6 +1277,38 @@ class MultipleVariateChart(SimpleChart):
                 return True
         return False
     
+    def specification_limits_iterator(
+            self, spec_limits: SpecLimits | Tuple[SpecLimits, ...]
+            ) -> Generator[SpecLimits, Any, None]:
+        """Generates specification limits based on the provided input.
+
+        Parameters
+        ----------
+        spec_limits : SpecLimits | Tuple[SpecLimits, ...]
+            The specification limits to generate from. If a single limit
+            pair is provided, it will be used for all axes. If a tuple 
+            of values is provided, each value corresponds to an axes.
+
+        Yields
+        ------
+        SpecLimits
+            The generated spec limits.
+
+        Examples
+        --------
+        >>> generator = spec_limits_gen((1.0, 2.0))
+        >>> next(generator)
+        (1.0, 2.0)
+        >>> next(generator)
+        (1.0, 2.0)
+        """
+        if isinstance(spec_limits[0], tuple):
+            _spec_limits = spec_limits
+        else:
+            _spec_limits = tuple([spec_limits]*self.n_axes)
+        for axes_limits  in _spec_limits:
+            yield axes_limits # type: ignore
+    
     def _categorical_feature_axis_(self) -> None:
         """Set one major tick for each category and label it. Hide 
         major grid and set one minor grid for feature axis."""
@@ -999,6 +1337,22 @@ class MultipleVariateChart(SimpleChart):
             yield axes_data
 
     def plot(self, plotter: Type[Plotter], **kwds) -> Self:
+        """Plot the chart using the specified plotter.
+
+        This method generates a subset of the source data specific to 
+        each axes and then uses this data for the specified plotter.
+
+        Parameters
+        ----------
+        plotter : Type[Plotter]
+            The type of plotter to use.
+        **kwds : Any
+            Additional keyword arguments to pass to the plotter.
+
+        Returns
+        -------
+        Self
+            The updated MultipleVariateChart object."""
         ax = None
         _ax = iter(self.axes_facets)
         for data in self:
@@ -1016,42 +1370,123 @@ class MultipleVariateChart(SimpleChart):
     def stripes(
             self, mean: bool = False, median: bool = False,
             control_limits: bool = False,
-            spec_limits: Tuple[float, float] | Tuple[Tuple] = (None, None),
+            spec_limits: SpecLimits | Tuple[SpecLimits, ...] = (None, None),
             confidence: float | None = None, **kwds) -> Self:
-        if not isinstance(spec_limits[0], tuple):
-            spec_limits = tuple(spec_limits for _ in self.axes_facets)
-        for axes_data, limits in zip(self._axes_data_(), spec_limits):
+        """Plot location and spread width lines, specification limits, 
+        and/or confidence interval areas as stripes on each Axes. The
+        location and spread (and their confidence bands) represent the
+        data per axes.
+
+        Parameters
+        ----------
+        mean : bool, optional
+            Whether to plot the mean value of the plotted data on the
+            axes, by default False.
+        median : bool, optional
+            Whether to plot the median value of the plotted data on the
+            axes, by default False.
+        control_limits : bool, optional
+            Whether to plot control limits representing the process
+            spread, by default False.
+        spec_limits : Tuple[float], optional
+            If provided, specifies the specification limits. The tuple
+            must contain two values for the lower and upper limits. If a
+            limit is not given, use None, by default ().
+        confidence : float, optional
+            The confidence level between 0 and 1, by default None.
+        **kwds:
+            Additional keyword arguments for configuring StripesFacets.
+
+        Returns
+        -------
+        SimpleChart
+            The instance of the SimpleChart with the specified stripes
+            plotted on the axes.
+
+        Notes
+        -----
+        This method plots stripes on the chart axes to represent
+        statistical measures such as mean, median, control limits, and
+        specification limits. The method provides options to customize
+        the appearance and behavior of the stripes using various
+        parameters and keyword arguments.
+        """
+        _spec_limits = self.specification_limits_iterator(spec_limits)
+        for axes_data, axes_limits in zip(self._axes_data_(), _spec_limits):
             super().stripes(
                 target=axes_data, mean=mean, median=median, 
-                control_limits=control_limits, spec_limits=limits,
+                control_limits=control_limits, spec_limits=axes_limits,
                 confidence=confidence, **kwds)
         return self
 
     def label(
-            self, feature_label: str, target_label: str,
-            fig_title: str = '', sub_title: str = '',
-            info: bool | str = False, row_title: str = '', col_title: str = ''
-            ) -> Self:
+            self, fig_title: str = '', sub_title: str = '',
+            feature_label: str | bool | None = '',
+            target_label: str | bool | None = '', info: bool | str = False,
+            row_title: str = '', col_title: str = '') -> Self:
+        """Add labels and titles to the chart.
+
+        This method sets various labels and titles for the chart,
+        including figure title, subplot title, axis labels, row and
+        column titles, and additional information.
+
+        Parameters
+        ----------
+        fig_title : str, optional
+            The main title for the entire figure, by default ''.
+        sub_title : str, optional
+            The subtitle for the entire figure, by default ''.
+        feature_label : str | bool | None, optional
+            The label for the feature variable (x-axis), by default ''.
+            If set to True, the feature variable name will be used.
+            If set to False or None, no label will be added.
+        target_label : str | bool | None, optional
+            The label for the target variable (y-axis), by default ''.
+            If set to True, the target variable name will be used.
+            If set to False or None, no label will be added.
+        info : bool | str, optional
+            Additional information to display on the chart. If True,
+            the date and user information will be automatically added at
+            the lower left corner of the figure. If a string is
+            provided, it will be shown next to the date and user,
+            separated by a comma. By default, no additional information
+            is displayed.
+        row_title : str, optional
+            The title for the row facet (if applicable), by default ''.
+        col_title : str, optional
+            The title for the column facet (if applicable),
+            by default ''.
+
+        Returns
+        -------
+        MultiVariateChart
+            The instance of the MultiVariateChart with updated labels
+            and titles.
+
+        Notes
+        -----
+        This method allows customization of chart labels and titles to
+        enhance readability and provide context for the visualized data.
+        """
         if self.categorical_feature:
             self._categorical_feature_axis_()
-        self.set_axis_label(feature_label, is_target=False)
-        self.set_axis_label(target_label, is_target=True)
         if self.row and not row_title:
             row_title = self.row
         if self.col and not col_title:
             col_title = self.col
+        xlabel, ylabel = self.axis_labels(feature_label, target_label)
 
         self.label_facets = LabelFacets(
             figure=self.figure, axes=self.axes, fig_title=fig_title,
-            sub_title=sub_title, xlabel=self.xlabel, ylabel=self.ylabel,
+            sub_title=sub_title, xlabel=xlabel, ylabel=ylabel,
             rows=self.row_labels, cols=self.col_labels,
             info=info, row_title=row_title, col_title=col_title,
-            legends=self.legend_handles_labels)
+            legend_data=self.legend_data)
         self.label_facets.draw()
         return self
 
 __all__ = [
-    SimpleChart.__name__,
-    JointChart.__name__,
-    MultipleVariateChart.__name__
+    'SimpleChart',
+    'JointChart',
+    'MultipleVariateChart'
 ]

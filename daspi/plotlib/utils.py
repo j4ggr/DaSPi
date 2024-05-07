@@ -50,12 +50,25 @@ def shared_axes(
 
 
 class _CategoryLabel(ABC):
+    """Abstract base class representing a category label handler for
+    plotted categorical values.
+
+    Parameters
+    ----------
+    labels : Tuple[str, ...]
+        Labels corresponding to the categories.
+    """
 
     __slots__ = ('_categories', '_default', '_labels', '_n')
+
     _categories: Tuple
+    """Tuple containing the available categories."""
     _default: Any
+    """Default category item."""
     _labels: Tuple[str, ...]
+    """Labels corresponding to the categories."""
     _n: int
+    """Number of used categories."""
     
     def __init__(self, labels: Tuple[str, ...]) -> None:
         self._n = len(labels)
@@ -64,17 +77,19 @@ class _CategoryLabel(ABC):
 
     @property
     def categories(self) -> Tuple:
+        """Get the available categories (read-only)."""
         return self._categories
 
     @property
     def default(self) -> Any:
-        """Get default category item"""
+        """Get default category item (read-only)."""
         if self._default is None:
             self._default = self.categories[0]
         return self._default
 
     @property
     def labels(self) -> Tuple[str, ...]:
+        """Get and set the labels corresponding to the categories."""
         return self._labels
     @labels.setter
     def labels(self, labels: Tuple[str, ...]) -> None:
@@ -86,15 +101,27 @@ class _CategoryLabel(ABC):
 
     @property
     def n_used(self) -> int:
-        """Get amount of used categories"""
+        """Get the number of used categories (read-only)."""
         return self._n
 
     @property
     def n_allowed(self) -> int:
-        """Allowed amount of categories"""
+        """Get the allowed amount of categories (read-only)."""
         return len(self.categories)
     
     def __getitem__(self, label: Any) -> Any:
+        """Get the category item corresponding to the given label.
+
+        Parameters
+        ----------
+        label : Any
+            The label for which to retrieve the category item.
+
+        Returns
+        -------
+        Any
+            The category item corresponding to the label.
+        """
         if label is not None: 
             try:
                 idx = self.labels.index(label)
@@ -107,18 +134,37 @@ class _CategoryLabel(ABC):
         return item
 
     def __str__(self) -> str:
+        """Get a string representation of the _CategoryLabel object."""
         return self.__class__.__name__
     
     def __bool__(self) -> bool:
+        """Check if the _CategoryLabel object is non-empty."""
         return bool(self._n)
     
     @abstractmethod
-    def handles_labels(self) -> LegendHandlesLabels: ...
+    def handles_labels(self) -> LegendHandlesLabels:
+        """Abstract method to retrieve legend handles and labels.
+
+        Returns
+        -------
+        LegendHandlesLabels
+            A tuple containing legend handles and labels.
+        """
+        pass
 
 
 class HueLabel(_CategoryLabel):
+    """A class representing category labels for hue values in plots.
+
+    Parameters
+    ----------
+    labels : Tuple[str]
+        Labels corresponding to the hue categories.
+    """
 
     _categories: Tuple[str, ...] = DEFAULT.PALETTE
+    """Tuple containing the available hue categories as the current
+    color palette"""
 
 
     def __init__(self, labels: Tuple[str]) -> None:
@@ -126,37 +172,73 @@ class HueLabel(_CategoryLabel):
     
     @property
     def colors(self) -> Tuple[str, ...]:
+        """Get the available hue colors (read-only)."""
         return self.categories[:self.n_used]
 
     def handles_labels(self) -> LegendHandlesLabels:
+        """Retrieve legend handles and labels for hue categories.
+
+        Returns
+        -------
+        LegendHandlesLabels
+            A tuple containing legend handles and labels.
+        """
         handles = tuple(Patch(color=c, **KW.HUE_HANDLES) for c in self.colors)
         return handles, self.labels
 
 
 class ShapeLabel(_CategoryLabel):
+    """A class representing category labels for shape markers in plots.
+
+    Parameters
+    ----------
+    labels : Tuple
+        Labels corresponding to the shape marker categories.
+    """
 
     _categories: Tuple[str, ...] = CATEGORY.MARKERS
+    """Tuple containing the available shape markers."""
 
     def __init__(self, labels: Tuple) -> None:
         super().__init__(labels)
     
     @property
     def markers(self) -> Tuple[str, ...]:
-        """Get used markers"""
+        """Get the used shape markers (read-only)."""
         return self.categories[:self.n_used]
 
     def handles_labels(self) -> LegendHandlesLabels:
+        """Retrieve legend handles and labels for shape markers.
+
+        Returns
+        -------
+        LegendHandlesLabels
+            A tuple containing legend handles and labels.
+        """
         handles = tuple(
             Line2D(marker=m, **KW.SHAPE_HANDLES) for m in self.markers)
         return handles, self.labels
 
 
 class SizeLabel(_CategoryLabel):
+    """A class representing category labels for marker sizes in plots.
+
+    Parameters
+    ----------
+    min_value : int | float
+        Minimum value for the size range.
+    max_value : int | float
+        Maximum value for the size range.
+    """
 
     __slots__ = ('_min', '_max')
+
     _categories: Tuple[int, ...] = CATEGORY.HANDLE_SIZES
+    """Tuple containing the available marker sizes."""
     _min: int | float
+    """Minimum value for the size range."""
     _max: int | float
+    """Maximum value for the size range."""
 
     def __init__(
             self, min_value: int | float, max_value: int | float,
@@ -176,45 +258,90 @@ class SizeLabel(_CategoryLabel):
     
     @property
     def offset(self) -> int:
-        """Offset for value to size transformation"""
+        """Get the offset for value-to-size transformation (read-only)."""
         return CATEGORY.MARKERSIZE_LIMITS[0]
     
     @property
     def factor(self) -> float:
-        """Factor for value to size transformation"""
+        """Get the factor for value-to-size transformation (read-only)."""
         low, upp = CATEGORY.MARKERSIZE_LIMITS
         return (upp - low)/(self._max - self._min)
     
     def handles_labels(self) -> LegendHandlesLabels:
+        """Retrieve legend handles and labels for marker sizes.
+
+        Returns
+        -------
+        LegendHandlesLabels
+            A tuple containing legend handles and labels.
+        """
         handles = tuple(
             Line2D(markersize=s, **KW.SIZE_HANDLES) for s in self.categories)
         return handles, self.labels
     
     def __getitem__(self, item: int | float | None) -> float:
+        """Get the size value corresponding to the given item.
+
+        Parameters
+        ----------
+        item : int | float | None
+            The item for which to retrieve the size value.
+
+        Returns
+        -------
+        float
+            The size value corresponding to the item."""
         if item is None:
             return self.default
         return self([item])[0]
     
     def __call__(self, values: ArrayLike) -> NDArray:
-        """Convert values into size values for markers"""
+        """Convert values into size values for markers.
+
+        Parameters
+        ----------
+        values : ArrayLike
+            Values to be converted into marker sizes.
+
+        Returns
+        -------
+        NDArray
+            Size values for markers.
+        """
         sizes = self.factor * (np.array(values) - self._min) + self.offset
         sizes = np.square(sizes)
         return sizes
 
 
 class Dodger:
+    """A class for handling dodging of categorical features in plots.
+
+    Parameters
+    ----------
+    categories : Tuple[str, ...]
+        Categories corresponding to the features.
+    tick_labels : Tuple[str, ...]
+        Labels for the ticks on the axis.
+    """
 
     __slots__ = (
         'categories', 'ticks', 'tick_lables', 'amount', 'width', 'dodge',
         '_default')
     
     categories: Tuple[str, ...]
+    """Categories corresponding to the features."""
     ticks: NDArray[np.int_]
+    """Numeric positions of the ticks."""
     tick_lables: Tuple[str, ...]
+    """Labels for the ticks on the axis."""
     width: float
+    """Width of each category bar."""
     amount: int
+    """Number of categories."""
     dodge: Dict[str, float]
+    """Dictionary mapping categories to dodge values."""
     _default: int
+    """Default dodge value."""
 
     def __init__(
             self,
@@ -235,17 +362,41 @@ class Dodger:
     
     @property
     def lim(self) -> Tuple[float, float]:
-        """Get the required axis limits."""
+        """Get the required axis limits (read-only)."""
         return (min(self.ticks) - 0.5, max(self.ticks) + 0.5)
     
     def __getitem__(self, category: str | None) -> float | int:
-        """Get the dodge value for given category"""
+        """Get the dodge value for a given category.
+
+        Parameters
+        ----------
+        category : str | None
+            The category for which to retrieve the dodge value.
+
+        Returns
+        -------
+        float | int
+            The dodge value corresponding to the category.
+        """
         if category is None:
             return self._default
         return self.dodge.get(category, self._default)
     
     def __call__(self, values: Series, category: str) -> pd.Series:
-        """Replace source values to dodged ticks using given category"""
+        """Replace source values with dodged ticks using the given category.
+
+        Parameters
+        ----------
+        values : Series
+            Source values to be replaced.
+        category : str
+            The category for which to apply the dodge.
+
+        Returns
+        -------
+        pd.Series
+            Series with replaced values.
+        """
         if not self:
             return values
         if not isinstance(values, pd.Series):
@@ -254,6 +405,13 @@ class Dodger:
         return values.replace(dict(zip(self.tick_lables, ticks)))
     
     def __bool__(self) -> bool:
+        """Check if the Dodger object has more than one category.
+
+        Returns
+        -------
+        bool
+            True if there are multiple categories, False otherwise.
+        """
         return len(self.categories) > 1
 
 __all__ = [

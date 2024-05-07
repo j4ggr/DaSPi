@@ -110,6 +110,7 @@ class LabelFacets:
             cols: Tuple[str, ...] = (),
             row_title: str = '',
             col_title: str = '',
+            axes_titles: Tuple[str, ...] = (),
             legend_data: Dict[str, LegendHandlesLabels] = {}
             ) -> None:
         self.figure = figure
@@ -122,6 +123,7 @@ class LabelFacets:
         self.cols = cols
         self.row_title = row_title
         self.col_title = col_title
+        self.axes_titles = axes_titles
         self.info = info
         self.legend_data = legend_data
         self._legend = None
@@ -346,6 +348,8 @@ class AxesFacets:
     """Number of Axes columns in the grid"""
     _ax: Axes | None
     """The current axes being worked on"""
+    index: int
+    """The axes flatten array index of current axes being worked on. """
 
     def __init__(
             self, nrows: int = 1, ncols: int = 1, 
@@ -370,6 +374,7 @@ class AxesFacets:
         self._nrows: int = nrows
         self._ncols: int = ncols
         self._ax = self.axes[0, 0] if self.nrows == self.ncols == 1 else None
+        self.index = 0
 
     @property
     def ax(self) -> Axes | None:
@@ -397,10 +402,12 @@ class AxesFacets:
             The generator object that yields the axes in the grid.
         """
         def ax_gen(self) -> Generator[Axes, Self, None]:
-            for ax in self.axes.flat:
+            for index, ax in enumerate(self.axes.flat):
                 self._ax = ax
+                self.index = index
                 yield ax
             self._ax = None
+            self.index = 0
         return ax_gen(self)
     
     def __next__(self) -> Axes:

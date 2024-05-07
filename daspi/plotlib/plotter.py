@@ -456,7 +456,7 @@ class LinearRegression(Plotter):
             *fit_ci(self.model),
             *prediction_ci(self.model))
         ci_data = pd.DataFrame(
-            data = np.array(data).T, 
+            data = np.array(data, dtype=float).T, 
             columns = PLOTTER.REGRESSION_CI_NAMES)
         return ci_data
     
@@ -2415,6 +2415,30 @@ class VariationTest(ConfidenceInterval):
             target_on_y=target_on_y, confidence_level=confidence_level,
             ci_func=ci_func, color=color, ax=ax)
 
+
+class HideSubplot(Plotter):
+    """Class for hiding all visual components of the x- and y-axis.
+    
+    Parameters
+    ----------
+    ax : Axes | None, optional
+        The axes object (subplot) in the figure to hide.
+    **kwds:
+        Additional keyword arguments that have no effect and are
+        only used to catch further arguments that have no use here
+        (occurs when this class is used within chart objects)."""
+
+    def __init__(
+            self,
+            ax: Axes,
+            **kwds) -> None:
+        assert isinstance(ax, Axes)
+        self.ax = ax
+    
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        """Hide all visual components of the x- and y-axis."""
+        self.ax.set_axis_off()
+
                 
 __all__ = [
     'Plotter',
@@ -2436,4 +2460,5 @@ __all__ = [
     'ConfidenceInterval',
     'MeanTest',
     'VariationTest',
+    'HideSubplot',
     ]
