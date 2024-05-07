@@ -232,7 +232,7 @@ class LabelFacets:
             self.figure.text(s=self.xlabel, **kw)
         else:
             for ax, xlabel in zip(self.plot_axes.flat, self.xlabel):
-                if (len(ax.xaxis._get_shared_axis()) == 1 
+                if (len(ax.xaxis._get_shared_axis()) == 1
                     or ax in self.plot_axes[-1]): 
                     ax.set(xlabel=xlabel)
 
@@ -246,7 +246,7 @@ class LabelFacets:
             self.figure.text(s=self.ylabel, **kw)
         else:
             for ax, ylabel in zip(self.plot_axes.flat, self.ylabel):
-                if (len(ax.yaxis._get_shared_axis()) == 1 
+                if (len(ax.yaxis._get_shared_axis()) == 1
                     or ax in self.plot_axes.T[0]): 
                     ax.set(ylabel=ylabel)
 

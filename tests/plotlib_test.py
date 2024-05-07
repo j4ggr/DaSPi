@@ -89,7 +89,7 @@ class TestDodger:
 
     def test_getitem(self):
         tick_labels = ('a', 'b', 'c', 'd')
-        dodge = Dodger(('r'), tick_labels=tick_labels)
+        dodge = Dodger(('r', ), tick_labels=tick_labels)
         assert dodge['r'] == 0
 
         dodge = Dodger(('r', 'g'), tick_labels=tick_labels)

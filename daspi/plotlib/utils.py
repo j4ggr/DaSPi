@@ -8,8 +8,10 @@ from typing import List
 from typing import Dict
 from typing import Tuple
 from typing import Literal
+from typing import Sequence
 from numpy.typing import NDArray
 from numpy.typing import ArrayLike
+from pandas._typing import Scalar
 from pandas.core.series import Series
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
@@ -55,7 +57,7 @@ class _CategoryLabel(ABC):
 
     Parameters
     ----------
-    labels : Tuple[str, ...]
+    labels : Sequence[Scalar]
         Labels corresponding to the categories.
     """
 
@@ -70,7 +72,7 @@ class _CategoryLabel(ABC):
     _n: int
     """Number of used categories."""
     
-    def __init__(self, labels: Tuple[str, ...]) -> None:
+    def __init__(self, labels: Sequence[Scalar]) -> None:
         self._n = len(labels)
         self._default = None
         self.labels = labels
@@ -92,12 +94,12 @@ class _CategoryLabel(ABC):
         """Get and set the labels corresponding to the categories."""
         return self._labels
     @labels.setter
-    def labels(self, labels: Tuple[str, ...]) -> None:
+    def labels(self, labels: Sequence[Scalar]) -> None:
         assert self.n_used <= self.n_allowed, (
             f'{self} can handle {self.n_allowed} categories, got {len(labels)}')
         assert self.n_used == len(set(labels)), (
             'Labels occur more than once, only unique labels are allowed')
-        self._labels = labels
+        self._labels = tuple(map(str, labels))
 
     @property
     def n_used(self) -> int:
@@ -158,7 +160,7 @@ class HueLabel(_CategoryLabel):
 
     Parameters
     ----------
-    labels : Tuple[str]
+    labels : Sequence[Scalar]
         Labels corresponding to the hue categories.
     """
 
@@ -167,7 +169,7 @@ class HueLabel(_CategoryLabel):
     color palette"""
 
 
-    def __init__(self, labels: Tuple[str]) -> None:
+    def __init__(self, labels: Sequence[Scalar]) -> None:
         super().__init__(labels)
     
     @property
@@ -192,15 +194,15 @@ class ShapeLabel(_CategoryLabel):
 
     Parameters
     ----------
-    labels : Tuple
+    labels : Sequence[Scalar]
         Labels corresponding to the shape marker categories.
     """
 
     _categories: Tuple[str, ...] = CATEGORY.MARKERS
     """Tuple containing the available shape markers."""
 
-    def __init__(self, labels: Tuple) -> None:
-        super().__init__(labels)
+    def __init__(self, labels: Sequence[Scalar]) -> None:
+        super().__init__(tuple(map(str, labels)))
     
     @property
     def markers(self) -> Tuple[str, ...]:

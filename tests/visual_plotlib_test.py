@@ -927,58 +927,58 @@ class TestJointChart:
     def test_probabilities(self) -> None:
         self.base = f'{self.fig_title}_probability'
         
-        # self.kind = 'norm-prob'
-        # chart = JointChart(
-        #         df_dist25,
-        #         target = 'rayleigh',
-        #         feature = '',
-        #         nrows = 2,
-        #         ncols = 2,
-        #         target_on_y = False
-        #     ).plot(Probability, kind='qq'
-        #     ).plot(Probability, kind='pp'
-        #     ).plot(Probability, kind='sq'
-        #     ).plot(Probability, kind='sp'
-        #     ).label(
-        #         fig_title = self.fig_title,
-        #         sub_title = 'QQ, PP, samples-Q and samples-P',
-        #         target_label = (
-        #             'norm quantiles', 'norm percentiles',
-        #             'norm samples', 'norm samples'),
-        #         feature_label = (
-        #             'theoretical quantiles', 'theoretical percentiles',
-        #             'theoretical quantiles', 'theoretical percentiles')
-        #     ).save(self.file_name
-        #     ).close()
-        # texts = get_texts(chart)
-        # assert self.file_name.is_file()
-        # assert len(texts) == 2
-        # assert texts[0].get_text() == self.fig_title
-        # assert texts[1].get_text() == 'QQ, PP, samples-Q and samples-P'
-        # assert chart.axes[0][0].get_ylabel() == 'theoretical quantiles'
-        # assert chart.axes[0][1].get_ylabel() == 'theoretical percentiles'
-        # assert chart.axes[1][0].get_ylabel() == 'theoretical quantiles'
-        # assert chart.axes[1][1].get_ylabel() == 'theoretical percentiles'
-        # assert chart.axes[0][0].get_xlabel() == 'norm quantiles'
-        # assert chart.axes[0][1].get_xlabel() == 'norm percentiles'
-        # assert chart.axes[1][0].get_xlabel() == 'norm samples'
-        # assert chart.axes[1][1].get_xlabel() == 'norm samples'
-        # for l in [t.get_text() for t in chart.axes[0][0].get_yticklabels()]:
-        #     assert '%' not in l
-        # for l in [t.get_text() for t in chart.axes[0][1].get_yticklabels()]:
-        #     assert '%' in l
-        # for l in [t.get_text() for t in chart.axes[1][0].get_yticklabels()]:
-        #     assert '%' not in l
-        # for l in [t.get_text() for t in chart.axes[1][1].get_yticklabels()]:
-        #     assert '%' in l
-        # for l in [t.get_text() for t in chart.axes[0][0].get_xticklabels()]:
-        #     assert '%' not in l
-        # for l in [t.get_text() for t in chart.axes[0][1].get_xticklabels()]:
-        #     assert '%' in l
-        # for l in [t.get_text() for t in chart.axes[1][0].get_xticklabels()]:
-        #     assert '%' not in l
-        # for l in [t.get_text() for t in chart.axes[1][1].get_xticklabels()]:
-        #     assert '%' not in l
+        self.kind = 'norm-prob'
+        chart = JointChart(
+                df_dist25,
+                target = 'rayleigh',
+                feature = '',
+                nrows = 2,
+                ncols = 2,
+                target_on_y = False
+            ).plot(Probability, kind='qq'
+            ).plot(Probability, kind='pp'
+            ).plot(Probability, kind='sq'
+            ).plot(Probability, kind='sp'
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = 'QQ, PP, samples-Q and samples-P',
+                target_label = (
+                    'norm quantiles', 'norm percentiles',
+                    'norm samples', 'norm samples'),
+                feature_label = (
+                    'theoretical quantiles', 'theoretical percentiles',
+                    'theoretical quantiles', 'theoretical percentiles')
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        assert self.file_name.is_file()
+        assert len(texts) == 2
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == 'QQ, PP, samples-Q and samples-P'
+        assert chart.axes[0][0].get_ylabel() == 'theoretical quantiles'
+        assert chart.axes[0][1].get_ylabel() == 'theoretical percentiles'
+        assert chart.axes[1][0].get_ylabel() == 'theoretical quantiles'
+        assert chart.axes[1][1].get_ylabel() == 'theoretical percentiles'
+        assert chart.axes[0][0].get_xlabel() == 'norm quantiles'
+        assert chart.axes[0][1].get_xlabel() == 'norm percentiles'
+        assert chart.axes[1][0].get_xlabel() == 'norm samples'
+        assert chart.axes[1][1].get_xlabel() == 'norm samples'
+        for l in [t.get_text() for t in chart.axes[0][0].get_yticklabels()]:
+            assert '%' not in l
+        for l in [t.get_text() for t in chart.axes[0][1].get_yticklabels()]:
+            assert '%' in l
+        for l in [t.get_text() for t in chart.axes[1][0].get_yticklabels()]:
+            assert '%' not in l
+        for l in [t.get_text() for t in chart.axes[1][1].get_yticklabels()]:
+            assert '%' in l
+        for l in [t.get_text() for t in chart.axes[0][0].get_xticklabels()]:
+            assert '%' not in l
+        for l in [t.get_text() for t in chart.axes[0][1].get_xticklabels()]:
+            assert '%' in l
+        for l in [t.get_text() for t in chart.axes[1][0].get_xticklabels()]:
+            assert '%' not in l
+        for l in [t.get_text() for t in chart.axes[1][1].get_xticklabels()]:
+            assert '%' not in l
 
         self.kind = 'dists-prob'
         target = df_dist25.columns.to_list()[1:]
