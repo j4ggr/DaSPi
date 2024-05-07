@@ -1122,10 +1122,10 @@ class TestJointChart:
                 nrows = 2,
                 ncols = 2,
                 target_on_y = (True, True, False, False)
-            ).plot(Pareto, highlight='air', highlighted_as_last=False, method='sum'
-            ).plot(Pareto, highlight='bus', highlight_color=COLOR.GOOD, method='sum'
-            ).plot(Pareto, highlight='air', highlighted_as_last=False, method='sum'
-            ).plot(Pareto, highlight='bus', highlight_color=COLOR.GOOD, method='sum'
+            ).plot(Pareto, method='sum', highlight='C', highlighted_as_last=False
+            ).plot(Pareto, method='sum', highlight='B', highlight_color=COLOR.GOOD
+            ).plot(Pareto, method='sum', highlight='C', highlighted_as_last=False
+            ).plot(Pareto, method='sum', highlight='B', highlight_color=COLOR.GOOD
             ).stripes(mean=True
             ).label(
                 fig_title = self.fig_title,

@@ -175,12 +175,20 @@ class Plotter(ABC):
     __slots__ = (
         'source', 'target', 'feature', '_color', 'target_on_y', 'fig', 'ax')
     source: DataFrame
+    """The data source for the plot"""
     target: str
+    """The column name of the target variable."""
     feature: str
+    """The column name of the feature variable."""
     _color: str | None
+    """Provided color for the artist"""
     target_on_y: bool
+    """Flag indicating whether the target variable is plotted on the
+    y-axis."""
     fig: Figure
+    """The top level container for all the plot elements."""
     ax: Axes
+    """The axes object for the plot."""
 
     def __init__(
             self,
@@ -201,6 +209,13 @@ class Plotter(ABC):
         
         self.fig, self.ax = plt.subplots(1, 1) if ax is None else ax.figure, ax # type: ignore
         self._color = color
+    
+    @property
+    @abstractmethod
+    def default_kwds(self) -> Dict[str, Any]:
+        """Override this property to provide the default keyword 
+        arguments for plotting as read-only."""
+        raise NotImplemented
     
     @property
     def x_column(self) -> str:
@@ -231,10 +246,10 @@ class Plotter(ABC):
 
     @abstractmethod
     def __call__(self) -> None:
-        """
-        Perform the plotting operation.
+        """Perform the plotting operation.
 
-        This method should be overridden by subclasses to provide the specific plotting functionality.
+        This method should be overridden by subclasses to provide the 
+        specific plotting functionality.
         """
 
 class Scatter(Plotter):
@@ -290,6 +305,14 @@ class Scatter(Plotter):
         self.marker = marker
         self.size = size
     
+    @property
+    def default_kwds(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = dict(
+            c=self.color, marker=self.marker, s=self.size,
+            alpha=COLOR.MARKER_ALPHA)
+        return kwds
+    
     def __call__(self, **kwds) -> None:
         """Perform the scatter plot operation.
 
@@ -299,9 +322,7 @@ class Scatter(Plotter):
             Additional keyword arguments to be passed to the Axes 
             `scatter` method.
         """
-        _kwds: Dict[str, Any] = dict(
-            c=self.color, marker=self.marker, s=self.size,
-            alpha=COLOR.MARKER_ALPHA) | kwds
+        _kwds = self.default_kwds | kwds
         self.ax.scatter(self.x, self.y, **_kwds)
 
 
@@ -344,8 +365,13 @@ class Line(Plotter):
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
+    @property
+    def default_kwds(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = dict(c=self.color)
+        return kwds
     
-    def __call__(self, marker=None, **kwds) -> None:
+    def __call__(self, marker: str | None = None, **kwds) -> None:
         """Perform the scatter plot operation.
 
         Parameters
@@ -359,8 +385,7 @@ class Line(Plotter):
             method.
         """
         alpha = None if marker is None else COLOR.MARKER_ALPHA
-        _kwds: Dict[str, Any] = dict(
-            c=self.color, marker=marker, alpha=alpha) | kwds
+        _kwds = self.default_kwds | dict(marker=marker, alpha=alpha) | kwds
         self.ax.plot(self.x, self.y, **_kwds)
             
 
@@ -436,7 +461,13 @@ class LinearRegression(Plotter):
         super().__init__(
             source=df, target=target, feature=feature, target_on_y=target_on_y,
             color=color, ax=ax)
-        
+    
+    @property
+    def default_kwds(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = KW.FIT_LINE | dict(color=self.color)
+        return kwds
+    
     @property
     def x_fit(self) -> ArrayLike:
         """Get values used for x-axis for fitted line (read-only)."""
@@ -482,7 +513,7 @@ class LinearRegression(Plotter):
             plot (Axes `plot` method).
         """
         color = dict(color=self.color)
-        _kwds: Dict[str, Any] = KW.FIT_LINE | color | kwds
+        _kwds = self.default_kwds | kwds
         self.ax.plot(self.x_fit, self.y_fit, **_kwds)
         
         if self.show_points:
@@ -722,6 +753,12 @@ class ParallelCoordinate(Plotter):
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
+    
+    @property
+    def default_kwds(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = dict(color=self.color)
+        return kwds
 
     def __call__(self, **kwds) -> None:
         """Perform the parallel coordinate plot
@@ -734,7 +771,7 @@ class ParallelCoordinate(Plotter):
         marker = kwds.pop('marker', plt.rcParams['lines.marker'])
         if not self.show_points:
             marker = None
-        _kwds: Dict[str, Any] = dict(color=self.color, marker=marker) | kwds
+        _kwds = self.default_kwds | dict(marker=marker) | kwds
         for identity, group in self.source.groupby(self.identities):
             self.ax.plot(group[self.x_column], group[self.y_column], **_kwds)
 
@@ -855,7 +892,13 @@ class BlandAltman(Plotter):
         self.estimation = Estimator(
             samples=df[_target], strategy='norm', agreement=agreement)
 
-    def __call__(self, **kwds):
+    @property
+    def default_kwds(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = dict(color=self.color)
+        return kwds
+    
+    def __call__(self, **kwds) -> None:
         """Perform the Bland-Altman plot operation.
 
         Parameters
@@ -864,7 +907,7 @@ class BlandAltman(Plotter):
             Additional keyword arguments to be passed to the Axes
             `scatter` method.
         """
-        _kwds: Dict[str, Any] = dict(color=self.color) | kwds
+        _kwds = self.default_kwds | kwds
         self.ax.scatter(self.x, self.y, **_kwds)
         
         kws = (KW.CONTROL_LINE, KW.CONTROL_LINE, KW.MEAN_LINE)
@@ -1096,6 +1139,12 @@ class CenterLocation(TransformPlotter):
             target_on_y=target_on_y, color=color, ax=ax)
 
     @property
+    def default_kwds(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = dict(c=self.color)
+        return kwds
+    
+    @property
     def kind(self)-> Literal['mean', 'median']:
         """Get and set the type of location ('mean' or 'median') to 
         plot.
@@ -1149,9 +1198,8 @@ class CenterLocation(TransformPlotter):
         marker = self.marker if self.show_points else ''
         linestyle = plt.rcParams['lines.linestyle'] if self.show_line else ''
         alpha = None if marker is None else COLOR.MARKER_ALPHA
-        _kwds: Dict[str, Any] = dict(
-            c=self.color, marker=marker, linestyle=linestyle, alpha=alpha
-            ) | kwds
+        _kwds = self.default_kwds | dict(
+            marker=marker, linestyle=linestyle, alpha=alpha) | kwds
         self.ax.plot(self.x, self.y, **_kwds)
 
 
@@ -1215,8 +1263,7 @@ class Bar(TransformPlotter):
             width: float = CATEGORY.FEATURE_SPACE,
             method: str | None = None,
             kw_method: dict = {},
-            f_base: int | float = DEFAULT.FEATURE_BASE
-,
+            f_base: int | float = DEFAULT.FEATURE_BASE,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -1234,6 +1281,13 @@ class Bar(TransformPlotter):
             self.source = self.source.rename(columns={self.target: target})
             self.target = target
 
+    @property
+    def default_kwds(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = dict(
+            color=self.color, edgecolor=self.color, alpha=COLOR.FILL_ALPHA)
+        return kwds
+    
     @property
     def bars(self) -> List[BarContainer]:
         """Get a list of BarContainer objects representing the bars in
@@ -1314,12 +1368,13 @@ class Bar(TransformPlotter):
             Additional keyword arguments to be passed to the Axes `bar`
             (or 'barh' if target_on_y is False) method.
         """
+        _kwds = self.default_kwds | kwds
         if self.target_on_y:
             self.ax.bar(
-                self.x, self.y, width=self.width, bottom=self.t_base, **kwds)
+                self.x, self.y, width=self.width, bottom=self.t_base, **_kwds)
         else:
             self.ax.barh(
-                self.y, self.x, height=self.width, left=self.t_base, **kwds)
+                self.y, self.x, height=self.width, left=self.t_base, **_kwds)
 
 
 class Pareto(Bar):
@@ -1521,13 +1576,14 @@ class Pareto(Bar):
             Additional keyword arguments to be passed to the Axes `bar`
             (or 'barh' if target_on_y is False) method.
         """
+        _kwds = self.default_kwds | kwds
         if self.target_on_y:
-            bars = self.ax.bar(self.x, self.y, width=self.width, **kwds)
+            bars = self.ax.bar(self.x, self.y, width=self.width, **_kwds)
             self.ax.plot(
                 self.x, self.y.cumsum(), color=self.color,
                 **KW.PARETO_LINE)
         else:
-            bars = self.ax.barh(self.y, self.x, height=self.width, **kwds)
+            bars = self.ax.barh(self.y, self.x, height=self.width, **_kwds)
             self.ax.plot(
                 self.x[::-1].cumsum(), self.y[::-1], color=self.color,
                 **KW.PARETO_LINE)
@@ -1583,6 +1639,12 @@ class Jitter(TransformPlotter):
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
+    
+    @property
+    def default_kwds(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = dict(color=self.color)
+        return kwds
         
     def jitter(self, loc: float, size: int) -> NDArray:
         """Generates normally distributed jitter values. The standard 
@@ -1642,7 +1704,7 @@ class Jitter(TransformPlotter):
             Additional keyword arguments to be passed to the Axes 
             `scatter` method.
         """
-        _kwds: Dict[str, Any] = dict(color=self.color) | kwds
+        _kwds = self.default_kwds | kwds
         self.ax.scatter(self.x, self.y, **_kwds)
 
 
@@ -1713,7 +1775,13 @@ class GaussianKDE(TransformPlotter):
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
-        
+    
+    @property
+    def default_kwds(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = dict(alpha=COLOR.FILL_ALPHA)
+        return kwds
+    
     @property
     def height(self) -> float | None:
         """Height of kde curve at its maximum."""
@@ -1776,7 +1844,7 @@ class GaussianKDE(TransformPlotter):
             method, by default {}.
         """
         self.ax.plot(self.x, self.y, **kw_line)
-        _kw_fill: Dict[str, Any] = dict(alpha=COLOR.FILL_ALPHA) | kw_fill
+        _kw_fill = self.default_kwds | kw_fill
         if self.target_on_y:
             self.ax.fill_betweenx(self.y, self._f_base, self.x, **_kw_fill)
         else:
@@ -1833,6 +1901,12 @@ class Violine(GaussianKDE):
             height=width/2, target_on_y=target_on_y, color=color, ax=ax,
             show_density_axis=True, **kwds)
 
+    @property
+    def default_kwds(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = dict(color=self.color, alpha=COLOR.FILL_ALPHA)
+        return kwds
+    
     def __call__(self, kw_line: Dict[str, Any] = {}, **kw_fill) -> None:
         """Perform the plotting operation.
 
@@ -1841,8 +1915,7 @@ class Violine(GaussianKDE):
         **kwds : dict, optional
             Additional keyword arguments for the fill plot, by default {}.
         """
-        _kw_fill: Dict[str, Any] = dict(
-            color=self.color, alpha=COLOR.FILL_ALPHA) | kw_fill
+        _kw_fill = self.default_kwds | kw_fill
         _kw_line: Dict[str, Any] = dict(color=COLOR.DARKEN) | kw_line
         for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME):
             estim_upp = group[self.feature]
@@ -1926,6 +1999,13 @@ class Errorbar(TransformPlotter):
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, color=color, ax=ax)
+
+    @property
+    def default_kwds(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        _color = dict(color=self.color) if self.bars_same_color else {}
+        kwds = KW.ERROR_BAR | _color
+        return kwds
         
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
@@ -1975,8 +2055,7 @@ class Errorbar(TransformPlotter):
         if self.show_center:
             kw_points = dict(color=self.color) | kw_points
             self.ax.scatter(self.x, self.y, **kw_points)
-        _color = dict(color=self.color) if self.bars_same_color else {}
-        _kwds: Dict[str, Any] = KW.ERROR_BAR | _color | kwds
+        _kwds = self.default_kwds | kwds
         if self.target_on_y:
             self.ax.errorbar(self.x, self.y, yerr=self.err, **_kwds)
         else:
