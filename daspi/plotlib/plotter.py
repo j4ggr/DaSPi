@@ -113,6 +113,7 @@ from typing import Generator
 from numpy.typing import NDArray
 from numpy.typing import ArrayLike
 
+from matplotlib import colors as mcolors
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.ticker import PercentFormatter
@@ -1284,8 +1285,10 @@ class Bar(TransformPlotter):
     @property
     def default_kwds(self) -> Dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
+        facecolor = mcolors.to_rgba(self.color, alpha=COLOR.FILL_ALPHA)
         kwds = dict(
-            color=self.color, edgecolor=self.color, alpha=COLOR.FILL_ALPHA)
+            facecolor=facecolor, edgecolor=self.color,
+            linewidth=plt.rcParams['lines.linewidth'])
         return kwds
     
     @property

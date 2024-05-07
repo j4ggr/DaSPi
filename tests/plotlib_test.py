@@ -1,15 +1,11 @@
 import sys
 import pytest
-import matplotlib
 
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
-import matplotlib.pyplot as plt
 
 from pytest import approx
 from pathlib import Path
-from pandas.core.frame import DataFrame
 
 sys.path.append(Path(__file__).parent.resolve())
 
@@ -33,10 +29,9 @@ class TestCategoryLabel:
         assert str(self.sizes) == 'SizeLabel'
 
     def test_errrors(self):
-        with pytest.raises(KeyError) as err:
+        with pytest.raises(AssertionError) as err:
             self.colors['psi']
-        assert str(err.value) == (
-            f"\"Can't get category for label 'psi', got {self.colors.labels}\"")
+        assert "Can't get category for label" in str(err.value)
         
         with pytest.raises(AssertionError) as err:
             n = self.colors.n_allowed
@@ -47,7 +42,7 @@ class TestCategoryLabel:
         with pytest.raises(AssertionError) as err:
             ShapeLabel(('foo', 'foo', 'bar', 'bazz'))
         assert str(err.value) == (
-            f'Labels occur more than once, only unique labels are allowed')
+            'Labels occur more than once, only unique labels are allowed')
 
     def test_handles_labels(self):
         handles, labels = self.colors.handles_labels()

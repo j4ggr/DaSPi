@@ -157,12 +157,14 @@ class _Kw_:
     @property
     def MEDIAN_LINE(self) -> Dict[str, Any]:
         """Keyword arguments for median line."""
-        return dict(lw=self._lw, ls=self._dotted, color=COLOR.MEDIAN, zorder=0.8)
+        return dict(
+            lw=self._lw, ls=self._dotted, color=COLOR.MEDIAN, zorder=0.8)
 
     @property
     def CONTROL_LINE(self) -> Dict[str, Any]:
         """Keyword arguments for control limit line."""
-        return dict(lw=self._lw, ls=self._dashed, color=COLOR.PERCENTIL, zorder=0.7)
+        return dict(
+            lw=self._lw, ls=self._dashed, color=COLOR.PERCENTIL, zorder=0.7)
 
     @property
     def SECIFICATION_LINE(self) -> Dict[str, Any]:
@@ -216,9 +218,9 @@ RE = _Regex_()
 @dataclass(frozen=True)
 class _Color_:
 
-    GOOD: str = '#2ca02ccc'
+    GOOD: str = '#2ca02c7f'
     """Color for things that should be represented as 'good'."""
-    BAD: str = '#d62728cc'
+    BAD: str = '#d627287f'
     """Color for things that should be represented as 'bad'."""
     MEAN: str = '#101010'
     """Color for mean line used for StripesFacets."""
@@ -235,12 +237,12 @@ class _Color_:
     DARKEN: str = '#00000025'
     """Color to darken other colors, by adding 10 % black."""
     MARKER_ALPHA: float = 0.5
-    """The transparency of markers."""
+    """The covering capacity of markers."""
     FILL_ALPHA: float = 0.5
-    """The transparency of filled areas."""
-    CI_ALPHA: float = 0.3
-    """The transparency of confidence intervals."""
-    CI_STRIPES: str = '#202020'
+    """The covering capacity of filled areas."""
+    CI_ALPHA: float = 0.2
+    """The covering capacity of confidence intervals."""
+    CI_STRIPES: str = '#303030'
     """Color for confidence interval stripes."""
 
     @property

@@ -124,13 +124,11 @@ class _CategoryLabel(ABC):
         Any
             The category item corresponding to the label.
         """
-        if label is not None: 
-            try:
-                idx = self.labels.index(label)
-            except ValueError:
-                raise KeyError(
-                    f"Can't get category for label '{label}', got {self.labels}")
-            item = self.categories[idx]
+        if label is not None:
+            _label = str(label)
+            assert _label in self.labels, (
+                f"Can't get category for label {_label}, got {self.labels}")
+            item = self.categories[self.labels.index(_label)]
         else:
             item = self.default
         return item
