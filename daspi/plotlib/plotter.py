@@ -2514,6 +2514,10 @@ class HideSubplot(Plotter):
         assert isinstance(ax, Axes)
         self.ax = ax
     
+    @property
+    def default_kwds(self) -> Dict[str, Any]:
+        return {}
+
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         """Hide all visual components of the x- and y-axis."""
         self.ax.set_axis_off()
