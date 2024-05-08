@@ -11,6 +11,11 @@ plots can be used to visually assess statistical differences,
 estimate kernel density, display error bars, and evaluate confidence
 intervals.
 
+The following classes are designed to provide a convenient and intuitive
+way to visualize and analyze statistical data. They can be used in a
+variety of applications, including data exploration, hypothesis testing,
+and data presentation.
+
 Classes
 -------
 Plotter:
@@ -51,18 +56,14 @@ VariationTest:
     A class for creating plotters with error bars representing
     confidence intervals for variation measures.
 
-    
-These classes are designed to provide a convenient and intuitive way to
-visualize and analyze statistical data. They can be used in a variety of
-applications, including data exploration, hypothesis testing, and data
-presentation.
-
 Usage
 -----
 Import the module and use the classes to create and customize plots.
 
 Example
 -------
+Create a scatter plot
+```python
 from plotter import Plotter
 from plotter import Scatter
 from plotter import LinearRegression
@@ -70,26 +71,32 @@ from plotter import Probability
 from plotter import TransformPlotter
 from plotter import CenterLocation
 
-# Create a scatter plot
 data = {...}  # Data source for the plot
 scatter_plot = Scatter(data, 'target_variable')
 scatter_plot()
+```	
 
-# Create a linear regression plot
+Create a linear regression plot
+```python
 data = {...}  # Data source for the plot
 linear_regression_plot = LinearRegression(data, 'target_variable', 'feature_variable')
 linear_regression_plot()
+```
 
-# Create a probability plot
+Create a probability plot
+```python
 data = {...}  # Data source for the plot
 probability_plot = Probability(data, 'target_variable', dist='norm', kind='qq')
 probability_plot()
+```
 
-# Create a CenterLocation plot
+Create a CenterLocation plot
+```python
 data = {...}  # Data source for the plot
 center_plot = CenterLocation(data, 'target_variable', 'feature_variable', kind='mean')
 center_plot()
-"""#TODO write module docstring
+```
+"""
 
 import numpy as np
 import pandas as pd
@@ -1910,15 +1917,18 @@ class Violine(GaussianKDE):
         kwds = dict(color=self.color, alpha=COLOR.FILL_ALPHA)
         return kwds
     
-    def __call__(self, kw_line: Dict[str, Any] = {}, **kw_fill) -> None:
+    def __call__(self, kw_line: Dict[str, Any] = {}, **kwds) -> None:
         """Perform the plotting operation.
 
         Parameters
         ----------
+        kw_line : Dict[str, Any], optional
+            Additional keyword arguments for the axes `plot` method,
+            by default {}.
         **kwds : dict, optional
             Additional keyword arguments for the fill plot, by default {}.
         """
-        _kw_fill = self.default_kwds | kw_fill
+        _kwds = self.default_kwds | kwds
         _kw_line: Dict[str, Any] = dict(color=COLOR.DARKEN) | kw_line
         for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME):
             estim_upp = group[self.feature]
@@ -1926,12 +1936,12 @@ class Violine(GaussianKDE):
             sequence = group[self.target]
             if self.target_on_y:
                 self.ax.fill_betweenx(
-                    sequence, estim_low, estim_upp, **_kw_fill)
+                    sequence, estim_low, estim_upp, **_kwds)
                 self.ax.plot(
                     estim_low, sequence, estim_upp, sequence, **_kw_line)
             else:
                 self.ax.fill_between(
-                    sequence, estim_low, estim_upp, **_kw_fill)
+                    sequence, estim_low, estim_upp, **_kwds)
                 self.ax.plot(
                     sequence, estim_low, sequence, estim_upp, **_kw_line)
 

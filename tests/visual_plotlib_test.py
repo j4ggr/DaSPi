@@ -22,7 +22,7 @@ from daspi.strings import STR
 from daspi.constants import COLOR
 from daspi.plotlib.chart import Chart
 from daspi.plotlib.chart import JointChart
-from daspi.plotlib.chart import SimpleChart
+from daspi.plotlib.chart import SingleChart
 from daspi.plotlib.chart import MultipleVariateChart
 from daspi.plotlib.plotter import Bar
 from daspi.plotlib.plotter import Line
@@ -114,13 +114,13 @@ df_dist10: DataFrame = pd.read_csv(
 df_dist25: DataFrame = pd.read_csv(
     source/f'dists_25-samples.csv', nrows=25, **KW_READ)
 
-def get_texts(chart: SimpleChart | JointChart | MultipleVariateChart) -> List[Text]:
+def get_texts(chart: SingleChart | JointChart | MultipleVariateChart) -> List[Text]:
     return sorted(chart.figure.texts, key=lambda t: t._y, reverse=True)
 
 
-class TestSimpleChart:
+class TestSingleChart:
     
-    fig_title: str = 'SimpleChart'
+    fig_title: str = 'SingleChart'
     _sub_title: str = 'Aspirin Dissolution Dataset'
     target_label: str = 'Dissolution time (s)'
     feature_label: str = 'Water temperature (°C)'
@@ -144,7 +144,7 @@ class TestSimpleChart:
         self.base = f'{self.fig_title}_line'
 
         self.kind = 'hue'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
@@ -174,7 +174,7 @@ class TestSimpleChart:
         assert self.info_msg not in info_msg
 
         self.kind = 'hue_size'
-        chart =SimpleChart(
+        chart =SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
@@ -212,7 +212,7 @@ class TestSimpleChart:
         self.base = f'{self.fig_title}_scatter'
 
         self.kind = 'simple'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.feature
@@ -229,7 +229,7 @@ class TestSimpleChart:
 
 
         self.kind = 'transposed'
-        chart =SimpleChart(
+        chart =SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
@@ -250,7 +250,7 @@ class TestSimpleChart:
 
 
         self.kind = 'hue'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
@@ -279,7 +279,7 @@ class TestSimpleChart:
 
 
         self.kind = 'shape'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
@@ -308,7 +308,7 @@ class TestSimpleChart:
 
 
         self.kind = 'size'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
@@ -337,7 +337,7 @@ class TestSimpleChart:
 
 
         self.kind = 'hue-size'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
@@ -369,7 +369,7 @@ class TestSimpleChart:
         assert self.info_msg not in info_msg
 
         self.kind = 'hue-shape'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
@@ -401,7 +401,7 @@ class TestSimpleChart:
         assert self.info_msg not in info_msg
 
         self.kind = 'size-shape'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
@@ -433,7 +433,7 @@ class TestSimpleChart:
         assert self.info_msg not in info_msg
 
         self.kind = 'full'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
@@ -469,7 +469,7 @@ class TestSimpleChart:
     def test_pareto_plot(self) -> None:
         self.base = f'{self.fig_title}_pareto'
         with pytest.raises(AssertionError) as err:
-            chart = SimpleChart(
+            chart = SingleChart(
                     source = df_aspirin,
                     target = self.target,
                     feature = self.cat1,
@@ -479,7 +479,7 @@ class TestSimpleChart:
         assert 'categorical_feature' in str(err.value)
         
         self.kind = 'simple'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.cat1,
@@ -507,7 +507,7 @@ class TestSimpleChart:
         assert self.info_msg in info_msg
 
         self.kind = 'transposed'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.cat1,
@@ -539,7 +539,7 @@ class TestSimpleChart:
         self.base = f'{self.fig_title}_KDE'
 
         self.kind = 'simple'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 target_on_y = False
@@ -559,7 +559,7 @@ class TestSimpleChart:
         assert texts[1].get_text() == self.target
 
         self.kind = 'multiple'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 hue = self.cat1,
@@ -591,7 +591,7 @@ class TestSimpleChart:
         self.base = f'{self.fig_title}_jitter'
 
         self.kind = 'simple'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.cat1, 
@@ -614,7 +614,7 @@ class TestSimpleChart:
         assert self.info_msg in info_msg
         
         self.kind = 'multiple'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.cat1, 
@@ -642,7 +642,7 @@ class TestSimpleChart:
         self.base = f'{self.fig_title}_violine'
 
         self.kind = 'mono'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
             ).plot(Violine
@@ -663,7 +663,7 @@ class TestSimpleChart:
         assert self.info_msg in info_msg
 
         self.kind = 'simple'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.cat1, 
@@ -685,7 +685,7 @@ class TestSimpleChart:
         assert self.info_msg in info_msg
         
         self.kind = 'multiple'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.cat1, 
@@ -712,7 +712,7 @@ class TestSimpleChart:
         self.base = f'{self.fig_title}_errorbar'
 
         self.kind = 'sem'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.cat1, 
@@ -738,7 +738,7 @@ class TestSimpleChart:
         assert self.info_msg in info_msg
         
         self.kind = 'mean-test'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.cat1,
@@ -763,7 +763,7 @@ class TestSimpleChart:
         assert self.info_msg in info_msg
         
         self.kind = 'var-test'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.cat1,
@@ -789,7 +789,7 @@ class TestSimpleChart:
         assert self.info_msg in info_msg
         
         self.kind = 'std-test'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
                 feature = self.cat1,
@@ -819,7 +819,7 @@ class TestSimpleChart:
         self.base = f'{self.fig_title}_blandaltman'
         
         self.kind = 'simple'
-        chart = SimpleChart(
+        chart = SingleChart(
                 source = load_dataset('shoe-sole'),
                 target = 'new',
                 feature = 'old',

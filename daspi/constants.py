@@ -316,6 +316,7 @@ class _Plotter_:
     @property
     def REGRESSION_CI_NAMES(self) -> Tuple[str, str, str, str]:
         """Get names for regression confidences in order
+        
             - lower confidence level of fitted values
             - upper confidence level of fitted values
             - lower confidence level of predicted values

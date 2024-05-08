@@ -92,5 +92,5 @@ from .facets import StripesFacets
 
 from .chart import Chart
 from .chart import JointChart
-from .chart import SimpleChart
+from .chart import SingleChart
 from .chart import MultipleVariateChart

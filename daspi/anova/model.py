@@ -193,6 +193,7 @@ class LinearModel:
         attribute.
         
         Keys:
+        
         - 'formula' = the corresponding regression formula
         - 'least_feature' = the least significant feature
         - 'aic' = Akaike's information criteria
