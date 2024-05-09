@@ -11,10 +11,10 @@ sys.path.append(Path(__file__).parent.resolve())
 
 from daspi.constants import DEFAULT
 from daspi.constants import CATEGORY
-from daspi.plotlib.utils import Dodger
-from daspi.plotlib.utils import HueLabel
-from daspi.plotlib.utils import SizeLabel
-from daspi.plotlib.utils import ShapeLabel
+from daspi.plotlib.classify import Dodger
+from daspi.plotlib.classify import HueLabel
+from daspi.plotlib.classify import SizeLabel
+from daspi.plotlib.classify import ShapeLabel
 from daspi.plotlib.facets import AxesFacets
 
 

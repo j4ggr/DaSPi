@@ -41,10 +41,10 @@ plugins:
     handlers:
       python:
         options:
-          heading_level: 3
           docstring_style: numpy
-          merge_init_into_class: false
           docstring_section_style: table
+          heading_level: 3
+          merge_init_into_class: false
           show_bases: true
           show_source: false
           show_root_heading: true

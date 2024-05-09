@@ -136,8 +136,6 @@ from pandas.api.types import is_scalar
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
-from .utils import shared_axes
-
 from ..constants import KW
 from ..constants import DIST
 from ..constants import COLOR
@@ -223,7 +221,7 @@ class Plotter(ABC):
     def default_kwds(self) -> Dict[str, Any]:
         """Override this property to provide the default keyword 
         arguments for plotting as read-only."""
-        raise NotImplemented
+        raise NotImplementedError
     
     @property
     def x_column(self) -> str:
@@ -251,6 +249,34 @@ class Plotter(ABC):
         if self._color is None:
             self._color = COLOR.PALETTE[0]
         return self._color
+    
+    @staticmethod
+    def shared_axes(
+            ax: Axes, which: Literal['x', 'y'], exclude: bool = True
+            ) -> List[bool]:
+        """Get all the axes from the figure of the given `ax` and 
+        compare whether the `ax` share the given axis. 
+        Get a map of boolean values as a list where all are `True` when 
+        the axis is shared.
+        
+        Parameters
+        ----------
+        ax : Axes
+            Base axes object to add second axis
+        which : {'x', 'y'}
+            From which axis a second one should be added
+        exclude : bool, optional
+            If True excludes the given `ax` in the returned map
+        
+        Returns
+        -------
+        List[bool]
+            Flat map for axes that shares same axis
+        """
+        assert which in ('x', 'y')
+        view = getattr(ax, f'get_shared_{which}_axes')()
+        axes = [_ax for _ax in ax.figure.axes] if exclude else ax.figure.axes  # type: ignore
+        return [view.joined(ax, _ax) for _ax in axes]
 
     @abstractmethod
     def __call__(self) -> None:
@@ -259,6 +285,7 @@ class Plotter(ABC):
         This method should be overridden by subclasses to provide the 
         specific plotting functionality.
         """
+
 
 class Scatter(Plotter):
     """A scatter plotter that extends the Plotter base class.
@@ -294,8 +321,10 @@ class Scatter(Plotter):
     """
     __slots__ = ('marker', 'size')
     marker: str | None
+    """Provided marker style for the scatter plot."""
     size: Iterable[int] | None
-    
+    """The sizes of the markers in the scatter plot."""
+
     def __init__(
             self,
             source: DataFrame,
@@ -435,11 +464,18 @@ class LinearRegression(Plotter):
     """
     __slots__ = (
         'model', 'target_fit', 'show_points', 'show_fit_ci', 'show_pred_ci')
+    
     model: OLSResults
-    target_fit: str
+    """The fitted results of the linear regression model."""
+    target_fit: Literal['_fitted_values_']
+    """The name of the column containing the fitted values as defined 
+    in the PLOTTER.FITTED_VALUES_NAME."""
     show_points: bool
+    """Whether to show the individual points in the plot."""
     show_fit_ci: bool
+    """Whether to show the confidence interval for the fitted line."""
     show_pred_ci: bool
+    """Whether to show the confidence interval for the predictions."""
 
     def __init__(
             self,
@@ -599,8 +635,11 @@ class Probability(LinearRegression):
     """
     __slots__ = ('dist', 'kind', 'prob_fit')
     dist: rv_continuous
+    """The probability distribution use for creating feature data."""
     kind: Literal['qq', 'pp', 'sq', 'sp']
+    """The type of probability plot to create."""
     prob_fit: ProbPlot
+    """The probability fit for the given distribution."""
 
     def __init__(
             self,
@@ -743,7 +782,9 @@ class ParallelCoordinate(Plotter):
 
     __slots__ = ('identities', 'show_points')
     identities: str
+    """Column name of identities of each sample.""" 
     show_points: bool
+    """Whether to show the individual points or not."""
 
     def __init__(
             self,
@@ -868,7 +909,10 @@ class BlandAltman(Plotter):
     """
     __slots__ = ('confidence', 'estimation')
     confidence: float
+    """Confidence level of the confidence interval for mean and
+    agreements."""
     estimation: Estimator
+    """Estimator instance to estimate the mean and limits of agreement."""
 
     def __init__(
             self,
@@ -953,8 +997,7 @@ class TransformPlotter(Plotter):
     f_base : int | float, optional
         Value that serves as the base location (offset) of the 
         feature values. Only taken into account if feature is not 
-        given, by default `DEFAULT.FEATURE_BASE
-`.
+        given, by default `DEFAULT.FEATURE_BASE`.
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
         the y-axis, by default True
@@ -971,16 +1014,17 @@ class TransformPlotter(Plotter):
     """
     __slots__ = ('_f_base', '_original_f_values')
     _f_base: int | float
-    source: DataFrame
+    """Value that serves as the base location (offset) of the feature 
+    values."""
     _original_f_values: tuple
+    """Original values of the feature values."""
     
     def __init__(
             self,
             source: DataFrame,
             target: str,
             feature: str = '',
-            f_base: int | float = DEFAULT.FEATURE_BASE
-,
+            f_base: int | float = DEFAULT.FEATURE_BASE,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -1020,8 +1064,7 @@ class TransformPlotter(Plotter):
         if self.feature and self.feature != PLOTTER.TRANSFORMED_FEATURE:
             for i, (f_value, group) in enumerate(
                     source.groupby(self.feature, sort=True),
-                    start=DEFAULT.FEATURE_BASE
-):
+                    start=DEFAULT.FEATURE_BASE):
                 self._original_f_values = self._original_f_values + (f_value, )
                 if isinstance(f_value, (float, int)):
                     feature_data = f_value
@@ -1099,8 +1142,7 @@ class CenterLocation(TransformPlotter):
     f_base : int | float, optional
         Value that serves as the base location (offset) of the 
         feature values. Only taken into account if feature is not 
-        given, by default `DEFAULT.FEATURE_BASE
-`.
+        given, by default `DEFAULT.FEATURE_BASE`.
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
         the y-axis, by default True
@@ -1116,12 +1158,15 @@ class CenterLocation(TransformPlotter):
         used within chart objects).
     """
     __slots__ = ('_kind', 'show_line', 'show_points', 'marker')
+
     _kind: Literal['mean', 'median']
-    points: bool
+    """The type of center to plot ('mean' or'median')."""
     show_line: bool
+    """Whether to draw a line between the calculated means or medians."""
     show_points: bool
+    """Whether to draw the individual points."""
     marker: str | None
-    source: DataFrame
+    """The provided marker style for the scatter plot."""
 
     def __init__(
             self,
@@ -1240,8 +1285,7 @@ class Bar(TransformPlotter):
     f_base : int | float, optional
         Value that serves as the base location (offset) of the 
         feature values. Only taken into account if feature is not 
-        given, by default `DEFAULT.FEATURE_BASE
-`.
+        given, by default `DEFAULT.FEATURE_BASE`.
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
         the y-axis, by default True
@@ -1257,10 +1301,16 @@ class Bar(TransformPlotter):
         used within chart objects).
     """
     __slots__ = ('method', 'kw_method', 'stack', 'width')
+
     method: str | None
+    """The provided pandas Series method to use for aggregating target
+    values."""
     kw_method: dict
+    """The provided keyword arguments to be passed to the method."""
     stack: bool
+    """Whether to stack the bars."""
     width: float
+    """Width of the bars."""
 
     def __init__(
             self,
@@ -1454,9 +1504,13 @@ class Pareto(Bar):
         feature axis.
     """
     __slots__ = ('highlight', 'highlight_color', 'highlighted_as_last')
+
     highlight: Any
+    """The feature value whose bar should be highlighted in the chart."""
     highlight_color: str
+    """The color to use for highlighting."""
     highlighted_as_last: bool
+    """Whether the highlighted bar should be at the end."""
 
     def __init__(
             self,
@@ -1493,7 +1547,8 @@ class Pareto(Bar):
     @property
     def shared_feature_axes(self) -> bool:
         """True if any other ax in this figure shares the feature axes."""
-        return any(shared_axes(self.ax, 'x' if self.target_on_y else 'y', True))
+        which = 'x' if self.target_on_y else 'y'
+        return any(self.shared_axes(self.ax, which, True))
 
     @property
     def indices(self) -> List[int] | List[Hashable]:
@@ -1633,7 +1688,9 @@ class Jitter(TransformPlotter):
         used within chart objects).
     """
     __slots__ = ('width')
+
     width: float
+    """The width of the jitter."""
 
     def __init__(
             self,
@@ -1760,9 +1817,14 @@ class GaussianKDE(TransformPlotter):
         (occurs when this class is used within chart objects).
     """
     __slots__ = ('_height', '_stretch', 'show_density_axis')
+
     _height: float | None
+    """Height of kde curve at its maximum."""
     _stretch: float
+    """Factor by which the curve was stretched in height."""
     show_density_axis: bool
+    """Flag indicating whether to show the density axis spine, ticks and
+    labels."""
 
     def __init__(
             self,
@@ -1985,10 +2047,16 @@ class Errorbar(TransformPlotter):
         (occurs when this class is used within chart objects).
     """
     __slots__ = ('lower', 'upper', 'show_center', 'bars_same_color')
+
     lower: str
+    """Column name of the lower error values."""
     upper: str
+    """Column name of the upper error values."""
     show_center: bool
+    """Flag indicating whether to show the center points."""
     bars_same_color: bool
+    """Flag indicating whether to use same color for error bars as 
+    markers for center."""
 
     def __init__(
             self,
@@ -2201,9 +2269,14 @@ class SpreadWidth(Errorbar):
         (occurs when this class is used within chart objects).
     """#TODO copy docstring from Estimator
     __slots__ = ('strategy', 'agreement', 'possible_dists')
+
     strategy: Literal['eval', 'fit', 'norm', 'data']
+    """Strategy for estimating the spread width."""
     agreement: float | int
+    """Agreement value for the spread width estimation."""
     possible_dists: Tuple[str | rv_continuous, ...]
+    """Tuple of possible distributions for the spread width
+    estimation."""
 
     def __init__(
             self,
@@ -2308,8 +2381,11 @@ class ConfidenceInterval(Errorbar):
         Confidence level for the confidence intervals,
         by default 0.95.
     ci_func : Callable, optional
-        Function for calculating the confidence intervals,
-        by default mean_ci.
+        Function for calculating the confidence intervals. The following
+        two arguments are passed to the function: The sample data and 
+        the confidence level. The returned values must be three floats
+        in order: center value, lower confidence limit and upper 
+        confidence limit, by default `mean_ci`.
     color : str | None, optional
         Color to be used to draw the artists. If None, the first
         color is taken from the color cycle, by default None.
@@ -2322,9 +2398,13 @@ class ConfidenceInterval(Errorbar):
         (occurs when this class is used within chart objects).
     """
     __slots__ = ('confidence_level', 'ci_func', 'n_groups')
+
     confidence_level: float
+    """Confidence level for the confidence intervals."""
     ci_func: Callable
+    """Provided function for calculating the confidence intervals."""
     n_groups: int
+    """Number of unique feature values."""
 
     def __init__(
             self,

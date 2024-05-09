@@ -59,10 +59,10 @@ from numpy.typing import NDArray
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
-from .utils import Dodger
-from .utils import HueLabel
-from .utils import SizeLabel
-from .utils import ShapeLabel
+from .classify import Dodger
+from .classify import HueLabel
+from .classify import SizeLabel
+from .classify import ShapeLabel
 from .facets import AxesFacets
 from .facets import LabelFacets
 from .facets import StripesFacets

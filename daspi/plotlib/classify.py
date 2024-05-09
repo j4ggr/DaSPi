@@ -1,19 +1,46 @@
+"""The provided Python code defines several classes and a list of
+strings, all related to handling categorical features in data
+visualization. Here's a brief description of each component:
+
+1. _CategoryLabel: An abstract base class representing a category label 
+handler for plotted categorical values. It has properties for available 
+categories, default category, labels, and number of used categories. It
+also includes methods for getting category items, retrieving legend
+handles and labels, and checking if the object is empty.
+2. HueLabel: A class representing category labels for hue values in
+plots. It inherits from _CategoryLabel and adds a property for available
+hue colors. It also overrides the handles_labels method to provide
+specific legend handles and labels for hue categories.
+3. ShapeLabel: A class representing category labels for shape markers in
+plots. It inherits from _CategoryLabel and overrides the handles_labels
+method to provide specific legend handles and labels for shape markers.
+4. SizeLabel: A class representing category labels for marker sizes in
+plots. It inherits from _CategoryLabel and adds properties for the
+offset and factor for value-to-size transformation. It also overrides
+the handles_labels method to provide specific legend handles and labels
+for marker sizes. Additionally, it includes methods for getting size
+values and converting values into size values for markers.
+5. Dodger: A class for handling dodging of categorical features in
+plots. It has properties for categories, ticks, tick labels, width of
+each category bar, number of categories, dodge values, and default dodge
+value. It also includes methods for getting dodge values, replacing
+source values with dodged ticks, and checking if the object has more
+than one category.
+"""
+
 import numpy as np
 import pandas as pd
 
 from abc import ABC
 from abc import abstractmethod
 from typing import Any
-from typing import List
 from typing import Dict
 from typing import Tuple
-from typing import Literal
 from typing import Sequence
 from numpy.typing import NDArray
 from numpy.typing import ArrayLike
 from pandas._typing import Scalar
 from pandas.core.series import Series
-from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
@@ -21,34 +48,6 @@ from .._typing import LegendHandlesLabels
 from ..constants import KW
 from ..constants import DEFAULT
 from ..constants import CATEGORY
-
-
-def shared_axes(
-        ax: Axes, which: Literal['x', 'y'], exclude: bool = True
-        ) -> List[bool]:
-    """Get all the axes from the figure of the given `ax` and compare 
-    whether the `ax` share the given axis. 
-    Get a map of boolean values as a list where all are `True` when the 
-    axis is shared.
-    
-    Parameters
-    ----------
-    ax : Axes
-        Base axes object to add second axis
-    which : {'x', 'y'}
-        From which axis a second one should be added
-    exclude : bool, optional
-        If True excludes the given `ax` in the returned map
-    
-    Returns
-    -------
-    List[bool]
-        Flat map for axes that shares same axis
-    """
-    assert which in ('x', 'y')
-    view = getattr(ax, f'get_shared_{which}_axes')()
-    axes = [_ax for _ax in ax.figure.axes] if exclude else ax.figure.axes  # type: ignore
-    return [view.joined(ax, _ax) for _ax in axes]
 
 
 class _CategoryLabel(ABC):
@@ -350,11 +349,9 @@ class Dodger:
         self.categories = categories
         self.tick_lables = tick_labels
         self.ticks = np.arange(len(tick_labels)) + DEFAULT.FEATURE_BASE
-
         self.amount = max(len(self.categories), 1)
         space = CATEGORY.FEATURE_SPACE/self.amount
         self.width = space - CATEGORY.FEATURE_PAD
-
         offset = (space - CATEGORY.FEATURE_SPACE) / 2
         _dodge = tuple(i*space + offset for i in range(self.amount))
         self.dodge = {c: d for c, d in zip(self.categories, _dodge)}
@@ -415,7 +412,6 @@ class Dodger:
         return len(self.categories) > 1
 
 __all__ = [
-    'shared_axes',
     'HueLabel',
     'ShapeLabel',
     'SizeLabel',

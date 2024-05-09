@@ -58,13 +58,10 @@ import matplotlib.pyplot as plt
 
 from pathlib import Path
 
-plt.style.use(Path(__file__).parent/'daspi.mplstyle')
-
-from .utils import Dodger
-from .utils import HueLabel
-from .utils import SizeLabel
-from .utils import ShapeLabel
-from .utils import shared_axes
+from .classify import Dodger
+from .classify import HueLabel
+from .classify import SizeLabel
+from .classify import ShapeLabel
 
 from .plotter import Bar
 from .plotter import Line
@@ -94,3 +91,5 @@ from .chart import Chart
 from .chart import JointChart
 from .chart import SingleChart
 from .chart import MultipleVariateChart
+
+plt.style.use(Path(__file__).parent/'daspi.mplstyle')
