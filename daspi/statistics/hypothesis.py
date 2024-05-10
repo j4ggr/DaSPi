@@ -32,11 +32,13 @@ from statsmodels.stats.proportion import proportion_confint
 from statsmodels.stats.proportion import test_proportions_2indep
 from statsmodels.stats.proportion import confint_proportions_2indep
 
+from .._typing import NumericSample1D
+
 from .utils import convert_to_continuous
 
 
 def anderson_darling_test(
-        sample: Sequence[int | float]) -> Tuple[float, float]:
+        sample: NumericSample1D) -> Tuple[float, float]:
     """The Anderson-Darling test compares the measured values with the 
     theoretical values of a given distribution (in this case the normal 
     distribution). This test is considered to be one of the most 
@@ -45,7 +47,7 @@ def anderson_darling_test(
 
     Parameters
     ----------
-    sample : Sequence[int | float]
+    sample : NumericSample1D
         A one-dimensional array-like object containing the samples.
 
     Returns
@@ -71,7 +73,7 @@ def anderson_darling_test(
     return p, A_star
 
 def all_normal(
-        *samples: Sequence[int | float], p_threshold: float = 0.05
+        *samples: NumericSample1D, p_threshold: float = 0.05
         ) -> bool:
     """Performs the Anderson-Darling test against the normal
     distribution for each given sample data. Only one-dimensional
@@ -79,7 +81,7 @@ def all_normal(
     
     Parameters
     ----------
-    *samples : Sequence[int | float]
+    *samples : NumericSample1D
         One or more one-dimensional array-like objects containing the
         samples.
     p_threshold : float, optional
@@ -100,7 +102,7 @@ def all_normal(
     return all([anderson_darling_test(x)[0] > p_threshold for x in samples])
 
 def kolmogorov_smirnov_test(
-        sample: Sequence[int | float], dist: str | rv_continuous
+        sample: NumericSample1D, dist: str | rv_continuous
         ) -> Tuple[float, float, Tuple[float]]:
     """Perform a one-sample Kolmogorov-Smirnov-Test. This hypothesis
     test compares the underlying distribution F(x) of a sample against a 
@@ -109,7 +111,7 @@ def kolmogorov_smirnov_test(
     
     Parameters
     ----------
-    sample : Sequence[int | float]
+    sample : NumericSample1D
         A one-dimensional array-like object containing the samples.
     dist : str or scipy.stats rv_continous
         If a string, it should be the name of a continous distribution 
@@ -133,7 +135,7 @@ def kolmogorov_smirnov_test(
     return p, D, params
 
 def f_test(
-        sample1: Sequence[int | float], sample2: Sequence[int | float]
+        sample1: NumericSample1D, sample2: NumericSample1D
         ) -> Tuple[float, float]:
     """The F-test is a test for equal variances between two populations. 
     The probability distribution on which the F-test is based is called 
@@ -141,9 +143,9 @@ def f_test(
 
     Parameters
     ----------
-    sample1 : Sequence[int | float]
+    sample1 : NumericSample1D
         A one-dimensional array-like object containing the first sample.
-    sample2 : Sequence[int | float]
+    sample2 : NumericSample1D
         A one-dimensional array-like object containing the second
         sample.
 
@@ -161,7 +163,7 @@ def f_test(
     return p, F
 
 def levene_test(
-        sample1: Sequence[int | float], sample2: Sequence[int | float],
+        sample1: NumericSample1D, sample2: NumericSample1D,
         heavy_tailed: bool = False) -> Tuple[float, float]:
     """Perform Levene test for equal variances.
     The Levene test tests the null hypothesis that all input samples are 
@@ -169,9 +171,9 @@ def levene_test(
     
     Parameters
     ----------
-    sample1 : Sequence[int | float]
+    sample1 : NumericSample1D
         A one-dimensional array-like object containing the first sample.
-    sample2 : Sequence[int | float]
+    sample2 : NumericSample1D
         A one-dimensional array-like object containing the second
         sample.
     heavy_tailed : bool
@@ -189,7 +191,7 @@ def levene_test(
     return p, L
 
 def variance_stability_test(
-        sample: Sequence[int | float], n_sections: int = 3
+        sample: NumericSample1D, n_sections: int = 3
         ) -> Tuple[float, float]:
     """Perform Levene test for equal variances within one sample.
     
@@ -199,7 +201,7 @@ def variance_stability_test(
     
     Parameters
     ----------
-    sample : Sequence[int | float]
+    sample : NumericSample1D
         A one-dimensional array-like object containing the samples.
     n_sections : int, optional
         Amount of sections to divide the data into, by default 3
@@ -216,7 +218,7 @@ def variance_stability_test(
     return p, L
 
 def mean_stability_test(
-        sample: Sequence[int | float], n_sections: int = 3
+        sample: NumericSample1D, n_sections: int = 3
         ) -> Tuple[float, float]:
     """Perform one-way ANOVA for equal means within one sample.
     
@@ -226,7 +228,7 @@ def mean_stability_test(
     
     Parameters
     ----------
-    sample : Sequence[int | float]
+    sample : NumericSample1D
         A one-dimensional array-like object containing the samples.
     n_sections : int, optional
         Amount of sections to divide the data into, by default 3
@@ -243,7 +245,7 @@ def mean_stability_test(
     return p, statistic
 
 def position_test(
-        sample1: Sequence[int | float], sample2: Sequence[int | float],
+        sample1: NumericSample1D, sample2: NumericSample1D,
         equal_var: bool = True, normal: bool | None = None, u_test: bool=True
         ) -> Tuple[float, float, str]:
     """calculate the test for the means of *two independent* samples of 
@@ -261,9 +263,9 @@ def position_test(
 
     Parameters
     ----------
-    sample1 : Sequence[int | float]
+    sample1 : NumericSample1D
         A one-dimensional array-like object containing the first sample.
-    sample2 : Sequence[int | float]
+    sample2 : NumericSample1D
         A one-dimensional array-like object containing the second
         sample.
     equal_var : bool, optional
@@ -303,7 +305,7 @@ def position_test(
     return p, statistic, test
 
 def variance_test(
-        sample1: Sequence[int | float], sample2: Sequence[int | float],
+        sample1: NumericSample1D, sample2: NumericSample1D,
         normal: bool | None = None, heavy_tailed: bool = False
         ) -> Tuple[float, float, str]:
     """Perform test for equal variances of two independent variables.
@@ -312,9 +314,9 @@ def variance_test(
     
     Parameters
     ----------
-    sample1 : Sequence[int | float]
+    sample1 : NumericSample1D
         A one-dimensional array-like object containing the first sample.
-    sample2 : Sequence[int | float]
+    sample2 : NumericSample1D
         A one-dimensional array-like object containing the second
         sample.
     normal : bool or None
@@ -398,7 +400,7 @@ def proportions_test(
         test = 'Wald'
     return p, statistic, test
 
-def kurtosis_test(sample: Sequence[int | float]) -> Tuple[float, float]:
+def kurtosis_test(sample: NumericSample1D) -> Tuple[float, float]:
     """Two sided hypothesis test whether a dataset has normal kurtosis.
 
     This function tests the null hypothesis that the kurtosis of the 
@@ -407,7 +409,7 @@ def kurtosis_test(sample: Sequence[int | float]) -> Tuple[float, float]:
     
     Parameters
     ----------
-    sample : Sequence[int | float]
+    sample : NumericSample1D
         A one-dimensional array-like object containing the samples.
 
     Returns
@@ -421,7 +423,7 @@ def kurtosis_test(sample: Sequence[int | float]) -> Tuple[float, float]:
         sample, nan_policy='omit', alternative='two-sided')
     return p, statistic
 
-def skew_test(sample: Sequence[int | float]) -> Tuple[float, float]:
+def skew_test(sample: NumericSample1D) -> Tuple[float, float]:
     """Two sided hypothesis whether the skew is different from the 
     normal distribution.
 
@@ -432,7 +434,7 @@ def skew_test(sample: Sequence[int | float]) -> Tuple[float, float]:
     
     Parameters
     ----------
-    sample : Sequence[int | float]
+    sample : NumericSample1D
         A one-dimensional array-like object containing the samples.
 
     Returns

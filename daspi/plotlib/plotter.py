@@ -944,7 +944,7 @@ class BlandAltman(Plotter):
             target_on_y=target_on_y, color=color, ax=ax)
         self.confidence = confidence
         self.estimation = Estimator(
-            samples=df[_target].values, strategy='norm', agreement=agreement)
+            samples=df[_target], strategy='norm', agreement=agreement)
 
     @property
     def default_kwds(self) -> Dict[str, Any]:

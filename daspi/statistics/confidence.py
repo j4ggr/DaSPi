@@ -22,14 +22,16 @@ from statsmodels.regression.linear_model import RegressionResults
 from statsmodels.stats.outliers_influence import OLSInfluence
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 
+from .._typing import NumericSample1D
 
-def sem(sample: Sequence[int | float], ddof: int = 1) -> float:
+
+def sem(sample: NumericSample1D, ddof: int = 1) -> float:
     """Calculate the standard error of the mean (or standard error of
     measurement) of the values in the input array.
 
     Parameters
     ----------
-    sample : Sequence[int | float]
+    sample : NumericSample1D
         A one-dimensional array-like object containing the samples.
     ddof : int, optional
         Delta degrees-of-freedom. How many degrees of freedom to adjust
@@ -45,13 +47,13 @@ def sem(sample: Sequence[int | float], ddof: int = 1) -> float:
     return se
 
 def mean_ci(
-        sample: Sequence[int | float], level: float = 0.95, n_groups: int = 1
+        sample: NumericSample1D, level: float = 0.95, n_groups: int = 1
         ) -> Tuple[float, float, float]:
     """Two sided confidence interval for mean of data.
 
     Parameters
     ----------
-    sample : Sequence[int | float]
+    sample : NumericSample1D
         A one-dimensional array-like object containing the samples.
     level : float in (0, 1), optional
         confidence level, by default 0.95
@@ -82,13 +84,13 @@ def mean_ci(
     return x_bar, ci_low, ci_upp
 
 def median_ci(
-        sample: Sequence[int | float], level: float = 0.95, n_groups: int = 1
+        sample: NumericSample1D, level: float = 0.95, n_groups: int = 1
         ) -> Tuple[float, float, float]:
     """Two sided confidence interval for median of data
 
     Parameters
     ----------
-    sample : Sequence[int | float]
+    sample : NumericSample1D
         A one-dimensional array-like object containing the samples.
     level : float in (0, 1), optional
         confidence level, by default 0.95
@@ -119,13 +121,13 @@ def median_ci(
     return median, ci_low, ci_upp
 
 def variance_ci(
-        sample: Sequence[int | float], level: float = 0.95, n_groups: int = 1
+        sample: NumericSample1D, level: float = 0.95, n_groups: int = 1
         ) -> Tuple[float, float, float]:
     """Two sided confidence interval for variance of data
 
     Parameters
     ----------
-    sample : Sequence[int | float]
+    sample : NumericSample1D
         A one-dimensional array-like object containing the samples.
     level : float in (0, 1), optional
         confidence level, by default 0.95
@@ -149,13 +151,13 @@ def variance_ci(
     return s2, ci_low, ci_upp
 
 def stdev_ci(
-        sample: Sequence[int | float], level: float = 0.95, n_groups: int = 1
+        sample: NumericSample1D, level: float = 0.95, n_groups: int = 1
         ) -> Tuple[float, float, float]:
     """Two sided confidence interval for standard deviation of data
 
     Parameters
     ----------
-    sample : Sequence[int | float]
+    sample : NumericSample1D
         A one-dimensional array-like object containing the samples.
     level : float in (0, 1), optional
         confidence level, by default 0.95
@@ -269,17 +271,17 @@ def bonferroni_ci(
     return data
 
 def delta_mean_ci(
-        sample1: Sequence[int | float], sample2: Sequence[int | float],
+        sample1: NumericSample1D, sample2: NumericSample1D,
         level: float = 0.95) -> Tuple[float, float, float]:
     """Two sided confidence interval for mean difference of two
     independent variables.
 
     Parameters
     ----------
-    sample1 : Sequence[int | float]
+    sample1 : NumericSample1D
         A one-dimensional array-like object containing the first
         samples.
-    sample2 : Sequence[int | float]
+    sample2 : NumericSample1D
         A one-dimensional array-like object containing the second
         samples.
     level : float in (0, 1), optional
@@ -307,16 +309,16 @@ def delta_mean_ci(
     return delta, ci_low, ci_upp
 
 def delta_variance_ci(
-        sample1: Sequence[int | float], sample2: Sequence[int | float],
+        sample1: NumericSample1D, sample2: NumericSample1D,
         level: float = 0.95) -> Tuple[float, float, float]:
     """two sided confidence interval for variance difference of two
     independent variables.
 
     Parameters
     ----------
-    sample1 : Sequence[int | float]
+    sample1 : NumericSample1D
         A one-dimensional array-like object containing the first sample.
-    sample2 : Sequence[int | float]
+    sample2 : NumericSample1D
         A one-dimensional array-like object containing the second sample.
     level : float in (0, 1), optional
         confidence level between 0 and 1, by default 0.95
@@ -345,16 +347,16 @@ def delta_variance_ci(
     return delta, ci_low, ci_upp
 
 def delta_stdev_ci(
-        sample1: Sequence[int | float], sample2: Sequence[int | float],
+        sample1: NumericSample1D, sample2: NumericSample1D,
         level: float = 0.95) -> Tuple[float, float, float]:
     """two sided confidence interval for standard deviation difference 
     of two independent variables.
 
     Parameters
     ----------
-    sample1 : Sequence[int | float]
+    sample1 : NumericSample1D
         A one-dimensional array-like object containing the first sample.
-    sample2 : Sequence[int | float]
+    sample2 : NumericSample1D
         A one-dimensional array-like object containing the second sample.
     level : float in (0, 1), optional
         confidence level between 0 and 1, by default 0.95

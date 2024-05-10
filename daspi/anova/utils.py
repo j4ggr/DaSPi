@@ -39,7 +39,7 @@ def clean_categorical_names(feature_name: str) -> str:
         value = RE.ENCODED_VALUE.findall(feature_name)
         return f'{name[0]}_{value[0]}' if name and value else feature_name
 
-def remove_special_characters(input_string):
+def remove_special_characters(input_string: str) -> str:
     """Use regex to remove all non-alphanumeric characters"""
     return RE.NOT_ALPHANUMERIC.sub('', input_string)
 
@@ -47,21 +47,21 @@ def prepare_encoding_data(df: DataFrame) -> DataFrame:
     """Converts the data type of all non-numeric columns to a string and
     removes all non-alphanumeric characters in the values for these
     columns."""
-    def cleansing(column: Series):
+    def cleansing(column: Series) -> Series[str]:
         if is_numeric_dtype(column):
             return column
         else:
             return column.astype(str).apply(remove_special_characters)
     return df.apply(cleansing, axis=0)
 
-def get_term_name(feature_name):
+def get_term_name(feature_name: str) -> str:
     """Get original term name of a patsy encoded categorical feature.
     Such names are structured as follows '<term name>[T.<value>]'."""
     match = RE.ENCODED_NAME.findall(feature_name)
     return feature_name if not match else match[0]
 
 def decode_cat_main(
-        feature_name: str, code: int, di: DesignInfo) -> str|None:
+        feature_name: str, code: int, di: DesignInfo) -> str | None:
     """Decode 0 or 1 value of encoded categorical main feature. 
     The design info coming from patsy is used to get original values."""
     matches = RE.ENCODED_VALUE.findall(feature_name)
@@ -232,15 +232,15 @@ def optimize(
 
 
 __all__ = [
-    is_encoded_categorical.__name__,
-    clean_categorical_names.__name__,
-    remove_special_characters.__name__,
-    prepare_encoding_data.__name__,
-    get_term_name.__name__,
-    decode_cat_main.__name__,
-    encoded_dmatrices.__name__,
-    hierarchical.__name__,
-    is_main_feature.__name__,
-    decode.__name__,
-    optimize.__name__,
+    'is_encoded_categorical',
+    'clean_categorical_names',
+    'remove_special_characters',
+    'prepare_encoding_data',
+    'get_term_name',
+    'decode_cat_main',
+    'encoded_dmatrices',
+    'hierarchical',
+    'is_main_feature',
+    'decode',
+    'optimize',
 ]

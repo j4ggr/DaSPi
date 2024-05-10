@@ -18,18 +18,23 @@ from scipy.stats import sem
 from scipy.stats import skew
 from scipy.stats import kurtosis
 
+from .._typing import NumericSample1D
+
+from ..constants import DIST
+from ..constants import PLOTTER
+
 from .utils import convert_to_continuous
+
 from .confidence import mean_ci
 from .confidence import stdev_ci
 from .confidence import median_ci
+
 from .hypothesis import skew_test
 from .hypothesis import kurtosis_test
 from .hypothesis import mean_stability_test
 from .hypothesis import anderson_darling_test
 from .hypothesis import variance_stability_test
 from .hypothesis import kolmogorov_smirnov_test
-from ..constants import DIST
-from ..constants import PLOTTER
 
 
 class Estimator:
@@ -67,7 +72,7 @@ class Estimator:
 
     def __init__(
             self,
-            samples: Sequence[int | float], 
+            samples: NumericSample1D, 
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: int | float = 6, 
             possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
@@ -82,7 +87,7 @@ class Estimator:
         
         Parameters
         ----------
-        samples : Sequence[int | float]
+        samples : NumericSample1D
             sample data
         strategy : {'eval', 'fit', 'norm', 'data'}, optional
             Which strategy should be used to determine the control 
@@ -826,7 +831,7 @@ class ProcessEstimator(Estimator):
         self._cpk = None
 
 def estimate_distribution(
-        data: Sequence[int | float],
+        data: NumericSample1D,
         dists: Tuple[str|rv_continuous, ...] = DIST.COMMON
         ) -> Tuple[rv_continuous, float, Tuple[float]]:
     """First, the p-score is calculated by performing a 
@@ -837,7 +842,7 @@ def estimate_distribution(
     
     Parameters
     ----------
-    data : Sequence[int | float]
+    data : NumericSample1D
         1d array of data for which a distribution is to be searched
     dists : tuple of strings or rv_continous, optional
         Distributions to which the data may be subject. Only 
