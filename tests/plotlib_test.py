@@ -59,10 +59,10 @@ class TestCategoryLabel:
         assert len(handles) == CATEGORY.N_SIZE_BINS
 
     def test_getitem(self):
-        assert self.colors['alpha'] == DEFAULT.PALETTE[0]
-        assert self.colors['beta'] == DEFAULT.PALETTE[1]
-        assert self.colors['gamma'] == DEFAULT.PALETTE[2]
-        assert self.colors['delta'] == DEFAULT.PALETTE[3]
+        assert self.colors['alpha'] == CATEGORY.PALETTE[0]
+        assert self.colors['beta'] == CATEGORY.PALETTE[1]
+        assert self.colors['gamma'] == CATEGORY.PALETTE[2]
+        assert self.colors['delta'] == CATEGORY.PALETTE[3]
 
         assert self.markers['foo'] == CATEGORY.MARKERS[0]
         assert self.markers['bar'] == CATEGORY.MARKERS[1]

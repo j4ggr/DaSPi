@@ -9,13 +9,13 @@ from pathlib import Path
 from pandas.core.series import Series
 from pandas.core.frame import DataFrame
 
-sys.path.append(Path(__file__).parent.resolve())
+sys.path.append(str(Path(__file__).parent.resolve()))
 
 from daspi.anova.model import *
 from daspi.anova.utils import *
 
 class TestLinearModel:
 
-    def test_alpha(self):
+    def test_alpha(self) -> None:
         with pytest.raises(AssertionError, match=r'\d+ not in \(0, 1\)'):
             confidence_to_alpha(5)

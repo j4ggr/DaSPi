@@ -357,6 +357,11 @@ class _Category_:
         sizes = tuple(np.linspace(
             *self.MARKERSIZE_LIMITS, self.N_SIZE_BINS, dtype=int))
         return sizes
+
+    @property
+    def PALETTE(self) -> Tuple[str, ...]:
+        """Get the current color palette as tuple."""
+        return tuple(COLOR.PALETTE)
     
 CATEGORY = _Category_()
 
@@ -394,11 +399,6 @@ class _Default_:
     frequently in practice."""
     FEATURE_BASE: Literal[0] = 0
     """Default feature base position for e.g. Jitter or KDE."""
-
-    @property
-    def PALETTE(self) -> Tuple[str, ...]:
-        """Get the current color palette as tuple."""
-        return tuple(COLOR.PALETTE)
 
 DEFAULT = _Default_()
 

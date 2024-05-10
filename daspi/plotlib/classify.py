@@ -60,10 +60,8 @@ class _CategoryLabel(ABC):
         Labels corresponding to the categories.
     """
 
-    __slots__ = ('_categories', '_default', '_labels', '_n')
+    __slots__ = ('_default', '_labels', '_n')
 
-    _categories: Tuple
-    """Tuple containing the available categories."""
     _default: Any
     """Default category item."""
     _labels: Tuple[str, ...]
@@ -77,9 +75,9 @@ class _CategoryLabel(ABC):
         self.labels = labels
 
     @property
-    def categories(self) -> Tuple:
+    @abstractmethod
+    def categories(self) -> Tuple[Any, ...]:
         """Get the available categories (read-only)."""
-        return self._categories
 
     @property
     def default(self) -> Any:
@@ -161,14 +159,16 @@ class HueLabel(_CategoryLabel):
         Labels corresponding to the hue categories.
     """
 
-    _categories: Tuple[str, ...] = DEFAULT.PALETTE
-    """Tuple containing the available hue categories as the current
-    color palette"""
-
-
     def __init__(self, labels: Sequence[Scalar]) -> None:
         super().__init__(labels)
     
+    @property
+    def categories(self) -> Tuple[str, ...]:
+        """Tuple containing the available hue categories as the current
+        color palette as defined in constants `CATEGORY.MARKERS`
+        (read-only)."""
+        return CATEGORY.PALETTE
+
     @property
     def colors(self) -> Tuple[str, ...]:
         """Get the available hue colors (read-only)."""
@@ -195,11 +195,14 @@ class ShapeLabel(_CategoryLabel):
         Labels corresponding to the shape marker categories.
     """
 
-    _categories: Tuple[str, ...] = CATEGORY.MARKERS
-    """Tuple containing the available shape markers."""
-
     def __init__(self, labels: Sequence[Scalar]) -> None:
         super().__init__(tuple(map(str, labels)))
+    
+    @property
+    def categories(self) -> Tuple[str, ...]:
+        """Tuple containing the available shape markers as defined
+        in constants `CATEGORY.MARKERS` (read-only)."""
+        return CATEGORY.MARKERS
     
     @property
     def markers(self) -> Tuple[str, ...]:
@@ -232,8 +235,6 @@ class SizeLabel(_CategoryLabel):
 
     __slots__ = ('_min', '_max')
 
-    _categories: Tuple[int, ...] = CATEGORY.HANDLE_SIZES
-    """Tuple containing the available marker sizes."""
     _min: int | float
     """Minimum value for the size range."""
     _max: int | float
@@ -256,10 +257,15 @@ class SizeLabel(_CategoryLabel):
         super().__init__(labels)
     
     @property
+    def categories(self) -> Tuple[int, ...]:
+        """Tuple containing the available marker sizes."""
+        return CATEGORY.HANDLE_SIZES
+    
+    @property
     def offset(self) -> int:
         """Get the offset for value-to-size transformation (read-only)."""
         return CATEGORY.MARKERSIZE_LIMITS[0]
-    
+
     @property
     def factor(self) -> float:
         """Get the factor for value-to-size transformation (read-only)."""
