@@ -14,6 +14,7 @@ sys.path.append(str(Path(__file__).parent.resolve()))
 from daspi.anova.model import *
 from daspi.anova.utils import *
 
+
 class TestLinearModel:
 
     def test_alpha(self) -> None:

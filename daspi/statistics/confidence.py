@@ -5,13 +5,16 @@ import pandas as pd
 
 from math import sqrt
 from numpy import ndarray
+from typing import List
 from typing import Tuple
 from typing import Iterable
 from typing import Callable
+from typing import Sequence
 from scipy.stats import t
 from scipy.stats import f
 from scipy.stats import chi2
 from scipy.stats import norm
+from numpy.typing import NDArray
 from pandas.core.frame import DataFrame
 from statsmodels.stats.proportion import proportion_confint
 from statsmodels.stats.proportion import confint_proportions_2indep
@@ -20,14 +23,14 @@ from statsmodels.stats.outliers_influence import OLSInfluence
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 
 
-def sem(sample: Iterable, ddof: int = 1):
+def sem(sample: Sequence[int | float], ddof: int = 1) -> float:
     """Calculate the standard error of the mean (or standard error of
     measurement) of the values in the input array.
 
     Parameters
     ----------
-    sample : array like
-        sample data, Only one-dimensional sample are accepted
+    sample : Sequence[int | float]
+        One-dimensional data of the sample.
     ddof : int, optional
         Delta degrees-of-freedom. How many degrees of freedom to adjust
         for bias in limited sample relative to the population estimate
@@ -42,14 +45,14 @@ def sem(sample: Iterable, ddof: int = 1):
     return se
 
 def mean_ci(
-        sample: Iterable, level: float = 0.95, n_groups: int = 1
+        sample: Sequence[int | float], level: float = 0.95, n_groups: int = 1
         ) -> Tuple[float, float, float]:
     """Two sided confidence interval for mean of data.
 
     Parameters
     ----------
-    sample : array like
-        sample data, Only one-dimensional sample are accepted
+    sample : Sequence[int | float]
+        One-dimensional data of the sample
     level : float in (0, 1), optional
         confidence level, by default 0.95
     n_groups : int, optional
@@ -71,22 +74,22 @@ def mean_ci(
     representative of the population and that the data is independent 
     and identically distributed.
     """ 
-    level = 1 - confidence_to_alpha(level, two_sided=False, n_groups=n_groups)  # adjust ci if Bonferroni method is performed
+    level = 1 - confidence_to_alpha(level, two_sided=False, n_groups=n_groups)
     se = sem(sample)
     dof = len(sample)-1
-    x_bar = np.mean(sample)
+    x_bar = float(np.mean(sample))
     ci_low, ci_upp = t.interval(level, dof, loc=x_bar, scale=se)
     return x_bar, ci_low, ci_upp
 
 def median_ci(
-        sample: Iterable, level: float = 0.95, n_groups: int = 1
+        sample: Sequence[int | float], level: float = 0.95, n_groups: int = 1
         ) -> Tuple[float, float, float]:
     """Two sided confidence interval for median of data
 
     Parameters
     ----------
-    sample : array like
-        sample data, Only one-dimensional sample are accepted
+    sample : Sequence[int | float]
+        One-dimensional data of the sample
     level : float in (0, 1), optional
         confidence level, by default 0.95
     n_groups : int, optional
@@ -111,19 +114,19 @@ def median_ci(
     level = 1 - confidence_to_alpha(level, two_sided=False, n_groups=n_groups)  # adjust ci if Bonferroni method is performed
     se = sem(sample)
     dof = len(sample) - 1
-    median = np.median(sample)
+    median = float(np.median(sample))
     ci_low, ci_upp = t.interval(level, dof, loc=median, scale=se)
     return median, ci_low, ci_upp
 
 def variance_ci(
-        sample: Iterable, level: float = 0.95, n_groups: int = 1
+        sample: Sequence[int | float], level: float = 0.95, n_groups: int = 1
         ) -> Tuple[float, float, float]:
     """Two sided confidence interval for variance of data
 
     Parameters
     ----------
-    sample : array like
-        sample data, Only one-dimensional sample are accepted
+    sample : Sequence[int | float]
+        One-dimensional data of the sample
     level : float in (0, 1), optional
         confidence level, by default 0.95
     n_groups : int, optional
@@ -139,21 +142,21 @@ def variance_ci(
         lower and upper confidence level
     """
     alpha = confidence_to_alpha(level, two_sided=True, n_groups=n_groups)
-    s2 = np.var(sample, ddof=1) # do not remove ddof=1, default is 0!
     dof = len(sample) - 1
-    ci_upp = dof * s2 / chi2.ppf(alpha, dof)
-    ci_low = dof * s2 / chi2.ppf(1 - alpha, dof)
+    s2 = float(np.var(sample, ddof=1)) # do not remove ddof=1, default is 0!
+    ci_upp = float(dof * s2 / chi2.ppf(alpha, dof))
+    ci_low = float(dof * s2 / chi2.ppf(1 - alpha, dof))
     return s2, ci_low, ci_upp
 
 def stdev_ci(
-        sample: Iterable, level: float = 0.95, n_groups: int = 1
+        sample: Sequence[int | float], level: float = 0.95, n_groups: int = 1
         ) -> Tuple[float, float, float]:
     """Two sided confidence interval for standard deviation of data
 
     Parameters
     ----------
-    sample : array like
-        sample data, Only one-dimensional sample are accepted
+    sample : Sequence[int | float]
+        One-dimensional data of the sample
     level : float in (0, 1), optional
         confidence level, by default 0.95
     n_groups : int, optional
@@ -168,7 +171,8 @@ def stdev_ci(
     ci_low, ci_upp : float
         lower and upper confidence level
     """
-    return tuple(map(sqrt, variance_ci(sample, level, n_groups)))
+    s, ci_low, ci_upp = tuple(map(sqrt, variance_ci(sample, level, n_groups)))
+    return s, ci_low, ci_upp
 
 def proportion_ci(
         count: int, nobs: int, level: float = 0.95, n_groups: int = 1
@@ -199,29 +203,23 @@ def proportion_ci(
     alpha = confidence_to_alpha(level, two_sided=False, n_groups=n_groups)
     ci_low, ci_upp = proportion_confint(count, nobs, alpha, 'normal')
     portion = count/nobs
-    return portion, ci_low, ci_upp
+    return portion, ci_low, ci_upp # type: ignore
 
 def bonferroni_ci(
-        data: DataFrame, target: str, feature: str, level: float = 0.95, 
-        ci_func: Callable = stdev_ci, n_groups: int | None = None, 
-        name: str='midpoint') -> pd.DataFrame:
+        data: DataFrame, target: str, feature: str | List[str],
+        level: float = 0.95, ci_func: Callable = stdev_ci,
+        n_groups: int | None = None, name: str='midpoint') -> DataFrame:
     """Calculate confidence interval after bonferroni correction.
     The Bonferroni correction is a method to adjust the significance 
-    level alpha. This is always necessary if you carry out several 
-    "multiple" tests. In this case, the probability of the type I error 
-    for all tests together is no longer 5% (or 1%), but significantly 
-    more. This means that the risk that you will receive at least one 
-    significant result, even though there is no effect at all, is 
-    significantly increased with multiple tests. This is also referred 
-    to as alpha error accumulation or alpha inflation.
+    level alpha.
 
     Parameters
     ----------
-    data : pandas.DataFrame
+    data : DataFrame
         data frame containing sample and feature data
     target : str
         name of target sample data column
-    feature : str
+    feature : str | List[str]
         name of categorical feature. The confidence intervals are 
         calculated separately for these groups
     level : float in (0, 1), optional
@@ -240,35 +238,50 @@ def bonferroni_ci(
 
     Returns
     -------
-    df : DataFrame
+    data : DataFrame
         data containing groups, midpoints and confidence limits
+    
+    Notes
+    -----
+    The Bonferroni correction is always necessary if you carry out 
+    several "multiple" tests. In this case, the probability of the type
+    I error for all tests together is no longer 5% (or 1%), but
+    significantly more. This means that the risk that you will receive
+    at least one significant result, even though there is no effect at
+    all, is significantly increased with multiple tests. This is also
+    referred to as alpha error accumulation or alpha inflation.
     """
     columns = [name, 'ci_low', 'ci_upp']
-    if not isinstance(feature, list): feature = [feature]
+    if isinstance(feature, str):
+        feature = [feature]
     groups = data.groupby(feature)[target]
     n_groups = n_groups if isinstance(n_groups, int) else groups.ngroups
-    df = pd.DataFrame(
+    data = pd.DataFrame(
             groups.agg(lambda x: ci_func(x, level, n_groups)).dropna().to_list(),
             columns = columns
         ).dropna()
     
-    cat_values = [groups.indices.keys()]
-    if len(feature) > 1: cat_values = [list(v) for v in cat_values[0]]
-    df[feature] = cat_values
-    
-    return df
+    if len(feature) > 1:
+        cat_values = list(map(list, groups.indices.keys())) # type: ignore
+    else:
+        cat_values = [groups.indices.keys()]
+    data[feature] = cat_values
+    return data
 
-def delta_mean_ci(x1: Iterable, x2: Iterable, level: float = 0.95
-        ) -> Tuple[float, float, float]:
-    """two sided confidence interval for mean difference of two
+def delta_mean_ci(
+        x1: Sequence[int | float], x2: Sequence[int | float],
+        level: float = 0.95) -> Tuple[float, float, float]:
+    """Two sided confidence interval for mean difference of two
     independent variables.
 
     Parameters
     ----------
-    x1, x2 : array like
-        sample data, Only one-dimensional sample are accepted
+    x1 : Sequence[int | float]
+        One dimensional data of first sample.
+    x2 : Sequence[int | float]
+        One dimensional data of second sample.
     level : float in (0, 1), optional
-        confidence level, by default 0.95
+        confidence level between 0 and 1, by default 0.95
 
     Returns
     -------
@@ -284,24 +297,27 @@ def delta_mean_ci(x1: Iterable, x2: Iterable, level: float = 0.95
     s = np.sqrt(((n1 - 1) * s1 + (n2 - 1) * s2) / (n1 + n2 - 2))
     dof = n1 + n2 - 2
     t_crit = t.ppf(1 - alpha, dof)
-    m1, m2 = np.mean(x1), np.mean(x2)
+    m1, m2 = float(np.mean(x1)), float(np.mean(x2))
     delta = m1 - m2
     ci_low = (m1 - m2) - t_crit * np.sqrt(1 / len(x1) + 1 / len(x2)) * s
     ci_upp = (m1 - m2) + t_crit * np.sqrt(1 / len(x1) + 1 / len(x2)) * s
 
     return delta, ci_low, ci_upp
 
-def delta_variance_ci(x1: Iterable, x2: Iterable, level: float = 0.95
-        ) -> Tuple[float, float, float]:
+def delta_variance_ci(
+        x1: Sequence[int | float], x2: Sequence[int | float],
+        level: float = 0.95) -> Tuple[float, float, float]:
     """two sided confidence interval for variance difference of two
     independent variables.
 
     Parameters
     ----------
-    x1, x2 : array like
-        sample data, Only one-dimensional sample are accepted
+    x1 : Sequence[int | float]
+        One dimensional data of first sample.
+    x2 : Sequence[int | float]
+        One dimensional data of second sample.
     level : float in (0, 1), optional
-        confidence level, by default 0.95
+        confidence level between 0 and 1, by default 0.95
 
     Returns
     -------
@@ -316,26 +332,30 @@ def delta_variance_ci(x1: Iterable, x2: Iterable, level: float = 0.95
     that this solution is correct.
     """
     alpha = confidence_to_alpha(level, two_sided=True)  
-    s2_1, s2_2 = np.var(x1, ddof=1), np.var(x2, ddof=1)
+    s2_1 = float(np.var(x1, ddof=1))
+    s2_2 = float(np.var(x2, ddof=1))
     dof1, dof2 = len(x1) - 1, len(x2) - 1
     delta = s2_1 - s2_2
-    F_upp = f.ppf(alpha, dof1, dof2)
-    F_low = f.ppf(1 - alpha, dof1, dof2)
+    F_upp = float(f.ppf(alpha, dof1, dof2))
+    F_low = float(f.ppf(1 - alpha, dof1, dof2))
     ci_low = (s2_1 / s2_2) * F_low
     ci_upp = (s2_1 / s2_2) * F_upp
     return delta, ci_low, ci_upp
 
-def delta_stdev_ci(x1: Iterable, x2: Iterable, level: float = 0.95
-        ) -> Tuple[float, float, float]:
+def delta_stdev_ci(
+        x1: Sequence[int | float], x2: Sequence[int | float],
+        level: float = 0.95) -> Tuple[float, float, float]:
     """two sided confidence interval for standard deviation difference 
     of two independent variables.
 
     Parameters
     ----------
-    x1, x2 : array like
-        sample data, Only one-dimensional sample are accepted
+    x1 : Sequence[int | float]
+        One dimensional data of first sample.
+    x2 : Sequence[int | float]
+        One dimensional data of second sample.
     level : float in (0, 1), optional
-        confidence level, by default 0.95
+        confidence level between 0 and 1, by default 0.95
 
     Returns
     -------
@@ -349,14 +369,14 @@ def delta_stdev_ci(x1: Iterable, x2: Iterable, level: float = 0.95
     This function is a ChatGPT solution and therefore does not guarantee
     that this solution is correct.
     """
-    return tuple(map(sqrt, delta_variance_ci(x1, x2, level)))
+    delta, ci_low, ci_upp = tuple(map(sqrt, delta_variance_ci(x1, x2, level)))
+    return delta, ci_low, ci_upp
 
 def delta_proportions_ci(
         count1: int, nobs1: int, count2: int, nobs2: int,
         level: float = 0.95) -> Tuple[float, float, float]:
     """Confidence intervals for comparing two independent proportions
     This assumes that we have two independent binomial sample.
-
 
     Parameters
     ----------
@@ -383,8 +403,7 @@ def delta_proportions_ci(
     ci_low, ci_upp = confint_proportions_2indep(
         count1, nobs1, count2, nobs2, 
         method='wald', compare='diff', alpha=alpha)
-    
-    return delta, ci_low, ci_upp
+    return delta, ci_low, ci_upp # type: ignore
 
 def fit_ci(
         model: RegressionResults, level: float = 0.95
@@ -415,7 +434,7 @@ def fit_ci(
     influence = OLSInfluence(model)
     alpha = confidence_to_alpha(level)
     tppf = t.isf(alpha, model.df_resid)
-    fit_se = np.sqrt(influence.hat_matrix_diag * model.mse_resid)             # standard error for predicted mean (fitted line)
+    fit_se = np.sqrt(influence.hat_matrix_diag * model.mse_resid)
     fit_ci_low = model.fittedvalues - tppf * fit_se
     fit_ci_upp = model.fittedvalues + tppf * fit_se
     return fit_ci_low, fit_ci_upp
@@ -469,8 +488,7 @@ def dist_prob_fit_ci(
     Based on qqplot function of pinguin package:
     https://pingouin-stats.org/index.html
     """
-    if isinstance(dist, str): 
-        dist = getattr(scipy.stats, dist)
+    _dist = getattr(scipy.stats, dist)
     alpha = confidence_to_alpha(level)
     sample = np.asarray(sample)
     fit = np.asarray(fit)
@@ -478,13 +496,13 @@ def dist_prob_fit_ci(
     fit.sort()
     n = len(sample)
     
-    fit_params = dist.fit(sample)
+    fit_params = _dist.fit(sample)
     shape = fit_params[:-2] if len(fit_params) > 2 else None
     slope = (fit[-1] - fit[0]) / (sample[-1] - sample[0])
     
-    P = _ppoints(n)
+    P = prob_points(n)
     crit = norm.ppf(1 - alpha)
-    pdf = dist.pdf(sample) if shape is None else dist.pdf(sample, *shape)
+    pdf = _dist.pdf(sample) if shape is None else _dist.pdf(sample, *shape)
     se = (slope / pdf) * np.sqrt(P * (1 - P) / n)
     upper = fit + crit * se
     lower = fit - crit * se
@@ -505,7 +523,7 @@ def confidence_to_alpha(
         interval, by default True
     n_groups : int
         Used for Bonferroni method. 
-        Amount of groups to adjust the alpha risk within each group,
+        Number of groups to adjust the alpha risk within each group,
         that the total risk is not exceeded, by default 1
     
     Returns
@@ -515,11 +533,13 @@ def confidence_to_alpha(
     """
     assert 0 <= confidence_level <= 1, (
         f'Confidence level {confidence_level} not in (0, 1)')
+    assert isinstance(n_groups, int) and n_groups > 0, (
+        f'Number of groups must be a unsigned integer > 0')
     sides = 2 if two_sided else 1
     alpha = (1 - confidence_level)/(sides * n_groups)
     return alpha
 
-def _ppoints(n: int, a: float=None) -> ndarray:
+def prob_points(n: int, a: float | None = None) -> NDArray:
     """
     Ordinates For Probability Plotting.
     Numpy analogue of `R`'s `ppoints` function.
@@ -528,7 +548,7 @@ def _ppoints(n: int, a: float=None) -> ndarray:
     ----------
     n : int
         Number of points generated
-    a : float, optional
+    a : float | None, optional
         Offset fraction (typically between 0 and 1), by default None
 
     Returns
@@ -542,22 +562,23 @@ def _ppoints(n: int, a: float=None) -> ndarray:
     Based on _ppoints function of pinguin package:
     https://pingouin-stats.org/index.html
     """
-    if not a:
+    if a is None:
         a = 3/8 if n <= 10 else 0.5
     return (np.arange(n) + 1 - a) / (n + 1 - 2*a)
 
 __all__ = [
-    mean_ci.__name__,
-    median_ci.__name__,
-    variance_ci.__name__,
-    stdev_ci.__name__,
-    proportion_ci.__name__,
-    bonferroni_ci.__name__,
-    delta_mean_ci.__name__,
-    delta_variance_ci.__name__,
-    delta_proportions_ci.__name__,
-    fit_ci.__name__,
-    prediction_ci.__name__,
-    dist_prob_fit_ci.__name__,
-    confidence_to_alpha.__name__,
-    _ppoints.__name__]
+    'sem',
+    'mean_ci',
+    'median_ci',
+    'variance_ci',
+    'stdev_ci',
+    'proportion_ci',
+    'bonferroni_ci',
+    'delta_mean_ci',
+    'delta_variance_ci',
+    'delta_proportions_ci',
+    'fit_ci',
+    'prediction_ci',
+    'dist_prob_fit_ci',
+    'confidence_to_alpha',
+    'prob_points']

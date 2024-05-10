@@ -91,6 +91,40 @@ class TestConfidence:
             assert ci_low == approx(_ci_low, rel=self.rel_interval)
             assert ci_upp == approx(_ci_upp, rel=self.rel_interval)
 
+    def test_bonferroni_ci(self) -> None:
+        data = pd.DataFrame({
+            'target': np.random.normal(0, 1, 100),
+            'feature': np.random.choice(['A', 'B', 'C'], 100)
+        })
+        # Test case 1: Check if the output DataFrame has the expected columns
+        result = bonferroni_ci(data, 'target', 'feature')
+        assert all(col in result.columns for col in ['midpoint', 'ci_low', 'ci_upp', 'feature'])
+
+        # Test case 2: Check if the confidence intervals are within the correct range
+        assert (result['ci_low'] <= result['midpoint']).all()
+        assert (result['midpoint'] <= result['ci_upp']).all()
+
+        # Test case 3: Check if the number of groups matches the expected value
+        assert len(result) == len(data['feature'].unique())
+    
+    def test_bonferroni_ci_multiple_features(self) -> None:
+        data = pd.DataFrame({
+            'target': np.random.normal(0, 1, 100),
+            'feature1': np.random.choice(['A', 'B', 'C'], 100),
+            'feature2': np.random.choice(['X', 'Y', 'Z'], 100)
+        })
+
+        # Test case 1: Check if the output DataFrame has the expected columns
+        result = bonferroni_ci(data, 'target', ['feature1', 'feature2'])
+        assert all(col in result.columns for col in ['midpoint', 'ci_low', 'ci_upp', 'feature1', 'feature2'])
+
+        # Test case 2: Check if the confidence intervals are within the correct range
+        assert (result['ci_low'] <= result['midpoint']).all()
+        assert (result['midpoint'] <= result['ci_upp']).all()
+
+        # Test case 3: Check if the number of groups matches the expected value
+        assert len(result) == len(data['feature1'].unique()) * len(data['feature2'].unique())
+
 
 class TestEstimator:
 
