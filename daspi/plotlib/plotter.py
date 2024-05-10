@@ -142,13 +142,14 @@ from ..constants import COLOR
 from ..constants import DEFAULT
 from ..constants import PLOTTER
 from ..constants import CATEGORY
-from ..statistics.confidence import fit_ci
-from ..statistics.confidence import mean_ci
-from ..statistics.confidence import stdev_ci
-from ..statistics.estimation import Estimator
-from ..statistics.confidence import variance_ci
-from ..statistics.confidence import prediction_ci
-from ..statistics.estimation import estimate_kernel_density
+from ..statistics import fit_ci
+from ..statistics import mean_ci
+from ..statistics import stdev_ci
+from ..statistics import Estimator
+from ..statistics import variance_ci
+from ..statistics import prediction_ci
+from ..statistics import convert_to_continuous
+from ..statistics import estimate_kernel_density
 
 
 class Plotter(ABC):
@@ -634,6 +635,7 @@ class Probability(LinearRegression):
         If given kind is not one of 'qq', 'pp', 'sq' or 'sp'
     """
     __slots__ = ('dist', 'kind', 'prob_fit')
+    
     dist: rv_continuous
     """The probability distribution use for creating feature data."""
     kind: Literal['qq', 'pp', 'sq', 'sp']
@@ -658,7 +660,7 @@ class Probability(LinearRegression):
             f'kind must be one of {"qq", "pp", "sq", "sp"}, got {kind}')
 
         self.kind = kind
-        self.dist = dist if not isinstance(dist, str) else getattr(stats, dist)
+        self.dist = convert_to_continuous(dist)
         self.prob_fit = ProbPlot(source[target], self.dist, fit=True) # type: ignore
         
         feature_kind = 'quantiles' if self.kind[1] == "q" else 'percentiles'
@@ -942,7 +944,7 @@ class BlandAltman(Plotter):
             target_on_y=target_on_y, color=color, ax=ax)
         self.confidence = confidence
         self.estimation = Estimator(
-            samples=df[_target], strategy='norm', agreement=agreement)
+            samples=df[_target].values, strategy='norm', agreement=agreement)
 
     @property
     def default_kwds(self) -> Dict[str, Any]:

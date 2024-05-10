@@ -5,6 +5,7 @@ import pandas as pd
 
 from typing import Tuple
 from typing import Literal
+from typing import Sequence
 from typing import Optional
 from typing import Callable
 from numpy.typing import NDArray
@@ -17,6 +18,7 @@ from scipy.stats import sem
 from scipy.stats import skew
 from scipy.stats import kurtosis
 
+from .utils import convert_to_continuous
 from .confidence import mean_ci
 from .confidence import stdev_ci
 from .confidence import median_ci
@@ -65,7 +67,7 @@ class Estimator:
 
     def __init__(
             self,
-            samples: ArrayLike, 
+            samples: Sequence[int | float], 
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: int | float = 6, 
             possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
@@ -80,7 +82,7 @@ class Estimator:
         
         Parameters
         ----------
-        samples : array like (1d)
+        samples : Sequence[int | float]
             sample data
         strategy : {'eval', 'fit', 'norm', 'data'}, optional
             Which strategy should be used to determine the control 
@@ -161,12 +163,12 @@ class Estimator:
         return self._filtered
     
     @property
-    def n_samples(self):
+    def n_samples(self) -> int | None:
         """Get sample size of unfiltered samples"""
         return self._n_samples
     
     @property
-    def n_missing(self):
+    def n_missing(self) -> int:
         """Get amount of missing values"""
         if self._n_missing is None:
             self._n_missing = self.samples.isna().sum()
@@ -824,8 +826,8 @@ class ProcessEstimator(Estimator):
         self._cpk = None
 
 def estimate_distribution(
-        data: ArrayLike,
-        dists: Tuple[str|rv_continuous] = DIST.COMMON
+        data: Sequence[int | float],
+        dists: Tuple[str|rv_continuous, ...] = DIST.COMMON
         ) -> Tuple[rv_continuous, float, Tuple[float]]:
     """First, the p-score is calculated by performing a 
     Kolmogorov-Smirnov test to determine how well each distribution fits
@@ -835,7 +837,7 @@ def estimate_distribution(
     
     Parameters
     ----------
-    data : array like
+    data : Sequence[int | float]
         1d array of data for which a distribution is to be searched
     dists : tuple of strings or rv_continous, optional
         Distributions to which the data may be subject. Only 
@@ -858,7 +860,7 @@ def estimate_distribution(
     dists = (dists, ) if isinstance(dists, (str, rv_continuous)) else dists
     results = {d: kolmogorov_smirnov_test(data, d) for d in dists}
     dist, (p, _, params) = max(results.items(), key=lambda i: i[1][0])
-    if isinstance(dist, str): dist = getattr(stats, dist)
+    dist = convert_to_continuous(dist)
     return dist, p, params
 
 def estimate_kernel_density(
@@ -912,7 +914,7 @@ def estimate_kernel_density(
     return sequence, estimation
 
 __all__ = [
-    Estimator.__name__,
-    ProcessEstimator.__name__,
-    estimate_distribution.__name__,
-    estimate_kernel_density.__name__,]
+    'Estimator',
+    'ProcessEstimator',
+    'estimate_distribution',
+    'estimate_kernel_density',]

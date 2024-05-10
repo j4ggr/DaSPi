@@ -30,7 +30,7 @@ def sem(sample: Sequence[int | float], ddof: int = 1) -> float:
     Parameters
     ----------
     sample : Sequence[int | float]
-        One-dimensional data of the sample.
+        A one-dimensional array-like object containing the samples.
     ddof : int, optional
         Delta degrees-of-freedom. How many degrees of freedom to adjust
         for bias in limited sample relative to the population estimate
@@ -52,7 +52,7 @@ def mean_ci(
     Parameters
     ----------
     sample : Sequence[int | float]
-        One-dimensional data of the sample
+        A one-dimensional array-like object containing the samples.
     level : float in (0, 1), optional
         confidence level, by default 0.95
     n_groups : int, optional
@@ -89,7 +89,7 @@ def median_ci(
     Parameters
     ----------
     sample : Sequence[int | float]
-        One-dimensional data of the sample
+        A one-dimensional array-like object containing the samples.
     level : float in (0, 1), optional
         confidence level, by default 0.95
     n_groups : int, optional
@@ -126,7 +126,7 @@ def variance_ci(
     Parameters
     ----------
     sample : Sequence[int | float]
-        One-dimensional data of the sample
+        A one-dimensional array-like object containing the samples.
     level : float in (0, 1), optional
         confidence level, by default 0.95
     n_groups : int, optional
@@ -156,7 +156,7 @@ def stdev_ci(
     Parameters
     ----------
     sample : Sequence[int | float]
-        One-dimensional data of the sample
+        A one-dimensional array-like object containing the samples.
     level : float in (0, 1), optional
         confidence level, by default 0.95
     n_groups : int, optional
@@ -269,17 +269,19 @@ def bonferroni_ci(
     return data
 
 def delta_mean_ci(
-        x1: Sequence[int | float], x2: Sequence[int | float],
+        sample1: Sequence[int | float], sample2: Sequence[int | float],
         level: float = 0.95) -> Tuple[float, float, float]:
     """Two sided confidence interval for mean difference of two
     independent variables.
 
     Parameters
     ----------
-    x1 : Sequence[int | float]
-        One dimensional data of first sample.
-    x2 : Sequence[int | float]
-        One dimensional data of second sample.
+    sample1 : Sequence[int | float]
+        A one-dimensional array-like object containing the first
+        samples.
+    sample2 : Sequence[int | float]
+        A one-dimensional array-like object containing the second
+        samples.
     level : float in (0, 1), optional
         confidence level between 0 and 1, by default 0.95
 
@@ -291,31 +293,31 @@ def delta_mean_ci(
         lower and upper confidence level
     """
     alpha = confidence_to_alpha(level, two_sided=True)
-    n1, n2 = len(x1), len(x2)
-    s1, s2 = np.var(x1, ddof=1), np.var(x2, ddof=1)
+    n1 = len(sample1)
+    n2 = len(sample2)
+    s1 = np.var(sample1, ddof=1)
+    s2 = np.var(sample2, ddof=1)
     # pooled standard deviation:
     s = np.sqrt(((n1 - 1) * s1 + (n2 - 1) * s2) / (n1 + n2 - 2))
     dof = n1 + n2 - 2
     t_crit = t.ppf(1 - alpha, dof)
-    m1, m2 = float(np.mean(x1)), float(np.mean(x2))
-    delta = m1 - m2
-    ci_low = (m1 - m2) - t_crit * np.sqrt(1 / len(x1) + 1 / len(x2)) * s
-    ci_upp = (m1 - m2) + t_crit * np.sqrt(1 / len(x1) + 1 / len(x2)) * s
-
+    delta = float(np.mean(sample1) - np.mean(sample2))
+    ci_low = delta - s*t_crit*np.sqrt(1/len(sample1) + 1/len(sample2))
+    ci_upp = delta + s*t_crit*np.sqrt(1/len(sample1) + 1/len(sample2))
     return delta, ci_low, ci_upp
 
 def delta_variance_ci(
-        x1: Sequence[int | float], x2: Sequence[int | float],
+        sample1: Sequence[int | float], sample2: Sequence[int | float],
         level: float = 0.95) -> Tuple[float, float, float]:
     """two sided confidence interval for variance difference of two
     independent variables.
 
     Parameters
     ----------
-    x1 : Sequence[int | float]
-        One dimensional data of first sample.
-    x2 : Sequence[int | float]
-        One dimensional data of second sample.
+    sample1 : Sequence[int | float]
+        A one-dimensional array-like object containing the first sample.
+    sample2 : Sequence[int | float]
+        A one-dimensional array-like object containing the second sample.
     level : float in (0, 1), optional
         confidence level between 0 and 1, by default 0.95
 
@@ -332,9 +334,9 @@ def delta_variance_ci(
     that this solution is correct.
     """
     alpha = confidence_to_alpha(level, two_sided=True)  
-    s2_1 = float(np.var(x1, ddof=1))
-    s2_2 = float(np.var(x2, ddof=1))
-    dof1, dof2 = len(x1) - 1, len(x2) - 1
+    s2_1 = float(np.var(sample1, ddof=1))
+    s2_2 = float(np.var(sample2, ddof=1))
+    dof1, dof2 = len(sample1) - 1, len(sample2) - 1
     delta = s2_1 - s2_2
     F_upp = float(f.ppf(alpha, dof1, dof2))
     F_low = float(f.ppf(1 - alpha, dof1, dof2))
@@ -343,17 +345,17 @@ def delta_variance_ci(
     return delta, ci_low, ci_upp
 
 def delta_stdev_ci(
-        x1: Sequence[int | float], x2: Sequence[int | float],
+        sample1: Sequence[int | float], sample2: Sequence[int | float],
         level: float = 0.95) -> Tuple[float, float, float]:
     """two sided confidence interval for standard deviation difference 
     of two independent variables.
 
     Parameters
     ----------
-    x1 : Sequence[int | float]
-        One dimensional data of first sample.
-    x2 : Sequence[int | float]
-        One dimensional data of second sample.
+    sample1 : Sequence[int | float]
+        A one-dimensional array-like object containing the first sample.
+    sample2 : Sequence[int | float]
+        A one-dimensional array-like object containing the second sample.
     level : float in (0, 1), optional
         confidence level between 0 and 1, by default 0.95
 
@@ -369,7 +371,8 @@ def delta_stdev_ci(
     This function is a ChatGPT solution and therefore does not guarantee
     that this solution is correct.
     """
-    delta, ci_low, ci_upp = tuple(map(sqrt, delta_variance_ci(x1, x2, level)))
+    delta, ci_low, ci_upp = tuple(map(
+        sqrt, delta_variance_ci(sample1, sample2, level)))
     return delta, ci_low, ci_upp
 
 def delta_proportions_ci(
