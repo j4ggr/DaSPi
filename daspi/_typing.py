@@ -1,5 +1,8 @@
 import numpy as np
+
+from typing import Any
 from typing import Tuple
+from typing import Generic
 from typing import Sequence
 from typing import TypeAlias
 from numpy.typing import NDArray
@@ -8,8 +11,8 @@ from matplotlib.patches import Patch
 from pandas.core.series import Series
 
 NumericSample1D: TypeAlias = (
-    Sequence[int | float] 
-    | Series[int | float] 
+    Sequence[int | float]
+    | 'Series[int | float]'
     | NDArray[np.integer | np.floating])
 
 SpecLimit: TypeAlias = float | int | None
@@ -17,6 +20,7 @@ SpecLimits: TypeAlias = Tuple[SpecLimit, SpecLimit]
 
 LegendHandlesLabels: TypeAlias = Tuple[
     Tuple[Patch |Line2D, ...], Tuple[str, ...]]
+
 
 __all__ = [
     'NumericSample1D',

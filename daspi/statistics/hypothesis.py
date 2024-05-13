@@ -18,6 +18,7 @@ from scipy.stats import chi2
 from scipy.stats import kstest
 from scipy.stats import levene
 from scipy.stats import ansari
+from scipy.stats import ks_1samp
 from scipy.stats import f_oneway
 from scipy.stats import anderson
 from scipy.stats import ranksums
@@ -103,7 +104,7 @@ def all_normal(
 
 def kolmogorov_smirnov_test(
         sample: NumericSample1D, dist: str | rv_continuous
-        ) -> Tuple[float, float, Tuple[float]]:
+        ) -> Tuple[float, float, Tuple[float, ...]]:
     """Perform a one-sample Kolmogorov-Smirnov-Test. This hypothesis
     test compares the underlying distribution F(x) of a sample against a 
     given distribution G(x). This test is valid only for continuous 
@@ -121,9 +122,9 @@ def kolmogorov_smirnov_test(
     -------
     p : float
         The two-tailed p-value for the test
-    F : float
+    D : float
         Kolmogorov-Smirnov test statistic, either D, D+ or D-.
-    params : Tuple[float]
+    params : Tuple[float, ...]
         Estimates for any shape parameters (if applicable), followed by 
         those for location and scale. For most random variables, shape 
         statistics will be returned, but there are exceptions 
@@ -131,7 +132,7 @@ def kolmogorov_smirnov_test(
     """
     dist = convert_to_continuous(dist)
     params = dist.fit(sample)
-    D, p = stats.kstest(sample, dist.name, args=params, alternative='two-sided')
+    D, p = ks_1samp(sample, cdf=dist.cdf, args=params, alternative='two-sided')
     return p, D, params
 
 def f_test(
