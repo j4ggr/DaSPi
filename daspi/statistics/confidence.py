@@ -9,7 +9,6 @@ from typing import List
 from typing import Tuple
 from typing import Iterable
 from typing import Callable
-from typing import Sequence
 from scipy.stats import t
 from scipy.stats import f
 from scipy.stats import chi2

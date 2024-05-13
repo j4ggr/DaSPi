@@ -1,41 +1,36 @@
 import numpy as np
 
 from math import exp
-from math import sqrt
 
-from typing import List
 from typing import Tuple
-from typing import Optional
-from typing import Sequence
-from numpy.typing import ArrayLike
-from numpy.typing import NDArray
 from scipy.stats._distn_infrastructure import rv_continuous
 
-from scipy import stats
-from scipy.stats import t
 from scipy.stats import f
-from scipy.stats import chi2
-from scipy.stats import kstest
 from scipy.stats import levene
-from scipy.stats import ansari
 from scipy.stats import ks_1samp
 from scipy.stats import f_oneway
 from scipy.stats import anderson
-from scipy.stats import ranksums
-from scipy.stats import wilcoxon
 from scipy.stats import skewtest
 from scipy.stats import ttest_ind
 from scipy.stats import kurtosistest
 from scipy.stats import fisher_exact
 from scipy.stats import mannwhitneyu
 
-from statsmodels.stats.proportion import proportion_confint
 from statsmodels.stats.proportion import test_proportions_2indep
-from statsmodels.stats.proportion import confint_proportions_2indep
 
 from .._typing import NumericSample1D
 
 from .utils import convert_to_continuous
+
+
+# TDOD: further tests:
+# from scipy.stats import chi2
+# from scipy.stats import ansari
+# from scipy.stats import kstest
+# from scipy.stats import ranksums
+# from scipy.stats import wilcoxon
+# from statsmodels.stats.proportion import proportion_confint
+# from statsmodels.stats.proportion import confint_proportions_2indep
 
 
 def anderson_darling_test(
