@@ -176,19 +176,19 @@ def stdev_ci(
     return s, ci_low, ci_upp
 
 def proportion_ci(
-        count: int, nobs: int, level: float = 0.95, n_groups: int = 1
+        events: int, observations: int, level: float = 0.95, n_groups: int = 1
         ) -> Tuple[float, float, float]:
-    """confidence interval for a binomial proportion with a asymptotic 
+    """Confidence interval for a binomial proportion with a asymptotic 
     normal approximation.
 
     Parameters
     ----------
-    count : int
-        number of events
-    nobs : int
-        total number of trials
+    events : int
+        Counted number of events.
+    observations : int
+        Total number of observations.
     level : float in (0, 1), optional
-        confidence level, default 0.95
+        Confidence level, default 0.95
     n_groups : int, optional
         Used for Bonferroni method. 
         Amount of groups to adjust the alpha risk within each group,
@@ -197,13 +197,13 @@ def proportion_ci(
     Returns
     -------
     portion : float
-        portion as count/nobs
+        Portion as ratio events/observations.
     ci_low, ci_upp : float
         lower and upper confidence level with coverage approximately ci. 
     """
     alpha = confidence_to_alpha(level, two_sided=False, n_groups=n_groups)
-    ci_low, ci_upp = proportion_confint(count, nobs, alpha, 'normal')
-    portion = count/nobs
+    ci_low, ci_upp = proportion_confint(events, observations, alpha, 'normal')
+    portion = events/observations
     return portion, ci_low, ci_upp # type: ignore
 
 def bonferroni_ci(
@@ -377,21 +377,21 @@ def delta_stdev_ci(
     return delta, ci_low, ci_upp
 
 def delta_proportions_ci(
-        count1: int, nobs1: int, count2: int, nobs2: int,
+        events1: int, observations1: int, events2: int, observations2: int,
         level: float = 0.95) -> Tuple[float, float, float]:
     """Confidence intervals for comparing two independent proportions
     This assumes that we have two independent binomial sample.
 
     Parameters
     ----------
-    count1 : int
-        number of events of sample 1
-    nobs1 : int
-        total number of trials of sample 1
-    count2 : int
-        number of events of sample 2
-    nobs2 : int
-        total number of trials of sample 2
+    events1 : int
+        Counted number of events of sample 1.
+    observations1 : int
+        Total number of observations of sample 1.
+    events2 : int
+        Counted number of events of sample 2.
+    observations2 : int
+        Total number of observations of sample 2.
     level : float in (0, 1), optional
         confidence level, by default 0.95
 
@@ -403,9 +403,9 @@ def delta_proportions_ci(
         lower and upper confidence level
     """
     alpha = confidence_to_alpha(level, two_sided=False)
-    delta = count1/nobs1 - count2/nobs2
+    delta = events1/observations1 - events2/observations2
     ci_low, ci_upp = confint_proportions_2indep(
-        count1, nobs1, count2, nobs2, 
+        events1, observations1, events2, observations2, 
         method='wald', compare='diff', alpha=alpha)
     return delta, ci_low, ci_upp # type: ignore
 

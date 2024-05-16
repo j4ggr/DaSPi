@@ -347,7 +347,7 @@ def variance_test(
     return p, statistic, test
 
 def proportions_test(
-        count1: int, nobs1: int, count2: int, nobs2: int,
+        events1: int, observations1: int, events2: int, observations2: int,
         decision_threshold: int = 1000) -> Tuple[float, float, str]:
     """Hypothesis test for comparing two independent proportions
     This assumes that we have two independent binomial samples.
@@ -361,17 +361,17 @@ def proportions_test(
 
     Parameters
     ----------
-    count1 : int
-        number of events of sample 1
-    nobs1 : int
-        total number of trials of sample 1
-    count2 : int
-        number of events of sample 2
-    nobs2 : int
-        total number of trials of sample 2
+    events1 : int
+        Counted number of events of sample 1.
+    observations1 : int
+        Total number of observations of sample 1.
+    events2 : int
+        counted number of events of sample 2.
+    observations2 : int
+        Total number of observations of sample 2.
     decision_threshold : int, optional
-        if the sum of sample size (nobs1 + nobs2) is greater than 
-        decision_threshold, the Fisher exact test is performed, 
+        if the sum of sample size (observations1 + observations2) is greater
+        than decision_threshold, the Fisher exact test is performed, 
         by default 1000
 
     Returns
@@ -384,13 +384,13 @@ def proportions_test(
         name of performed test
     """
     test = ''
-    if nobs1 + nobs2 > decision_threshold:
-        table = np.array([[count1, nobs1], [count2, nobs2]])
+    if observations1 + observations2 > decision_threshold:
+        table = np.array([[events1, observations1], [events2, observations2]])
         statistic, p = fisher_exact(table, alternative='two-sided')
         test = 'Exakter Fisher'
     else:
         res = test_proportions_2indep(
-            count1, nobs1, count2, nobs2, 
+            events1, observations1, events2, observations2, 
             method='wald', alternative='two-sided')
         p, statistic = res.pvalue, res.statistic
         test = 'Wald'

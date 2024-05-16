@@ -2609,6 +2609,10 @@ class ProportionTest(ConfidenceInterval):
     source : pandas DataFrame
         Pandas long format DataFrame containing the data source for the
         plot.
+    target : str
+        Column name to use for the target variable. If falsy, the name
+        will be formed from the specified `events` and `observations` 
+        with a "/" character in between.
     events : str
         Column name containing the values of counted events for each
         feature.
@@ -2647,6 +2651,12 @@ class ProportionTest(ConfidenceInterval):
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
+    
+    Notes
+    -----
+    This class is a bit of a hack as it creates its own target variable 
+    with the events/observation ratio. For this reason please use with 
+    caution, especially with other plotters and/or axes.
     """
 
     __slots__ = ('method')
