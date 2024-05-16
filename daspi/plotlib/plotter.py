@@ -2676,7 +2676,7 @@ class ProportionTest(ConfidenceInterval):
         self.method = method
         if not feature:
             feature = PLOTTER.TRANSFORMED_FEATURE
-            data[feature] = 0
+            data[feature] = DEFAULT.FEATURE_BASE
         super().__init__(
             source=data, target=target, feature=feature,
             show_center=show_center, bars_same_color=bars_same_color,
