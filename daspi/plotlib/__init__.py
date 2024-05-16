@@ -72,11 +72,14 @@ from .plotter import Scatter
 from .plotter import Violine
 from .plotter import Errorbar
 from .plotter import MeanTest
+from .plotter import HideSubplot
+from .plotter import SkipSubplot
 from .plotter import SpreadWidth
 from .plotter import Probability
 from .plotter import BlandAltman
 from .plotter import GaussianKDE
 from .plotter import VariationTest
+from .plotter import ProportionTest
 from .plotter import CenterLocation
 from .plotter import LinearRegression
 from .plotter import TransformPlotter

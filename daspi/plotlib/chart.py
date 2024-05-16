@@ -53,6 +53,7 @@ from typing import Self
 from typing import Dict
 from typing import List
 from typing import Tuple
+from typing import Literal
 from typing import Generator
 from pathlib import Path
 from numpy.typing import NDArray
@@ -226,13 +227,19 @@ class Chart(ABC):
         return next(self)
     
     @abstractmethod
-    def plot(self, plotter: Type[Plotter]) -> Self:
+    def plot(
+            self, plotter: Type[Plotter], kw_call: Dict[str, Any] = {}, **kwds
+            ) -> Self:
         """Plot the chart using the specified plotter.
 
         Parameters
         ----------
-        plotter:Type[Plotter]
-            The type of plotter to use.
+        plotter : Type[Plotter]
+            The plotter object.
+        kw_call : Dict[str, Any]
+            Additional keyword arguments for the plotter call method.
+        **kwds:
+            Additional keyword arguments for the plotter object.
 
         Returns
         -------
@@ -625,13 +632,16 @@ class SingleChart(Chart):
         self._reset_variate_()
 
     def plot(
-            self, plotter: Type[Plotter], **kwds) -> Self:
+            self, plotter: Type[Plotter], kw_call: Dict[str, Any] = {}, **kwds
+            ) -> Self:
         """Plot the chart.
 
         Parameters
         ----------
         plotter : Type[Plotter]
             The plotter object.
+        kw_call : Dict[str, Any]
+            Additional keyword arguments for the plotter call method.
         **kwds:
             Additional keyword arguments for the plotter object.
 
@@ -641,14 +651,15 @@ class SingleChart(Chart):
             The SingleChart instance.
         """
         self.target_on_y = kwds.pop('target_on_y', self.target_on_y)
+        marker = kwds.pop('marker', self.marker)
         for data in self:
             plot = plotter(
                 source=data, target=self.target, feature=self.feature,
                 target_on_y=self.target_on_y, color=self.color, 
-                ax=self.axes_facets.ax, marker=self.marker, size=self.sizes,
+                ax=self.axes_facets.ax, marker=marker, size=self.sizes,
                 width=self.dodging.width,
                 categorical_feature=self.categorical_feature, **kwds)
-            plot()
+            plot(**kw_call)
             self._plots.append(plot)
         return self
     
@@ -793,10 +804,10 @@ class JointChart(Chart):
         False.
     target_on_y : bool or List[bool], optional
         Flag indicating whether target is on y-axis, by default True.
-    sharex : bool or str, optional
+    sharex : bool | Literal['none', 'all', 'row', 'col'], optional
         Flag indicating whether x-axis should be shared among subplots,
         by default False.
-    sharey : bool or str, optional
+    sharey : bool | Literal['none', 'all', 'row', 'col'], optional
         Flag indicating whether y-axis should be shared among subplots,
         by default False.
     width_ratios : List[float], optional
@@ -856,8 +867,8 @@ class JointChart(Chart):
             dodge: bool | Tuple[bool, ...] = False,
             categorical_feature: bool | Tuple[str, ...] = False,
             target_on_y: bool | Tuple[bool, ...] = True,
-            sharex: bool | str = False,
-            sharey: bool | str = False,
+            sharex: bool | Literal['none', 'all', 'row', 'col'] = 'none', 
+            sharey: bool | Literal['none', 'all', 'row', 'col'] = 'none', 
             width_ratios: List[float] | None = None,
             height_ratios: List[float] | None = None,
             stretch_figsize: bool = True,
@@ -1044,16 +1055,20 @@ class JointChart(Chart):
         ylabel = self._axis_label_(target_label, True)
         xlabel, ylabel = self._swap_labels_(xlabel, ylabel)
         return xlabel, ylabel
-    
-    def plot(self, plotter: Type[Plotter], **kwds) -> Self:
+
+    def plot(
+            self, plotter: Type[Plotter], kw_call: Dict[str, Any] = {}, **kwds
+            ) -> Self:
         """Plot the data using the specified plotter.
         
         Parameters
         ----------
         plotter : Type[Plotter]
-            The plotter class to use for visualization.
-        **kwds
-            Additional keyword arguments to pass to the plotter.
+            The plotter object.
+        kw_call : Dict[str, Any]
+            Additional keyword arguments for the plotter call method.
+        **kwds:
+            Additional keyword arguments for the plotter object.
 
         Returns
         -------
@@ -1069,7 +1084,7 @@ class JointChart(Chart):
         create customized visualizations for each subplot.
         """
         chart = self._next_chart_()
-        chart.plot(plotter, **kwds)
+        chart.plot(plotter, kw_call, **kwds)
         return self
 
     def stripes(
@@ -1337,7 +1352,9 @@ class MultipleVariateChart(SingleChart):
             axes_data = data[self.target]
             yield axes_data
 
-    def plot(self, plotter: Type[Plotter], **kwds) -> Self:
+    def plot(
+            self, plotter: Type[Plotter], kw_call: Dict[str, Any] = {}, **kwds
+            ) -> Self:
         """Plot the chart using the specified plotter.
 
         This method generates a subset of the source data specific to 
@@ -1347,6 +1364,8 @@ class MultipleVariateChart(SingleChart):
         ----------
         plotter : Type[Plotter]
             The type of plotter to use.
+        kw_call : Dict[str, Any]
+            Additional keyword arguments for the plotter call method.
         **kwds : Any
             Additional keyword arguments to pass to the plotter.
 
@@ -1364,7 +1383,7 @@ class MultipleVariateChart(SingleChart):
                 target_on_y=self.target_on_y, color=self.color, ax=ax, 
                 marker=self.marker, size=self.sizes,
                 width=self.dodging.width, **kwds)
-            plot()
+            plot(**kw_call)
             self._plots.append(plot)
         return self
     

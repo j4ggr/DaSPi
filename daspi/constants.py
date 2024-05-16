@@ -84,7 +84,7 @@ class _Kw_:
     @property
     def ROW_LABEL(self) -> Dict[str, Any]:
         """Keyword Arguments for the Axes.text method used to add a 
-        row label to each plot_axes as text on LabelFacets."""
+        row label to each axes as text on LabelFacets."""
         return dict(x=1, y=0.5, ha='left', va='center', rotation=-90)
 
     @property

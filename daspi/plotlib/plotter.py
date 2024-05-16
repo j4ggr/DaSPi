@@ -148,6 +148,7 @@ from ..statistics import stdev_ci
 from ..statistics import Estimator
 from ..statistics import variance_ci
 from ..statistics import prediction_ci
+from ..statistics import proportion_ci
 from ..statistics import convert_to_continuous
 from ..statistics import estimate_kernel_density
 
@@ -1015,6 +1016,7 @@ class TransformPlotter(Plotter):
         used within chart objects).
     """
     __slots__ = ('_f_base', '_original_f_values')
+
     _f_base: int | float
     """Value that serves as the base location (offset) of the feature 
     values."""
@@ -2077,7 +2079,7 @@ class Errorbar(TransformPlotter):
         self.upper = upper
         self.show_center = show_center
         self.bars_same_color = bars_same_color
-        if feature not in source:
+        if feature not in source and feature != PLOTTER.TRANSFORMED_FEATURE:
             feature = PLOTTER.FEATURE
             source[feature] = np.arange(len(source[target]))
 
@@ -2592,6 +2594,132 @@ class VariationTest(ConfidenceInterval):
             ci_func=ci_func, color=color, ax=ax)
 
 
+class ProportionTest(ConfidenceInterval):
+    """Class for creating plotters with error bars representing 
+    confidence intervals for proportion (events/observation).
+
+    This class is specifically designed for testing the statistical
+    significance of proportions. It uses confidence intervals
+    to visually represent the uncertainty in the variation estimates and
+    allows for a quick assessment of whether the intervals overlap or
+    not.
+
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
+    events : str
+        Column name containing the values of counted events for each
+        feature.
+    observations : str
+        Column name containing the values of counted observations for
+        each feature.
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''.
+    method : Literal['sum', 'mean', 'median'], optional
+        A pandas Series method to use for aggregating target values 
+        within each feature level. This method is only required if there 
+        is more than one value for number of observations and number of 
+        events for each factor level. Otherwise it is ignored, 
+        by default 'sum'.
+    show_center : bool, optional
+        Flag indicating whether to show the center points,
+        by default True.
+    bars_same_color : bool, optional
+        Flag indicating whether to use same color for error bars as 
+        markers for center. If False, the error bars are black,
+        by default False
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on
+        the y-axis, by default True.
+    confidence_level : float, optional
+        Confidence level for the confidence intervals,
+        by default 0.95.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, a Figure object with
+        one Axes is created, by default None.
+    **kwds:
+        Additional keyword arguments that have no effect and are
+        only used to catch further arguments that have no use here
+        (occurs when this class is used within chart objects).
+    """
+
+    __slots__ = ('method')
+
+    method: Literal['sum', 'mean', 'median']
+    """The provided Pandas Series method for aggregating events and
+    observations (if there are multiple) per feature level."""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            events: str,
+            observations: str,
+            feature: str = '',
+            method: Literal['sum', 'mean', 'median'] = 'sum',
+            show_center: bool = True,
+            bars_same_color: bool = False,
+            target_on_y: bool = True,
+            confidence_level: float = 0.95,
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        target = target if target else f'{events}/{observations}'
+        data = source[[c for c in (events, observations, feature) if c]].copy()
+        data[target] = list(zip(data[events], data[observations]))
+        self.method = method
+        if not feature:
+            feature = PLOTTER.TRANSFORMED_FEATURE
+            data[feature] = 0
+        super().__init__(
+            source=data, target=target, feature=feature,
+            show_center=show_center, bars_same_color=bars_same_color,
+            target_on_y=target_on_y, confidence_level=confidence_level,
+            ci_func=proportion_ci, color=color, ax=ax)
+    
+    def transform(
+            self, feature_data: float | int, target_data: Series
+            ) -> pd.DataFrame:
+        """Perform the transformation on the target data by using the
+        given function `ci_func' and return the transformed data.
+
+        Parameters
+        ----------
+        feature_data : float | int
+            Base location (offset) of feature axis coming from
+            `feature_grouped` generator.
+        target_data : pandas Series
+            Feature grouped target data used for transformation, coming
+            from `feature_grouped` generator.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            The transformed data source for the plot.
+        """
+        events, observations = tuple(zip(*target_data))
+        if len(target_data) > 1:
+            events = getattr(pd.Series(events), self.method)()
+            observations = getattr(pd.Series(observations), self.method)()
+        else:
+            events = events[0]
+            observations = observations[0]
+        center, lower, upper = self.ci_func(
+            events, observations, self.confidence_level, self.n_groups)
+        data = pd.DataFrame({
+            self.target: [center],
+            self.feature: [feature_data],
+            self.lower: lower,
+            self.upper: upper})
+        return data
+
+
 class HideSubplot(Plotter):
     """Class for hiding all visual components of the x- and y-axis.
     
@@ -2619,7 +2747,18 @@ class HideSubplot(Plotter):
         """Hide all visual components of the x- and y-axis."""
         self.ax.set_axis_off()
 
-                
+
+class SkipSubplot(Plotter):
+    """Class for skip plotting at current axes in a JointChart."""
+
+    @property
+    def default_kwds(self) -> Dict[str, Any]:
+        return {}
+
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        """Do Nothing"""
+
+
 __all__ = [
     'Plotter',
     'Scatter',
@@ -2640,5 +2779,7 @@ __all__ = [
     'ConfidenceInterval',
     'MeanTest',
     'VariationTest',
+    'ProportionTest',
     'HideSubplot',
+    'SkipSubplot',
     ]

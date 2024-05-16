@@ -1,1 +1,1 @@
-from .model import LinearModel
+from ._model import LinearModel
