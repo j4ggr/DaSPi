@@ -1,24 +1,20 @@
 import sys
 import pytest
-import matplotlib
 
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
-import matplotlib.pyplot as plt
 
 from pytest import approx
 from pathlib import Path
-from pandas.core.frame import DataFrame
 
 sys.path.append(Path(__file__).parent.resolve())
 
 from daspi.constants import DEFAULT
 from daspi.constants import CATEGORY
-from daspi.plotlib.utils import Dodger
-from daspi.plotlib.utils import HueLabel
-from daspi.plotlib.utils import SizeLabel
-from daspi.plotlib.utils import ShapeLabel
+from daspi.plotlib.classify import Dodger
+from daspi.plotlib.classify import HueLabel
+from daspi.plotlib.classify import SizeLabel
+from daspi.plotlib.classify import ShapeLabel
 from daspi.plotlib.facets import AxesFacets
 
 
@@ -33,10 +29,9 @@ class TestCategoryLabel:
         assert str(self.sizes) == 'SizeLabel'
 
     def test_errrors(self):
-        with pytest.raises(KeyError) as err:
+        with pytest.raises(AssertionError) as err:
             self.colors['psi']
-        assert str(err.value) == (
-            f"\"Can't get category for label 'psi', got {self.colors.labels}\"")
+        assert "Can't get category for label" in str(err.value)
         
         with pytest.raises(AssertionError) as err:
             n = self.colors.n_allowed
@@ -47,7 +42,7 @@ class TestCategoryLabel:
         with pytest.raises(AssertionError) as err:
             ShapeLabel(('foo', 'foo', 'bar', 'bazz'))
         assert str(err.value) == (
-            f'Labels occur more than once, only unique labels are allowed')
+            'Labels occur more than once, only unique labels are allowed')
 
     def test_handles_labels(self):
         handles, labels = self.colors.handles_labels()
@@ -64,10 +59,10 @@ class TestCategoryLabel:
         assert len(handles) == CATEGORY.N_SIZE_BINS
 
     def test_getitem(self):
-        assert self.colors['alpha'] == DEFAULT.PALETTE[0]
-        assert self.colors['beta'] == DEFAULT.PALETTE[1]
-        assert self.colors['gamma'] == DEFAULT.PALETTE[2]
-        assert self.colors['delta'] == DEFAULT.PALETTE[3]
+        assert self.colors['alpha'] == CATEGORY.PALETTE[0]
+        assert self.colors['beta'] == CATEGORY.PALETTE[1]
+        assert self.colors['gamma'] == CATEGORY.PALETTE[2]
+        assert self.colors['delta'] == CATEGORY.PALETTE[3]
 
         assert self.markers['foo'] == CATEGORY.MARKERS[0]
         assert self.markers['bar'] == CATEGORY.MARKERS[1]
@@ -89,7 +84,7 @@ class TestDodger:
 
     def test_getitem(self):
         tick_labels = ('a', 'b', 'c', 'd')
-        dodge = Dodger(('r'), tick_labels=tick_labels)
+        dodge = Dodger(('r', ), tick_labels=tick_labels)
         assert dodge['r'] == 0
 
         dodge = Dodger(('r', 'g'), tick_labels=tick_labels)

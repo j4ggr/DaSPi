@@ -21,9 +21,9 @@ requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
 
-[tool.pdm]
-package-type = "library"
 
+[tool.pdm]
+distribution = true
 [tool.pdm.dev-dependencies]
 test = [
     "pytest>=7.4.4",

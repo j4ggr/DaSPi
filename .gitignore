@@ -170,3 +170,4 @@ cython_debug/
 playground.ipynb
 
 /tests/charts/*.png
+/tests/charts/_archived/*.png

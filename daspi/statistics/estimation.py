@@ -5,6 +5,7 @@ import pandas as pd
 
 from typing import Tuple
 from typing import Literal
+from typing import Sequence
 from typing import Optional
 from typing import Callable
 from numpy.typing import NDArray
@@ -17,17 +18,25 @@ from scipy.stats import sem
 from scipy.stats import skew
 from scipy.stats import kurtosis
 
+from .._typing import SpecLimit
+from .._typing import SpecLimits
+from .._typing import NumericSample1D
+
+from ..constants import DIST
+from ..constants import PLOTTER
+
+from .utils import convert_to_continuous
+
 from .confidence import mean_ci
 from .confidence import stdev_ci
 from .confidence import median_ci
+
 from .hypothesis import skew_test
 from .hypothesis import kurtosis_test
 from .hypothesis import mean_stability_test
 from .hypothesis import anderson_darling_test
 from .hypothesis import variance_stability_test
 from .hypothesis import kolmogorov_smirnov_test
-from ..constants import DIST
-from ..constants import PLOTTER
 
 
 class Estimator:
@@ -39,14 +48,14 @@ class Estimator:
         '_dist_params', 'possible_dists', '_k', '_evaluate', '_q_low', '_q_upp')
     _samples: Series
     _filtered: Series
-    _n_samples: int | None
-    _n_missing: int | None
+    _n_samples: int
+    _n_missing: int
     _mean: float | None
     _median: float | None
     _std: float | None
     _sem: float | None
-    _lcl: str | None
-    _ucl: str | None
+    _lcl: float | None
+    _ucl: float | None
     _excess: float | None
     _p_excess: float | None
     _skew: float | None
@@ -55,7 +64,7 @@ class Estimator:
     _p_dist: float | None
     _p_ad: float | None
     _dist_params: tuple | None
-    _strategy: str
+    _strategy: Literal['eval', 'fit', 'norm', 'data'] 
     _agreement: int | float
     possible_dists: Tuple[str | rv_continuous, ...]
     _k: float
@@ -65,7 +74,7 @@ class Estimator:
 
     def __init__(
             self,
-            samples: ArrayLike, 
+            samples: NumericSample1D, 
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: int | float = 6, 
             possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
@@ -80,7 +89,7 @@ class Estimator:
         
         Parameters
         ----------
-        samples : array like (1d)
+        samples : NumericSample1D
             sample data
         strategy : {'eval', 'fit', 'norm', 'data'}, optional
             Which strategy should be used to determine the control 
@@ -118,8 +127,6 @@ class Estimator:
             one of the allowed strategy {'eval', 'fit', 'norm', 'data'},
             by default None   
         """
-        self._n_samples = len(samples)
-        self._n_missing = None
         self._mean = None
         self._median = None
         self._std = None
@@ -140,7 +147,9 @@ class Estimator:
         self._filtered = pd.Series()
         if not isinstance(samples, pd.Series):
             samples = pd.Series(samples)
-        self._samples = samples 
+        self._samples = samples
+        self._n_samples = len(self.samples)
+        self._n_missing = self.samples.isna().sum()
         self._strategy = 'norm'
         self.strategy = strategy
         self._agreement = -1
@@ -161,15 +170,13 @@ class Estimator:
         return self._filtered
     
     @property
-    def n_samples(self):
+    def n_samples(self) -> int:
         """Get sample size of unfiltered samples"""
         return self._n_samples
     
     @property
-    def n_missing(self):
+    def n_missing(self) -> int:
         """Get amount of missing values"""
-        if self._n_missing is None:
-            self._n_missing = self.samples.isna().sum()
         return self._n_missing
     
     @property
@@ -202,11 +209,11 @@ class Estimator:
     def sem(self) -> float:
         """Get standard error mean of filtered samples"""
         if self._sem is None:
-            self._sem = self.filtered.sem()
+            self._sem = float(self.filtered.sem()) # type: ignore
         return self._sem
     
     @property
-    def lcl(self):
+    def lcl(self) -> float:
         """Get lower control limit according to given strategy and 
         agreement."""
         if self._lcl is None:
@@ -214,7 +221,7 @@ class Estimator:
         return self._lcl
     
     @property
-    def ucl(self):
+    def ucl(self) -> float:
         """Get upper control limit according to given strategy and 
         agreement."""
         if self._ucl is None:
@@ -229,7 +236,7 @@ class Estimator:
         quantile (6 sigma ~ 99.73 % of the samples)."""
         if self._q_low is None:
             if isinstance(self.agreement, int):
-                self._q_low = stats.norm.cdf(-self.agreement/2)
+                self._q_low = float(stats.norm.cdf(-self.agreement/2))
             else:
                 self._q_low = (1 - self.agreement)/2
         return self._q_low
@@ -262,7 +269,8 @@ class Estimator:
             - excess > 0: more extreme outliers than normal distribution
         """
         if self._excess is None:
-            self._excess = kurtosis(self.filtered, fisher=True, bias=False)
+            self._excess = float(kurtosis(
+                self.filtered, fisher=True, bias=False))
         return self._excess
     
     @property
@@ -275,7 +283,7 @@ class Estimator:
         return self._p_excess
     
     @property
-    def skew(self) -> Tuple[float]:
+    def skew(self) -> float:
         """Get the skewness of the filtered samples.
         Calculations are corrected for statistical bias.
         For normally distributed data, the skewness should be about zero. 
@@ -286,7 +294,7 @@ class Estimator:
             - skew > 0: right-skewed -> long tail right
         """
         if self._skew is None:
-            self._skew = skew(self.filtered, bias=False)
+            self._skew = float(skew(self.filtered, bias=False))
         return self._skew
     
     @property
@@ -307,21 +315,27 @@ class Estimator:
         return self._p_ad
 
     @property
-    def dist(self) -> rv_continuous | None:
+    def dist(self) -> rv_continuous:
         """Get fitted distribution. None if method distribution has 
         not been called."""
+        if self._dist is None:
+            self._dist, self._p_dist, self._dist_params = self.distribution()
         return self._dist
     
     @property
-    def p_dist(self) -> float | None:
+    def p_dist(self) -> float:
         """Get probability of fitted distribution. None if method 
         distribution has not been called."""
+        if self._p_dist is None:
+            self._dist, self._p_dist, self._dist_params = self.distribution()
         return self._p_dist
     
     @property
-    def dist_params(self) -> tuple:
+    def dist_params(self) -> Tuple[float, ...]:
         """Get params of fitted distribution. None if method 
         distribution has not been called."""
+        if self._dist_params is None:
+            self._dist, self._p_dist, self._dist_params = self.distribution()
         return self._dist_params
     
     @property
@@ -342,7 +356,7 @@ class Estimator:
             are read directly from the samples."""
         return self._strategy
     @strategy.setter
-    def strategy(self, strategy: Literal['eval', 'fit', 'norm', 'data']):
+    def strategy(self, strategy: Literal['eval', 'fit', 'norm', 'data']) -> None:
         assert strategy in ['eval', 'fit', 'norm', 'data']
         if self._strategy != strategy:
             self._strategy = strategy
@@ -359,7 +373,7 @@ class Estimator:
         (which corresponds to ~ 6 sigma)"""
         return self._agreement
     @agreement.setter
-    def agreement(self, agreement: int | float):
+    def agreement(self, agreement: int | float) -> None:
         assert agreement > 0, (
             'Agreement must be set as a percentage (0 < agreement < 1) '
             + 'or as a multiple of the standard deviation (agreement >= 1), '
@@ -367,7 +381,7 @@ class Estimator:
         if agreement >= 1:
             self._k = agreement / 2
         else:
-            self._k = stats.norm.ppf((1 + agreement) / 2)
+            self._k = float(stats.norm.ppf((1 + agreement) / 2))
         if self._agreement != agreement:
             self._agreement = agreement
             self._reset_values_()
@@ -421,14 +435,31 @@ class Estimator:
         ci_low, ci_upp = stdev_ci(sample=self.filtered, level=level)[1:]
         return ci_low, ci_upp
     
-    def distribution(self):
-        """First, the p-score is calculated by performing a 
+    def distribution(self) -> Tuple[rv_continuous, float, Tuple[float, ...]]:
+        """Estimate the distribution by selecting the one from the
+        provided distributions that best reflects the filtered data.
+
+        Returns
+        -------
+        dist : scipy.stats rv_continuous
+            A generic continous distribution class of best fit
+        p : float
+            The two-tailed p-value for the best fit
+        params : Tuple[float, ...]
+            Estimates for any shape parameters (if applicable), followed
+            by those for location and scale. For most random variables,
+            shape statistics will be returned, but there are exceptions
+            (e.g. norm). Can be used to generate values with the help of
+            returned dist
+        
+        Notes
+        -----
+        First, the p-score is calculated by performing a 
         Kolmogorov-Smirnov test to determine how well each distribution 
         fits the samples. Whatever has the highest P-score is considered
         the most accurate. This is because a higher p-score means the 
         hypothesis is closest to reality."""
-        self._dist, self._p_dist, self._dist_params = estimate_distribution(
-            self.filtered, self.possible_dists)
+        return estimate_distribution(self.filtered, self.possible_dists)
     
     def stable_variance(
             self, alpha: float = 0.05, n_sections : int = 3) -> bool:
@@ -553,7 +584,7 @@ class Estimator:
             strategy = 'norm' if self.follows_norm_curve() else 'data'
         return strategy
     
-    def _calculate_control_limits_(self):
+    def _calculate_control_limits_(self) -> Tuple[float, float]:
         """Calculate the control limits according to given strategy
         
         - `eval`: first evaluate the strategy according to evaluate 
@@ -577,18 +608,17 @@ class Estimator:
                 self.strategy = self.evaluate()
                 lcl, ucl = self._calculate_control_limits_()
             case 'fit':
-                self.distribution()
-                lcl = self.dist.ppf(self.q_low, **self.dist_params)
-                ucl = self.dist.ppf(self.q_upp, **self.dist_params)
+                lcl = float(self.dist.ppf(self.q_low, *self.dist_params))
+                ucl = float(self.dist.ppf(self.q_upp, *self.dist_params))
             case 'norm':
                 lcl = self.mean - self._k * self.std
                 ucl = self.mean + self._k * self.std
             case 'data':
-                lcl = np.quantile(self.filtered, self.q_low)
-                ucl = np.quantile(self.filtered, self.q_upp)
+                lcl = float(np.quantile(self.filtered, self.q_low))
+                ucl = float(np.quantile(self.filtered, self.q_upp))
         return lcl, ucl
 
-    def _reset_values_(self):
+    def _reset_values_(self) -> None:
         """Set the control limits and quantiles to None. This function 
         is called when one of the values relevant to the calculation of
         those limits is adjusted (strategy or agreement for the control
@@ -604,8 +634,8 @@ class ProcessEstimator(Estimator):
     __slots__ = (
         '_lsl', '_usl', '_n_ok', '_n_nok', '_error_values', '_n_errors', 
         '_cp', '_cpk')
-    _lsl: float | None
-    _usl: float | None
+    _lsl: SpecLimit
+    _usl: SpecLimit
     _n_ok: int | None
     _n_nok: int | None
     _error_values: Tuple[float, ...]
@@ -615,9 +645,9 @@ class ProcessEstimator(Estimator):
 
     def __init__(
             self,
-            samples: ArrayLike,
-            lsl: Optional[float] = None, 
-            usl: Optional[float] = None, 
+            samples: NumericSample1D, 
+            lsl: SpecLimit = None, 
+            usl: SpecLimit = None, 
             error_values: Tuple[float, ...] = (),
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: float | int = 6, 
@@ -635,7 +665,7 @@ class ProcessEstimator(Estimator):
 
         Parameters
         ----------
-        samples : array like
+        samples : NumericSample1D
             1D array of process data.
         lsl, usl : float
             Lower and upper specification limit for process data.
@@ -675,7 +705,6 @@ class ProcessEstimator(Estimator):
             continuous distributions of scipy.stats are allowed,
             by default DIST.COMMON
         """
-        assert usl > lsl if None not in (lsl, usl) else True
         self._n_ok = None
         self._n_nok = None
         self._n_errors = None
@@ -731,32 +760,36 @@ class ProcessEstimator(Estimator):
         return self._n_errors
 
     @property
-    def lsl(self):
+    def lsl(self) -> SpecLimit:
         """Get lower specification limit"""
+        if self._lsl is not None and self._usl is not None:
+            assert self._lsl < self.usl # type: ignore
         return self._lsl
     @lsl.setter
-    def lsl(self, lsl: float):
+    def lsl(self, lsl: SpecLimit) -> None:
         if self._lsl != lsl:
             self._lsl = lsl
             self._reset_values_()
 
     @property
-    def usl(self):
+    def usl(self) -> SpecLimit:
         """Get upper specification limit"""
+        if self._lsl is not None and self._usl is not None:
+            assert self._usl > self.usl # type: ignore
         return self._usl
     @usl.setter
-    def usl(self, usl: float):
+    def usl(self, usl: SpecLimit) -> None:
         if self._usl != usl:
             self._usl = usl
             self._reset_values_()
 
     @property
-    def limits(self) -> Tuple[float | None]:
+    def limits(self) -> SpecLimits:
         """Get lower and upper specification limits."""
         return (self.lsl, self.usl)
 
     @property
-    def control_limits(self) -> Tuple[float | None]:
+    def control_limits(self) -> Tuple[float, float]:
         """Get lower and upper control limits."""
         return (self.lcl, self.ucl)
     
@@ -773,10 +806,11 @@ class ProcessEstimator(Estimator):
         the Cpk value.
         This value cannot be calculated unless an upper and lower 
         specification limit is given. In this case, None is returned."""
-        if None in self.limits: return None
+        if self.usl is None or self.lsl is None:
+            return None
         if self._cp is None:
             agreement = 2 * self._k
-            self._cp = np.abs(np.diff(self.limits))/(agreement*self.std)
+            self._cp = (self.usl - self.lsl)/(agreement*self.std) # type: ignore
         return self._cp
     
     @property
@@ -810,7 +844,7 @@ class ProcessEstimator(Estimator):
         if self.limits == (None, None): return None
         return min([self.cpl, self.cpu])
 
-    def _reset_values_(self):
+    def _reset_values_(self) -> None:
         """Set all values relevant to process capability to None. This 
         function is called when one of the values relevant to the 
         calculation of capability values is adjusted (specification 
@@ -824,9 +858,9 @@ class ProcessEstimator(Estimator):
         self._cpk = None
 
 def estimate_distribution(
-        data: ArrayLike,
-        dists: Tuple[str|rv_continuous] = DIST.COMMON
-        ) -> Tuple[rv_continuous, float, Tuple[float]]:
+        data: NumericSample1D,
+        dists: Tuple[str|rv_continuous, ...] = DIST.COMMON
+        ) -> Tuple[rv_continuous, float, Tuple[float, ...]]:
     """First, the p-score is calculated by performing a 
     Kolmogorov-Smirnov test to determine how well each distribution fits
     the data. Whatever has the highest P-score is considered the most
@@ -835,7 +869,7 @@ def estimate_distribution(
     
     Parameters
     ----------
-    data : array like
+    data : NumericSample1D
         1d array of data for which a distribution is to be searched
     dists : tuple of strings or rv_continous, optional
         Distributions to which the data may be subject. Only 
@@ -848,7 +882,7 @@ def estimate_distribution(
         A generic continous distribution class of best fit
     p : float
         The two-tailed p-value for the best fit
-    params : tuple of floats
+    params : Tuple[float, ...]
         Estimates for any shape parameters (if applicable), followed 
         by those for location and scale. For most random variables, 
         shape statistics will be returned, but there are exceptions 
@@ -858,7 +892,7 @@ def estimate_distribution(
     dists = (dists, ) if isinstance(dists, (str, rv_continuous)) else dists
     results = {d: kolmogorov_smirnov_test(data, d) for d in dists}
     dist, (p, _, params) = max(results.items(), key=lambda i: i[1][0])
-    if isinstance(dist, str): dist = getattr(stats, dist)
+    dist = convert_to_continuous(dist)
     return dist, p, params
 
 def estimate_kernel_density(
@@ -912,7 +946,7 @@ def estimate_kernel_density(
     return sequence, estimation
 
 __all__ = [
-    Estimator.__name__,
-    ProcessEstimator.__name__,
-    estimate_distribution.__name__,
-    estimate_kernel_density.__name__,]
+    'Estimator',
+    'ProcessEstimator',
+    'estimate_distribution',
+    'estimate_kernel_density',]

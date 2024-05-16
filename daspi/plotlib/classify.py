@@ -1,17 +1,46 @@
+"""The provided Python code defines several classes and a list of
+strings, all related to handling categorical features in data
+visualization. Here's a brief description of each component:
+
+1. _CategoryLabel: An abstract base class representing a category label 
+handler for plotted categorical values. It has properties for available 
+categories, default category, labels, and number of used categories. It
+also includes methods for getting category items, retrieving legend
+handles and labels, and checking if the object is empty.
+2. HueLabel: A class representing category labels for hue values in
+plots. It inherits from _CategoryLabel and adds a property for available
+hue colors. It also overrides the handles_labels method to provide
+specific legend handles and labels for hue categories.
+3. ShapeLabel: A class representing category labels for shape markers in
+plots. It inherits from _CategoryLabel and overrides the handles_labels
+method to provide specific legend handles and labels for shape markers.
+4. SizeLabel: A class representing category labels for marker sizes in
+plots. It inherits from _CategoryLabel and adds properties for the
+offset and factor for value-to-size transformation. It also overrides
+the handles_labels method to provide specific legend handles and labels
+for marker sizes. Additionally, it includes methods for getting size
+values and converting values into size values for markers.
+5. Dodger: A class for handling dodging of categorical features in
+plots. It has properties for categories, ticks, tick labels, width of
+each category bar, number of categories, dodge values, and default dodge
+value. It also includes methods for getting dodge values, replacing
+source values with dodged ticks, and checking if the object has more
+than one category.
+"""
+
 import numpy as np
 import pandas as pd
 
 from abc import ABC
 from abc import abstractmethod
 from typing import Any
-from typing import List
 from typing import Dict
 from typing import Tuple
-from typing import Literal
+from typing import Sequence
 from numpy.typing import NDArray
 from numpy.typing import ArrayLike
+from pandas._typing import Scalar
 from pandas.core.series import Series
-from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
@@ -21,48 +50,18 @@ from ..constants import DEFAULT
 from ..constants import CATEGORY
 
 
-def shared_axes(
-        ax: Axes, which: Literal['x', 'y'], exclude: bool = True
-        ) -> List[bool]:
-    """Get all the axes from the figure of the given `ax` and compare 
-    whether the `ax` share the given axis. 
-    Get a map of boolean values as a list where all are `True` when the 
-    axis is shared.
-    
-    Parameters
-    ----------
-    ax : Axes
-        Base axes object to add second axis
-    which : {'x', 'y'}
-        From which axis a second one should be added
-    exclude : bool, optional
-        If True excludes the given `ax` in the returned map
-    
-    Returns
-    -------
-    List[bool]
-        Flat map for axes that shares same axis
-    """
-    assert which in ('x', 'y')
-    view = getattr(ax, f'get_shared_{which}_axes')()
-    axes = [_ax for _ax in ax.figure.axes] if exclude else ax.figure.axes  # type: ignore
-    return [view.joined(ax, _ax) for _ax in axes]
-
-
 class _CategoryLabel(ABC):
     """Abstract base class representing a category label handler for
     plotted categorical values.
 
     Parameters
     ----------
-    labels : Tuple[str, ...]
+    labels : Sequence[Scalar]
         Labels corresponding to the categories.
     """
 
-    __slots__ = ('_categories', '_default', '_labels', '_n')
+    __slots__ = ('_default', '_labels', '_n')
 
-    _categories: Tuple
-    """Tuple containing the available categories."""
     _default: Any
     """Default category item."""
     _labels: Tuple[str, ...]
@@ -70,15 +69,15 @@ class _CategoryLabel(ABC):
     _n: int
     """Number of used categories."""
     
-    def __init__(self, labels: Tuple[str, ...]) -> None:
+    def __init__(self, labels: Sequence[Scalar]) -> None:
         self._n = len(labels)
         self._default = None
         self.labels = labels
 
     @property
-    def categories(self) -> Tuple:
+    @abstractmethod
+    def categories(self) -> Tuple[Any, ...]:
         """Get the available categories (read-only)."""
-        return self._categories
 
     @property
     def default(self) -> Any:
@@ -92,12 +91,12 @@ class _CategoryLabel(ABC):
         """Get and set the labels corresponding to the categories."""
         return self._labels
     @labels.setter
-    def labels(self, labels: Tuple[str, ...]) -> None:
+    def labels(self, labels: Sequence[Scalar]) -> None:
         assert self.n_used <= self.n_allowed, (
             f'{self} can handle {self.n_allowed} categories, got {len(labels)}')
         assert self.n_used == len(set(labels)), (
             'Labels occur more than once, only unique labels are allowed')
-        self._labels = labels
+        self._labels = tuple(map(str, labels))
 
     @property
     def n_used(self) -> int:
@@ -122,13 +121,11 @@ class _CategoryLabel(ABC):
         Any
             The category item corresponding to the label.
         """
-        if label is not None: 
-            try:
-                idx = self.labels.index(label)
-            except ValueError:
-                raise KeyError(
-                    f"Can't get category for label '{label}', got {self.labels}")
-            item = self.categories[idx]
+        if label is not None:
+            _label = str(label)
+            assert _label in self.labels, (
+                f"Can't get category for label {_label}, got {self.labels}")
+            item = self.categories[self.labels.index(_label)]
         else:
             item = self.default
         return item
@@ -158,18 +155,20 @@ class HueLabel(_CategoryLabel):
 
     Parameters
     ----------
-    labels : Tuple[str]
+    labels : Sequence[Scalar]
         Labels corresponding to the hue categories.
     """
 
-    _categories: Tuple[str, ...] = DEFAULT.PALETTE
-    """Tuple containing the available hue categories as the current
-    color palette"""
-
-
-    def __init__(self, labels: Tuple[str]) -> None:
+    def __init__(self, labels: Sequence[Scalar]) -> None:
         super().__init__(labels)
     
+    @property
+    def categories(self) -> Tuple[str, ...]:
+        """Tuple containing the available hue categories as the current
+        color palette as defined in constants `CATEGORY.MARKERS`
+        (read-only)."""
+        return CATEGORY.PALETTE
+
     @property
     def colors(self) -> Tuple[str, ...]:
         """Get the available hue colors (read-only)."""
@@ -192,15 +191,18 @@ class ShapeLabel(_CategoryLabel):
 
     Parameters
     ----------
-    labels : Tuple
+    labels : Sequence[Scalar]
         Labels corresponding to the shape marker categories.
     """
 
-    _categories: Tuple[str, ...] = CATEGORY.MARKERS
-    """Tuple containing the available shape markers."""
-
-    def __init__(self, labels: Tuple) -> None:
-        super().__init__(labels)
+    def __init__(self, labels: Sequence[Scalar]) -> None:
+        super().__init__(tuple(map(str, labels)))
+    
+    @property
+    def categories(self) -> Tuple[str, ...]:
+        """Tuple containing the available shape markers as defined
+        in constants `CATEGORY.MARKERS` (read-only)."""
+        return CATEGORY.MARKERS
     
     @property
     def markers(self) -> Tuple[str, ...]:
@@ -233,8 +235,6 @@ class SizeLabel(_CategoryLabel):
 
     __slots__ = ('_min', '_max')
 
-    _categories: Tuple[int, ...] = CATEGORY.HANDLE_SIZES
-    """Tuple containing the available marker sizes."""
     _min: int | float
     """Minimum value for the size range."""
     _max: int | float
@@ -257,10 +257,15 @@ class SizeLabel(_CategoryLabel):
         super().__init__(labels)
     
     @property
+    def categories(self) -> Tuple[int, ...]:
+        """Tuple containing the available marker sizes."""
+        return CATEGORY.HANDLE_SIZES
+    
+    @property
     def offset(self) -> int:
         """Get the offset for value-to-size transformation (read-only)."""
         return CATEGORY.MARKERSIZE_LIMITS[0]
-    
+
     @property
     def factor(self) -> float:
         """Get the factor for value-to-size transformation (read-only)."""
@@ -350,11 +355,9 @@ class Dodger:
         self.categories = categories
         self.tick_lables = tick_labels
         self.ticks = np.arange(len(tick_labels)) + DEFAULT.FEATURE_BASE
-
         self.amount = max(len(self.categories), 1)
         space = CATEGORY.FEATURE_SPACE/self.amount
         self.width = space - CATEGORY.FEATURE_PAD
-
         offset = (space - CATEGORY.FEATURE_SPACE) / 2
         _dodge = tuple(i*space + offset for i in range(self.amount))
         self.dodge = {c: d for c, d in zip(self.categories, _dodge)}
@@ -415,7 +418,6 @@ class Dodger:
         return len(self.categories) > 1
 
 __all__ = [
-    'shared_axes',
     'HueLabel',
     'ShapeLabel',
     'SizeLabel',

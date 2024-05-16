@@ -84,7 +84,7 @@ class _Kw_:
     @property
     def ROW_LABEL(self) -> Dict[str, Any]:
         """Keyword Arguments for the Axes.text method used to add a 
-        row label to each plot_axes as text on LabelFacets."""
+        row label to each axes as text on LabelFacets."""
         return dict(x=1, y=0.5, ha='left', va='center', rotation=-90)
 
     @property
@@ -157,12 +157,14 @@ class _Kw_:
     @property
     def MEDIAN_LINE(self) -> Dict[str, Any]:
         """Keyword arguments for median line."""
-        return dict(lw=self._lw, ls=self._dotted, color=COLOR.MEDIAN, zorder=0.8)
+        return dict(
+            lw=self._lw, ls=self._dotted, color=COLOR.MEDIAN, zorder=0.8)
 
     @property
     def CONTROL_LINE(self) -> Dict[str, Any]:
         """Keyword arguments for control limit line."""
-        return dict(lw=self._lw, ls=self._dashed, color=COLOR.PERCENTIL, zorder=0.7)
+        return dict(
+            lw=self._lw, ls=self._dashed, color=COLOR.PERCENTIL, zorder=0.7)
 
     @property
     def SECIFICATION_LINE(self) -> Dict[str, Any]:
@@ -216,9 +218,9 @@ RE = _Regex_()
 @dataclass(frozen=True)
 class _Color_:
 
-    GOOD: str = '#2ca02ccc'
+    GOOD: str = '#2ca02c7f'
     """Color for things that should be represented as 'good'."""
-    BAD: str = '#d62728cc'
+    BAD: str = '#d627287f'
     """Color for things that should be represented as 'bad'."""
     MEAN: str = '#101010'
     """Color for mean line used for StripesFacets."""
@@ -235,12 +237,12 @@ class _Color_:
     DARKEN: str = '#00000025'
     """Color to darken other colors, by adding 10 % black."""
     MARKER_ALPHA: float = 0.5
-    """The transparency of markers."""
+    """The covering capacity of markers."""
     FILL_ALPHA: float = 0.5
-    """The transparency of filled areas."""
-    CI_ALPHA: float = 0.3
-    """The transparency of confidence intervals."""
-    CI_STRIPES: str = '#202020'
+    """The covering capacity of filled areas."""
+    CI_ALPHA: float = 0.2
+    """The covering capacity of confidence intervals."""
+    CI_STRIPES: str = '#303030'
     """Color for confidence interval stripes."""
 
     @property
@@ -314,6 +316,7 @@ class _Plotter_:
     @property
     def REGRESSION_CI_NAMES(self) -> Tuple[str, str, str, str]:
         """Get names for regression confidences in order
+        
             - lower confidence level of fitted values
             - upper confidence level of fitted values
             - lower confidence level of predicted values
@@ -354,6 +357,11 @@ class _Category_:
         sizes = tuple(np.linspace(
             *self.MARKERSIZE_LIMITS, self.N_SIZE_BINS, dtype=int))
         return sizes
+
+    @property
+    def PALETTE(self) -> Tuple[str, ...]:
+        """Get the current color palette as tuple."""
+        return tuple(COLOR.PALETTE)
     
 CATEGORY = _Category_()
 
@@ -391,11 +399,6 @@ class _Default_:
     frequently in practice."""
     FEATURE_BASE: Literal[0] = 0
     """Default feature base position for e.g. Jitter or KDE."""
-
-    @property
-    def PALETTE(self) -> Tuple[str, ...]:
-        """Get the current color palette as tuple."""
-        return tuple(COLOR.PALETTE)
 
 DEFAULT = _Default_()
 

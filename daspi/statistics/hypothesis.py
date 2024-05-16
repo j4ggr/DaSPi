@@ -1,37 +1,40 @@
 import numpy as np
 
 from math import exp
-from math import sqrt
 
-from typing import List
 from typing import Tuple
-from typing import Optional
-from numpy.typing import ArrayLike
 from scipy.stats._distn_infrastructure import rv_continuous
 
-from scipy import stats
-from scipy.stats import t
 from scipy.stats import f
-from scipy.stats import chi2
-from scipy.stats import kstest
 from scipy.stats import levene
-from scipy.stats import ansari
+from scipy.stats import ks_1samp
 from scipy.stats import f_oneway
 from scipy.stats import anderson
-from scipy.stats import ranksums
-from scipy.stats import wilcoxon
 from scipy.stats import skewtest
 from scipy.stats import ttest_ind
 from scipy.stats import kurtosistest
 from scipy.stats import fisher_exact
 from scipy.stats import mannwhitneyu
 
-from statsmodels.stats.proportion import proportion_confint
 from statsmodels.stats.proportion import test_proportions_2indep
-from statsmodels.stats.proportion import confint_proportions_2indep
+
+from .._typing import NumericSample1D
+
+from .utils import convert_to_continuous
 
 
-def anderson_darling_test(x: ArrayLike) -> Tuple[float, float]:
+# TDOD: further tests:
+# from scipy.stats import chi2
+# from scipy.stats import ansari
+# from scipy.stats import kstest
+# from scipy.stats import ranksums
+# from scipy.stats import wilcoxon
+# from statsmodels.stats.proportion import proportion_confint
+# from statsmodels.stats.proportion import confint_proportions_2indep
+
+
+def anderson_darling_test(
+        sample: NumericSample1D) -> Tuple[float, float]:
     """The Anderson-Darling test compares the measured values with the 
     theoretical values of a given distribution (in this case the normal 
     distribution). This test is considered to be one of the most 
@@ -40,8 +43,8 @@ def anderson_darling_test(x: ArrayLike) -> Tuple[float, float]:
 
     Parameters
     ----------
-    x : array like
-        The sample data. Only one-dimensional samples are accepted
+    sample : NumericSample1D
+        A one-dimensional array-like object containing the samples.
 
     Returns
     -------
@@ -50,8 +53,8 @@ def anderson_darling_test(x: ArrayLike) -> Tuple[float, float]:
     A_star : float
         The adjusted Anderson Darling test statistic
     """
-    N = len(x)
-    A2, _, _ = anderson(x, dist='norm')
+    N = len(sample)
+    A2, _, _ = anderson(sample, dist='norm')
     A_star = A2*(1 + 0.75/N + 2.25/N**2)
     if 13 <= A_star:
         p = 0.0
@@ -65,16 +68,38 @@ def anderson_darling_test(x: ArrayLike) -> Tuple[float, float]:
         p = 1 - exp(101.14*A_star - 223.73*(A_star**2) - 13.436)
     return p, A_star
 
-def all_normal(*xs: List[ArrayLike], p_threshold: float = 0.05) -> bool:
-    """Perform a anderson darling test against normal distribution for
-    each given sample data. Only one-dimensional samples are accepted.
-    Return True if all p-values > p_threshold"""
+def all_normal(
+        *samples: NumericSample1D, p_threshold: float = 0.05
+        ) -> bool:
+    """Performs the Anderson-Darling test against the normal
+    distribution for each given sample data. Only one-dimensional
+    samples are accepted.
+    
+    Parameters
+    ----------
+    *samples : NumericSample1D
+        One or more one-dimensional array-like objects containing the
+        samples.
+    p_threshold : float, optional
+        The threshold p-value for significance (default is 0.05).
+    
+    Returns
+    -------
+    bool
+        True if all p-values are greater than the specified p_threshold,
+        False otherwise.
+    
+    Raises
+    ------
+    AssertionError
+        If p_threshold is not within the range (0, 1).
+    """
     assert 0 < p_threshold < 1
-    return all([anderson_darling_test(x)[0] > p_threshold for x in xs])
+    return all([anderson_darling_test(x)[0] > p_threshold for x in samples])
 
 def kolmogorov_smirnov_test(
-        x: ArrayLike, dist: str|rv_continuous
-        ) -> Tuple[float, float, List[float]]:
+        sample: NumericSample1D, dist: str | rv_continuous
+        ) -> Tuple[float, float, Tuple[float, ...]]:
     """Perform a one-sample Kolmogorov-Smirnov-Test. This hypothesis
     test compares the underlying distribution F(x) of a sample against a 
     given distribution G(x). This test is valid only for continuous 
@@ -82,8 +107,8 @@ def kolmogorov_smirnov_test(
     
     Parameters
     ----------
-    x : array like
-        The sample data. Only one-dimensional samples are accepted
+    sample : NumericSample1D
+        A one-dimensional array-like object containing the samples.
     dist : str or scipy.stats rv_continous
         If a string, it should be the name of a continous distribution 
         in scipy.stats, which will be used as the cdf function.
@@ -92,29 +117,33 @@ def kolmogorov_smirnov_test(
     -------
     p : float
         The two-tailed p-value for the test
-    F : float
+    D : float
         Kolmogorov-Smirnov test statistic, either D, D+ or D-.
-    params : tuple of floats
+    params : Tuple[float, ...]
         Estimates for any shape parameters (if applicable), followed by 
         those for location and scale. For most random variables, shape 
         statistics will be returned, but there are exceptions 
         (e.g. ``norm``).
     """
-    dist = dist if not isinstance(dist, str) else getattr(stats, dist)
-    params = dist.fit(x)
-    D, p = stats.kstest(x, dist.name, args=params, alternative='two-sided')
+    dist = convert_to_continuous(dist)
+    params = dist.fit(sample)
+    D, p = ks_1samp(sample, cdf=dist.cdf, args=params, alternative='two-sided')
     return p, D, params
 
-def f_test(x1: ArrayLike, x2: ArrayLike) -> Tuple[float, float]:
+def f_test(
+        sample1: NumericSample1D, sample2: NumericSample1D
+        ) -> Tuple[float, float]:
     """The F-test is a test for equal variances between two populations. 
     The probability distribution on which the F-test is based is called 
     the F-distribution (also Fisher distribution). 
 
     Parameters
     ----------
-    x1, x2 : array like
-        The sample data, possibly with different lengths. 
-        Only one-dimensional samples are accepted.
+    sample1 : NumericSample1D
+        A one-dimensional array-like object containing the first sample.
+    sample2 : NumericSample1D
+        A one-dimensional array-like object containing the second
+        sample.
 
     Returns
     -------
@@ -123,24 +152,26 @@ def f_test(x1: ArrayLike, x2: ArrayLike) -> Tuple[float, float]:
     F : float
         The f-test statistic
     """
-    F = np.var(x1, ddof=1)/np.var(x2, ddof=1)
-    df1, df2 = len(x1)-1, len(x2)-1
-    cumulated = f.cdf(F, df1, df2)
+    F = float(np.var(sample1, ddof=1)/np.var(sample2, ddof=1))
+    df1, df2 = len(sample1)-1, len(sample2)-1
+    cumulated = float(f.cdf(F, df1, df2))
     p = 2 * min(cumulated, 1-cumulated)
     return p, F
 
 def levene_test(
-        x1: ArrayLike, x2: ArrayLike, heavy_tailed=False
-        ) -> Tuple[float, float]:
+        sample1: NumericSample1D, sample2: NumericSample1D,
+        heavy_tailed: bool = False) -> Tuple[float, float]:
     """Perform Levene test for equal variances.
     The Levene test tests the null hypothesis that all input samples are 
     from populations with equal variances.
     
     Parameters
     ----------
-    x1, x2 : array like
-        sample data, possibly with different lengths. 
-        Only one-dimensional samples are accepted.
+    sample1 : NumericSample1D
+        A one-dimensional array-like object containing the first sample.
+    sample2 : NumericSample1D
+        A one-dimensional array-like object containing the second
+        sample.
     heavy_tailed : bool
         set True if data is heavy tailed, by default False 
     
@@ -152,10 +183,12 @@ def levene_test(
         Levene test statistic
     """
     center = 'trimmed' if heavy_tailed else 'median'
-    L, p = levene(x1, x2, center=center)
+    L, p = levene(sample1, sample2, center=center)
     return p, L
 
-def variance_stability_test(x: ArrayLike, n_sections: int = 3):
+def variance_stability_test(
+        sample: NumericSample1D, n_sections: int = 3
+        ) -> Tuple[float, float]:
     """Perform Levene test for equal variances within one sample.
     
     Divides the data into the number of n_sections. A Levene test is 
@@ -164,8 +197,8 @@ def variance_stability_test(x: ArrayLike, n_sections: int = 3):
     
     Parameters
     ----------
-    x : ArrayLike
-        The sample data, nan values are ignored
+    sample : NumericSample1D
+        A one-dimensional array-like object containing the samples.
     n_sections : int, optional
         Amount of sections to divide the data into, by default 3
 
@@ -176,11 +209,13 @@ def variance_stability_test(x: ArrayLike, n_sections: int = 3):
     L : float
         Levene test statistic
     """
-    xs = np.array_split(x, n_sections)
+    xs = np.array_split(sample, n_sections)
     L, p = levene(*xs, center='median')
     return p, L
 
-def mean_stability_test(x: ArrayLike, n_sections: int = 3):
+def mean_stability_test(
+        sample: NumericSample1D, n_sections: int = 3
+        ) -> Tuple[float, float]:
     """Perform one-way ANOVA for equal means within one sample.
     
     Divides the data into the number of n_sections. A f_oneway test is 
@@ -189,8 +224,8 @@ def mean_stability_test(x: ArrayLike, n_sections: int = 3):
     
     Parameters
     ----------
-    x : ArrayLike
-        The sample data, nan values are ignored
+    sample : NumericSample1D
+        A one-dimensional array-like object containing the samples.
     n_sections : int, optional
         Amount of sections to divide the data into, by default 3
 
@@ -201,14 +236,14 @@ def mean_stability_test(x: ArrayLike, n_sections: int = 3):
     statistic : float
         The computed F statistic of the test.
     """
-    xs = np.array_split(x, n_sections)
-    statistic, p = f_oneway(*xs)
+    samples = np.array_split(sample, n_sections)
+    statistic, p = f_oneway(*samples)
     return p, statistic
 
 def position_test(
-        x1: ArrayLike, x2: ArrayLike, equal_var: bool=True, 
-        normal: Optional[bool]=None,
-        u_test: bool=True) -> Tuple[float, float, str]:
+        sample1: NumericSample1D, sample2: NumericSample1D,
+        equal_var: bool = True, normal: bool | None = None, u_test: bool=True
+        ) -> Tuple[float, float, str]:
     """calculate the test for the means of *two independent* samples of 
     scores.
     This is a two-sided test for the null hypothesis that 2 independent
@@ -224,9 +259,11 @@ def position_test(
 
     Parameters
     ----------
-    x1, x2 : array like
-        sample data, possibly with different lengths. 
-        Only one-dimensional samples are accepted.
+    sample1 : NumericSample1D
+        A one-dimensional array-like object containing the first sample.
+    sample2 : NumericSample1D
+        A one-dimensional array-like object containing the second
+        sample.
     equal_var : bool, optional
         If True (default), perform a standard independent 2 sample test 
         that assumes equal population variances. If False, perform 
@@ -251,29 +288,33 @@ def position_test(
     test : string
         name of performed test
     """
-    test = ''
-    if normal is None: normal = all_normal(x1, x2)
+    if not isinstance(normal, bool):
+        normal = all_normal(sample1, sample2)
+
     if u_test and not normal:
         statistic, p = mannwhitneyu(
-            x1, x2, alternative='two-sided', method='asymptotic')
+            sample1, sample2, alternative='two-sided', method='asymptotic')
         test = 'Mann-Whitney-U'
     else:
-        statistic, p = ttest_ind(x1, x2, equal_var=equal_var)
+        statistic, p = ttest_ind(sample1, sample2, equal_var=equal_var)
         test = 't'
     return p, statistic, test
 
 def variance_test(
-        x1: ArrayLike, x2: ArrayLike, normal: Optional[bool]=None, 
-        heavy_tailed: bool=False) -> Tuple[float, float, str]:
-    """Perform test for equal variances of two independent variables .
+        sample1: NumericSample1D, sample2: NumericSample1D,
+        normal: bool | None = None, heavy_tailed: bool = False
+        ) -> Tuple[float, float, str]:
+    """Perform test for equal variances of two independent variables.
     This test tests the null hypothesis that all input samples are 
     from populations with equal variances.
     
     Parameters
     ----------
-    x1, x2 : array like
-        sample data, possibly with different lengths. 
-        Only one-dimensional samples are accepted.
+    sample1 : NumericSample1D
+        A one-dimensional array-like object containing the first sample.
+    sample2 : NumericSample1D
+        A one-dimensional array-like object containing the second
+        sample.
     normal : bool or None
         Set to True if both sample data are normally distributed. If 
         true, an F-test is performed, otherwise a Levene test. If None, 
@@ -293,20 +334,21 @@ def variance_test(
     test : string
         name of performed test
     """
-    test = ''
-    if normal is None: normal = all_normal(x1, x2)
+    if not isinstance(normal, bool):
+        normal = all_normal(sample1, sample2)
+    
     if normal:
-        p, statistic = f_test(x1, x2)
+        p, statistic = f_test(sample1, sample2)
         test = 'F'
     else:
-        p, statistic = levene_test(x1 ,x2, heavy_tailed)
+        p, statistic = levene_test(sample1 ,sample2, heavy_tailed)
         test = 'Levenes'
-        # statistic, p = ansari(x1, x2, alternative='two-sided')
+        # statistic, p = ansari(sample1, sample2, alternative='two-sided')
     return p, statistic, test
 
 def proportions_test(
         count1: int, nobs1: int, count2: int, nobs2: int,
-        decision_threshold: int=1000) -> Tuple[float, float, str]:
+        decision_threshold: int = 1000) -> Tuple[float, float, str]:
     """Hypothesis test for comparing two independent proportions
     This assumes that we have two independent binomial samples.
     
@@ -354,7 +396,7 @@ def proportions_test(
         test = 'Wald'
     return p, statistic, test
 
-def kurtosis_test(x: ArrayLike) -> Tuple[float, float]:
+def kurtosis_test(sample: NumericSample1D) -> Tuple[float, float]:
     """Two sided hypothesis test whether a dataset has normal kurtosis.
 
     This function tests the null hypothesis that the kurtosis of the 
@@ -363,8 +405,8 @@ def kurtosis_test(x: ArrayLike) -> Tuple[float, float]:
     
     Parameters
     ----------
-    x : ArrayLike
-        The sample data, nan values are ignored
+    sample : NumericSample1D
+        A one-dimensional array-like object containing the samples.
 
     Returns
     -------
@@ -373,10 +415,11 @@ def kurtosis_test(x: ArrayLike) -> Tuple[float, float]:
     statistic : float
         The computed z-score for this test
     """
-    statistic, p = kurtosistest(x, nan_policy='omit', alternative='two-sided')
+    statistic, p = kurtosistest(
+        sample, nan_policy='omit', alternative='two-sided')
     return p, statistic
 
-def skew_test(x: ArrayLike) -> Tuple[float, float]:
+def skew_test(sample: NumericSample1D) -> Tuple[float, float]:
     """Two sided hypothesis whether the skew is different from the 
     normal distribution.
 
@@ -387,8 +430,8 @@ def skew_test(x: ArrayLike) -> Tuple[float, float]:
     
     Parameters
     ----------
-    x : ArrayLike
-        The sample data, nan values are ignored
+    sample : NumericSample1D
+        A one-dimensional array-like object containing the samples.
 
     Returns
     -------
@@ -396,20 +439,20 @@ def skew_test(x: ArrayLike) -> Tuple[float, float]:
         p-value for the test
     statistic : float
         The computed z-score for this test"""
-    statistic, p = skewtest(x, nan_policy='omit', alternative='two-sided')
+    statistic, p = skewtest(sample, nan_policy='omit', alternative='two-sided')
     return p, statistic
 
 
 __all__ = [
-    anderson_darling_test.__name__,
-    all_normal.__name__,
-    kolmogorov_smirnov_test.__name__,
-    f_test.__name__,
-    levene_test.__name__,
-    variance_stability_test.__name__,
-    mean_stability_test.__name__,
-    position_test.__name__,
-    variance_test.__name__,
-    proportions_test.__name__,
-    kurtosis_test.__name__,
-    skew_test.__name__,]
+    'anderson_darling_test',
+    'all_normal',
+    'kolmogorov_smirnov_test',
+    'f_test',
+    'levene_test',
+    'variance_stability_test',
+    'mean_stability_test',
+    'position_test',
+    'variance_test',
+    'proportions_test',
+    'kurtosis_test',
+    'skew_test',]

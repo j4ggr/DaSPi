@@ -1,1 +1,1 @@
-::: daspi.plotlib.chart.SimpleChart
+::: daspi.plotlib.chart.SingleChart

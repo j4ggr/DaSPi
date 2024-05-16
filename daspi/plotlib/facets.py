@@ -114,7 +114,7 @@ class LabelFacets:
             legend_data: Dict[str, LegendHandlesLabels] = {}
             ) -> None:
         self.figure = figure
-        self.plot_axes = axes
+        self.axes = axes
         self.fig_title = fig_title
         self.sub_title = sub_title
         self.xlabel = xlabel
@@ -214,7 +214,7 @@ class LabelFacets:
         bbox = kw['bbox_to_anchor']
         kw['bbox_to_anchor'] = (bbox[0] + self.shift_legend, bbox[1])
         legend = Legend(
-            self.plot_axes[0, -1], handles, labels, title=title, **kw)
+            self.axes[0, -1], handles, labels, title=title, **kw)
         if not self.legend:
             self.figure.legends.append(legend) # type: ignore
             self._legend = legend
@@ -231,9 +231,9 @@ class LabelFacets:
             kw['y'] = kw['y'] - LABEL.AXES_PADDING * self.shift_text_y
             self.figure.text(s=self.xlabel, **kw)
         else:
-            for ax, xlabel in zip(self.plot_axes.flat, self.xlabel):
-                if (len(ax.xaxis._get_shared_axis()) == 1 
-                    or ax in self.plot_axes[-1]): 
+            for ax, xlabel in zip(self.axes.flat, self.xlabel):
+                if (len(ax.xaxis._get_shared_axis()) == 1
+                    or ax in self.axes[-1]): 
                     ax.set(xlabel=xlabel)
 
     def add_ylabel(self) -> None:
@@ -245,16 +245,16 @@ class LabelFacets:
             kw['x'] = kw['x'] - LABEL.AXES_PADDING * self.shift_text_x
             self.figure.text(s=self.ylabel, **kw)
         else:
-            for ax, ylabel in zip(self.plot_axes.flat, self.ylabel):
-                if (len(ax.yaxis._get_shared_axis()) == 1 
-                    or ax in self.plot_axes.T[0]): 
+            for ax, ylabel in zip(self.axes.flat, self.ylabel):
+                if (len(ax.yaxis._get_shared_axis()) == 1
+                    or ax in self.axes.T[0]): 
                     ax.set(ylabel=ylabel)
 
     def add_row_labels(self) -> None:
         """Add row labels and row title to the figure."""
         if not self.rows:
             return
-        for axs, label in zip(self.plot_axes, self.rows):
+        for axs, label in zip(self.axes, self.rows):
             ax = axs[-1]
             kwds = KW.ROW_LABEL | {'transform': ax.transAxes}
             ax.text(s=label, **kwds)
@@ -264,7 +264,7 @@ class LabelFacets:
         """Add column labels and column title to the figure."""
         if not self.cols:
             return
-        for ax, label in zip(self.plot_axes[0], self.cols):
+        for ax, label in zip(self.axes[0], self.cols):
             kwds = KW.COL_LABEL | {'transform': ax.transAxes}
             ax.text(s=label, **kwds)
         self.figure.text(s=self.col_title, **KW.COL_TITLE)

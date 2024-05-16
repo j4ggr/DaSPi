@@ -16,7 +16,7 @@ to produce consistent charts for very different plots.
 ## Classes
 
 - *Chart:* Abstract base class for creating chart visualizations.
-- *SimpleChart:* Represents a basic chart containing one Axes for 
+- *SingleChart:* Represents a basic chart containing one Axes for 
   visualization with customizable features.
 - *JointChart:* Represents a joint chart visualization combining
   multiple individual Axes.
@@ -53,21 +53,23 @@ from typing import Self
 from typing import Dict
 from typing import List
 from typing import Tuple
+from typing import Literal
 from typing import Generator
 from pathlib import Path
 from numpy.typing import NDArray
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
-from .utils import Dodger
-from .utils import HueLabel
-from .utils import SizeLabel
-from .utils import ShapeLabel
+from .classify import Dodger
+from .classify import HueLabel
+from .classify import SizeLabel
+from .classify import ShapeLabel
 from .facets import AxesFacets
 from .facets import LabelFacets
 from .facets import StripesFacets
+from .plotter import Bar
+from .plotter import Pareto
 from .plotter import Plotter
-from .plotter import HideSubplot
 from matplotlib.axes import Axes
 from matplotlib.axis import XAxis
 from matplotlib.axis import YAxis
@@ -225,13 +227,19 @@ class Chart(ABC):
         return next(self)
     
     @abstractmethod
-    def plot(self, plotter: Type[Plotter]) -> Self:
+    def plot(
+            self, plotter: Type[Plotter], kw_call: Dict[str, Any] = {}, **kwds
+            ) -> Self:
         """Plot the chart using the specified plotter.
 
         Parameters
         ----------
-        plotter:Type[Plotter]
-            The type of plotter to use.
+        plotter : Type[Plotter]
+            The plotter object.
+        kw_call : Dict[str, Any]
+            Additional keyword arguments for the plotter call method.
+        **kwds:
+            Additional keyword arguments for the plotter object.
 
         Returns
         -------
@@ -309,7 +317,7 @@ class Chart(ABC):
         return self
 
 
-class SimpleChart(Chart):
+class SingleChart(Chart):
     """Represents a basic chart visualization with customizable
     features.
 
@@ -624,30 +632,34 @@ class SimpleChart(Chart):
         self._reset_variate_()
 
     def plot(
-            self, plotter: Type[Plotter], **kwds) -> Self:
+            self, plotter: Type[Plotter], kw_call: Dict[str, Any] = {}, **kwds
+            ) -> Self:
         """Plot the chart.
 
         Parameters
         ----------
         plotter : Type[Plotter]
             The plotter object.
+        kw_call : Dict[str, Any]
+            Additional keyword arguments for the plotter call method.
         **kwds:
             Additional keyword arguments for the plotter object.
 
         Returns:
         --------
         Self:
-            The SimpleChart instance.
+            The SingleChart instance.
         """
         self.target_on_y = kwds.pop('target_on_y', self.target_on_y)
+        marker = kwds.pop('marker', self.marker)
         for data in self:
             plot = plotter(
                 source=data, target=self.target, feature=self.feature,
                 target_on_y=self.target_on_y, color=self.color, 
-                ax=self.axes_facets.ax, marker=self.marker, size=self.sizes,
+                ax=self.axes_facets.ax, marker=marker, size=self.sizes,
                 width=self.dodging.width,
                 categorical_feature=self.categorical_feature, **kwds)
-            plot()
+            plot(**kw_call)
             self._plots.append(plot)
         return self
     
@@ -683,8 +695,8 @@ class SimpleChart(Chart):
 
         Returns
         -------
-        SimpleChart:
-            The instance of the SimpleChart with the specified stripes 
+        SingleChart:
+            The instance of the SingleChart with the specified stripes 
             plotted on the axes.
 
         Notes
@@ -695,7 +707,7 @@ class SimpleChart(Chart):
         the appearance and behavior of the stripes using various 
         parameters and keyword arguments.
         """
-        target = kwds.pop('target', self.source[self.target])
+        target = kwds.pop('target', self.source[self.target]) # TODO: consider target of bar and pareto
         single_axes = len(self.axes_facets) == 1
         self.stripes_facets = StripesFacets(
             target=target, single_axes=single_axes, mean=mean, median=median,
@@ -738,8 +750,8 @@ class SimpleChart(Chart):
 
         Returns
         -------
-        SimpleChart
-            The instance of the SimpleChart with updated labels and 
+        SingleChart
+            The instance of the SingleChart with updated labels and 
             titles.
 
         Notes
@@ -763,7 +775,7 @@ class SimpleChart(Chart):
 class JointChart(Chart):
     """
     Represents a joint chart visualization combining multiple 
-    SimpleCharts.
+    SingleCharts.
 
     Inherits from Chart.
 
@@ -792,10 +804,10 @@ class JointChart(Chart):
         False.
     target_on_y : bool or List[bool], optional
         Flag indicating whether target is on y-axis, by default True.
-    sharex : bool or str, optional
+    sharex : bool | Literal['none', 'all', 'row', 'col'], optional
         Flag indicating whether x-axis should be shared among subplots,
         by default False.
-    sharey : bool or str, optional
+    sharey : bool | Literal['none', 'all', 'row', 'col'], optional
         Flag indicating whether y-axis should be shared among subplots,
         by default False.
     width_ratios : List[float], optional
@@ -813,13 +825,13 @@ class JointChart(Chart):
         'hues', 'shapes', 'sizes', 'dodges', 'categorical_feature',
         'target_on_ys')
 
-    charts: List[SimpleChart]
-    """List of SimpleChart instances created for each Axis throughout
+    charts: List[SingleChart]
+    """List of SingleChart instances created for each Axis throughout
     the chart."""
-    _last_chart: SimpleChart | None
-    """Last SimpleChart instance worked on."""
-    _chart_iterator: Generator[SimpleChart, Self, None]
-    """Iterator over SimpleChart instances."""
+    _last_chart: SingleChart | None
+    """Last SingleChart instance worked on."""
+    _chart_iterator: Generator[SingleChart, Self, None]
+    """Iterator over SingleChart instances."""
     targets: Tuple[str, ...]
     """Column names for the target variable to be visualized for each
     axes."""
@@ -855,8 +867,8 @@ class JointChart(Chart):
             dodge: bool | Tuple[bool, ...] = False,
             categorical_feature: bool | Tuple[str, ...] = False,
             target_on_y: bool | Tuple[bool, ...] = True,
-            sharex: bool | str = False,
-            sharey: bool | str = False,
+            sharex: bool | Literal['none', 'all', 'row', 'col'] = 'none', 
+            sharey: bool | Literal['none', 'all', 'row', 'col'] = 'none', 
             width_ratios: List[float] | None = None,
             height_ratios: List[float] | None = None,
             stretch_figsize: bool = True,
@@ -881,7 +893,7 @@ class JointChart(Chart):
         self.categorical_feature = self.ensure_tuple(categorical_feature)
         self.target_on_ys = self.ensure_tuple(target_on_y)
         for i in [self.axes_facets.index for _ in self.axes_facets]:
-            self.charts.append(SimpleChart(
+            self.charts.append(SingleChart(
                 source=self.source, target=self.targets[i],
                 feature=self.features[i], hue=self.hues[i],
                 dodge=self.dodges[i], shape=self.shapes[i], size=self.sizes[i],
@@ -929,15 +941,15 @@ class JointChart(Chart):
             len(set(self.targets if is_target else self.features)) == 1])
         return allowed 
     
-    def _next_chart_(self) -> SimpleChart:
-        """Get next SimpleChart instance to work on (read-only)."""
+    def _next_chart_(self) -> SingleChart:
+        """Get next SingleChart instance to work on (read-only)."""
         if (self._last_chart in (None, self.charts[-1]) 
             or not hasattr(self, '_chart_iterator')):
             self._chart_iterator = self.itercharts()
         self._last_chart = next(self._chart_iterator)
         return self._last_chart
     
-    def itercharts(self) -> Generator[SimpleChart, Self, None]:
+    def itercharts(self) -> Generator[SingleChart, Self, None]:
         """Iter over charts simultaneosly iters over axes of 
         `axes_facets`. That ensures that the current Axes to which the 
         current chart belongs is set."""
@@ -989,7 +1001,7 @@ class JointChart(Chart):
             return tuple('' for _ in self.charts)
         elif isinstance(label, (tuple, list, set)):
             label_chart = zip(label, self.charts)
-            return tuple(c._axis_label_(l, is_target) for l, c in label_chart)
+            return tuple(c._axis_label_(s, is_target) for s, c in label_chart)
         elif label is True:
             _label = self.targets[0] if is_target else self.features[0]
         else:
@@ -1043,16 +1055,20 @@ class JointChart(Chart):
         ylabel = self._axis_label_(target_label, True)
         xlabel, ylabel = self._swap_labels_(xlabel, ylabel)
         return xlabel, ylabel
-    
-    def plot(self, plotter: Type[Plotter], **kwds) -> Self:
+
+    def plot(
+            self, plotter: Type[Plotter], kw_call: Dict[str, Any] = {}, **kwds
+            ) -> Self:
         """Plot the data using the specified plotter.
         
         Parameters
         ----------
         plotter : Type[Plotter]
-            The plotter class to use for visualization.
-        **kwds
-            Additional keyword arguments to pass to the plotter.
+            The plotter object.
+        kw_call : Dict[str, Any]
+            Additional keyword arguments for the plotter call method.
+        **kwds:
+            Additional keyword arguments for the plotter object.
 
         Returns
         -------
@@ -1068,7 +1084,7 @@ class JointChart(Chart):
         create customized visualizations for each subplot.
         """
         chart = self._next_chart_()
-        chart.plot(plotter, **kwds)
+        chart.plot(plotter, kw_call, **kwds)
         return self
 
     def stripes(
@@ -1186,11 +1202,11 @@ class JointChart(Chart):
         return self
 
 
-class MultipleVariateChart(SimpleChart):
+class MultipleVariateChart(SingleChart):
     """Represents a chart visualization that handles multiple variables
     simultaneously.
 
-    This class extends the functionality of SimpleChart to create 
+    This class extends the functionality of SingleChart to create 
     visualizations for multiple variables, allowing for comparisons and
     insights across different dimensions.
 
@@ -1336,7 +1352,9 @@ class MultipleVariateChart(SimpleChart):
             axes_data = data[self.target]
             yield axes_data
 
-    def plot(self, plotter: Type[Plotter], **kwds) -> Self:
+    def plot(
+            self, plotter: Type[Plotter], kw_call: Dict[str, Any] = {}, **kwds
+            ) -> Self:
         """Plot the chart using the specified plotter.
 
         This method generates a subset of the source data specific to 
@@ -1346,6 +1364,8 @@ class MultipleVariateChart(SimpleChart):
         ----------
         plotter : Type[Plotter]
             The type of plotter to use.
+        kw_call : Dict[str, Any]
+            Additional keyword arguments for the plotter call method.
         **kwds : Any
             Additional keyword arguments to pass to the plotter.
 
@@ -1363,7 +1383,7 @@ class MultipleVariateChart(SimpleChart):
                 target_on_y=self.target_on_y, color=self.color, ax=ax, 
                 marker=self.marker, size=self.sizes,
                 width=self.dodging.width, **kwds)
-            plot()
+            plot(**kw_call)
             self._plots.append(plot)
         return self
     
@@ -1399,8 +1419,8 @@ class MultipleVariateChart(SimpleChart):
 
         Returns
         -------
-        SimpleChart
-            The instance of the SimpleChart with the specified stripes
+        SingleChart
+            The instance of the SingleChart with the specified stripes
             plotted on the axes.
 
         Notes
@@ -1486,7 +1506,7 @@ class MultipleVariateChart(SimpleChart):
         return self
 
 __all__ = [
-    'SimpleChart',
+    'SingleChart',
     'JointChart',
     'MultipleVariateChart'
 ]
