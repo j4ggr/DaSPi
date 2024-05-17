@@ -1070,7 +1070,7 @@ class TransformPlotter(Plotter):
                     source.groupby(self.feature, sort=True),
                     start=DEFAULT.FEATURE_BASE):
                 self._original_f_values = self._original_f_values + (f_value, )
-                if isinstance(f_value, (float, int)):
+                if isinstance(f_value, (float, int, pd.Timestamp)):
                     feature_data = f_value
                 else:
                     feature_data = i
@@ -1082,7 +1082,7 @@ class TransformPlotter(Plotter):
             feature_data = self._f_base
             target_data = source[self.target]
             yield feature_data, target_data
-    
+
     @abstractmethod
     def transform(
         self, feature_data: float | int, target_data: Series) -> DataFrame:
