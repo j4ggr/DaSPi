@@ -25,7 +25,7 @@ class _Kw_:
     """Line style argument for a dotted line."""
     _dashed: tuple = (0, (5, 5))
     """Line style argument for a dashed line."""
-    _dashdot: tuple = (0, (3, 5, 1, 5))
+    _dashdot: tuple = (0, (8, 5, 2, 5))
     """Line style argument for a dashed dotted line."""
 
     @property
@@ -167,9 +167,10 @@ class _Kw_:
             lw=self._lw, ls=self._dashed, color=COLOR.PERCENTIL, zorder=0.7)
 
     @property
-    def SECIFICATION_LINE(self) -> Dict[str, Any]:
+    def SPECIFICATION_LINE(self) -> Dict[str, Any]:
         """Keyword arguments for specification limit line."""
-        return dict(lw=self._lw, ls=self._dashdot, color=COLOR.BAD, zorder=0.7)
+        return dict(
+            lw=self._lw, ls=self._dashdot, color=COLOR.BAD[:7], zorder=0.7)
 
     @property
     def STRIPES_CONFIDENCE(self) -> Dict[str, Any]:

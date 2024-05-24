@@ -155,7 +155,16 @@ class Estimator:
         self._agreement = -1
         self.agreement = agreement
         self._evaluate = evaluate
-        
+    
+    @property
+    def _descriptive_statistic_attrs_(self) -> Tuple[str, ...]:
+        """Get attribute names used for `describe` method."""
+        attrs = (
+            'n_samples', 'n_missing', 'mean', 'median', 'std', 'sem', 'excess',
+            'p_excess', 'skew', 'p_skew', 'dist', 'p_ad', 'lcl', 'ucl',
+            'strategy')
+        return attrs
+
     @property
     def samples(self) -> pd.Series:
         """Get the raw samples as it was given during instantiation
@@ -566,7 +575,7 @@ class Estimator:
 
         Returns
         -------
-        strategy : {'fit', 'norm', 'data'}
+        strategy : {'fit', 'norm', 'data'}  
             Evaluated strategy to calculate control limits
         """
         if self._evaluate is not None:
@@ -627,6 +636,20 @@ class Estimator:
         self._ucl = None
         self._q_low = None
         self._q_upp = None
+    
+    def describe(self) -> Series:
+        """Generate descriptive statistics.
+        
+        Returns
+        -------
+        stats : Series
+            Summary statistics as pandas Series 
+        """
+        def _value_(a: str) -> float | int | str:
+            return getattr(self, a).name if a == 'dist' else getattr(self, a)
+        stats = pd.Series(
+            {a: _value_(a) for a in self._descriptive_statistic_attrs_})
+        return stats
 
 
 class ProcessEstimator(Estimator):
@@ -715,9 +738,19 @@ class ProcessEstimator(Estimator):
         self._usl = usl
         self._reset_values_()
         super().__init__(samples, strategy, agreement, possible_dists)
+    
+    @property
+    def _descriptive_statistic_attrs_(self) -> Tuple[str, ...]:
+        """Get attribute names used for `describe` method."""
+        _attrs = super()._descriptive_statistic_attrs_
+        attrs = (_attrs[:2]
+                 + ('n_ok', 'n_nok', 'n_errors')
+                 + _attrs[2:]
+                 + ('lsl', 'usl', 'cp', 'cpk'))
+        return attrs
         
     @property
-    def filtered(self) -> pd.Series:
+    def filtered(self) -> Series:
         """Get the data without error values and no missing value"""
         if self._filtered.empty:
             self._filtered = pd.to_numeric(
@@ -763,7 +796,7 @@ class ProcessEstimator(Estimator):
     def lsl(self) -> SpecLimit:
         """Get lower specification limit"""
         if self._lsl is not None and self._usl is not None:
-            assert self._lsl < self.usl # type: ignore
+            assert self._lsl < self._usl
         return self._lsl
     @lsl.setter
     def lsl(self, lsl: SpecLimit) -> None:
@@ -775,7 +808,7 @@ class ProcessEstimator(Estimator):
     def usl(self) -> SpecLimit:
         """Get upper specification limit"""
         if self._lsl is not None and self._usl is not None:
-            assert self._usl > self.usl # type: ignore
+            assert self._usl > self._lsl
         return self._usl
     @usl.setter
     def usl(self, usl: SpecLimit) -> None:

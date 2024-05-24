@@ -20,6 +20,7 @@ from statsmodels.stats.proportion import test_proportions_2indep
 
 from .._typing import NumericSample1D
 
+from .utils import chunker
 from .utils import convert_to_continuous
 
 
@@ -52,6 +53,11 @@ def anderson_darling_test(
         The p-value for the test
     A_star : float
         The adjusted Anderson Darling test statistic
+    
+    Notes
+    -----
+    This test was inspired by the Excel Addin by Charles Zaiontz, see:
+    https://real-statistics.com/non-parametric-tests/goodness-of-fit-tests/anderson-darling-test/
     """
     N = len(sample)
     A2, _, _ = anderson(sample, dist='norm')
@@ -209,8 +215,7 @@ def variance_stability_test(
     L : float
         Levene test statistic
     """
-    xs = np.array_split(sample, n_sections)
-    L, p = levene(*xs, center='median')
+    L, p = levene(*chunker(sample, n_sections), center='median')
     return p, L
 
 def mean_stability_test(
@@ -236,8 +241,7 @@ def mean_stability_test(
     statistic : float
         The computed F statistic of the test.
     """
-    samples = np.array_split(sample, n_sections)
-    statistic, p = f_oneway(*samples)
+    statistic, p = f_oneway(*chunker(sample, n_sections))
     return p, statistic
 
 def position_test(

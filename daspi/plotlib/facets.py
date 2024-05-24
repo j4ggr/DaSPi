@@ -529,7 +529,7 @@ class StripesFacets:
         """Get keyword arguments for all lines that are plotted"""
         kwds = self._filter((
             KW.MEAN_LINE, KW.MEDIAN_LINE, KW.CONTROL_LINE, KW.CONTROL_LINE,
-            KW.SECIFICATION_LINE, KW.SECIFICATION_LINE))
+            KW.SPECIFICATION_LINE, KW.SPECIFICATION_LINE))
         return kwds
     
     @property

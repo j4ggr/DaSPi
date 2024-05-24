@@ -1,3 +1,4 @@
+from .utils import chunker
 from .utils import convert_to_continuous
 
 from .confidence import sem
