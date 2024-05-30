@@ -1369,15 +1369,14 @@ class Bar(TransformPlotter):
 
         for bar in self.bars:
             boxs = [p.get_bbox() for p in bar.patches]
-            if self.target_on_y:
-                low, upp = map(tuple, zip(*[(b.x0, b.x1) for b in boxs]))
-            else:
-                low, upp = map(tuple, zip(*[(b.y0, b.y1) for b in boxs]))
-            data_values: NDArray = np.array(bar.datavalues)
-            if (all(np.greater(feature_ticks, low))
-                and all(np.less(feature_ticks, upp))
-                and any(np.greater(data_values, t_base))):
-                t_base = data_values
+            f_low, f_upp = map(np.array, zip(*[(b.x0, b.x1) for b in boxs]))
+            t_low, t_upp = map(np.array, zip(*[(b.y0, b.y1) for b in boxs]))
+            if not self.target_on_y:
+                f_low, f_upp, t_low, t_upp = t_low, t_upp, f_low, f_upp
+            if (all(feature_ticks > f_low)
+                and all(feature_ticks < f_upp)
+                and any(t_upp > t_base)):
+                t_base = t_upp
         return t_base
     
     def transform(

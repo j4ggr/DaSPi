@@ -1064,16 +1064,16 @@ class TestJointChart:
 
         self.kind = 'stacking'
         target_labels = (
-            'Generalized cost measure count ($)',
-            'Generalized cost measure sum ($)')
-        feature_label = 'Traveler chosen mode'
+            'Counted observed dissolution time',
+            'Dissolution time (s)')
+        feature_label = 'Employee'
         chart = JointChart(
                 source = df_aspirin,
                 target = self.target,
-                feature = self.cat1,
+                feature = self.cat2,
                 nrows = 2,
                 ncols = 1,
-                hue = self.cat2,
+                hue = self.cat1,
                 categorical_feature = True,
                 target_on_y = (False, False),
                 dodge = (False, True)

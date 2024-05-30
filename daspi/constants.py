@@ -21,7 +21,7 @@ class _Kw_:
     """line width for special lines."""
     _solid: tuple = (0, ())
     """Line style argument for a solid line."""
-    _dotted: tuple = (0, (1, 1))
+    _dotted: tuple = (0, (2, 2))
     """Line style argument for a dotted line."""
     _dashed: tuple = (0, (5, 5))
     """Line style argument for a dashed line."""
@@ -152,25 +152,25 @@ class _Kw_:
     @property
     def MEAN_LINE(self) -> Dict[str, Any]:
         """Keyword arguments for mean line."""
-        return dict(lw=self._lw, ls=self._solid, color=COLOR.MEAN, zorder=0.9)
+        return dict(lw=self._lw, ls=self._dashed, color=COLOR.MEAN, zorder=0.9)
 
     @property
     def MEDIAN_LINE(self) -> Dict[str, Any]:
         """Keyword arguments for median line."""
         return dict(
-            lw=self._lw, ls=self._dotted, color=COLOR.MEDIAN, zorder=0.8)
+            lw=self._lw, ls=self._dashdot, color=COLOR.MEDIAN, zorder=0.8)
 
     @property
     def CONTROL_LINE(self) -> Dict[str, Any]:
         """Keyword arguments for control limit line."""
         return dict(
-            lw=self._lw, ls=self._dashed, color=COLOR.PERCENTIL, zorder=0.7)
+            lw=self._lw, ls=self._solid, color=COLOR.PERCENTIL, zorder=0.7)
 
     @property
     def SPECIFICATION_LINE(self) -> Dict[str, Any]:
         """Keyword arguments for specification limit line."""
         return dict(
-            lw=self._lw, ls=self._dashdot, color=COLOR.BAD[:7], zorder=0.7)
+            lw=self._lw, ls=self._solid, color=COLOR.BAD[:7], zorder=0.7)
 
     @property
     def STRIPES_CONFIDENCE(self) -> Dict[str, Any]:

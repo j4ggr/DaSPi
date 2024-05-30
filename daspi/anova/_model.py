@@ -120,7 +120,7 @@ class LinearModel:
         """Get regression results of fitted model. Raises AssertionError
         if no model is fitted yet (read-only)."""
         assert self._model is not None, (
-            'Model not fitted yet, pls call `fit` method first.')
+            'Model not fitted yet, call `fit` method first.')
         return self._model
 
     @property
