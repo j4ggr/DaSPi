@@ -14,6 +14,7 @@ from pathlib import Path
 from pandas.testing import assert_frame_equal
 from pandas.testing import assert_series_equal
 from pandas.core.frame import DataFrame
+from patsy.design_info import DesignInfo
 from pandas.core.series import Series
 from statsmodels.regression.linear_model import RegressionResultsWrapper
 
@@ -26,10 +27,8 @@ from daspi.anova import get_term_name
 from daspi.anova import is_main_feature
 from daspi.anova import decode_cat_main
 from daspi.anova import encoded_dmatrices
-from daspi.anova import prepare_encoding_data
 from daspi.anova import is_encoded_categorical
 from daspi.anova import clean_categorical_names
-from daspi.anova import remove_special_characters
 
 from daspi.anova import LinearModel
 
@@ -147,7 +146,7 @@ class TestEncodedDmatrices:
             'B': {1.0: -1.0, 2.0: 0.0, 3.0: 1.0},
             'D': {1.0: -1.0, 2.0: -0.6, 3.0: -0.2, 4.0: 0.2, 5.0: 0.6, 6.0: 1.0}}
 
-        y, X_code, mapper = encoded_dmatrices(self.data, formula)
+        y, X_code, mapper, design_info = encoded_dmatrices(self.data, formula)
         assert_frame_equal(y, expected_y, check_dtype=False)
         assert_frame_equal(X_code, expected_X_code[X_code.columns], check_dtype=False)
         for key, value in expected_mapper.items():
@@ -158,10 +157,11 @@ class TestEncodedDmatrices:
         expected_y = pd.DataFrame({'Target': [10, 20, 30, 40, 50, 60]})
         expected_X_code = pd.DataFrame({'Intercept': [1, 1, 1, 1, 1, 1]})
         expected_mapper = {}
-        y, X_code, mapper = encoded_dmatrices(self.data, formula)
+        y, X_code, mapper, design_info = encoded_dmatrices(self.data, formula)
         assert_frame_equal(y, expected_y, check_dtype=False)
         assert_frame_equal(X_code, expected_X_code, check_dtype=False)
         assert mapper == expected_mapper
+        assert isinstance(design_info, DesignInfo)
 
     def test_encoded_dmatrices_single_feature(self) -> None:
         formula = 'Target ~ A'
@@ -175,10 +175,11 @@ class TestEncodedDmatrices:
             'A_b': {'a | c': 0, 'b': 1},
             'A_c': {'a | b': 0, 'c': 1}}
         
-        y, X_code, mapper = encoded_dmatrices(self.data, formula)
+        y, X_code, mapper, design_info = encoded_dmatrices(self.data, formula)
         assert_frame_equal(y, expected_y, check_dtype=False)
         assert_frame_equal(X_code, expected_X_code, check_dtype=False)
         assert mapper == expected_mapper
+        assert isinstance(design_info, DesignInfo)
 
     def test_encoded_dmatrices_no_categorical(self) -> None:
         formula = 'Target ~ B + D'
@@ -192,11 +193,12 @@ class TestEncodedDmatrices:
             'B': {1.0: -1.0, 2.0: 0.0, 3.0: 1.0},
             'D': {1.0: -1.0, 2.0: -0.6, 3.0: -0.2, 4.0: 0.2, 5.0: 0.6, 6.0: 1.0}}
 
-        y, X_code, mapper = encoded_dmatrices(self.data, formula)
+        y, X_code, mapper, design_info = encoded_dmatrices(self.data, formula)
         assert_frame_equal(y, expected_y, check_dtype=False)
         assert_frame_equal(X_code, expected_X_code, check_dtype=False)
         for key, value in expected_mapper.items():
             assert approx(mapper[key]) == value
+        assert isinstance(design_info, DesignInfo)
 
 
 class TestCleanCategoricalNames:
@@ -230,169 +232,181 @@ class TestCleanCategoricalNames:
 
 
 @pytest.fixture
-def linear_model() -> LinearModel:
+def lm() -> LinearModel:
     source = pd.DataFrame({
-        'A': [1, 0, 0, 1, 0],
-        'B': [2, 4, 6, 8, 10],
-        'C': [3.1, 6.1, 9.1, 12.0, 15.0],
-        'Null': [0, 0, 0, 0, 0],
-        'Target': [11, 19, 30, 42, 49]
-    })
+        'A': [1, 0, 1, 1, 0, 1],
+        'B': [-1, 1, 0, -1, 1, 0],
+        'C': [3.1, 6.1, 9.1, 12.0, 15.0, 18.1],
+        'bad': [0, 0, 0, 0, 0, 0],
+        'Target': [11, 19, 30, 42, 49, 50]})
     target = 'Target'
-    features = ['A', 'B', 'C']
+    features = ['A', 'B', 'C', 'bad']
     covariates = []
     alpha = 0.05
     return LinearModel(source, target, features, covariates, alpha)
 
+@pytest.fixture
+def lm2() -> LinearModel:
+    source = pd.DataFrame({
+        'A': ['a', 'b', 'c', 'a', 'b', 'c'],
+        'B': [1, 2, 3, 1, 2, 3],
+        'C': [True, False, True, False, True, False],
+        'D': [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        'Target': [10, 20, 30, 40, 50, 60]})
+    target = 'Target'
+    features = ['A', 'B', 'C']
+    covariates = ['D']
+    alpha = 0.05
+    return LinearModel(source, target, features, covariates, alpha)
 
 class TestLinearModel:
 
-    def test_linear_model_init(self, linear_model: LinearModel) -> None:
-        assert_frame_equal(linear_model.source, pd.DataFrame({
-            'A': [1, 0, 0, 1, 0],
-            'B': [2, 4, 6, 8, 10],
-            'C': [3.1, 6.1, 9.1, 12.0, 15.0],
-            'Null': [0, 0, 0, 0, 0],
-            'Target': [11, 19, 30, 42, 49]
-        }))
-        assert linear_model.target == 'Target'
-        assert linear_model.features == ['A', 'B', 'C']
-        assert linear_model.covariates == []
-        assert linear_model.alpha == 0.05
-        assert linear_model.output_map == {'Target': 'y'}
-        assert linear_model.input_map == {'A': 'x0', 'B': 'x1', 'C': 'x2'}
-        assert linear_model.gof_metrics == {}
-        assert_frame_equal(linear_model.dmatrix, pd.DataFrame())
-        assert linear_model.exclude == set()
-        assert linear_model._model is None
-        assert linear_model.gof_metrics == {}
+    def test_linear_model_init(self, lm: LinearModel) -> None:
+        assert_frame_equal(lm.source, pd.DataFrame({
+            'A': [1, 0, 1, 1, 0, 1],
+            'B': [-1, 1, 0, -1, 1, 0],
+            'C': [3.1, 6.1, 9.1, 12.0, 15.0, 18.1],
+            'bad': [0, 0, 0, 0, 0, 0],
+            'Target': [11, 19, 30, 42, 49, 50]}))
+        assert lm.target == 'Target'
+        assert lm.features == ['A', 'B', 'C', 'bad']
+        assert lm.covariates == []
+        assert lm.alpha == 0.05
+        assert lm.output_map == {'Target': 'y'}
+        assert lm.input_map == {'A': 'x0', 'B': 'x1', 'C': 'x2', 'bad': 'x3'}
+        assert lm.gof_metrics == {}
+        assert_frame_equal(lm.dmatrix, pd.DataFrame())
+        assert lm.exclude == set()
+        assert lm._model is None
+        assert lm.gof_metrics == {}
+        assert lm.endogenous not in lm.exogenous
 
-    def test_linear_model_model_property(self, linear_model: LinearModel) -> None:
+    def test_linear_model_model_property(self, lm: LinearModel) -> None:
         with pytest.raises(AssertionError):
-            linear_model.model
-        linear_model.fit()
-        assert isinstance(linear_model.model, RegressionResultsWrapper)
+            lm.model
+        lm.fit()
+        assert isinstance(lm.model, RegressionResultsWrapper)
 
-    def test_linear_model_p_values_property(self, linear_model: LinearModel) -> None:
-        linear_model.fit()
-        assert_series_equal(linear_model.p_values, pd.Series([0.1, 0.2, 0.3]))
+    def test_linear_model_least_feature(self, lm: LinearModel) -> None:
+        lm.fit()
+        assert any(lm.p_values.isna())
+        assert lm.p_least > 0.05
+        assert lm.least_feature() == lm.input_map['bad']
+        assert lm._least_by_effect_() == lm.input_map['bad']
+        assert lm._least_by_pvalue_() != lm.input_map['bad']
 
-    def test_linear_model_p_least_property(self, linear_model: LinearModel) -> None:
-        linear_model.fit()
-        assert linear_model.p_least == 0.3
+    def test_linear_model_main_features_property(self, lm: LinearModel) -> None:
+        lm.construct_design_matrix(complete=True)
+        assert lm.main_features == ['x0', 'x1', 'x2', 'x3']
+        lm.recursive_feature_elimination()
+        assert lm.main_features == ['x2']
 
-def test_linear_model_main_features_property(linear_model: LinearModel) -> None:
-    linear_model.exclude = {'A'}
-    assert linear_model.main_features == ['B', 'C']
+    def test_linear_model_alpha_property(self, lm: LinearModel) -> None:
+        assert lm.alpha == 0.05
+        lm.alpha = 0.1
+        assert lm.alpha == 0.1
+        with pytest.raises(AssertionError):
+            lm.alpha = -0.1
+        with pytest.raises(AssertionError):
+            lm.alpha = 1.1
 
-def test_linear_model_alpha_property(linear_model: LinearModel) -> None:
-    assert linear_model.alpha == 0.05
-    linear_model.alpha = 0.1
-    assert linear_model.alpha == 0.1
-    with pytest.raises(AssertionError):
-        linear_model.alpha = -0.1
-    with pytest.raises(AssertionError):
-        linear_model.alpha = 1.1
+    def test_linear_model_endogenous_property(self, lm: LinearModel) -> None:
+        assert lm.endogenous == 'y'
 
-def test_linear_model_endogenous_property(linear_model: LinearModel) -> None:
-    assert linear_model.endogenous == 'y'
+    def test_linear_model_exogenous_property(self, lm: LinearModel) -> None:
+        lm.dmatrix = pd.DataFrame({
+            'y': [10, 20, 30, 40, 50],
+            'x0': [1, 2, 3, 4, 5],
+            'x1': [2, 4, 6, 8, 10],
+            'x2': [3, 6, 9, 12, 15]
+        })
+        lm.exclude = {'x0'}
+        assert lm.exogenous == ['x1', 'x2']
 
-def test_linear_model_exogenous_property(linear_model):
-    linear_model.dmatrix = pd.DataFrame({
-        'y': [10, 20, 30, 40, 50],
-        'x0': [1, 2, 3, 4, 5],
-        'x1': [2, 4, 6, 8, 10],
-        'x2': [3, 6, 9, 12, 15]
-    })
-    linear_model.exclude = {'x0'}
-    assert linear_model.exogenous == ['x1', 'x2']
+    def test_linear_model_construct_design_matrix_no_encode_no_complete(self, lm2: LinearModel) -> None:
+        lm2.construct_design_matrix()
+        assert_frame_equal(lm2.dmatrix, pd.DataFrame({
+            'y': [10, 20, 30, 40, 50, 60],
+            'Intercept': [1, 1, 1, 1, 1, 1],
+            'x0_b': [0, 1, 0, 0, 1, 0],
+            'x0_c': [0, 0, 1, 0, 0, 1],
+            'x2_True': [1, 0, 1, 0, 1, 0],
+            'x1': [1, 2, 3, 1, 2, 3],
+            'e0': [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]}), check_dtype=False)
 
-def test_linear_model_formula_property(linear_model):
-    linear_model.dmatrix = pd.DataFrame({
-        'y': [10, 20, 30, 40, 50],
-        'x0': [1, 2, 3, 4, 5],
-        'x1': [2, 4, 6, 8, 10],
-        'x2': [3, 6, 9, 12, 15]
-    })
-    linear_model.exclude = {'x0'}
-    assert linear_model.formula == 'y~x1+x2'
+    def test_linear_model_construct_design_matrix_no_encode_complete(
+            self, lm2: LinearModel) -> None:
+        lm2.construct_design_matrix(encode=False, complete=True)
+        assert_frame_equal(lm2.dmatrix, pd.DataFrame({
+            'y': [10, 20, 30, 40, 50, 60],
+            'Intercept': [1, 1, 1, 1, 1, 1],
+            'x0_b': [0, 1, 0, 0, 1, 0],
+            'x0_c': [0, 0, 1, 0, 0, 1],
+            'x2_True': [1, 0, 1, 0, 1, 0],
+            'x0_b:x2_True': [0, 0, 0, 0, 1, 0],
+            'x0_c:x2_True': [0, 0, 1, 0, 0, 0],
+            'x1': [1, 2, 3, 1, 2, 3],
+            'x0_b:x1': [0, 2, 0, 0, 2, 0],
+            'x0_c:x1': [0, 0, 3, 0, 0, 3],
+            'x1:x2_True': [1, 0, 3, 0, 2, 0],
+            'x0_b:x1:x2_True': [0, 0, 0, 0, 2, 0],
+            'x0_c:x1:x2_True': [0, 0, 3, 0, 0, 0],
+            'e0': [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]}), check_dtype=False)
 
-def test_linear_model_construct_design_matrix(linear_model):
-    source = pd.DataFrame({
-        'A': [1, 2, 3, 4, 5],
-        'B': [2, 4, 6, 8, 10],
-        'C': [3, 6, 9, 12, 15],
-        'Target': [10, 20, 30, 40, 50]
-    })
-    target = 'Target'
-    features = ['A', 'B', 'C']
-    covariates = []
-    alpha = 0.05
-    linear_model = LinearModel(source, target, features, covariates, alpha)
-    linear_model.construct_design_matrix()
-    assert_frame_equal(linear_model.dmatrix, pd.DataFrame({
-        'y': [10, 20, 30, 40, 50],
-        'x0': [1, 2, 3, 4, 5],
-        'x1': [2, 4, 6, 8, 10],
-        'x2': [3, 6, 9, 12, 15]
-    }))
+    def test_linear_model_construct_design_matrix_encode_no_complete(
+            self, lm2: LinearModel) -> None:
+        lm2.construct_design_matrix(encode=True)
+        assert_frame_equal(lm2.dmatrix, pd.DataFrame({
+            'y': [10, 20, 30, 40, 50, 60],
+            'Intercept': [1, 1, 1, 1, 1, 1],
+            'x0_b': [0, 1, 0, 0, 1, 0],
+            'x0_c': [0, 0, 1, 0, 0, 1],
+            'x2_True': [1, 0, 1, 0, 1, 0],
+            'x1': [-1, 0, 1, -1, 0, 1],
+            'e0': [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]}), check_dtype=False)
 
-def test_linear_model_construct_design_matrix_complete(linear_model):
-    source = pd.DataFrame({
-        'A': [1, 2, 3, 4, 5],
-        'B': [2, 4, 6, 8, 10],
-        'C': [3, 6, 9, 12, 15],
-        'Target': [10, 20, 30, 40, 50]
-    })
-    target = 'Target'
-    features = ['A', 'B', 'C']
-    covariates = []
-    alpha = 0.05
-    linear_model = LinearModel(source, target, features, covariates, alpha)
-    linear_model.construct_design_matrix(encode=True, complete=True)
-    assert_frame_equal(linear_model.dmatrix, pd.DataFrame({
-        'y': [10, 20, 30, 40, 50],
-        'x0': [1, 2, 3, 4, 5],
-        'x1': [2, 4, 6, 8, 10],
-        'x2': [3, 6, 9, 12, 15],
-        'x0:x1': [2, 8, 18, 32, 50],
-        'x0:x2': [3, 12, 27, 48, 75],
-        'x1:x2': [6, 24, 54, 96, 150],
-        'x0:x1:x2': [6, 48, 162, 384, 750]
-    }))
+    def test_linear_model_construct_design_matrix_encode_complete(
+            self, lm2: LinearModel) -> None:
+        lm2.construct_design_matrix(encode=True, complete=True)
+        assert_frame_equal(lm2.dmatrix, pd.DataFrame({
+            'y': [10, 20, 30, 40, 50, 60],
+            'Intercept': [1, 1, 1, 1, 1, 1],
+            'x0_b': [0, 1, 0, 0, 1, 0],
+            'x0_c': [0, 0, 1, 0, 0, 1],
+            'x2_True': [1, 0, 1, 0, 1, 0],
+            'x0_b:x2_True': [0, 0, 0, 0, 1, 0],
+            'x0_c:x2_True': [0, 0, 1, 0, 0, 0],
+            'x1': [-1, 0, 1, -1, 0, 1],
+            'x0_b:x1': [0, 0, 0, 0, 0, 0],
+            'x0_c:x1': [0, 0, 1, 0, 0, 1],
+            'x1:x2_True': [-1, 0, 1, 0, 0, 0],
+            'x0_b:x1:x2_True': [0, 0, 0, 0, 0, 0],
+            'x0_c:x1:x2_True': [0, 0, 1, 0, 0, 0],
+            'e0': [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]}), check_dtype=False)
 
-def test_linear_model_construct_design_matrix_covariates(linear_model: LinearModel) -> None:
-    source = pd.DataFrame({
-        'A': [1, 2, 3, 4, 5],
-        'B': [2, 4, 6, 8, 10],
-        'C': [3, 6, 9, 12, 15],
-        'Target': [10, 20, 30, 40, 50]
-    })
-    target = 'Target'
-    features = ['A', 'B', 'C']
-    covariates = ['D', 'E']
-    alpha = 0.05
-    linear_model = LinearModel(source, target, features, covariates, alpha)
-    linear_model.construct_design_matrix()
-    assert_frame_equal(linear_model.dmatrix, pd.DataFrame({
-        'y': [10, 20, 30, 40, 50],
-        'x0': [1, 2, 3, 4, 5],
-        'x1': [2, 4, 6, 8, 10],
-        'x2': [3, 6, 9, 12, 15],
-        'e0': [0, 0, 0, 0, 0],
-        'e1': [0, 0, 0, 0, 0]
-    }))
+    def test_linear_model_construct_design_matrix_covariates(self, lm: LinearModel) -> None:
+        source = pd.DataFrame({
+            'A': [1, 2, 3, 4, 5],
+            'B': [2, 4, 6, 8, 10],
+            'C': [3, 6, 9, 12, 15],
+            'D': [3.1, 6.1, 9.1, 12.0, 15.0],
+            'Target': [10, 20, 30, 40, 50]
+        })
+        target = 'Target'
+        features = ['A', 'B', 'C']
+        covariates = ['D']
+        alpha = 0.05
+        lm = LinearModel(source, target, features, covariates, alpha)
+        lm.construct_design_matrix()
+        assert_frame_equal(lm.dmatrix, pd.DataFrame({
+            'y': [10, 20, 30, 40, 50],
+            'Intercept': [1.0, 1.0, 1.0, 1.0, 1.0],
+            'x0': [1, 2, 3, 4, 5],
+            'x1': [2, 4, 6, 8, 10],
+            'x2': [3, 6, 9, 12, 15],
+            'e0': [3.1, 6.1, 9.1, 12.0, 15.0]}), check_dtype=False)
+        lm.construct_design_matrix(complete=True)
+        assert any([(':' in c) for c in lm.exogenous])
+        assert not any([(':e0' in c) for c in lm.exogenous])
+        assert not any([('e0:' in c) for c in lm.exogenous])
 
-def test_linear_model_construct_design_matrix_empty(linear_model):
-    source = pd.DataFrame({
-        'Target': [10, 20, 30, 40, 50]
-    })
-    target = 'Target'
-    features = []
-    covariates = []
-    alpha = 0.05
-    linear_model = LinearModel(source, target, features, covariates, alpha)
-    linear_model.construct_design_matrix()
-    assert_frame_equal(linear_model.dmatrix, pd.DataFrame({
-        'y': [10, 20, 30, 40, 50]
-    }))

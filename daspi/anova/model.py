@@ -6,6 +6,7 @@ import patsy.highlevel
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
+from typing import Any
 from typing import Set
 from typing import Self
 from typing import List
@@ -14,12 +15,15 @@ from typing import Literal
 from typing import DefaultDict
 from collections import defaultdict
 from pandas.core.frame import DataFrame
+from patsy.design_info import DesignInfo
 from pandas.core.series import Series
 from scipy.optimize._optimize import OptimizeResult
 from statsmodels.regression.linear_model import RegressionResultsWrapper
 
 from .utils import hierarchical
 from .utils import is_main_feature
+from .utils import encoded_dmatrices
+from .utils import clean_categorical_names
 
 from ..constants import ANOVA
 
@@ -58,7 +62,7 @@ class LinearModel:
     __slots__ = (
         'source', 'dmatrix', 'target', 'features', 'covariates', '_model', 
         '_alpha', 'input_map', 'output_map', 'gof_metrics', 'exclude',
-        'gof_metrics')
+        'gof_metrics', 'design_info', 'level_map')
     source: DataFrame
     dmatrix: DataFrame
     target: str
@@ -71,6 +75,8 @@ class LinearModel:
     gof_metrics: DefaultDict
     exclude: Set[str]
     gof_metrics: DefaultDict
+    design_info: DesignInfo
+    level_map: Dict[Any, Any]
 
     def __init__(
             self,
@@ -139,18 +145,8 @@ class LinearModel:
     def exogenous(self) -> List[str]:
         """Get column names of all exogene values of design matrix for
         current model (read-only)."""
-        ignore = set(list(self.exclude) + [ANOVA.INTERCEPT])
+        ignore = set(list(self.exclude) + [self.endogenous])
         return [c for c in self.dmatrix.columns if c not in ignore]
-    
-    @property
-    def formula(self) -> str:
-        """Construct the formula according to the current exogenous
-        features in the design matrix, excluding the `exclude` stored
-        features."""
-        formula = (f'{self.endogenous}~'
-                   f'{"-1+" if ANOVA.INTERCEPT in self.exclude else ""}'
-                   f'{"+".join(self.exogenous)}')
-        return formula
     
     def construct_design_matrix(
             self, encode: bool = False, complete: bool = False) -> Self:
@@ -160,12 +156,22 @@ class LinearModel:
 
         Parameters
         ----------
+        encode : bool, optional
+            Flag indicating whether to encode the exogenous variables.
+            If set to True, the categorical variables will be one-hot
+            encoded, and the numerical variables will be scaled such
+            that the lowest level is -1 and the highest level is 1.
+            The interactions between the main factors will be
+            represented as the product of the main factors.
+            Covariates will not be encoded. Default is False.
         complete : bool, optional
             Flag whether to construct a predictor matrix that consists 
             a complete model, i.e. all combinations of interactions up 
             to the length of the features. No interactions are created
-            for the covariates, by default False
+            for the covariates. Default is False.
         """
+        y: DataFrame
+        X: DataFrame
         data = self.source.rename(columns = self.input_map | self.output_map)
         features = [x for x in self.input_map.values() if x.startswith('x')]
         covariates = [e for e in self.input_map.values() if e.startswith('e')]
@@ -173,8 +179,16 @@ class LinearModel:
             f'{self.output_map[self.target]}~'
             + ('*'.join(features) if complete else '+'.join(features))
             + ('+'.join(['', *covariates]) if covariates else ''))
-        y, X = patsy.highlevel.dmatrices(formula, data, return_type='dataframe')
-        self.dmatrix = pd.concat([y, X], axis=1) # type: ignore
+        if encode:
+            y, X, self.level_map, self.design_info = encoded_dmatrices(
+                data, formula, covariates)
+        else:
+            y, X = patsy.highlevel.dmatrices(
+                formula, data, return_type='dataframe') # type: ignore
+            self.design_info = X.design_info # type: ignore
+            X = X.rename(
+                columns={c: clean_categorical_names(c) for c in X.columns})
+        self.dmatrix = pd.concat([y, X], axis=1)
         return self
     
     def fit(self, **kwds) -> Self:
@@ -191,9 +205,10 @@ class LinearModel:
         """
         if self.dmatrix.empty:
             self.construct_design_matrix()
+
         self._model = sm.OLS(
             self.dmatrix[self.endogenous],
-            self.dmatrix[self.exogenous]).fit()
+            self.dmatrix[self.exogenous], **kwds).fit()
         self.store_gof_metrics()
         return self
     
@@ -202,18 +217,16 @@ class LinearModel:
         features = list(self.model.params.index)
         return all([hf in features for hf in hierarchical(features)])
     
-    def effects(self) -> DataFrame:
+    def effects(self) -> Series:
         """Calculates the impact of each factor on the target. The
         effects are described as twice the parameter coefficients and 
-        occur as an absolute number (read-only)."""
+        occur as an absolute number."""
         params: Series = 2 * self.model.params
         if ANOVA.INTERCEPT in params.index:
             params.pop(ANOVA.INTERCEPT)
-        effects = (params
-            .to_frame(ANOVA.EFFECTS)
-            .reset_index(drop=False)
-            .rename(columns={'index': ANOVA.FEATURES}))
-        effects[ANOVA.EFFECTS] = effects[ANOVA.EFFECTS].abs()
+        effects = params.abs()
+        effects.name = ANOVA.EFFECTS
+        effects.index.name = ANOVA.FEATURES
         return effects
     
     def store_gof_metrics(self) -> None:
@@ -230,7 +243,7 @@ class LinearModel:
         params.
         - 'hierarchical' = boolean value if model is hierarchical
         """
-        self.gof_metrics['formula'].append(self.formula)
+        self.gof_metrics['exogenous'].append(self.exogenous)
         self.gof_metrics['least_feature'].append(self.least_feature())
         for metric in ['aic', 'rsquared', 'rsquared_adj']:
             self.gof_metrics[metric].append(getattr(self.model, metric))
@@ -304,6 +317,10 @@ class LinearModel:
             .reset_index(drop=False)
             .rename(columns={'index': ANOVA.FEATURES}))
         return anova
+    
+    def anova_typ1(self) -> DataFrame:
+        anova = self.effects().to_frame()
+        return anova
 
     def highest_features(self) -> List[str]:
         """Get all main and interaction features that do not appear in a 
@@ -320,8 +337,8 @@ class LinearModel:
             if level == highest_level:
                 features.append(f_split)
             else:
-                intercept = [i for f in features for i in set(f_split) & set(f)]
-                if len(intercept) < level:
+                intersect = [i for f in features for i in set(f_split) & set(f)]
+                if len(intersect) < level:
                     features.append(f_split)
         return [ANOVA.SEP.join(f) for f in features]
 

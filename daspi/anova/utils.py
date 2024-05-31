@@ -10,6 +10,7 @@ from typing import List
 from typing import Dict
 from typing import Tuple
 from typing import Callable
+import patsy.highlevel
 from scipy.optimize import Bounds
 from scipy.optimize import minimize
 from pandas.api.types import is_numeric_dtype
@@ -39,21 +40,6 @@ def clean_categorical_names(feature_name: str) -> str:
         value = RE.ENCODED_VALUE.findall(feature_name)
         return f'{name[0]}_{value[0]}' if name and value else feature_name
 
-def remove_special_characters(input_string: str) -> str:
-    """Use regex to remove all non-alphanumeric characters"""
-    return RE.NOT_ALPHANUMERIC.sub('', input_string)
-
-def prepare_encoding_data(df: DataFrame) -> DataFrame:
-    """Converts the data type of all non-numeric columns to a string and
-    removes all non-alphanumeric characters in the values for these
-    columns."""
-    def cleansing(column: Series) -> 'Series[str]':
-        if is_numeric_dtype(column):
-            return column
-        else:
-            return column.astype(str).apply(remove_special_characters)
-    return df.apply(cleansing, axis=0)
-
 def get_term_name(feature_name: str) -> str:
     """Get original term name of a patsy encoded categorical feature.
     Such names are structured as follows '<term name>[T.<value>]'."""
@@ -72,7 +58,7 @@ def decode_cat_main(
         values = matches
     else:
         term_name = get_term_name(feature_name)
-        for factor, info in di.factor_infos.items():
+        for factor, info in di.factor_infos.items(): # type: ignore
             if term_name == factor.code:
                 sep = ' | '
                 values = [c for c in info.categories if str(c) not in matches]
@@ -80,40 +66,49 @@ def decode_cat_main(
     return sep.join(map(str, values))
 
 def encoded_dmatrices(
-        data: DataFrame, formula: str
-        ) -> Tuple[DataFrame, DataFrame, Dict[str, tuple]]:
-    """encode all levels of main factors such that the lowest level is 
-    -1 and the highest level is 1. The interactions are the product of 
-    the main factors. Categorical values are one-hot encoded. 
+        data: DataFrame, formula: str, covariates: List[str] = []
+        ) -> Tuple[DataFrame, DataFrame, Dict[str, tuple], DesignInfo]:
+    """Encode all levels of the main factors such that the lowest level 
+    is -1 and the highest level is 1. The interactions between the main 
+    factors are represented as the product of the main factors. 
+    Categorical values are one-hot encoded. Covariates are not encoded 
+    if they are continuous variables.
     
     Parameters
     ----------
     data : pandas DataFrame
-        Data with real factor levels
+        Data with the real factor levels.
     formula : str
         The formula specifying the model used by patsy.
+    covariates : List[str], optional
+        List of column names for covariates. Covariates are not encoded 
+        if they are continuous variables. Default is an empty list.
     
     Returns
     -------
     y : pandas DataFrame
-        target values
+        Target values.
     X_code : pandas DataFrame
-        Encoded feature values
+        Encoded feature values.
     mapper : dict
-        information about how the levels are encoded
-        - key: str = feature name of main level
-        - value: dict = key: originals, value: codes
+        Information about how the levels are encoded.
+        - key: str = feature name of the main level.
+        - value: dict = key: original level, value: encoded level.
+    design_info : DesignInfo
+        A DesignInfo object that holds metadata about a design matrix.
     """
-    data = prepare_encoding_data(data)
-    y, X = patsy.dmatrices(formula, data, return_type='dataframe')
-    design_info = X.design_info
+    y: DataFrame
+    X: DataFrame
+    design_info: DesignInfo
+    y, X = patsy.highlevel.dmatrices(formula, data, return_type='dataframe') # type: ignore
+    design_info = X.design_info # type: ignore
     features = list(design_info.column_name_indexes.keys())
     X_code = pd.DataFrame(0, index=X.index, columns=features)
     mapper = {}
     columns = {}
     for f in features:
         columns[f] = clean_categorical_names(f)
-        if f == ANOVA.INTERCEPT:
+        if f == ANOVA.INTERCEPT or any([(e in f) for e in covariates]):
             x_encoded = X[f]
         elif is_encoded_categorical(f) and ANOVA.SEP not in f:
             x_encoded = X[f]
@@ -132,7 +127,7 @@ def encoded_dmatrices(
         X_code[f] = x_encoded
     X_code = X_code.rename(columns=columns)
     X_code.design_info = design_info
-    return y, X_code, mapper
+    return y, X_code, mapper, design_info
 
 def hierarchical(features: List[str]) -> List[str]:
     """Get all features such that all lower interactions and main 
@@ -233,7 +228,7 @@ def optimize(
         `OptimizeResult` for a description of other attributes.
     """
     if not bounds:
-        bounds = Bounds(-np.ones(len(x0)), np.ones(len(x0)))
+        bounds = Bounds(-np.ones(len(x0)), np.ones(len(x0))) # type: ignore
     res: OptimizeResult = minimize(fun, x0, bounds=bounds, **kwds)
     xs = [decode(x, mapper, c) for x, c in zip(res.x, columns)]
     y = -res.fun if negate else res.fun
@@ -243,8 +238,6 @@ def optimize(
 __all__ = [
     'is_encoded_categorical',
     'clean_categorical_names',
-    'remove_special_characters',
-    'prepare_encoding_data',
     'get_term_name',
     'decode_cat_main',
     'encoded_dmatrices',
