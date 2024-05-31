@@ -61,8 +61,8 @@ class LinearModel:
     """
     __slots__ = (
         'source', 'dmatrix', 'target', 'features', 'covariates', '_model', 
-        '_alpha', 'input_map', 'output_map', 'gof_metrics', 'exclude',
-        'gof_metrics', 'design_info', 'level_map')
+        '_alpha', 'input_map', 'input_rmap', 'output_map', 'gof_metrics',
+        'exclude', 'gof_metrics', 'design_info', 'level_map')
     source: DataFrame
     dmatrix: DataFrame
     target: str
@@ -71,11 +71,12 @@ class LinearModel:
     _alpha: float
     _model: RegressionResultsWrapper | None
     input_map: Dict[str, str]
+    input_rmap: Dict[str, str]
     output_map: Dict[str, str]
     gof_metrics: DefaultDict
     exclude: Set[str]
     gof_metrics: DefaultDict
-    design_info: DesignInfo
+    design_info: DesignInfo # TODO: remove if not needed
     level_map: Dict[Any, Any]
 
     def __init__(
@@ -93,6 +94,7 @@ class LinearModel:
         self.input_map = (
             {f: f'x{i}' for i, f in enumerate(features)} 
             | {c: f'e{i}' for i, c in enumerate(covariates)})
+        self.input_rmap = {v: k for k, v in self.input_map.items()}
         self.alpha = alpha
         self.gof_metrics = defaultdict(list)
         self.dmatrix = pd.DataFrame()
@@ -123,7 +125,7 @@ class LinearModel:
     def main_features(self) -> List[str]:
         """Get all main parameters of current model excluding intercept
         (read-only)."""
-        return [n for n in self.exogenous if is_main_feature(n)]
+        return [n for n in self.dm_exogenous if is_main_feature(n)]
 
     @property
     def alpha(self) -> float:
@@ -136,17 +138,70 @@ class LinearModel:
         self._alpha = alpha
     
     @property
-    def endogenous(self) -> str:
+    def dm_endogenous(self) -> str:
         """Get column name of endogenous values of design matrix
         (read-only)."""
         return self.output_map[self.target]
     
     @property
-    def exogenous(self) -> List[str]:
+    def dm_exogenous(self) -> List[str]:
         """Get column names of all exogene values of design matrix for
         current model (read-only)."""
-        ignore = set(list(self.exclude) + [self.endogenous])
+        ignore = set(list(self.exclude) + [self.dm_endogenous])
         return [c for c in self.dmatrix.columns if c not in ignore]
+    
+    @property
+    def endogenous(self) -> str:
+        """Get the column name of the endogenous variable using the
+        original provided target name (read-only)."""
+        return self.target
+    
+    @property
+    def exogenous(self) -> List[str]:
+        """Get the column names of all exogenous variables for the
+        current model using the original provided feature and covariate
+        names (read-only)."""
+        return [self._reverse_exogen_name_(e) for e in self.dm_exogenous]
+    
+    def _reverse_exogen_main_name_(self, dm_main: str) -> str:
+        """Reverse the exogenous main name using the original names
+        stored in `input_rmap`.
+
+        Parameters
+        ----------
+        dm_main : str
+            The exogenous main name (no interaction).
+
+        Returns
+        -------
+        str
+            The reversed exogenous main name.
+        """
+        split = dm_main.split('_')
+        split[0] = self.input_rmap.get(split[0], split[0])
+        return '_'.join(split)
+
+    def _reverse_exogen_name_(self, dm_exogenous: str) -> str:
+        """Reverse the exogenous name using the feature or covariate
+        names provided when initializing.
+
+        Parameters
+        ----------
+        dm_exogenous : str
+            The exogenous name of the design matrix.
+
+        Returns
+        -------
+        str
+            The reversed exogenous name.
+        """
+        if dm_exogenous == ANOVA.INTERCEPT:
+            exogenous = dm_exogenous
+        else:
+            exogenous = ANOVA.SEP.join(map(
+                self._reverse_exogen_main_name_,
+                dm_exogenous.split(ANOVA.SEP)))
+        return exogenous
     
     def construct_design_matrix(
             self, encode: bool = False, complete: bool = False) -> Self:
@@ -207,8 +262,8 @@ class LinearModel:
             self.construct_design_matrix()
 
         self._model = sm.OLS(
-            self.dmatrix[self.endogenous],
-            self.dmatrix[self.exogenous], **kwds).fit()
+            self.dmatrix[self.dm_endogenous],
+            self.dmatrix[self.dm_exogenous], **kwds).fit()
         self.store_gof_metrics()
         return self
     
@@ -227,6 +282,7 @@ class LinearModel:
         effects = params.abs()
         effects.name = ANOVA.EFFECTS
         effects.index.name = ANOVA.FEATURES
+        effects.index = effects.index.map(self._reverse_exogen_name_)
         return effects
     
     def store_gof_metrics(self) -> None:
@@ -243,7 +299,7 @@ class LinearModel:
         params.
         - 'hierarchical' = boolean value if model is hierarchical
         """
-        self.gof_metrics['exogenous'].append(self.exogenous)
+        self.gof_metrics['exogenous'].append(self.dm_exogenous)
         self.gof_metrics['least_feature'].append(self.least_feature())
         for metric in ['aic', 'rsquared', 'rsquared_adj']:
             self.gof_metrics[metric].append(getattr(self.model, metric))
@@ -292,40 +348,91 @@ class LinearModel:
         """
         self.exclude = set()
         self.gof_metrics = defaultdict(list)
-        max_steps = len(self.exogenous)
+        max_steps = len(self.dm_exogenous)
         for step in range(max_steps):
             self.fit()
             if (self.p_least <= self.alpha 
                 and self.model.rsquared <= rsquared_max
-                or len(self.exogenous) == 1):
+                or len(self.dm_exogenous) == 1):
                 break
             self.exclude.add(self.gof_metrics['least_feature'][-1])
 
         if ensure_hierarchy and not self.is_hierarchical:
-            h_features = hierarchical(self.exogenous)
+            h_features = hierarchical(self.dm_exogenous)
             self.exclude = {e for e in self.exclude if e not in h_features}
             self.fit()
         return self
     
-    def anova(self) -> DataFrame:
-        """Calculate anova table for fitted model. If the fitted model
-        has sigificant interactions anova typ II is performed, otherwise
-        typ I (https://stats.stackexchange.com/a/93031)."""
-        typ = 'II' if self.has_significant_interactions() else 'I'
-        anova = (sm.stats
-            .anova_lm(self.model, typ=typ)
-            .reset_index(drop=False)
-            .rename(columns={'index': ANOVA.FEATURES}))
-        return anova
-    
-    def anova_typ1(self) -> DataFrame:
-        anova = self.effects().to_frame()
-        return anova
+    def anova(self, typ: Literal['', 'I', 'II', 'III'] = 'III') -> DataFrame:
+        """Perform an analysis of variance (ANOVA) on the fitted model.
+
+        Parameters
+        ----------
+        typ : Literal['', 'I', 'II', 'III'], optional
+            The type of ANOVA to perform. Default is 'III', see notes
+            for more informations about the types.
+            - '' : If no type is specified, 'II' is used if the model 
+                has significant interactions, otherwise 'I' is used.
+            - 'I' : Type I sum of squares ANOVA.
+            - 'II' : Type II sum of squares ANOVA.
+            - 'III' : Type III sum of squares ANOVA.
+
+        Returns
+        -------
+        DataFrame
+            The ANOVA table containing the sum of squares, degrees of 
+            freedom, mean squares, F-statistic, and p-value.
+
+        Notes
+        -----
+        The Minitab software uses Type III by default, so that is what 
+        we will use here. A discussion on which one to use can be found 
+        here:
+        https://stats.stackexchange.com/a/93031
+        
+        The ANOVA table provides information about the significance of 
+        each factor and interaction in the model. The type of ANOVA 
+        determines how the sum of squares is partitioned among the 
+        factors.
+
+        If the model does not have a 'design_info' attribute, it is set 
+        to the value of 'self.design_info' before performing the ANOVA.
+
+        Examples
+        --------
+        >>> import daspi
+        >>> df = daspi.load_dataset('anova3')
+        >>> lm = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug'])
+        >>> lm.fit()
+        >>> anova_table = lm.anova(typ='III')
+        >>> print(anova_table)
+                  df     sum_sq    mean_sq          F    PR(>F)
+        Sex        1   2.074568   2.074568   2.406818  0.126543
+        Risk       1  11.332130  11.332130  13.147017  0.000631
+        Drug       2   0.815743   0.407872   0.473194  0.625522
+        Residual  55  47.407498   0.861955        NaN       NaN
+        Total     59  61.629940   1.044575        NaN       NaN
+        """
+        total_columns = ['df', 'sum_sq']
+        if not typ:
+            typ = 'II' if self.has_significant_interactions() else 'I'
+        if not hasattr(self.model.model.data, 'design_info'):
+            self.model.model.data.design_info = self.design_info
+        anova = sm.stats.anova_lm(self.model, typ=typ)
+        anova.index = (anova.index
+            .set_names(ANOVA.SOURCE)
+            .map(self._reverse_exogen_name_))
+        if ANOVA.INTERCEPT in anova.index:
+            anova = anova.drop(ANOVA.INTERCEPT, axis=0)
+        anova.loc['Total', total_columns] = anova[total_columns].sum()
+        anova['mean_sq'] = anova['sum_sq']/anova['df']
+        anova['df'] = anova['df'].astype(int)
+        return anova[ANOVA.COLNAMES]
 
     def highest_features(self) -> List[str]:
         """Get all main and interaction features that do not appear in a 
         higher interaction. Covariates are not taken into account here."""
-        _features = [f for f in self.exogenous if not f.startswith('e_')]
+        _features = [f for f in self.dm_exogenous if not f.startswith('e_')]
         features_splitted = sorted(
             [f.split(ANOVA.SEP) for f in _features], 
             key=len, reverse=True)
@@ -376,9 +483,9 @@ class LinearModel:
         assert len(xs) == len(self.main_features), (
             f'Please provide a value for each main feature')
         
-        features = self.exogenous + [ANOVA.INTERCEPT]
+        features = self.dm_exogenous + [ANOVA.INTERCEPT]
         X = np.zeros(len(features))
-        for i, feature in enumerate(self.exogenous):
+        for i, feature in enumerate(self.dm_exogenous):
             if ANOVA.SEP not in feature:
                 X[i] = xs[i]
         X[-1] = intercept

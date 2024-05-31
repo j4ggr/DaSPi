@@ -44,7 +44,7 @@ def load_dataset(dataset_name: str) -> DataFrame:
     dataset:
 
     >>> import daspi
-    >>> df = daspi.read_dataset('penguins')
+    >>> df = daspi.load_dataset('penguins')
     >>> df # doctest: +SKIP
         species  island  bill_length_mm  ...  flipper_length_mm  body_mass_g     sex
     0    Adelie  Biscoe            37.8  ...              174.0       3400.0  female

@@ -20,6 +20,8 @@ from statsmodels.regression.linear_model import RegressionResultsWrapper
 
 sys.path.append(str(Path(__file__).parent.resolve()))
 
+import daspi
+
 from daspi.anova import decode
 from daspi.anova import optimize
 from daspi.anova import hierarchical
@@ -32,26 +34,28 @@ from daspi.anova import clean_categorical_names
 
 from daspi.anova import LinearModel
 
+valid_data_dir = Path(__file__).parent/'data'
+
 
 class TestHierarchical:
 
-    def test_hierarchical(self) -> None:
+    def test_basics(self) -> None:
         expected_output = ['A', 'B', 'C', 'A:B', 'A:C', 'B:C', 'A:B:C']
         assert hierarchical(['A:B:C']) == expected_output
 
-    def test_hierarchical_empty(self) -> None:
+    def test_empty(self) -> None:
         assert hierarchical([]) == []
 
-    def test_hierarchical_single_feature(self) -> None:
+    def test_single_feature(self) -> None:
         assert hierarchical(['A']) == ['A']
 
-    def test_hierarchical_duplicate_features(self) -> None:
+    def test_duplicate_features(self) -> None:
         assert hierarchical(['A', 'A']) == ['A']
 
-    def test_hierarchical_multiple_duplicate_features(self) -> None:
+    def test_multiple_duplicate_features(self) -> None:
         assert hierarchical(['A', 'A', 'B', 'B']) == ['A', 'B']
 
-    def test_hierarchical_interactions(self) -> None:
+    def test_interactions(self) -> None:
         assert hierarchical(['A:B', 'B:C']) == ['A', 'B', 'C', 'A:B', 'B:C']
 
 
@@ -64,21 +68,21 @@ class TestGetTermName:
 
 class TestIsMainFeature:
 
-    def test_is_main_feature(self) -> None:
+    def test_basics(self) -> None:
         assert is_main_feature('A') == True
         assert is_main_feature('B') == True
         assert is_main_feature('Intercept') == False
         assert is_main_feature('A:B') == False
         assert is_main_feature('A:B:C') == False
 
-    def test_is_main_feature_empty(self) -> None:
+    def test_empty(self) -> None:
         assert is_main_feature('') == True
 
-    def test_is_main_feature_whitespace(self) -> None:
+    def test_whitespace(self) -> None:
         assert is_main_feature(' ') == True
         assert is_main_feature('  ') == True
 
-    def test_is_main_feature_separator(self) -> None:
+    def test_separator(self) -> None:
         assert is_main_feature(':') == False
         assert is_main_feature('A:') == False
         assert is_main_feature('A:B') == False
@@ -124,7 +128,7 @@ class TestEncodedDmatrices:
             'Target': [10, 20, 30, 40, 50, 60]
         })
 
-    def test_encoded_dmatrices(self) -> None:
+    def test_basics(self) -> None:
         formula = 'Target ~ A + B + C + D + A:B + A:C'
         expected_y = pd.DataFrame({'Target': [10, 20, 30, 40, 50, 60]})
         expected_X_code = pd.DataFrame({
@@ -152,7 +156,7 @@ class TestEncodedDmatrices:
         for key, value in expected_mapper.items():
             assert approx(mapper[key]) == value
 
-    def test_encoded_dmatrices_empty(self) -> None:
+    def test_empty(self) -> None:
         formula = 'Target ~ 1'
         expected_y = pd.DataFrame({'Target': [10, 20, 30, 40, 50, 60]})
         expected_X_code = pd.DataFrame({'Intercept': [1, 1, 1, 1, 1, 1]})
@@ -163,7 +167,7 @@ class TestEncodedDmatrices:
         assert mapper == expected_mapper
         assert isinstance(design_info, DesignInfo)
 
-    def test_encoded_dmatrices_single_feature(self) -> None:
+    def test_single_feature(self) -> None:
         formula = 'Target ~ A'
         expected_y = pd.DataFrame({'Target': [10, 20, 30, 40, 50, 60]})
         expected_X_code = pd.DataFrame({
@@ -181,7 +185,7 @@ class TestEncodedDmatrices:
         assert mapper == expected_mapper
         assert isinstance(design_info, DesignInfo)
 
-    def test_encoded_dmatrices_no_categorical(self) -> None:
+    def test_no_categorical(self) -> None:
         formula = 'Target ~ B + D'
         expected_y = pd.DataFrame({'Target': [10, 20, 30, 40, 50, 60]})
         expected_X_code = pd.DataFrame({
@@ -203,7 +207,7 @@ class TestEncodedDmatrices:
 
 class TestCleanCategoricalNames:
 
-    def test_clean_categorical_names(self) -> None:
+    def test_general(self) -> None:
         assert clean_categorical_names('A') == 'A'
         assert clean_categorical_names('A[T.b]') == 'A_b'
         assert clean_categorical_names('A[T.b]:C[T.d]') == 'A_b:C_d'
@@ -212,19 +216,19 @@ class TestCleanCategoricalNames:
         assert clean_categorical_names('A[T.b]:C') == 'A_b:C'
         assert clean_categorical_names('A[T.b]:C[T.d]:D[T.e]:E') == 'A_b:C_d:D_e:E'
 
-    def test_clean_categorical_names_no_encoding(self) -> None:
+    def test_no_encoding(self) -> None:
         assert clean_categorical_names('A') == 'A'
         assert clean_categorical_names('A:B') == 'A:B'
         assert clean_categorical_names('A:B:C') == 'A:B:C'
 
-    def test_clean_categorical_names_empty(self) -> None:
+    def test_empty(self) -> None:
         assert clean_categorical_names('') == ''
 
-    def test_clean_categorical_names_whitespace(self) -> None:
+    def test_whitespace(self) -> None:
         assert clean_categorical_names(' ') == ' '
         assert clean_categorical_names('  ') == '  '
 
-    def test_clean_categorical_names_no_match(self) -> None:
+    def test_no_match(self) -> None:
         assert clean_categorical_names('A[T]') == 'A[T]'
         assert clean_categorical_names('A[T.b') == 'A[T.b'
         assert clean_categorical_names('A[T.b]:C[T') == 'A_b:C[T'
@@ -259,9 +263,23 @@ def lm2() -> LinearModel:
     alpha = 0.05
     return LinearModel(source, target, features, covariates, alpha)
 
+@pytest.fixture
+def anova3_c_valid() -> DataFrame:
+    df = pd.read_csv(
+        valid_data_dir/'anova3_result.csv', skiprows=9, sep=';', index_col=0)
+    return df
+
+@pytest.fixture
+def anova3_s_valid() -> DataFrame:
+    df = pd.read_csv(
+        valid_data_dir/'anova3_result.csv', skiprows=1, skipfooter=12, sep=';',
+        index_col=0)
+    return df
+
+
 class TestLinearModel:
 
-    def test_linear_model_init(self, lm: LinearModel) -> None:
+    def test_init(self, lm: LinearModel) -> None:
         assert_frame_equal(lm.source, pd.DataFrame({
             'A': [1, 0, 1, 1, 0, 1],
             'B': [-1, 1, 0, -1, 1, 0],
@@ -279,15 +297,15 @@ class TestLinearModel:
         assert lm.exclude == set()
         assert lm._model is None
         assert lm.gof_metrics == {}
-        assert lm.endogenous not in lm.exogenous
+        assert lm.dm_endogenous not in lm.dm_exogenous
 
-    def test_linear_model_model_property(self, lm: LinearModel) -> None:
+    def test_model_property(self, lm: LinearModel) -> None:
         with pytest.raises(AssertionError):
             lm.model
         lm.fit()
         assert isinstance(lm.model, RegressionResultsWrapper)
 
-    def test_linear_model_least_feature(self, lm: LinearModel) -> None:
+    def test_least_feature(self, lm: LinearModel) -> None:
         lm.fit()
         assert any(lm.p_values.isna())
         assert lm.p_least > 0.05
@@ -295,13 +313,13 @@ class TestLinearModel:
         assert lm._least_by_effect_() == lm.input_map['bad']
         assert lm._least_by_pvalue_() != lm.input_map['bad']
 
-    def test_linear_model_main_features_property(self, lm: LinearModel) -> None:
+    def test_main_features_property(self, lm: LinearModel) -> None:
         lm.construct_design_matrix(complete=True)
         assert lm.main_features == ['x0', 'x1', 'x2', 'x3']
         lm.recursive_feature_elimination()
         assert lm.main_features == ['x2']
 
-    def test_linear_model_alpha_property(self, lm: LinearModel) -> None:
+    def test_alpha_property(self, lm: LinearModel) -> None:
         assert lm.alpha == 0.05
         lm.alpha = 0.1
         assert lm.alpha == 0.1
@@ -310,20 +328,36 @@ class TestLinearModel:
         with pytest.raises(AssertionError):
             lm.alpha = 1.1
 
-    def test_linear_model_endogenous_property(self, lm: LinearModel) -> None:
-        assert lm.endogenous == 'y'
+    def test_dm_endogenous_property(self, lm: LinearModel) -> None:
+        assert lm.dm_endogenous == 'y'
 
-    def test_linear_model_exogenous_property(self, lm: LinearModel) -> None:
-        lm.dmatrix = pd.DataFrame({
-            'y': [10, 20, 30, 40, 50],
-            'x0': [1, 2, 3, 4, 5],
-            'x1': [2, 4, 6, 8, 10],
-            'x2': [3, 6, 9, 12, 15]
-        })
+    def test_dm_exogenous_property(self, lm: LinearModel) -> None:
+        lm.construct_design_matrix()
         lm.exclude = {'x0'}
-        assert lm.exogenous == ['x1', 'x2']
+        assert lm.dm_exogenous == ['Intercept', 'x1', 'x2', 'x3']
 
-    def test_linear_model_construct_design_matrix_no_encode_no_complete(self, lm2: LinearModel) -> None:
+    def test_endogenous_property(self, lm: LinearModel) -> None:
+        assert lm.endogenous == 'Target'
+
+    def test_exogenous_property(self, lm: LinearModel) -> None:
+        lm.construct_design_matrix()
+        lm.exclude = {'x0'}
+        assert lm.exogenous == ['Intercept', 'B', 'C', 'bad']
+        
+        lm.construct_design_matrix(complete=True)
+        lm.exclude = {c for c in lm.dmatrix.columns if 'x3' in c}
+        expected_exogenous = [
+            'Intercept',
+            'A',
+            'B',
+            'A:B',
+            'C',
+            'A:C',
+            'B:C',
+            'A:B:C']
+        assert lm.exogenous == expected_exogenous
+
+    def test_construct_design_matrix_no_encode_no_complete(self, lm2: LinearModel) -> None:
         lm2.construct_design_matrix()
         assert_frame_equal(lm2.dmatrix, pd.DataFrame({
             'y': [10, 20, 30, 40, 50, 60],
@@ -334,7 +368,7 @@ class TestLinearModel:
             'x1': [1, 2, 3, 1, 2, 3],
             'e0': [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]}), check_dtype=False)
 
-    def test_linear_model_construct_design_matrix_no_encode_complete(
+    def test_construct_design_matrix_no_encode_complete(
             self, lm2: LinearModel) -> None:
         lm2.construct_design_matrix(encode=False, complete=True)
         assert_frame_equal(lm2.dmatrix, pd.DataFrame({
@@ -353,7 +387,7 @@ class TestLinearModel:
             'x0_c:x1:x2_True': [0, 0, 3, 0, 0, 0],
             'e0': [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]}), check_dtype=False)
 
-    def test_linear_model_construct_design_matrix_encode_no_complete(
+    def test_construct_design_matrix_encode_no_complete(
             self, lm2: LinearModel) -> None:
         lm2.construct_design_matrix(encode=True)
         assert_frame_equal(lm2.dmatrix, pd.DataFrame({
@@ -365,7 +399,7 @@ class TestLinearModel:
             'x1': [-1, 0, 1, -1, 0, 1],
             'e0': [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]}), check_dtype=False)
 
-    def test_linear_model_construct_design_matrix_encode_complete(
+    def test_construct_design_matrix_encode_complete(
             self, lm2: LinearModel) -> None:
         lm2.construct_design_matrix(encode=True, complete=True)
         assert_frame_equal(lm2.dmatrix, pd.DataFrame({
@@ -383,8 +417,8 @@ class TestLinearModel:
             'x0_b:x1:x2_True': [0, 0, 0, 0, 0, 0],
             'x0_c:x1:x2_True': [0, 0, 1, 0, 0, 0],
             'e0': [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]}), check_dtype=False)
-
-    def test_linear_model_construct_design_matrix_covariates(self, lm: LinearModel) -> None:
+        
+    def test_construct_design_matrix_covariates(self, lm: LinearModel) -> None:
         source = pd.DataFrame({
             'A': [1, 2, 3, 4, 5],
             'B': [2, 4, 6, 8, 10],
@@ -406,7 +440,26 @@ class TestLinearModel:
             'x2': [3, 6, 9, 12, 15],
             'e0': [3.1, 6.1, 9.1, 12.0, 15.0]}), check_dtype=False)
         lm.construct_design_matrix(complete=True)
-        assert any([(':' in c) for c in lm.exogenous])
-        assert not any([(':e0' in c) for c in lm.exogenous])
-        assert not any([('e0:' in c) for c in lm.exogenous])
+        assert any([(':' in c) for c in lm.dm_exogenous])
+        assert not any([(':e0' in c) for c in lm.dm_exogenous])
+        assert not any([('e0:' in c) for c in lm.dm_exogenous])
+    
+    def test_anova(self, anova3_s_valid: DataFrame, anova3_c_valid: DataFrame) -> None:
+        df = daspi.load_dataset('anova3')
+        lm = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug'])
+        
+        anova = lm.construct_design_matrix().fit().anova()
+        valid = anova3_s_valid
+        assert_series_equal(
+            anova['df'], valid['df'], check_dtype=False)
+        s = str(anova)
+        assert_series_equal(
+            anova['sum_sq'], valid['sum_sq'], check_exact=False, atol=1e-2)
+
+        anova = lm.construct_design_matrix(complete=True).fit().anova()
+        valid = anova3_c_valid
+        assert_series_equal(
+            anova['df'], valid['df'], check_dtype=False)
+        assert_series_equal(
+            anova['sum_sq'], valid['sum_sq'], check_exact=False, atol=1e-2)
 

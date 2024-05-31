@@ -415,8 +415,15 @@ class _Anova_:
     """"Default name for effects"""
     FEATURES: Literal['features'] = 'features'
     """"Default name for features"""
-    SMALLEST_INTERACTION = 2
+    SOURCE: Literal['source'] = 'source'
+    """"Default name for source used in ANOVA table."""
+    SMALLEST_INTERACTION: int = 2
     """Smallest possible interaction"""
+    @property
+    def COLNAMES(self) -> List[str]:
+        """Column names when crating the anova table using LinearModel 
+        class"""
+        return ['df', 'sum_sq', 'mean_sq', 'F', 'PR(>F)']
 
 ANOVA = _Anova_()
 
