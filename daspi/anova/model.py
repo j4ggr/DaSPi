@@ -2,6 +2,7 @@ import patsy
 
 import numpy as np
 import pandas as pd
+import patsy.highlevel
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
@@ -15,7 +16,7 @@ from collections import defaultdict
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 from scipy.optimize._optimize import OptimizeResult
-from statsmodels.regression.linear_model import RegressionResults
+from statsmodels.regression.linear_model import RegressionResultsWrapper
 
 from .utils import hierarchical
 from .utils import is_main_feature
@@ -28,12 +29,12 @@ class LinearModel:
     only significant features describe the model.
     
     Balanced models (DOEs or EVOPs) including covariates can be 
-    analyzed. With this class you can create an encoded design matrix
-    with all factor levels including their interactions. All
+    analyzed. With this class, you can create an encoded design matrix
+    with all factor levels, including their interactions. All
     non-significant factors can then be automatically eliminated.
-    Furthermore, this class allows the main effects, the sum of squares
-    (explained variation) and the Anova table to be examined in more 
-    detail.
+    Furthermore, this class allows the examination of main effects, 
+    the sum of squares (explained variation), and the Anova table in 
+    more detail.
     
     Parameters
     ----------
@@ -41,30 +42,30 @@ class LinearModel:
         Pandas DataFrame as tabular data in a long format used for the
         model.
     target : str
-        Column name of endogene variable
+        Column name of the endogenous variable.
     features : List[str]
-        Column names of exogene variables
+        Column names of the exogenous variables.
     covariates : List[str], optional
         Column names for covariates. Covariates are logged confounding
         variables (features that cannot be specifically adjusted). No
         interactions are taken into account in the model for these
-        features, by default []
+        features. Default is an empty list.
     alpha : float, optional
-        Threshold as alpha risk. All features including covariate and 
-        intercept that are smaller than alpha are removed during the
-        automatic elimination of the factors, by default 0.05
+        Threshold as alpha risk. All features, including covariates and 
+        intercept, that have a p-value smaller than alpha are removed 
+        during the automatic elimination of the factors. Default is 0.05.
     """
     __slots__ = (
-        'source', '_df', 'target', 'features', 'covariates', '_model', '_alpha',
-        'input_map', 'output_map', 'gof_metrics', '_df', 'exclude',
+        'source', 'dmatrix', 'target', 'features', 'covariates', '_model', 
+        '_alpha', 'input_map', 'output_map', 'gof_metrics', 'exclude',
         'gof_metrics')
     source: DataFrame
-    _df: DataFrame
+    dmatrix: DataFrame
     target: str
     features: List[str]
     covariates: List[str]
     _alpha: float
-    _model: RegressionResults | None
+    _model: RegressionResultsWrapper | None
     input_map: Dict[str, str]
     output_map: Dict[str, str]
     gof_metrics: DefaultDict
@@ -84,21 +85,21 @@ class LinearModel:
         self.covariates = covariates
         self.output_map = {target: 'y'}
         self.input_map = (
-            {f: f'x_{i}' for i, f in enumerate(features)} 
-            | {c: f'e_{i}' for i, c in enumerate(covariates)})
+            {f: f'x{i}' for i, f in enumerate(features)} 
+            | {c: f'e{i}' for i, c in enumerate(covariates)})
         self.alpha = alpha
         self.gof_metrics = defaultdict(list)
-        self._df = pd.DataFrame()
+        self.dmatrix = pd.DataFrame()
         self.exclude = set()
         self._model = None
         self.gof_metrics = defaultdict(list)
     
     @property
-    def model(self) -> RegressionResults:
+    def model(self) -> RegressionResultsWrapper:
         """Get regression results of fitted model. Raises AssertionError
         if no model is fitted yet (read-only)."""
         assert self._model is not None, (
-            'Model not fitted yet, pls call `fit` method first.')
+            'Model not fitted yet, call `fit` method first.')
         return self._model
     
     @property
@@ -139,7 +140,7 @@ class LinearModel:
         """Get column names of all exogene values of design matrix for
         current model (read-only)."""
         ignore = set(list(self.exclude) + [ANOVA.INTERCEPT])
-        return [c for c in self._df.columns if c not in ignore]
+        return [c for c in self.dmatrix.columns if c not in ignore]
     
     @property
     def formula(self) -> str:
@@ -155,7 +156,7 @@ class LinearModel:
             self, encode: bool = False, complete: bool = False) -> Self:
         """Construct a design matrix by given target, features and 
         covariates. The created design matrix is then set to the 
-        `design_matrix` attribute.
+        `dmatrix` attribute.
 
         Parameters
         ----------
@@ -166,13 +167,14 @@ class LinearModel:
             for the covariates, by default False
         """
         data = self.source.rename(columns = self.input_map | self.output_map)
-        features = [x for x in self.input_map.values() if x.startswith('x_')]
-        covariates = [e for e in self.input_map.values() if e.startswith('e_')]
+        features = [x for x in self.input_map.values() if x.startswith('x')]
+        covariates = [e for e in self.input_map.values() if e.startswith('e')]
         formula = (
             f'{self.output_map[self.target]}~'
             + ('*'.join(features) if complete else '+'.join(features))
             + ('+'.join(['', *covariates]) if covariates else ''))
-        self._df = patsy.dmatrix(formula, data, return_type='dataframe') # type: ignore
+        y, X = patsy.highlevel.dmatrices(formula, data, return_type='dataframe')
+        self.dmatrix = pd.concat([y, X], axis=1) # type: ignore
         return self
     
     def fit(self, **kwds) -> Self:
@@ -184,13 +186,15 @@ class LinearModel:
         Parameters
         ----------
         **kwds
-            Additional keyword arguments for `ols` function of 
-            `statsmodels.formula.api`.
+            Additional keyword arguments for `OLS` class of 
+            `statsmodels.api`.
         """
-        if self._df.empty:
+        if self.dmatrix.empty:
             self.construct_design_matrix()
-        self._model = smf.ols(self.formula, self._df, **kwds).fit() # type: ignore
-        self.add_gof_metrics()
+        self._model = sm.OLS(
+            self.dmatrix[self.endogenous],
+            self.dmatrix[self.exogenous]).fit()
+        self.store_gof_metrics()
         return self
     
     def is_hierarchical(self) -> bool:
@@ -212,7 +216,7 @@ class LinearModel:
         effects[ANOVA.EFFECTS] = effects[ANOVA.EFFECTS].abs()
         return effects
     
-    def add_gof_metrics(self) -> None:
+    def store_gof_metrics(self) -> None:
         """Add different goodness-of-fit metric to `gof_metrics`
         attribute.
         

@@ -47,7 +47,7 @@ def prepare_encoding_data(df: DataFrame) -> DataFrame:
     """Converts the data type of all non-numeric columns to a string and
     removes all non-alphanumeric characters in the values for these
     columns."""
-    def cleansing(column: Series) -> Series[str]:
+    def cleansing(column: Series) -> 'Series[str]':
         if is_numeric_dtype(column):
             return column
         else:
@@ -61,17 +61,23 @@ def get_term_name(feature_name: str) -> str:
     return feature_name if not match else match[0]
 
 def decode_cat_main(
-        feature_name: str, code: int, di: DesignInfo) -> str | None:
+        feature_name: str, code: int, di: DesignInfo) -> str:
     """Decode 0 or 1 value of encoded categorical main feature. 
     The design info coming from patsy is used to get original values."""
     matches = RE.ENCODED_VALUE.findall(feature_name)
+    sep = ''
+    values = []
     if code == 1:
-        return ' & '.join(matches)
+        sep = ' & '
+        values = matches
     else:
         term_name = get_term_name(feature_name)
         for factor, info in di.factor_infos.items():
-            if term_name != factor.code: continue
-            return ' | '.join([c for c in info.categories if c not in matches])
+            if term_name == factor.code:
+                sep = ' | '
+                values = [c for c in info.categories if str(c) not in matches]
+                break
+    return sep.join(map(str, values))
 
 def encoded_dmatrices(
         data: DataFrame, formula: str
@@ -140,20 +146,23 @@ def hierarchical(features: List[str]) -> List[str]:
     
     Returns
     -------
-    features_h : list of str
-        features for hierarchical model"""
+    h_features : list of str
+        Sorted features for hierarchical model"""
 
-    features_h = set(features)
+    h_features = set(features)
     for feature in features:
         split = feature.split(ANOVA.SEP)
         n_splits = len(split)
         for s in split:
-            features_h.add(s)
-        if n_splits <= ANOVA.SMALLEST_INTERACTION: continue
+            h_features.add(s)
+        if n_splits <= ANOVA.SMALLEST_INTERACTION:
+            continue
+
         for i in range(ANOVA.SMALLEST_INTERACTION, n_splits):
             for combo in map(ANOVA.SEP.join, itertools.combinations(split, i)):
-                features_h.add(combo)
-    return sorted(list(features_h), key=lambda x: x.count(ANOVA.SEP))
+                h_features.add(combo)
+
+    return sorted(sorted(list(h_features)), key=lambda x: x.count(ANOVA.SEP))
 
 def is_main_feature(feature: str) -> bool:
     """Check if given feature is a main parameter (intercept is 
