@@ -12,6 +12,7 @@ from typing import List
 from typing import Dict
 from typing import Literal
 from typing import DefaultDict
+from patsy.desc import ModelDesc
 from collections import defaultdict
 from pandas.core.frame import DataFrame
 from patsy.design_info import DesignInfo
@@ -82,7 +83,9 @@ class LinearModel:
             categorical: List[str],
             continuous: List[str] = [],
             alpha: float = 0.05,
-            complete: bool = False) -> None:
+            order: int = 1) -> None:
+        assert order >= 0 and isinstance(order, int), (
+            'Interaction order must be a positive integer')
         self.target = target
         self.categorical = categorical
         self.continuous = continuous
@@ -100,11 +103,15 @@ class LinearModel:
         self.data = (source
             .copy()
             .rename(columns=self.input_map|self.output_map))
-        self.initial_formula = (
+        _model = ModelDesc.from_formula(
             f'{self.output_map[self.target]}~'
-            + ('*'.join(_categorical) if complete else '+'.join(_categorical))
+            + ('*'.join(_categorical))
             + ('+'.join(['', *_continuous]) if _continuous else ''))
-    
+        terms = _model.describe().split(' ~ ')[1].split(' + ')
+        self.initial_formula = (
+            f'{self.output_map[self.target]} ~ '
+            + ' + '.join([t for t in terms if len(t.split(ANOVA.SEP)) <= order]))
+        
     @property
     def model(self) -> RegressionResultsWrapper:
         """Get regression results of fitted model. Raises AssertionError

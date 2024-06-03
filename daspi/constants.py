@@ -8,6 +8,7 @@ from typing import Dict
 from typing import List
 from typing import Tuple
 from typing import Literal
+from patsy.desc import INTERCEPT
 from dataclasses import dataclass
 from scipy.stats._continuous_distns import _distn_names
 
@@ -405,7 +406,7 @@ class _Anova_:
 
     SEP: Literal[':'] = ':'
     """Column name separator for interactions """
-    INTERCEPT: Literal['Intercept'] = 'Intercept'
+    INTERCEPT: str = INTERCEPT.name()
     """Column name for intercept"""
     EFFECTS: Literal['effects'] = 'effects'
     """"Default name for effects"""

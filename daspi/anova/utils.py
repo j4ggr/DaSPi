@@ -7,7 +7,6 @@ from typing import List
 from typing import Tuple
 from typing import Callable
 from typing import Iterable
-import patsy.highlevel
 from scipy.optimize import Bounds
 from scipy.optimize import minimize
 from scipy.optimize._optimize import OptimizeResult

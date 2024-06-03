@@ -149,7 +149,7 @@ def lm() -> LinearModel:
     categorical = ['A', 'B', 'C', 'bad']
     continuous = []
     alpha = 0.05
-    return LinearModel(source, target, categorical, continuous, alpha, False)
+    return LinearModel(source, target, categorical, continuous, alpha, order=1)
 
 @pytest.fixture
 def lm2() -> LinearModel:
@@ -164,7 +164,7 @@ def lm2() -> LinearModel:
     categorical = ['A', 'B', 'C', 'bad']
     continuous = []
     alpha = 0.05
-    return LinearModel(source, target, categorical, continuous, alpha, True)
+    return LinearModel(source, target, categorical, continuous, alpha, order=4)
 
 @pytest.fixture
 def lm3() -> LinearModel:
@@ -179,7 +179,7 @@ def lm3() -> LinearModel:
     categorical = ['A', 'B', 'C']
     continuous = ['D']
     alpha = 0.05
-    return LinearModel(source, target, categorical, continuous, alpha, False)
+    return LinearModel(source, target, categorical, continuous, alpha, order=1)
 
 @pytest.fixture
 def lm4() -> LinearModel:
@@ -194,7 +194,7 @@ def lm4() -> LinearModel:
     categorical = ['A', 'B', 'C']
     continuous = ['D']
     alpha = 0.05
-    return LinearModel(source, target, categorical, continuous, alpha, True)
+    return LinearModel(source, target, categorical, continuous, alpha, order=3)
 
 @pytest.fixture
 def anova3_c_valid() -> DataFrame:
@@ -218,7 +218,7 @@ class TestLinearModel:
             'x1': [-1, 1, 0, -1, 1, 0],
             'x2': [3.1, 6.1, 9.1, 12.0, 15.0, 18.1],
             'x3': [0, 0, 0, 0, 0, 0],
-            'y': [11, 19, 30, 42, 49, 50]}))
+            'y': [11, 19, 30, 42, 49, 50]}), check_dtype=False)
         assert lm.target == 'Target'
         assert lm.categorical == ['A', 'B', 'C', 'bad']
         assert lm.continuous == []
@@ -239,9 +239,9 @@ class TestLinearModel:
         assert '+' in lm.formula
         assert ':' not in lm.formula
 
-        assert '*' in lm2.formula
-        assert '+' not in lm2.formula
-        assert ':' not in lm2.formula
+        assert '*' not in lm2.formula
+        assert '+' in lm2.formula
+        assert ':' in lm2.formula
         lm2.fit()
         assert '*' not in lm2.formula
         assert '+' in lm2.formula
@@ -292,7 +292,7 @@ class TestLinearModel:
             anova['sum_sq'], valid['sum_sq'], check_exact=False, atol=1e-2)
 
         lm = LinearModel(
-            df, 'Cholesterol', ['Sex', 'Risk', 'Drug'], complete=True)
+            df, 'Cholesterol', ['Sex', 'Risk', 'Drug'], order=3)
         anova = lm.fit().anova()
         valid = anova3_c_valid
         assert_series_equal(
