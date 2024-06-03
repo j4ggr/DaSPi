@@ -138,7 +138,7 @@ class TestUniques:
 
 @pytest.fixture
 def lm() -> LinearModel:
-    """LinearModel no covariates, simple"""
+    """LinearModel no continuous, simple"""
     source = pd.DataFrame({
         'A': [1, 0, 1, 1, 0, 1],
         'B': [-1, 1, 0, -1, 1, 0],
@@ -146,14 +146,14 @@ def lm() -> LinearModel:
         'bad': [0, 0, 0, 0, 0, 0],
         'Target': [11, 19, 30, 42, 49, 50]})
     target = 'Target'
-    features = ['A', 'B', 'C', 'bad']
-    covariates = []
+    categorical = ['A', 'B', 'C', 'bad']
+    continuous = []
     alpha = 0.05
-    return LinearModel(source, target, features, covariates, alpha, False)
+    return LinearModel(source, target, categorical, continuous, alpha, False)
 
 @pytest.fixture
 def lm2() -> LinearModel:
-    """LinearModel no covariates, complete"""
+    """LinearModel no continuous, complete"""
     source = pd.DataFrame({
         'A': [1, 0, 1, 1, 0, 1],
         'B': [-1, 1, 0, -1, 1, 0],
@@ -161,14 +161,14 @@ def lm2() -> LinearModel:
         'bad': [0, 0, 0, 0, 0, 0],
         'Target': [11, 19, 30, 42, 49, 50]})
     target = 'Target'
-    features = ['A', 'B', 'C', 'bad']
-    covariates = []
+    categorical = ['A', 'B', 'C', 'bad']
+    continuous = []
     alpha = 0.05
-    return LinearModel(source, target, features, covariates, alpha, True)
+    return LinearModel(source, target, categorical, continuous, alpha, True)
 
 @pytest.fixture
 def lm3() -> LinearModel:
-    """LinearModel with covariates, simple"""
+    """LinearModel with continuous, simple"""
     source = pd.DataFrame({
         'A': ['a', 'b', 'c', 'a', 'b', 'c'],
         'B': [1, 2, 3, 1, 2, 3],
@@ -176,14 +176,14 @@ def lm3() -> LinearModel:
         'D': [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
         'Target': [10, 20, 30, 40, 50, 60]})
     target = 'Target'
-    features = ['A', 'B', 'C']
-    covariates = ['D']
+    categorical = ['A', 'B', 'C']
+    continuous = ['D']
     alpha = 0.05
-    return LinearModel(source, target, features, covariates, alpha, False)
+    return LinearModel(source, target, categorical, continuous, alpha, False)
 
 @pytest.fixture
 def lm4() -> LinearModel:
-    """LinearModel with covariates, complete"""
+    """LinearModel with continuous, complete"""
     source = pd.DataFrame({
         'A': ['a', 'b', 'c', 'a', 'b', 'c'],
         'B': [1, 2, 3, 1, 2, 3],
@@ -191,10 +191,10 @@ def lm4() -> LinearModel:
         'D': [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
         'Target': [10, 20, 30, 40, 50, 60]})
     target = 'Target'
-    features = ['A', 'B', 'C']
-    covariates = ['D']
+    categorical = ['A', 'B', 'C']
+    continuous = ['D']
     alpha = 0.05
-    return LinearModel(source, target, features, covariates, alpha, True)
+    return LinearModel(source, target, categorical, continuous, alpha, True)
 
 @pytest.fixture
 def anova3_c_valid() -> DataFrame:
@@ -220,13 +220,12 @@ class TestLinearModel:
             'x3': [0, 0, 0, 0, 0, 0],
             'y': [11, 19, 30, 42, 49, 50]}))
         assert lm.target == 'Target'
-        assert lm.features == ['A', 'B', 'C', 'bad']
-        assert lm.covariates == []
+        assert lm.categorical == ['A', 'B', 'C', 'bad']
+        assert lm.continuous == []
         assert lm.alpha == 0.05
         assert lm.output_map == {'Target': 'y'}
         assert lm.input_map == {'A': 'x0', 'B': 'x1', 'C': 'x2', 'bad': 'x3'}
         assert lm.gof_metrics == {}
-        assert_frame_equal(lm.dmatrix, pd.DataFrame())
         assert lm.exclude == set()
         assert lm._model is None
         assert lm.gof_metrics == {}
@@ -259,18 +258,18 @@ class TestLinearModel:
     def test_least_term(self, lm: LinearModel, lm4: LinearModel) -> None:
         lm4.fit()
         assert all(lm4.p_values.isna())
-        assert lm4.least_term() == 'B:C'
+        assert lm4.least_term() == 'x1:x2'
 
         lm.fit()
         assert any(lm.p_values.isna())
         assert lm.p_values.max() > 0.05
-        assert lm.least_term() == 'bad'
+        assert lm.least_term() == 'x3'
 
     def test_main_features_property(self, lm2: LinearModel) -> None:
         lm2.fit()
-        assert lm2.main_features == ['x0', 'x1', 'x2', 'x3'] # order changes because x0 and x2 are categoricals. patsy set them in front of the non categoricals
+        assert lm2.main_features == ['x0', 'x1', 'x2', 'x3']
         lm2.recursive_feature_elimination()
-        assert lm2.main_features == ['x0', 'x2']
+        assert lm2.main_features == ['x2']
 
     def test_alpha_property(self, lm: LinearModel) -> None:
         assert lm.alpha == 0.05

@@ -1,8 +1,7 @@
-import patsy
+import warnings
 
 import numpy as np
 import pandas as pd
-import patsy.highlevel
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
@@ -32,7 +31,7 @@ class LinearModel:
     """This class is used to create and simplify linear models so that 
     only significant features describe the model.
     
-    Balanced models (DOEs or EVOPs) including covariates can be 
+    Balanced models (DOEs or EVOPs) including continuous can be 
     analyzed. With this class, you can create an encoded design matrix
     with all factor levels, including their interactions. All
     non-significant factors can then be automatically eliminated.
@@ -47,26 +46,23 @@ class LinearModel:
         model.
     target : str
         Column name of the endogenous variable.
-    features : List[str]
-        Column names of the exogenous variables.
-    covariates : List[str], optional
-        Column names for covariates. Covariates are logged confounding
-        variables (features that cannot be specifically adjusted). No
-        interactions are taken into account in the model for these
-        features. Default is an empty list.
+    categorical : List[str]
+        Column names of the categorical exogenous variables.
+    continuous : List[str], optional
+        Column names for continuous exogenous variables.
     alpha : float, optional
-        Threshold as alpha risk. All features, including covariates and 
+        Threshold as alpha risk. All features, including continuous and 
         intercept, that have a p-value smaller than alpha are removed 
         during the automatic elimination of the factors. Default is 0.05.
     """
     __slots__ = (
-        'data', 'dmatrix', 'target', 'features', 'covariates', '_model', 
-        '_alpha', 'input_map', 'input_rmap', 'output_map', 'gof_metrics',
-        'exclude', 'level_map', 'initial_formula', '_anova')
+        'data', 'target', 'categorical', 'continuous', '_model', '_alpha',
+        'input_map', 'input_rmap', 'output_map', 'gof_metrics', 'exclude',
+        'level_map', 'initial_formula', '_anova', '_effects')
     data: DataFrame
     target: str
-    features: List[str]
-    covariates: List[str]
+    categorical: List[str]
+    continuous: List[str]
     _alpha: float
     _model: RegressionResultsWrapper | None
     input_map: Dict[str, str]
@@ -77,28 +73,28 @@ class LinearModel:
     level_map: Dict[Any, Any]
     initial_formula: str
     _anova: DataFrame
+    _effects: Series
 
     def __init__(
             self,
             source: DataFrame,
             target: str,
-            features: List[str],
-            covariates: List[str] = [],
+            categorical: List[str],
+            continuous: List[str] = [],
             alpha: float = 0.05,
             complete: bool = False) -> None:
         self.target = target
-        self.features = features
-        self.covariates = covariates
+        self.categorical = categorical
+        self.continuous = continuous
         self.output_map = {target: 'y'}
-        _features = tuple(f'x{i}' for i in range(len(features)))
-        _covariates = tuple(f'e{i}' for i in range(len(covariates)))
+        _categorical = tuple(f'x{i}' for i in range(len(categorical)))
+        _continuous = tuple(f'e{i}' for i in range(len(continuous)))
         self.input_map = (
-            {f: _f for f, _f in zip(features, _features)}
-            | {c: _c for c, _c in zip(covariates, _covariates)})
+            {f: _f for f, _f in zip(categorical, _categorical)}
+            | {c: _c for c, _c in zip(continuous, _continuous)})
         self.input_rmap = {v: k for k, v in self.input_map.items()}
         self.alpha = alpha
         self.gof_metrics = defaultdict(list)
-        self.dmatrix = pd.DataFrame()
         self.exclude = set()
         self._model = None
         self.data = (source
@@ -106,8 +102,8 @@ class LinearModel:
             .rename(columns=self.input_map|self.output_map))
         self.initial_formula = (
             f'{self.output_map[self.target]}~'
-            + ('*'.join(_features) if complete else '+'.join(_features))
-            + ('+'.join(['', *_covariates]) if _covariates else ''))
+            + ('*'.join(_categorical) if complete else '+'.join(_categorical))
+            + ('+'.join(['', *_continuous]) if _continuous else ''))
     
     @property
     def model(self) -> RegressionResultsWrapper:
@@ -148,6 +144,10 @@ class LinearModel:
         return self.model.model.data.design_info.term_names
     
     @property
+    def term_map(self) -> Dict[str, str]:
+        return {n: self._convert_term_name_(n) for n in self.term_names}
+    
+    @property
     def main_features(self) -> List[str]:
         """Get all main parameters of current model excluding intercept
         (read-only)."""
@@ -170,8 +170,8 @@ class LinearModel:
             terms = ['-1'] + terms
         return f'{self.output_map[self.target]}~{"+".join(terms)}'
     
-    def _reverse_single_term_name_(self, term_name: str) -> str:
-        """Reverse the single term name using the original names stored
+    def _convert_single_term_name_(self, term_name: str) -> str:
+        """Convert the single term name using the original names stored
         in `input_rmap`.
 
         Parameters
@@ -182,15 +182,15 @@ class LinearModel:
         Returns
         -------
         str
-            The reversed term name.
+            The converted term name.
         """
         split = term_name.split('_')
         split[0] = self.input_rmap.get(split[0], split[0])
         return '_'.join(split)
 
-    def _reverse_term_name_(self, term_name: str) -> str:
-        """Reverse the term name using the feature or covariate names
-        provided when initializing.
+    def _convert_term_name_(self, term_name: str) -> str:
+        """Convert the term name using the categorical or continuous 
+        names provided when initializing.
 
         Parameters
         ----------
@@ -200,20 +200,20 @@ class LinearModel:
         Returns
         -------
         str
-            The reversed term name.
+            The converted term name.
         """
         if term_name == ANOVA.INTERCEPT:
             original_name = term_name
         else:
             original_name = ANOVA.SEP.join(map(
-                self._reverse_single_term_name_,
+                self._convert_single_term_name_,
                 term_name.split(ANOVA.SEP)))
         return original_name
     
     def is_hierarchical(self) -> bool:
         """Check if current fitted model is hierarchical."""
-        features = list(self.model.params.index)
-        return all([hf in features for hf in hierarchical(features)])
+        hierarchical_terms = hierarchical(self.term_names)
+        return all([term in self.term_names for term in hierarchical_terms])
     
     def effects(self) -> Series:
         """Calculates the impact of each term on the target. The
@@ -223,15 +223,15 @@ class LinearModel:
         if ANOVA.INTERCEPT in params.index:
             params.pop(ANOVA.INTERCEPT)
         names_map = {n: get_term_name(n) for n in params.index}
-        effects = params.abs()
-        effects = (params
+        self._effects = (params
             .abs()
             .rename(index=names_map)
             .groupby(level=0, axis=0)
             .sum()
             [uniques(names_map.values())])
-        effects.name = ANOVA.EFFECTS
-        effects.index.name = ANOVA.FEATURES
+        self._effects.name = ANOVA.EFFECTS
+        self._effects.index.name = ANOVA.FEATURES
+        effects = self._effects.copy().rename(index=self.term_map)
         return effects
     
     def store_gof_metrics(self) -> None:
@@ -249,7 +249,8 @@ class LinearModel:
         - 'hierarchical' = boolean value if model is hierarchical
         """
         self.gof_metrics['formula'].append(self.formula)
-        self.gof_metrics['least_term'].append(self.least_term())
+        self.gof_metrics['least_term'].append(
+            self._convert_term_name_(self.least_term()))
         for metric in ['aic', 'rsquared', 'rsquared_adj']:
             self.gof_metrics[metric].append(getattr(self.model, metric))
         self.gof_metrics['p_least'].append(self.p_values.max())
@@ -272,9 +273,8 @@ class LinearModel:
         current ANOVA table.
         """
         if any(self.p_values.isna()):
-            effects = self.effects()
-            idx_smallest = np.where(effects == effects.min())[0][-1]
-            least = str(effects.index[idx_smallest])
+            smallest = np.where(self._effects == self._effects.min())[0][-1]
+            least = str(self._effects.index[smallest])
         else:
             least = str(self.p_values.index[self.p_values.argmax()])
         return least
@@ -292,11 +292,9 @@ class LinearModel:
             Additional keyword arguments for `ols` function of 
             `statsmodels.formula.api`.
         """
-        self._model = smf.ols(self.formula, self.data).fit()
-        if all(self.model.pvalues.isna()):
-            self._anova = pd.DataFrame()
-        else:
-            self._anova = self.anova()
+        self._model = smf.ols(self.formula, self.data, **kwds).fit()
+        self.anova()
+        self.effects()
         self.store_gof_metrics()
         return self
 
@@ -336,7 +334,7 @@ class LinearModel:
                 and self.model.rsquared <= rsquared_max
                 or len(self.term_names) == 1):
                 break
-            self.exclude.add(self.gof_metrics['least_term'][-1])
+            self.exclude.add(self.least_term())
             self.fit(**kwds)
 
         if ensure_hierarchy and not self.is_hierarchical:
@@ -395,21 +393,30 @@ class LinearModel:
         Residual  55  47.407498   0.861955        NaN       NaN
         Total     59  61.629940   1.044575        NaN       NaN
         """
+        if all(self.model.pvalues.isna()):
+            self._anova = pd.DataFrame()
+            warnings.warn(
+                'ANOVA table could not be calculated because the model is '
+                'underdetermined.')
+            return self._anova
+        
         total_columns = ['df', 'sum_sq']
         if not typ:
             typ = 'II' if self.has_significant_interactions() else 'I'
         if not hasattr(self.model.model.data, 'design_info'):
             self.model.model.data.design_info = self.design_info
         anova = sm.stats.anova_lm(self.model, typ=typ)
-        anova.index = (anova.index
-            .set_names(ANOVA.SOURCE)
-            .map(self._reverse_term_name_))
         if ANOVA.INTERCEPT in anova.index:
             anova = anova.drop(ANOVA.INTERCEPT, axis=0)
         anova.loc[ANOVA.TOTAL, total_columns] = anova[total_columns].sum()
         anova['mean_sq'] = anova['sum_sq']/anova['df']
         anova['df'] = anova['df'].astype(int)
-        return anova[ANOVA.COLNAMES]
+        self._anova = anova[ANOVA.COLNAMES]
+        _anova = anova.copy()
+        _anova.index = (_anova.index
+            .set_names(ANOVA.SOURCE)
+            .map(self._convert_term_name_))
+        return _anova
 
     def highest_features(self) -> List[str]:
         """Get all main and interaction features that do not appear in a 
