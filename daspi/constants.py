@@ -208,10 +208,6 @@ class _Regex_:
 
     ENCODED_NAME: Pattern = re.compile(r'(\w+)\[T.\w+\]')
     """Patsy encoded column name."""
-    ENCODED_VALUE: Pattern = re.compile(r'\w+\[T.(\w+)\]')
-    """Patsy encoded value within a column name."""
-    NOT_ALPHANUMERIC: Pattern = re.compile(r'[^a-zA-Z0-9\\s]')
-    """Regular expression for non-alphanumeric characters."""
 
 RE = _Regex_()
 
@@ -419,6 +415,10 @@ class _Anova_:
     """"Default name for source used in ANOVA table."""
     SMALLEST_INTERACTION: int = 2
     """Smallest possible interaction"""
+    RESIDUAL: Literal['Residual'] = 'Residual'
+    """Name in anova table for residual (not explained) values."""
+    TOTAL: Literal['Total'] = 'Total'
+    """Name in anova table for total (sum of the others) values."""
     @property
     def COLNAMES(self) -> List[str]:
         """Column names when crating the anova table using LinearModel 

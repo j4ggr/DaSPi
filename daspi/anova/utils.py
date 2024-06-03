@@ -1,133 +1,84 @@
-import re
-import patsy
 import itertools
 
 import numpy as np
-import pandas as pd 
 
 from typing import Any
 from typing import List
-from typing import Dict
 from typing import Tuple
 from typing import Callable
+from typing import Iterable
 import patsy.highlevel
 from scipy.optimize import Bounds
 from scipy.optimize import minimize
-from pandas.api.types import is_numeric_dtype
-from pandas.core.frame import DataFrame
-from patsy.design_info import DesignInfo
-from pandas.core.series import Series
 from scipy.optimize._optimize import OptimizeResult
-from statsmodels.regression.linear_model import RegressionResults
 
 from ..constants import RE
 from ..constants import ANOVA
 
 
-def is_encoded_categorical(feature_name: str) -> bool:
-    """True if given feature is a patsy encoded categorical feature."""
-    return bool(RE.ENCODED_VALUE.findall(feature_name))
+def uniques(seq: Iterable) -> list[Any]:
+    """Get a list of unique elements from a sequence while preserving 
+    the original order.
 
-def clean_categorical_names(feature_name: str) -> str:
-    """Clean feature name of patsy encoded categorical features. Such 
-    names are structured as follows '<term name>[T.<value>]'.
-    Cleaned name looks like '<term name>_<value>'."""
-    if ANOVA.SEP in feature_name:
-        split = feature_name.split(ANOVA.SEP)
-        return ANOVA.SEP.join([clean_categorical_names(f) for f in split])
-    else:
-        name = RE.ENCODED_NAME.findall(feature_name)
-        value = RE.ENCODED_VALUE.findall(feature_name)
-        return f'{name[0]}_{value[0]}' if name and value else feature_name
-
-def get_term_name(feature_name: str) -> str:
-    """Get original term name of a patsy encoded categorical feature.
-    Such names are structured as follows '<term name>[T.<value>]'."""
-    match = RE.ENCODED_NAME.findall(feature_name)
-    return feature_name if not match else match[0]
-
-def decode_cat_main(
-        feature_name: str, code: int, di: DesignInfo) -> str:
-    """Decode 0 or 1 value of encoded categorical main feature. 
-    The design info coming from patsy is used to get original values."""
-    matches = RE.ENCODED_VALUE.findall(feature_name)
-    sep = ''
-    values = []
-    if code == 1:
-        sep = ' & '
-        values = matches
-    else:
-        term_name = get_term_name(feature_name)
-        for factor, info in di.factor_infos.items(): # type: ignore
-            if term_name == factor.code:
-                sep = ' | '
-                values = [c for c in info.categories if str(c) not in matches]
-                break
-    return sep.join(map(str, values))
-
-def encoded_dmatrices(
-        data: DataFrame, formula: str, covariates: List[str] = []
-        ) -> Tuple[DataFrame, DataFrame, Dict[str, tuple], DesignInfo]:
-    """Encode all levels of the main factors such that the lowest level 
-    is -1 and the highest level is 1. The interactions between the main 
-    factors are represented as the product of the main factors. 
-    Categorical values are one-hot encoded. Covariates are not encoded 
-    if they are continuous variables.
-    
     Parameters
     ----------
-    data : pandas DataFrame
-        Data with the real factor levels.
-    formula : str
-        The formula specifying the model used by patsy.
-    covariates : List[str], optional
-        List of column names for covariates. Covariates are not encoded 
-        if they are continuous variables. Default is an empty list.
-    
+    seq : Iterable
+        The input sequence.
+
     Returns
     -------
-    y : pandas DataFrame
-        Target values.
-    X_code : pandas DataFrame
-        Encoded feature values.
-    mapper : dict
-        Information about how the levels are encoded.
-        - key: str = feature name of the main level.
-        - value: dict = key: original level, value: encoded level.
-    design_info : DesignInfo
-        A DesignInfo object that holds metadata about a design matrix.
+    List[Any]
+        A list of unique elements from the input sequence, preserving 
+        the original order.
+
+    Notes
+    -----
+    This function is based on the 'uniqify' algorithm by Peter Bengtsson.
+    Source: https://www.peterbe.com/plog/uniqifiers-benchmark
+
+    Examples
+    --------
+    >>> sequence = [1, 2, 3, 2, 1, 4, 5, 4]
+    >>> unique_elements = preserved_order_uniques(sequence)
+    >>> print(unique_elements)
+    [1, 2, 3, 4, 5]
     """
-    y: DataFrame
-    X: DataFrame
-    design_info: DesignInfo
-    y, X = patsy.highlevel.dmatrices(formula, data, return_type='dataframe') # type: ignore
-    design_info = X.design_info # type: ignore
-    features = list(design_info.column_name_indexes.keys())
-    X_code = pd.DataFrame(0, index=X.index, columns=features)
-    mapper = {}
-    columns = {}
-    for f in features:
-        columns[f] = clean_categorical_names(f)
-        if f == ANOVA.INTERCEPT or any([(e in f) for e in covariates]):
-            x_encoded = X[f]
-        elif is_encoded_categorical(f) and ANOVA.SEP not in f:
-            x_encoded = X[f]
-            mapper[columns[f]] = {
-                decode_cat_main(f, i, design_info): i for i in (0, 1)}
-        elif ANOVA.SEP not in f:
-            uniques = sorted(X[f].unique())
-            codes = np.linspace(-1, 1, len(uniques))
-            mapper[f] = {u: c for u, c in zip(uniques, codes)}
-            x_encoded = X[f].replace(mapper[f])
-        else:
-            split = f.split(ANOVA.SEP)
-            x_encoded = X_code[split[0]]
-            for s in split[1:]:
-                x_encoded = x_encoded*X_code[s]
-        X_code[f] = x_encoded
-    X_code = X_code.rename(columns=columns)
-    X_code.design_info = design_info
-    return y, X_code, mapper, design_info
+    seen = set()
+    seen_add = seen.add
+    return [x for x in seq if not (x in seen or seen_add(x))]
+
+def get_term_name(feature_name: str) -> str:
+    """Get the original term name of a patsy encoded categorical
+    feature, including interactions.
+
+    Parameters
+    ----------
+    feature_name : str
+        The encoded feature name.
+
+    Returns
+    -------
+    str
+        The original term name of the categorical feature.
+
+    Notes
+    -----
+    Patsy encodes categorical features by appending '[T.<value>]' to the
+    original term name. Interactions between features are represented by
+    separating the feature names with ':'. This function extracts the
+    original term name from the encoded feature name, taking into
+    account interactions.
+
+    Examples
+    --------
+    >>> encoded_name = 'Category[T.Value]:OtherCategory[T.OtherValue]'
+    >>> term_name = get_term_name(encoded_name)
+    >>> print(term_name)
+    'Category:OtherCategory'
+    """
+    names = feature_name.split(ANOVA.SEP)
+    matches = list(map(RE.ENCODED_NAME.findall, names))
+    return ANOVA.SEP.join([(m[0] if m else n) for m, n in zip(matches, names)])
 
 def hierarchical(features: List[str]) -> List[str]:
     """Get all features such that all lower interactions and main 
@@ -163,30 +114,6 @@ def is_main_feature(feature: str) -> bool:
     """Check if given feature is a main parameter (intercept is 
     excluded)."""
     return feature != ANOVA.INTERCEPT and ANOVA.SEP not in feature
-
-def decode(value: str|float, mapper: dict, feature: str) -> Any:
-    """Get original value of encoded value for given feature
-
-    Parameters
-    ----------
-    value : str or float
-        encoded value used as 2. level key in mapper
-    mapper : dict
-        information about how the levels are encoded
-        - key: str = feature name of main level
-        - value: dict = key: originals, value: codes
-    feature : str
-        feature name used as 1. level key in mapper
-    
-    Returns
-    -------
-    orig : string, float or None
-        value used in original data bevore encoding
-    """
-    for orig, code in mapper[feature].items():
-        if isinstance(value, str): code = str(code)
-        if code == value: return orig
-    return None
 
 def optimize(
         fun: Callable, x0: List[float], negate: bool, columns: List[str], 
@@ -236,13 +163,9 @@ def optimize(
 
 
 __all__ = [
-    'is_encoded_categorical',
-    'clean_categorical_names',
+    'uniques',
     'get_term_name',
-    'decode_cat_main',
-    'encoded_dmatrices',
     'hierarchical',
     'is_main_feature',
-    'decode',
     'optimize',
 ]
