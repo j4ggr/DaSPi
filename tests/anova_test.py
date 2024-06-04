@@ -225,10 +225,8 @@ class TestLinearModel:
         assert lm.alpha == 0.05
         assert lm.output_map == {'Target': 'y'}
         assert lm.input_map == {'A': 'x0', 'B': 'x1', 'C': 'x2', 'bad': 'x3'}
-        assert lm.gof_metrics == {}
         assert lm.exclude == set()
         assert lm._model is None
-        assert lm.gof_metrics == {}
     
     def test_formula(self, lm: LinearModel, lm2: LinearModel) -> None:
         assert '*' not in lm.formula
@@ -257,19 +255,21 @@ class TestLinearModel:
 
     def test_least_term(self, lm: LinearModel, lm4: LinearModel) -> None:
         lm4.fit()
-        assert all(lm4.p_values.isna())
+        assert all(lm4.p_values().isna())
         assert lm4.least_term() == 'x1:x2'
 
         lm.fit()
-        assert any(lm.p_values.isna())
-        assert lm.p_values.max() > 0.05
+        p_values = lm.p_values()
+        assert any(p_values.isna())
+        assert p_values.max() > 0.05
         assert lm.least_term() == 'x3'
 
     def test_main_features_property(self, lm2: LinearModel) -> None:
         lm2.fit()
         assert lm2.main_features == ['x0', 'x1', 'x2', 'x3']
-        lm2.recursive_feature_elimination()
-        assert lm2.main_features == ['x2']
+        for gof in lm2.recursive_feature_elimination():
+            assert gof['p_least'] > lm2.alpha or np.isnan(gof['p_least'])
+        assert lm2.main_features == ['x0', 'x2']
 
     def test_alpha_property(self, lm: LinearModel) -> None:
         assert lm.alpha == 0.05

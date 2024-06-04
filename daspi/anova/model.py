@@ -11,6 +11,7 @@ from typing import Self
 from typing import List
 from typing import Dict
 from typing import Literal
+from typing import Generator
 from typing import DefaultDict
 from patsy.desc import ModelDesc
 from collections import defaultdict
@@ -58,8 +59,8 @@ class LinearModel:
     """
     __slots__ = (
         'data', 'target', 'categorical', 'continuous', '_model', '_alpha',
-        'input_map', 'input_rmap', 'output_map', 'gof_metrics', 'exclude',
-        'level_map', 'initial_formula', '_anova', '_effects')
+        'input_map', 'input_rmap', 'output_map', 'exclude', 'level_map',
+        'initial_formula', '_p_values', '_anova', '_effects')
     data: DataFrame
     target: str
     categorical: List[str]
@@ -69,10 +70,10 @@ class LinearModel:
     input_map: Dict[str, str]
     input_rmap: Dict[str, str]
     output_map: Dict[str, str]
-    gof_metrics: DefaultDict
     exclude: Set[str]
     level_map: Dict[Any, Any]
     initial_formula: str
+    _p_values: 'Series[float]'
     _anova: DataFrame
     _effects: Series
 
@@ -97,7 +98,6 @@ class LinearModel:
             | {c: _c for c, _c in zip(continuous, _continuous)})
         self.input_rmap = {v: k for k, v in self.input_map.items()}
         self.alpha = alpha
-        self.gof_metrics = defaultdict(list)
         self.exclude = set()
         self._model = None
         self.data = (source
@@ -121,12 +121,28 @@ class LinearModel:
         return self._model
     
     @property
-    def p_values(self) -> 'Series[float]':
-        """P-value for significance of adding model terms using anova
-        typ III table for current model (read-only)."""
-        if self._anova.empty:
-            return pd.Series({t: np.nan for t in self.design_info.term_names})
-        return self._anova['PR(>F)'].iloc[:-2]
+    def gof_metrics(self) -> Dict[str, Any]:
+        """Get different goodness-of-fit metrics (read-only).
+        
+        Keys:
+        - 'formula' = current formula
+        - 'least_term' = the least significant term
+        - 'aic' = Akaike's information criteria
+        - 'r2' = R-squared of the model
+        - 'r2_adj' = adjusted R-squared
+        - 'p_least' = The least two-tailed p value for the t-stats of the 
+        params.
+        - 'hierarchical' = boolean value if model is hierarchical
+        """
+        gof = {
+            'formula': self.formula,
+            'least_term': self._convert_term_name_(self.least_term()),
+            'aic': self.model.aic,
+            'r2': self.model.rsquared,
+            'r2_adj': self.model.rsquared_adj,
+            'p_least': self.p_values().max(),
+            'hierarchical': self.is_hierarchical}
+        return gof
 
     @property
     def alpha(self) -> float:
@@ -241,30 +257,20 @@ class LinearModel:
         effects = self._effects.copy().rename(index=self.term_map)
         return effects
     
-    def store_gof_metrics(self) -> None:
-        """Add different goodness-of-fit metric to `gof_metrics`
-        attribute.
-        
-        Keys:
-        
-        - 'least_term' = the least significant term
-        - 'aic' = Akaike's information criteria
-        - 'rsquared' = R-squared of the model
-        - 'rsquared_adj' = adjusted R-squared
-        - 'p_least' = The least two-tailed p value for the t-stats of the 
-        params.
-        - 'hierarchical' = boolean value if model is hierarchical
-        """
-        self.gof_metrics['formula'].append(self.formula)
-        self.gof_metrics['least_term'].append(
-            self._convert_term_name_(self.least_term()))
-        for metric in ['aic', 'rsquared', 'rsquared_adj']:
-            self.gof_metrics[metric].append(getattr(self.model, metric))
-        self.gof_metrics['p_least'].append(self.p_values.max())
-        self.gof_metrics['hierarchical'].append(self.is_hierarchical())
+    def p_values(self) -> 'Series[float]':
+        """Get P-value for significance of adding model terms using 
+        anova typ III table for current model."""
+        anova = self.anova()
+        if anova.empty:
+            self._p_values = pd.Series(
+                {t: np.nan for t in self.design_info.term_names})
+        else:
+            self._p_values = self._anova['PR(>F)'].iloc[:-2]
+        return self._p_values.rename(index=self.term_map)
 
     def least_term(self) -> str:
-        """Get the term name with the least effect or the least p-value.
+        """Get the term name with the least effect or the least p-value
+        coming from a ANOVA typ III table of current fitted model.
 
         Returns
         -------
@@ -279,19 +285,19 @@ class LinearModel:
         the term name with the least p-value for the F-stats coming from
         current ANOVA table.
         """
-        if any(self.p_values.isna()):
+        p_values = self.p_values()
+        if any(p_values.isna()):
+            self.effects()
             smallest = np.where(self._effects == self._effects.min())[0][-1]
             least = str(self._effects.index[smallest])
         else:
-            least = str(self.p_values.index[self.p_values.argmax()])
+            least = str(p_values.index[p_values.argmax()])
         return least
     
     def fit(self, **kwds) -> Self:
         """Create and fit a ordinary least squares model using current 
-        formula. Then perform an analysis of variance (ANOVA typ III)
-        on the fitted model and store it in `_anova`. Finally calculate 
-        some goodness-of-fit metrics and store them in `metrics` 
-        attribute.
+        formula. Then  Finally calculate 
+        the impact of each term on the target.
         
         Parameters
         ----------
@@ -299,15 +305,13 @@ class LinearModel:
             Additional keyword arguments for `ols` function of 
             `statsmodels.formula.api`.
         """
-        self._model = smf.ols(self.formula, self.data, **kwds).fit()
-        self.anova()
-        self.effects()
-        self.store_gof_metrics()
+        formula = kwds.pop('formula', self.formula)
+        self._model = smf.ols(formula, self.data, **kwds).fit()
         return self
 
     def recursive_feature_elimination(
             self, rsquared_max: float = 0.99, ensure_hierarchy: bool = True,
-            **kwds) -> Self:
+            **kwds) -> Generator[Dict[str, Any], Any, None]:
         """Perform a linear regression starting with complete model.
         Then recursive features are eliminated according to the highest
         p-value (two-tailed p values for the t-stats of the params).
@@ -333,22 +337,22 @@ class LinearModel:
         """
         self._model = None
         self.exclude = set()
-        self.gof_metrics = defaultdict(list)
         self.fit(**kwds)
         max_steps = len(self.term_names)
         for _ in range(max_steps):
-            if (self.p_values.max() <= self.alpha 
+            if (self.p_values().max() <= self.alpha 
                 and self.model.rsquared <= rsquared_max
                 or len(self.term_names) == 1):
                 break
             self.exclude.add(self.least_term())
             self.fit(**kwds)
+            yield self.gof_metrics
 
         if ensure_hierarchy and not self.is_hierarchical:
             h_features = hierarchical(self.term_names)
             self.exclude = {e for e in self.exclude if e not in h_features}
             self.fit(**kwds)
-        return self
+            yield self.gof_metrics
     
     def anova(self, typ: Literal['', 'I', 'II', 'III'] = 'III') -> DataFrame:
         """Perform an analysis of variance (ANOVA) on the fitted model.
@@ -450,7 +454,7 @@ class LinearModel:
         for feature in self.highest_features():
             if ANOVA.SEP not in feature:
                 continue
-            if self.p_values[feature] < self.alpha:
+            if self.p_values()[feature] < self.alpha:
                 return True
         return False
     
