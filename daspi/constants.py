@@ -207,7 +207,7 @@ KW = _Kw_()
 @dataclass(frozen=True)
 class _Regex_:
 
-    ENCODED_NAME: Pattern = re.compile(r'(\w+)\[T.\w+\]')
+    ENCODED_NAME: Pattern = re.compile(r'(\w+)\[T.\S+\]')
     """Patsy encoded column name."""
 
 RE = _Regex_()
@@ -420,11 +420,12 @@ class _Anova_:
     """Name in anova table for residual (not explained) values."""
     TOTAL: Literal['Total'] = 'Total'
     """Name in anova table for total (sum of the others) values."""
+
     @property
-    def COLNAMES(self) -> List[str]:
+    def TABLE_COLNAMES(self) -> List[str]:
         """Column names when crating the anova table using LinearModel 
         class"""
-        return ['df', 'sum_sq', 'mean_sq', 'F', 'PR(>F)']
+        return ['DF', 'SS', 'MS', 'F', 'p_value', 'np2']
 
 ANOVA = _Anova_()
 

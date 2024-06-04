@@ -1146,8 +1146,8 @@ class JointChart(Chart):
             self, fig_title: str = '', sub_title: str = '',
             feature_label: str | bool | Tuple = '', 
             target_label: str | bool | Tuple = '', 
-            info: bool | str = False, row_title: str = '', col_title: str = ''
-            ) -> Self:
+            info: bool | str = False, axes_titles: Tuple[str, ...] = (),
+            row_title: str = '', col_title: str = '') -> Self:
         """Add labels and titles to the chart.
 
         This method sets various labels and titles for the chart,
@@ -1175,6 +1175,12 @@ class JointChart(Chart):
             provided, it will be shown next to the date and user,
             separated by a comma. By default, no additional information
             is displayed.
+        axes_titles : Tuple[str, ...]
+            Title for each Axes, by default ()
+        row_title : str, optional
+            The title of the rows, by default ''.
+        col_title : str, optional
+            The title of the columns, by default ''.
 
         Returns
         -------
@@ -1197,7 +1203,7 @@ class JointChart(Chart):
             figure=self.figure, axes=self.axes, fig_title=fig_title,
             sub_title=sub_title, xlabel=xlabel, ylabel=ylabel,
             info=info, row_title=row_title, col_title=col_title,
-            legend_data=self.legend_data)
+            axes_titles=axes_titles, legend_data=self.legend_data)
         self.label_facets.draw()
         return self
 

@@ -61,6 +61,8 @@ class LabelFacets:
         The title of the rows, by default ''.
     col_title : str, optional
         The title of the columns, by default ''.
+    axes_titles : Tuple[str, ...]
+        Title for each Axes, usefull for JointCharts, by default ()
     legend_data : Dict[str, LegendHandlesLabels], optional
         The legends to be added to the figure. The key is used as the 
         legend title, and the values must be a tuple of tuples, where
@@ -282,6 +284,13 @@ class LabelFacets:
         if self.fig_title:
             self.figure.text(s=self.fig_title, **kw_fig)
     
+    def add_axes_titles(self) -> None:
+        """Add the provided axes titles."""
+        if not self.axes_titles:
+            return
+        for ax, title in zip(self.axes.flat, self.axes_titles):
+            ax.set_title(title)
+    
     def add_info(self) -> None:
         """Insert an info text in the bottom left-hand corner of the 
         figure. By default, the info text contains today's date and the 
@@ -301,6 +310,7 @@ class LabelFacets:
         """Draw all the label facets to the figure."""
         self.add_xlabel()
         self.add_ylabel()
+        self.add_axes_titles()
         self.add_row_labels()
         self.add_col_labels()
         for title, (handles, labels) in self.legend_data.items():

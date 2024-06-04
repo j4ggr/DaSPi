@@ -1,57 +1,91 @@
 import warnings
 
 from os import environ
+from typing import Dict
+from typing import Tuple
 from typing import Literal
 from datetime import date
 
 
 class _String_:
 
-    anderson_darling: dict = {
+    anderson_darling: Dict[str, str] = {
         'en': 'Anderson-Darling',
         'de': 'Anderson-Darling'}
     
-    lsl: dict = { 
+    lsl: Dict[str, str] = { 
         'en': 'LSL',
         'de': 'USG'}
     
-    usl: dict = {
+    usl: Dict[str, str] = {
         'en': 'USL',
         'de': 'OSG'}
     
-    lcl: dict = { 
+    lcl: Dict[str, str] = { 
         'en': 'LCL',
         'de': 'UEG'}
     
-    ucl: dict = {
+    ucl: Dict[str, str] = {
         'en': 'UCL',
         'de': 'OEG'}
     
-    excess: dict = {
+    excess: Dict[str, str] = {
         'en': 'excess',
         'de': 'Exzess'}
     
-    skew: dict = {
+    skew: Dict[str, str] = {
         'en': 'skew',
         'de': 'Schiefe'}
     
-    kde_ax_label: dict = {
+    kde_ax_label: Dict[str, str] = {
         'en': 'estimated kernel density',
         'de': 'geschätzte Kerndichte'}
 
-    stripes: dict = {
+    stripes: Dict[str, str] = {
         'en': 'lines',
         'de': 'Linien'}
 
-    ci: dict = {
+    ci: Dict[str, str] = {
         'en': 'CI',
         'de': 'KI'}
+    
+    residcharts_fig_title: Dict[str, str] = {
+        'en': 'Residues Analysis',
+        'de': 'Residuen Analyse'}
+    
+    residcharts_axes_titles: Dict[str, Tuple[str, ...]] = {
+        'en': (
+            'Probability for normal distribution',
+            'Distribution of residuals',
+            'Residuals vs. fit',
+            'Residuals vs. observation'),
+        'de': (
+            'Wahrscheinlichkeitsnetz für Normalverteilung',
+            'Verteilung der Residuen',
+            'Residuen nach Anpassung',
+            'Residuen nach Reihenfolge')}
+    
+    residcharts_target_label: Dict[str, str] = {
+        'en': 'Residues',
+        'de': 'Residuen'}
+    
+    residcharts_feature_labels: Dict[str, Tuple[str, ...]] = {
+        'en': (
+            'Quantiles of standard normal distribution',
+            'Estimated kernel density',
+            'Predicted values',
+            'Observation order'),
+        'de': (
+            'Quantile der Standardnormalverteilung',
+            'Geschätzte Kerndichte',
+            'Vorhersage',
+            'Beobachtungsreihenfolge')}
 
-    _language_: str = 'en'
+    _language_: Literal['en', 'de'] = 'en'
     _username_: str = environ['USERNAME']
 
     @property
-    def TODAY(self):
+    def TODAY(self) -> str:
         return date.today().strftime('%Y.%m.%d')
     
     @property
@@ -73,16 +107,17 @@ class _String_:
     def USERNAME(self, username: str) -> None:
         self._username_ = username
     
-    def __getitem__(self, item:str) -> str | Literal['']:
+    def __getitem__(self, item:str) -> str | Tuple[str, ...] | Literal['']:
         empty = ''
         try:
             strings = getattr(self, item)
-            return strings[self.LANGUAGE]
-        except KeyError:
-            if isinstance(strings, dict):
-                return strings['en']
-            else:
-                raise ArithmeticError
+            try:
+                return strings[self.LANGUAGE]
+            except KeyError:
+                if isinstance(strings, dict):
+                    return strings['en']
+                else:
+                    raise ArithmeticError
         except AttributeError:
             warnings.warn(f'No string found for {item}!')
             return empty

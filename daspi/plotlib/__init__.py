@@ -95,4 +95,6 @@ from .chart import JointChart
 from .chart import SingleChart
 from .chart import MultipleVariateChart
 
+from .templates import ResiduesCharts
+
 plt.style.use(Path(__file__).parent/'daspi.mplstyle')

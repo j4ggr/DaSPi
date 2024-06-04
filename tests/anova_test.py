@@ -52,19 +52,17 @@ class TestHierarchical:
 class TestGetTermName:
 
     def test_no_interaction(self) -> None:
-        encoded_name = 'x1[T.b]'
-        term_name = get_term_name(encoded_name)
-        assert term_name == 'x1'
+        assert get_term_name('x1[T.b]') == 'x1'
+        assert get_term_name('x1[T.b-mittel]') == 'x1'
+        assert get_term_name('x10[T.2.2]') == 'x10'
 
     def test_with_interaction(self) -> None:
-        encoded_name = 'x1[T.b]:x2[T.2]'
-        term_name = get_term_name(encoded_name)
-        assert term_name == 'x1:x2'
+        assert get_term_name('x1[T.b]:x2[T.2]') == 'x1:x2'
+        assert get_term_name('x1[T.b-mittel]:x10[T.2.2]') == 'x1:x10'
 
     def test_multiple_interactions(self) -> None:
-        encoded_name = 'x1[T.b]:x2[T.2]:x3[T.True]'
-        term_name = get_term_name(encoded_name)
-        assert term_name == 'x1:x2:x3'
+        assert get_term_name('x1[T.b]:x2[T.2]:x3[T.True]') == 'x1:x2:x3'
+        assert get_term_name('x1[T.b-mittel]:x10[T.2.2]:x3[T.True]') == 'x1:x10:x3'
 
     def test_no_encoding(self) -> None:
         term_name = get_term_name('Category')

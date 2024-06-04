@@ -19,6 +19,7 @@ from pandas.core.frame import DataFrame
 from patsy.design_info import DesignInfo
 from pandas.core.series import Series
 from scipy.optimize._optimize import OptimizeResult
+from statsmodels.iolib.summary import Summary
 from statsmodels.regression.linear_model import RegressionResultsWrapper
 
 from .utils import uniques
@@ -111,6 +112,7 @@ class LinearModel:
         self.initial_formula = (
             f'{self.output_map[self.target]} ~ '
             + ' + '.join([t for t in terms if len(t.split(ANOVA.SEP)) <= order]))
+        self._reset_tables_()
         
     @property
     def model(self) -> RegressionResultsWrapper:
@@ -121,27 +123,35 @@ class LinearModel:
         return self._model
     
     @property
-    def gof_metrics(self) -> Dict[str, Any]:
+    def uncertainty(self) -> float:
+        """Get uncertainty of the model as square root of MS_Residual
+        (read-only)."""
+        return self._anova['MS']['Residual']**0.5
+    
+    @property
+    def gof_metrics(self) -> DataFrame:
         """Get different goodness-of-fit metrics (read-only).
         
         Keys:
         - 'formula' = current formula
-        - 'least_term' = the least significant term
+        - 's' = Uncertainty of the model as square root of MS_Residual
         - 'aic' = Akaike's information criteria
         - 'r2' = R-squared of the model
         - 'r2_adj' = adjusted R-squared
+        - 'least_term' = the least significant term
         - 'p_least' = The least two-tailed p value for the t-stats of the 
         params.
         - 'hierarchical' = boolean value if model is hierarchical
         """
-        gof = {
+        gof = pd.Series({
             'formula': self.formula,
-            'least_term': self._convert_term_name_(self.least_term()),
+            's': self.uncertainty,
             'aic': self.model.aic,
             'r2': self.model.rsquared,
             'r2_adj': self.model.rsquared_adj,
+            'least_term': self._convert_term_name_(self.least_term()),
             'p_least': self.p_values().max(),
-            'hierarchical': self.is_hierarchical}
+            'hierarchical': self.is_hierarchical()}).to_frame().T
         return gof
 
     @property
@@ -193,6 +203,12 @@ class LinearModel:
             terms = ['-1'] + terms
         return f'{self.output_map[self.target]}~{"+".join(terms)}'
     
+    def _reset_tables_(self) -> None:
+        """Reset the anova table, the p_values and the effects."""
+        self._anova = pd.DataFrame()
+        self._effects = pd.Series()
+        self._p_values = pd.Series()
+    
     def _convert_single_term_name_(self, term_name: str) -> str:
         """Convert the single term name using the original names stored
         in `input_rmap`.
@@ -207,9 +223,9 @@ class LinearModel:
         str
             The converted term name.
         """
-        split = term_name.split('_')
+        split = term_name.split('[T.')
         split[0] = self.input_rmap.get(split[0], split[0])
-        return '_'.join(split)
+        return '[T.'.join(split)
 
     def _convert_term_name_(self, term_name: str) -> str:
         """Convert the term name using the categorical or continuous 
@@ -242,31 +258,33 @@ class LinearModel:
         """Calculates the impact of each term on the target. The
         effects are described as twice the parameter coefficients and 
         occur as an absolute number."""
-        params: Series = 2 * self.model.params
-        if ANOVA.INTERCEPT in params.index:
-            params.pop(ANOVA.INTERCEPT)
-        names_map = {n: get_term_name(n) for n in params.index}
-        self._effects = (params
-            .abs()
-            .rename(index=names_map)
-            .groupby(level=0, axis=0)
-            .sum()
-            [uniques(names_map.values())])
-        self._effects.name = ANOVA.EFFECTS
-        self._effects.index.name = ANOVA.FEATURES
+        if self._effects.empty:
+            params: Series = 2 * self.model.params
+            if ANOVA.INTERCEPT in params.index:
+                params.pop(ANOVA.INTERCEPT)
+            names_map = {n: get_term_name(n) for n in params.index}
+            self._effects = (params
+                .abs()
+                .rename(index=names_map)
+                .groupby(level=0, axis=0)
+                .sum()
+                [uniques(names_map.values())])
+            self._effects.name = ANOVA.EFFECTS
+            self._effects.index.name = ANOVA.FEATURES
         effects = self._effects.copy().rename(index=self.term_map)
         return effects
     
     def p_values(self) -> 'Series[float]':
         """Get P-value for significance of adding model terms using 
         anova typ III table for current model."""
-        anova = self.anova()
-        if anova.empty:
-            self._p_values = pd.Series(
-                {t: np.nan for t in self.design_info.term_names})
-        else:
-            self._p_values = self._anova['PR(>F)'].iloc[:-2]
-        return self._p_values.rename(index=self.term_map)
+        if self._p_values.empty:
+            anova = self.anova()
+            if anova.empty:
+                self._p_values = pd.Series(
+                    {t: np.nan for t in self.design_info.term_names})
+            else:
+                self._p_values = self._anova['p_value'].iloc[:-2]
+        return self._p_values.copy().rename(index=self.term_map)
 
     def least_term(self) -> str:
         """Get the term name with the least effect or the least p-value
@@ -305,13 +323,23 @@ class LinearModel:
             Additional keyword arguments for `ols` function of 
             `statsmodels.formula.api`.
         """
+        self._reset_tables_()
         formula = kwds.pop('formula', self.formula)
         self._model = smf.ols(formula, self.data, **kwds).fit()
         return self
+    
+    def summary(self) -> Summary:
+        """Get result summary of fitted model."""
+        summary: Summary = self.model.summary()
+        for row in summary.tables[1]:
+            if not row[0].data:
+                continue
+            row[0].data = self._convert_term_name_(row[0].data)
+        return summary
 
     def recursive_feature_elimination(
             self, rsquared_max: float = 0.99, ensure_hierarchy: bool = True,
-            **kwds) -> Generator[Dict[str, Any], Any, None]:
+            **kwds) -> Generator[DataFrame, Any, None]:
         """Perform a linear regression starting with complete model.
         Then recursive features are eliminated according to the highest
         p-value (two-tailed p values for the t-stats of the params).
@@ -402,32 +430,37 @@ class LinearModel:
         Risk       1  11.332130  11.332130  13.147017  0.000631
         Drug       2   0.815743   0.407872   0.473194  0.625522
         Residual  55  47.407498   0.861955        NaN       NaN
-        Total     59  61.629940   1.044575        NaN       NaN
         """
-        if all(self.model.pvalues.isna()):
-            self._anova = pd.DataFrame()
-            warnings.warn(
-                'ANOVA table could not be calculated because the model is '
-                'underdetermined.')
-            return self._anova
+        if self._anova.empty:
+            if all(self.model.pvalues.isna()):
+                self._anova = pd.DataFrame()
+                warnings.warn(
+                    'ANOVA table could not be calculated because the model is '
+                    'underdetermined.')
+                return self._anova
+            
+            if typ not in (1, 2, 3, 'I', 'II', 'III'):
+                typ = 'II' if self.has_significant_interactions() else 'I'
+            anova = sm.stats.anova_lm(self.model, typ=typ)
+            anova = anova.rename(
+                columns={'df': 'DF', 'sum_sq': 'SS', 'PR(>F)': 'p_value'})
+            if ANOVA.INTERCEPT in anova.index:
+                anova = anova.drop(ANOVA.INTERCEPT, axis=0)
+            factors = [i for i in anova.index if i != 'Residual']
+            ss_resid = anova.loc['Residual', 'SS']
+            ss_factors = anova.loc[factors,'SS']
+
+            anova['DF'] = anova['DF'].astype(int)
+            anova['MS'] = anova['SS']/anova['DF']
+            anova['n2'] = anova['SS'] / anova['SS'].sum()
+            anova.loc[factors, 'np2'] = ss_factors / (ss_factors + ss_resid)
+            self._anova = anova[ANOVA.TABLE_COLNAMES]
         
-        total_columns = ['df', 'sum_sq']
-        if not typ:
-            typ = 'II' if self.has_significant_interactions() else 'I'
-        if not hasattr(self.model.model.data, 'design_info'):
-            self.model.model.data.design_info = self.design_info
-        anova = sm.stats.anova_lm(self.model, typ=typ)
-        if ANOVA.INTERCEPT in anova.index:
-            anova = anova.drop(ANOVA.INTERCEPT, axis=0)
-        anova.loc[ANOVA.TOTAL, total_columns] = anova[total_columns].sum()
-        anova['mean_sq'] = anova['sum_sq']/anova['df']
-        anova['df'] = anova['df'].astype(int)
-        self._anova = anova[ANOVA.COLNAMES]
-        _anova = anova.copy()
-        _anova.index = (_anova.index
+        anova = self._anova.copy()
+        anova.index = (anova.index
             .set_names(ANOVA.SOURCE)
             .map(self._convert_term_name_))
-        return _anova
+        return anova
 
     def highest_features(self) -> List[str]:
         """Get all main and interaction features that do not appear in a 
@@ -490,3 +523,45 @@ class LinearModel:
         X[-1] = intercept
         y = float(self.model.predict(pd.DataFrame([X], columns=features))) # type: ignore
         return -y if negate else y
+    
+    def residual_data(self) -> DataFrame:
+        """
+        Get the residual data from the fitted model.
+
+        Returns
+        -------
+        pd.DataFrame
+            The residual data containing the residuals, observation index, and predicted values.
+
+        Examples
+        --------
+        >>> import daspi
+        >>> df = daspi.load_dataset('partial_factorial')
+        >>> target = 'Yield'
+        >>> features = [c for c in df.columns if c != target]
+        >>> lm = LinearModel(df, target, features).fit()
+        >>> print(lm.residual_data())
+            Observation      Residues  Prediction
+        0             0  9.250000e+00       46.75
+        1             1  2.000000e+00       51.00
+        2             2 -1.050000e+01       73.50
+        3             3 -2.500000e-01       65.25
+        4             4 -1.421085e-14       53.00
+        5             5  1.025000e+01       44.75
+        6             6 -2.500000e-01       67.25
+        7             7 -1.050000e+01       71.50
+        8             8  3.750000e+00       65.25
+        9             9 -1.200000e+01       57.00
+        10           10 -1.500000e+00       79.50
+        11           11  9.250000e+00       83.75
+        12           12 -1.000000e+01       59.00
+        13           13 -3.250000e+00       63.25
+        14           14  9.250000e+00       85.75
+        15           15  4.500000e+00       77.50
+        """
+        data = self.model.resid
+        data.name = 'Residues'
+        data.index.name = 'Observation'
+        data = data.to_frame().reset_index()
+        data['Prediction'] = self.model.predict()
+        return data
