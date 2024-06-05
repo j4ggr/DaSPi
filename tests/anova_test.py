@@ -197,13 +197,13 @@ def lm4() -> LinearModel:
 @pytest.fixture
 def anova3_c_valid() -> DataFrame:
     df = pd.read_csv(
-        valid_data_dir/'anova3_result.csv', skiprows=9, sep=';', index_col=0)
+        valid_data_dir/'anova3_result.csv', skiprows=8, sep=';', index_col=0)
     return df
 
 @pytest.fixture
 def anova3_s_valid() -> DataFrame:
     df = pd.read_csv(
-        valid_data_dir/'anova3_result.csv', skiprows=1, skipfooter=12, sep=';',
+        valid_data_dir/'anova3_result.csv', skiprows=1, skipfooter=11, sep=';',
         index_col=0)
     return df
 
@@ -266,7 +266,9 @@ class TestLinearModel:
         lm2.fit()
         assert lm2.main_features == ['x0', 'x1', 'x2', 'x3']
         for gof in lm2.recursive_feature_elimination():
-            assert gof['p_least'] > lm2.alpha or np.isnan(gof['p_least'])
+            p_least = gof['p_least'][0]
+            if not np.isnan(p_least):
+                assert p_least > lm2.alpha
         assert lm2.main_features == ['x0', 'x2']
 
     def test_alpha_property(self, lm: LinearModel) -> None:
@@ -284,17 +286,15 @@ class TestLinearModel:
         
         anova = lm.fit().anova()
         valid = anova3_s_valid
-        assert_series_equal(
-            anova['df'], valid['df'], check_dtype=False)
-        assert_series_equal(
-            anova['sum_sq'], valid['sum_sq'], check_exact=False, atol=1e-2)
+        assert_frame_equal(
+            anova[valid.columns], valid, check_dtype=False, check_exact=False,
+            atol=1e-2)
 
         lm = LinearModel(
             df, 'Cholesterol', ['Sex', 'Risk', 'Drug'], order=3)
         anova = lm.fit().anova()
         valid = anova3_c_valid
-        assert_series_equal(
-            anova['df'], valid['df'], check_dtype=False)
-        assert_series_equal(
-            anova['sum_sq'], valid['sum_sq'], check_exact=False, atol=1e-2)
+        assert_frame_equal(
+            anova[valid.columns], valid, check_dtype=False, check_exact=False,
+            atol=1e-2)
 

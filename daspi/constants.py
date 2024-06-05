@@ -425,7 +425,7 @@ class _Anova_:
     def TABLE_COLNAMES(self) -> List[str]:
         """Column names when crating the anova table using LinearModel 
         class"""
-        return ['DF', 'SS', 'MS', 'F', 'p_value', 'np2']
+        return ['DF', 'SS', 'MS', 'F', 'p', 'n2', 'np2']
 
 ANOVA = _Anova_()
 

@@ -11,10 +11,9 @@ from typing import Self
 from typing import List
 from typing import Dict
 from typing import Literal
+from typing import LiteralString
 from typing import Generator
-from typing import DefaultDict
 from patsy.desc import ModelDesc
-from collections import defaultdict
 from pandas.core.frame import DataFrame
 from patsy.design_info import DesignInfo
 from pandas.core.series import Series
@@ -61,7 +60,7 @@ class LinearModel:
     __slots__ = (
         'data', 'target', 'categorical', 'continuous', '_model', '_alpha',
         'input_map', 'input_rmap', 'output_map', 'exclude', 'level_map',
-        'initial_formula', '_p_values', '_anova', '_effects')
+        '_initial_terms_', '_p_values', '_anova', '_effects')
     data: DataFrame
     target: str
     categorical: List[str]
@@ -73,7 +72,7 @@ class LinearModel:
     output_map: Dict[str, str]
     exclude: Set[str]
     level_map: Dict[Any, Any]
-    initial_formula: str
+    _initial_terms_: List[LiteralString]
     _p_values: 'Series[float]'
     _anova: DataFrame
     _effects: Series
@@ -104,14 +103,13 @@ class LinearModel:
         self.data = (source
             .copy()
             .rename(columns=self.input_map|self.output_map))
-        _model = ModelDesc.from_formula(
+        model_desc = ModelDesc.from_formula(
             f'{self.output_map[self.target]}~'
             + ('*'.join(_categorical))
             + ('+'.join(['', *_continuous]) if _continuous else ''))
-        terms = _model.describe().split(' ~ ')[1].split(' + ')
-        self.initial_formula = (
-            f'{self.output_map[self.target]} ~ '
-            + ' + '.join([t for t in terms if len(t.split(ANOVA.SEP)) <= order]))
+        terms = model_desc.describe().split(' ~ ')[1].split(' + ')
+        self._initial_terms_ = [
+            t for t in terms if len(t.split(ANOVA.SEP)) <= order]
         self._reset_tables_()
         
     @property
@@ -121,38 +119,22 @@ class LinearModel:
         assert self._model is not None, (
             'Model not fitted yet, call `fit` method first.')
         return self._model
+
+    @property
+    def initial_formula(self) -> str:
+        initial_formula = (
+            f'{self.output_map[self.target]} ~ '
+            + ' + '.join(self._initial_terms_))
+        return initial_formula
     
     @property
     def uncertainty(self) -> float:
         """Get uncertainty of the model as square root of MS_Residual
         (read-only)."""
-        return self._anova['MS']['Residual']**0.5
-    
-    @property
-    def gof_metrics(self) -> DataFrame:
-        """Get different goodness-of-fit metrics (read-only).
-        
-        Keys:
-        - 'formula' = current formula
-        - 's' = Uncertainty of the model as square root of MS_Residual
-        - 'aic' = Akaike's information criteria
-        - 'r2' = R-squared of the model
-        - 'r2_adj' = adjusted R-squared
-        - 'least_term' = the least significant term
-        - 'p_least' = The least two-tailed p value for the t-stats of the 
-        params.
-        - 'hierarchical' = boolean value if model is hierarchical
-        """
-        gof = pd.Series({
-            'formula': self.formula,
-            's': self.uncertainty,
-            'aic': self.model.aic,
-            'r2': self.model.rsquared,
-            'r2_adj': self.model.rsquared_adj,
-            'least_term': self._convert_term_name_(self.least_term()),
-            'p_least': self.p_values().max(),
-            'hierarchical': self.is_hierarchical()}).to_frame().T
-        return gof
+        if self._anova.empty:
+            return np.nan
+        else:
+            return self._anova['MS']['Residual']**0.5
 
     @property
     def alpha(self) -> float:
@@ -198,10 +180,10 @@ class LinearModel:
             return self.initial_formula
     
         ignore = list(self.exclude) + [ANOVA.INTERCEPT]
-        terms = [t for t in self.term_names if t not in ignore]
+        terms = [t for t in self._initial_terms_ if t not in ignore]
         if ANOVA.INTERCEPT in self.exclude:
             terms = ['-1'] + terms
-        return f'{self.output_map[self.target]}~{"+".join(terms)}'
+        return f'{self.output_map[self.target]} ~ {" + ".join(terms)}'
     
     def _reset_tables_(self) -> None:
         """Reset the anova table, the p_values and the effects."""
@@ -260,8 +242,6 @@ class LinearModel:
         occur as an absolute number."""
         if self._effects.empty:
             params: Series = 2 * self.model.params
-            if ANOVA.INTERCEPT in params.index:
-                params.pop(ANOVA.INTERCEPT)
             names_map = {n: get_term_name(n) for n in params.index}
             self._effects = (params
                 .abs()
@@ -283,7 +263,7 @@ class LinearModel:
                 self._p_values = pd.Series(
                     {t: np.nan for t in self.design_info.term_names})
             else:
-                self._p_values = self._anova['p_value'].iloc[:-2]
+                self._p_values = self._anova['p'].iloc[:-1]
         return self._p_values.copy().rename(index=self.term_map)
 
     def least_term(self) -> str:
@@ -303,13 +283,12 @@ class LinearModel:
         the term name with the least p-value for the F-stats coming from
         current ANOVA table.
         """
-        p_values = self.p_values()
-        if any(p_values.isna()):
+        if any(self.p_values().isna()):
             self.effects()
             smallest = np.where(self._effects == self._effects.min())[0][-1]
             least = str(self._effects.index[smallest])
         else:
-            least = str(p_values.index[p_values.argmax()])
+            least = str(self._p_values.index[self._p_values.argmax()])
         return least
     
     def fit(self, **kwds) -> Self:
@@ -327,6 +306,46 @@ class LinearModel:
         formula = kwds.pop('formula', self.formula)
         self._model = smf.ols(formula, self.data, **kwds).fit()
         return self
+    
+    def gof_metrics(self, index: int | str = 0) -> DataFrame:
+        """Get different goodness-of-fit metrics (read-only).
+
+        Parameters
+        ----------
+        index : int | str
+            Value is set as index. When using the method 
+            recursive_feature_elimination, the current step is passed as
+            index
+        
+        Returns
+        -------
+        DataFrame
+            The goodness-of-fit metrics table as DataFrame containing
+            the following columns:
+            - 'formula' = current formula
+            - 's' = Uncertainty of the model as square root of MS_Residual
+            - 'aic' = Akaike's information criteria
+            - 'r2' = R-squared of the model
+            - 'r2_adj' = adjusted R-squared
+            - 'least_term' = the least significant term
+            - 'p_least' = The p-value of least significant term, coming
+            from ANOVA table Type-III.
+            - 'hierarchical' = True if model is hierarchical
+        """
+        self.anova()
+        gof = pd.Series({
+                'formula': self.formula,
+                's': self.uncertainty,
+                'aic': self.model.aic,
+                'r2': self.model.rsquared,
+                'r2_adj': self.model.rsquared_adj,
+                'least_term': self._convert_term_name_(self.least_term()),
+                'p_least': self.p_values().max(),
+                'hierarchical': self.is_hierarchical()}.copy()
+            ).to_frame(
+            ).T
+        gof.index = pd.Index([index])
+        return gof
     
     def summary(self) -> Summary:
         """Get result summary of fitted model."""
@@ -367,20 +386,24 @@ class LinearModel:
         self.exclude = set()
         self.fit(**kwds)
         max_steps = len(self.term_names)
-        for _ in range(max_steps):
-            if (self.p_values().max() <= self.alpha 
-                and self.model.rsquared <= rsquared_max
-                or len(self.term_names) == 1):
+        step = -1
+        for step in range(max_steps):
+            if self.has_insignificant_term(rsquared_max):
+                self.exclude.add(self.least_term())
+                self.fit(**kwds)
+                yield self.gof_metrics(step)
+            else:
                 break
-            self.exclude.add(self.least_term())
-            self.fit(**kwds)
-            yield self.gof_metrics
-
-        if ensure_hierarchy and not self.is_hierarchical:
+        
+        if step < 1:
+            yield self.gof_metrics(step)
+        
+        if ensure_hierarchy and not self.is_hierarchical():
+            step = step + 1
             h_features = hierarchical(self.term_names)
             self.exclude = {e for e in self.exclude if e not in h_features}
             self.fit(**kwds)
-            yield self.gof_metrics
+            yield self.gof_metrics(step)
     
     def anova(self, typ: Literal['', 'I', 'II', 'III'] = 'III') -> DataFrame:
         """Perform an analysis of variance (ANOVA) on the fitted model.
@@ -390,8 +413,10 @@ class LinearModel:
         typ : Literal['', 'I', 'II', 'III'], optional
             The type of ANOVA to perform. Default is 'III', see notes
             for more informations about the types.
-            - '' : If no type is specified, 'II' is used if the model 
-                has significant interactions, otherwise 'I' is used.
+            - '' : If no or an invalid type is specified, Type-II is 
+            used if the model has no significant interactions. 
+            Otherwise, Type-III is used for hierarchical models and 
+            Type-I is used for non-hierarchical models.
             - 'I' : Type I sum of squares ANOVA.
             - 'II' : Type II sum of squares ANOVA.
             - 'III' : Type III sum of squares ANOVA.
@@ -399,37 +424,59 @@ class LinearModel:
         Returns
         -------
         DataFrame
-            The ANOVA table containing the sum of squares, degrees of 
-            freedom, mean squares, F-statistic, and p-value.
+            The ANOVA table as DataFrame containing the following
+            columns:
+            - DF : Degrees of freedom for model terms.
+            - SS : Sum of squares for model terms.
+            - F : F statistic value for significance of adding model
+            terms.
+            - p : P-value for significance of adding model terms.
+            - n2 : Eta-square as effect size (proportion of explained
+            variance).
+            - np2 : Partial eta-square as partial effect size.
 
         Notes
-        -----
-        The Minitab software uses Type III by default, so that is what 
-        we will use here. A discussion on which one to use can be found 
-        here:
-        https://stats.stackexchange.com/a/93031
-        
+        -----        
         The ANOVA table provides information about the significance of 
         each factor and interaction in the model. The type of ANOVA 
         determines how the sum of squares is partitioned among the 
         factors.
 
-        If the model does not have a 'design_info' attribute, it is set 
-        to the value of 'self.design_info' before performing the ANOVA.
+        The SAS and also Minitab software uses Type III by default. This
+        type is also the only one who gives us a SS and p-value for the 
+        Intercept. So Type-III is also used internaly for evaluating the
+        least significant term. A discussion on which one to use can be 
+        found here:
+        https://stats.stackexchange.com/a/93031
+
+        A nice conclusion about the differences between the types:
+        - Typ-I: We choose the most "important" independent variable and 
+        it will receive the maximum amount of variation possible.
+        - Typ-II: We ignore the shared variation: no interaction is
+        assumed. If this is true, the Type II Sums of Squares are
+        statistically more powerful. However if in reality there is an
+        interaction effect, the model will be wrong and there will be a
+        problem in the conclusions of the analysis.
+        - Typ-III: If there is an interaction effect and we are looking 
+        for an “equal” split between the independent variables, 
+        Type-III should be used.
+
+        source:
+        https://towardsdatascience.com/anovas-three-types-of-estimating-sums-of-squares-don-t-make-the-wrong-choice-91107c77a27a
 
         Examples
         --------
         >>> import daspi
         >>> df = daspi.load_dataset('anova3')
-        >>> lm = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug'])
-        >>> lm.fit()
-        >>> anova_table = lm.anova(typ='III')
-        >>> print(anova_table)
-                  df     sum_sq    mean_sq          F    PR(>F)
-        Sex        1   2.074568   2.074568   2.406818  0.126543
-        Risk       1  11.332130  11.332130  13.147017  0.000631
-        Drug       2   0.815743   0.407872   0.473194  0.625522
-        Residual  55  47.407498   0.861955        NaN       NaN
+        >>> lm = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug']).fit()
+        >>> print(lm.anova(typ='III').round(3))
+                   DF       SS       MS        F      p     n2    np2
+        source                                                       
+        Intercept   1  390.868  390.868  453.467  0.000  0.864  0.892
+        Sex         1    2.075    2.075    2.407  0.127  0.005  0.042
+        Risk        1   11.332   11.332   13.147  0.001  0.025  0.193
+        Drug        2    0.816    0.408    0.473  0.626  0.002  0.017
+        Residual   55   47.407    0.862      NaN    NaN  0.105    NaN
         """
         if self._anova.empty:
             if all(self.model.pvalues.isna()):
@@ -440,12 +487,15 @@ class LinearModel:
                 return self._anova
             
             if typ not in (1, 2, 3, 'I', 'II', 'III'):
-                typ = 'II' if self.has_significant_interactions() else 'I'
+                if not self.has_significant_interactions():
+                    typ = 'II'
+                elif self.is_hierarchical():
+                    typ = 'III'
+                else:
+                    typ = 'I'
             anova = sm.stats.anova_lm(self.model, typ=typ)
             anova = anova.rename(
-                columns={'df': 'DF', 'sum_sq': 'SS', 'PR(>F)': 'p_value'})
-            if ANOVA.INTERCEPT in anova.index:
-                anova = anova.drop(ANOVA.INTERCEPT, axis=0)
+                columns={'df': 'DF', 'sum_sq': 'SS', 'PR(>F)': 'p'})
             factors = [i for i in anova.index if i != 'Residual']
             ss_resid = anova.loc['Residual', 'SS']
             ss_factors = anova.loc[factors,'SS']
@@ -454,6 +504,7 @@ class LinearModel:
             anova['MS'] = anova['SS']/anova['DF']
             anova['n2'] = anova['SS'] / anova['SS'].sum()
             anova.loc[factors, 'np2'] = ss_factors / (ss_factors + ss_resid)
+            anova.index.name = 'Source'
             self._anova = anova[ANOVA.TABLE_COLNAMES]
         
         anova = self._anova.copy()
@@ -481,6 +532,32 @@ class LinearModel:
                 if len(intersect) < level:
                     features.append(f_split)
         return [ANOVA.SEP.join(f) for f in features]
+    
+    def has_insignificant_term(self, rsquared_max: float = 0.99) -> bool:
+        """Check if the fitted model has any insignificant terms.
+
+        Parameters
+        ----------
+        rsquared_max : float in (0, 1), optional
+            The maximum R^2 value that the model can have to be 
+            considered significant. If not provided, by default 0.99.
+
+        Returns
+        -------
+        bool
+            Returns True if the model has any insignificant terms, and 
+            False otherwise.
+        """
+        if len(self.term_names) == 1:
+            return False
+        
+        if all(self.p_values().isna()):
+            return True
+        
+        has_insignificant = (
+            self._p_values.max() > self.alpha
+            or self.model.rsquared > rsquared_max)
+        return has_insignificant
 
     def has_significant_interactions(self) -> bool:
         """True if fitted model has significant interactions."""

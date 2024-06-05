@@ -1,13 +1,12 @@
 simple, validation with Minitab v20.4;;;;;
-source;df;sum_sq;mean_sq;F;PR(>F)
+source;DF;SS;MS;F;p
 Sex;1;2.0746;2.0746;2.41;0.127
 Risk;1;11.3321;11.3321;13.15;0.001
 Drug;2;0.8157;0.4079;0.47;0.626
 Residual;55;47.4075;0.8620;;
-Total;59;61.6299;;;
 ;;;;;
 complete, validation with Minitab v20.4;;;;;
-source;df;sum_sq;mean_sq;F;PR(>F)
+source;DF;SS;MS;F;p
 Sex;1;1.1311;1.13109;1.34;0.252
 Risk;1;2.7030;2.70300;3.21;0.080
 Drug;2;1.1356;0.56781;0.67;0.514
@@ -16,4 +15,3 @@ Sex:Drug;2;0.1792;0.08958;0.11;0.899
 Risk:Drug;2;3.9968;1.99840;2.37;0.104
 Sex:Risk:Drug;2;1.8438;0.92189;1.09;0.343
 Residual;48;40.4446;0.84260;;
-Total;59;51.4808;;;
