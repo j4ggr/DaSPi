@@ -333,19 +333,16 @@ class LinearModel:
             - 'hierarchical' = True if model is hierarchical
         """
         self.anova()
-        gof = pd.Series({
-                'formula': self.formula,
-                's': self.uncertainty,
-                'aic': self.model.aic,
-                'r2': self.model.rsquared,
-                'r2_adj': self.model.rsquared_adj,
-                'least_term': self._convert_term_name_(self.least_term()),
-                'p_least': self.p_values().max(),
-                'hierarchical': self.is_hierarchical()}.copy()
-            ).to_frame(
-            ).T
-        gof.index = pd.Index([index])
-        return gof
+        data = {
+            'formula': self.formula,
+            's': self.uncertainty,
+            'aic': self.model.aic,
+            'r2': self.model.rsquared,
+            'r2_adj': self.model.rsquared_adj,
+            'least_term': self._convert_term_name_(self.least_term()),
+            'p_least': self.p_values().max(),
+            'hierarchical': self.is_hierarchical()}
+        return pd.DataFrame(data, index=[index])
     
     def summary(self) -> Summary:
         """Get result summary of fitted model."""
