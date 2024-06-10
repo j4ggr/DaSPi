@@ -18,6 +18,8 @@ from pandas.core.frame import DataFrame
 from patsy.design_info import DesignInfo
 from pandas.core.series import Series
 from scipy.optimize._optimize import OptimizeResult
+from statsmodels.iolib.table import Cell
+from statsmodels.iolib.table import SimpleTable
 from statsmodels.iolib.summary import Summary
 from statsmodels.regression.linear_model import RegressionResultsWrapper
 
@@ -60,7 +62,7 @@ class LinearModel:
     __slots__ = (
         'data', 'target', 'categorical', 'continuous', '_model', '_alpha',
         'input_map', 'input_rmap', 'output_map', 'exclude', 'level_map',
-        '_initial_terms_', '_p_values', '_anova', '_effects')
+        '_initial_terms_', '_p_values', '_anova', '_effects', '_vif')
     data: DataFrame
     target: str
     categorical: List[str]
@@ -76,6 +78,7 @@ class LinearModel:
     _p_values: 'Series[float]'
     _anova: DataFrame
     _effects: Series
+    _vif: 'Series[float]'
 
     def __init__(
             self,
@@ -190,6 +193,7 @@ class LinearModel:
         self._anova = pd.DataFrame()
         self._effects = pd.Series()
         self._p_values = pd.Series()
+        self._vif = pd.Series()
     
     def _convert_single_term_name_(self, term_name: str) -> str:
         """Convert the single term name using the original names stored
@@ -258,7 +262,7 @@ class LinearModel:
         """Get P-value for significance of adding model terms using 
         anova typ III table for current model."""
         if self._p_values.empty:
-            anova = self.anova()
+            anova = self.anova(typ='III')
             if anova.empty:
                 self._p_values = pd.Series(
                     {t: np.nan for t in self.design_info.term_names})
@@ -332,7 +336,7 @@ class LinearModel:
             from ANOVA table Type-III.
             - 'hierarchical' = True if model is hierarchical
         """
-        self.anova()
+        self.anova(typ='III')
         data = {
             'formula': self.formula,
             's': self.uncertainty,
@@ -344,13 +348,55 @@ class LinearModel:
             'hierarchical': self.is_hierarchical()}
         return pd.DataFrame(data, index=[index])
     
-    def summary(self) -> Summary:
-        """Get result summary of fitted model."""
+    def summary(
+            self, add_vif: bool = False, add_anova: bool = False, **kwds
+            ) -> Summary:
+        """Generate a summary of the fitted model.
+
+        Parameters
+        ----------
+        vif : bool, optional
+            Flag whether variance inflation factor (VIF) should be 
+            added to the parameters table.
+        add_anova : bool, optional
+            If True, add an ANOVA table to the summary, by default 
+            False.
+        **kwds
+            Additional keyword arguments to be passed to the `anova` 
+            method.
+
+        Returns
+        -------
+        Summary
+            A summary object containing information about the fitted 
+            model. If `add_anova` is True, an ANOVA table is included
+            in the summary.
+        """
         summary: Summary = self.model.summary()
+
+        row = summary.tables[0][0]
+        row[1].data = self.target
+        
         for row in summary.tables[1]:
-            if not row[0].data:
+            if row == summary.tables[1][0]:
+                if add_vif:
+                    self.variance_inflation_factor()
+                    row.append(Cell(ANOVA.VIF, len(row)+1, row=row))
                 continue
+            if add_vif:
+                value = round(self._vif[row[0].data], 3)
+                row.append(Cell(value, len(row)+1, row=row))
             row[0].data = self._convert_term_name_(row[0].data)
+        
+        if add_anova:
+            anova = self.anova(**kwds).round(3)
+            table = SimpleTable(
+                data = anova.values,
+                headers = anova.columns.to_list(),
+                stubs = anova.index.to_list(),
+                title = f'ANOVA {anova.columns.name}')
+            summary.tables = [table] + summary.tables
+        
         return summary
 
     def recursive_feature_elimination(
@@ -365,8 +411,8 @@ class LinearModel:
         Parameters
         ----------
         rsquared_max : float in (0, 1), optional
-            If given, the model must have a lower R^2 value than the given 
-            threshold, by default 0.99
+            If given, the model must have a lower R^2 value than the 
+            given threshold, by default 0.99
         ensure_hierarchy : bool, optional
             Adds features at the end to ensure model is hierarchical, 
             by default True
@@ -376,8 +422,8 @@ class LinearModel:
 
         Notes
         -----
-        The attributes `gof_metrics` and `exclude` are reset (and thus 
-        also the exogenous).
+        The attribute `exclude` is reset at the beginning and then
+        refilled.
         """
         self._model = None
         self.exclude = set()
@@ -402,7 +448,8 @@ class LinearModel:
             self.fit(**kwds)
             yield self.gof_metrics(step)
     
-    def anova(self, typ: Literal['', 'I', 'II', 'III'] = 'III') -> DataFrame:
+    def anova(
+            self, typ: Literal['', 'I', 'II', 'III'] = '') -> DataFrame:
         """Perform an analysis of variance (ANOVA) on the fitted model.
 
         Parameters
@@ -464,10 +511,11 @@ class LinearModel:
         Examples
         --------
         >>> import daspi
+        >>> from daspi.anova import LinearModel
         >>> df = daspi.load_dataset('anova3')
         >>> lm = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug']).fit()
         >>> print(lm.anova(typ='III').round(3))
-                   DF       SS       MS        F      p     n2    np2
+        Typ-III    DF       SS       MS        F      p     n2    np2
         source                                                       
         Intercept   1  390.868  390.868  453.467  0.000  0.864  0.892
         Sex         1    2.075    2.075    2.407  0.127  0.005  0.042
@@ -475,6 +523,10 @@ class LinearModel:
         Drug        2    0.816    0.408    0.473  0.626  0.002  0.017
         Residual   55   47.407    0.862      NaN    NaN  0.105    NaN
         """
+        column_name = self._anova.columns.name
+        if column_name and column_name.split('-')[1] != typ:
+            self._reset_tables_()
+        
         if self._anova.empty:
             if all(self.model.pvalues.isna()):
                 self._anova = pd.DataFrame()
@@ -483,7 +535,7 @@ class LinearModel:
                     'underdetermined.')
                 return self._anova
             
-            if typ not in (1, 2, 3, 'I', 'II', 'III'):
+            if typ not in ('I', 'II', 'III'):
                 if not self.has_significant_interactions():
                     typ = 'II'
                 elif self.is_hierarchical():
@@ -501,14 +553,41 @@ class LinearModel:
             anova['MS'] = anova['SS']/anova['DF']
             anova['n2'] = anova['SS'] / anova['SS'].sum()
             anova.loc[factors, 'np2'] = ss_factors / (ss_factors + ss_resid)
-            anova.index.name = 'Source'
+            anova.index.name = ANOVA.SOURCE
+            anova.columns.name = f'Typ-{typ}'
             self._anova = anova[ANOVA.TABLE_COLNAMES]
         
         anova = self._anova.copy()
-        anova.index = (anova.index
-            .set_names(ANOVA.SOURCE)
-            .map(self._convert_term_name_))
+        anova.index = anova.index.map(self._convert_term_name_)
         return anova
+    
+    def variance_inflation_factor(self, decimals: int = 3) -> Series:
+        """Calculate the variance inflation factor (VIF) for each 
+        predictor variable in the fitted model.
+
+        Parameters
+        ----------
+        decimals : int, optional
+            The number of decimal places to round the VIF values to, 
+            by default 3.
+
+        Returns
+        -------
+        Series
+            A pandas Series containing the VIF values for each predictor 
+            variable.
+            """
+        if self._vif.empty:
+            X = self.model.model.data.exog.copy()
+            param_names = self.model.model.data.param_names
+            vif = {}
+            for idx, name in enumerate(param_names):
+                x_i = X[:, idx]
+                _X = np.delete(X, idx, axis=1)
+                r2 = sm.OLS(x_i, _X).fit().rsquared
+                vif[name] = (1 / (1 - r2)).round(decimals)
+            self._vif = pd.Series(vif)
+        return self._vif.copy().rename(index=self.term_map)
 
     def highest_features(self) -> List[str]:
         """Get all main and interaction features that do not appear in a 
