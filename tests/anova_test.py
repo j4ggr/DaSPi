@@ -298,3 +298,24 @@ class TestLinearModel:
             anova[valid.columns], valid, check_dtype=False, check_exact=False,
             atol=1e-2)
 
+    def test_summary(self) -> None:
+        df = daspi.load_dataset('anova3')
+        lm = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug']).fit()
+
+        smry = lm.summary()
+        assert len(smry.tables) == 3
+        assert 'VIF' not in smry.tables[1].as_text()
+
+        smry_vif = lm.summary(vif=True)
+        assert len(smry.tables) == 3
+        assert 'VIF' in smry_vif.tables[1].as_text()
+
+        smry_anova = lm.summary(anova_typ='')
+        assert len(smry_anova.tables) == 4
+        assert smry_anova.tables[0].title == 'ANOVA Typ-II'
+
+        smry_vif_anova = lm.summary(vif=True, anova_typ='III')
+        assert len(smry_vif_anova.tables) == 4
+        assert smry_vif_anova.tables[0].title == 'ANOVA Typ-III'
+        assert 'VIF' in smry_vif_anova.tables[2].as_text()
+        

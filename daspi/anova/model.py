@@ -14,6 +14,7 @@ from typing import Literal
 from typing import LiteralString
 from typing import Generator
 from patsy.desc import ModelDesc
+from numpy.typing import NDArray
 from pandas.core.frame import DataFrame
 from patsy.design_info import DesignInfo
 from pandas.core.series import Series
@@ -156,20 +157,28 @@ class LinearModel:
         return self.model.model.data.design_info
     
     @property
-    def term_names(self) -> List[str]:
-        """Get the names of all terms variables for the current fitted 
-        model (read-only)."""
+    def _term_names_(self) -> List[str]:
+        """Get the internal names of all terms variables for the current 
+        fitted model (read-only)."""
         return self.model.model.data.design_info.term_names
     
     @property
-    def term_map(self) -> Dict[str, str]:
-        return {n: self._convert_term_name_(n) for n in self.term_names}
+    def term_names(self) -> List[str]:
+        """Get the names of all terms variables for the current fitted 
+        model (read-only)."""
+        return list(map(self._convert_term_name_, self._term_names_))
+
+    @property
+    def _term_map_(self) -> Dict[str, str]:
+        """Get the names of all internal used and original terms 
+        variables for the current fitted model as dict (read-only)"""
+        return {n: self._convert_term_name_(n) for n in self._term_names_}
     
     @property
     def main_features(self) -> List[str]:
         """Get all main parameters of current model excluding intercept
         (read-only)."""
-        return [n for n in self.term_names if is_main_feature(n)]
+        return [n for n in self._term_names_ if is_main_feature(n)]
     
     @property
     def formula(self) -> str:
@@ -228,17 +237,17 @@ class LinearModel:
             The converted term name.
         """
         if term_name == ANOVA.INTERCEPT:
-            original_name = term_name
-        else:
-            original_name = ANOVA.SEP.join(map(
-                self._convert_single_term_name_,
-                term_name.split(ANOVA.SEP)))
-        return original_name
+            return term_name
+
+        converted_name = ANOVA.SEP.join(map(
+            self._convert_single_term_name_,
+            term_name.split(ANOVA.SEP)))
+        return converted_name
     
     def is_hierarchical(self) -> bool:
         """Check if current fitted model is hierarchical."""
-        hierarchical_terms = hierarchical(self.term_names)
-        return all([term in self.term_names for term in hierarchical_terms])
+        hierarchical_terms = hierarchical(self._term_names_)
+        return all([term in self._term_names_ for term in hierarchical_terms])
     
     def effects(self) -> Series:
         """Calculates the impact of each term on the target. The
@@ -255,7 +264,7 @@ class LinearModel:
                 [uniques(names_map.values())])
             self._effects.name = ANOVA.EFFECTS
             self._effects.index.name = ANOVA.FEATURES
-        effects = self._effects.copy().rename(index=self.term_map)
+        effects = self._effects.copy().rename(index=self._term_map_)
         return effects
     
     def p_values(self) -> 'Series[float]':
@@ -268,7 +277,7 @@ class LinearModel:
                     {t: np.nan for t in self.design_info.term_names})
             else:
                 self._p_values = self._anova['p'].iloc[:-1]
-        return self._p_values.copy().rename(index=self.term_map)
+        return self._p_values.copy().rename(index=self._term_map_)
 
     def least_term(self) -> str:
         """Get the term name with the least effect or the least p-value
@@ -349,53 +358,53 @@ class LinearModel:
         return pd.DataFrame(data, index=[index])
     
     def summary(
-            self, add_vif: bool = False, add_anova: bool = False, **kwds
+            self, vif: bool = False, 
+            anova_typ: Literal['', 'I', 'II', 'III', None] = None, **kwds
             ) -> Summary:
         """Generate a summary of the fitted model.
 
         Parameters
         ----------
         vif : bool, optional
-            Flag whether variance inflation factor (VIF) should be 
-            added to the parameters table.
-        add_anova : bool, optional
-            If True, add an ANOVA table to the summary, by default 
-            False.
+            If True, variance inflation factors (VIF) are added to the 
+            parameters table.
+        anova_typ: Literal['', 'I', 'II', 'III', None] , optional
+            If not None, add an ANOVA table of provided type to the 
+            summary, by default None.
         **kwds
-            Additional keyword arguments to be passed to the `anova` 
-            method.
+            Additional keyword arguments to be passed to the `summary` 
+            method of
+            `statsmodels.regression.linear_model.RegressionResults` 
+            class.
 
         Returns
         -------
         Summary
             A summary object containing information about the fitted 
-            model. If `add_anova` is True, an ANOVA table is included
-            in the summary.
+            model.
         """
-        summary: Summary = self.model.summary()
+        _kwds = dict(
+            yname=self.target,
+            xname=list(map(self._convert_term_name_, self.model.params.index))
+            ) | kwds
+        summary: Summary = self.model.summary(**_kwds)
+        summary.tables = [summary.tables[i] for i in [0, 2, 1]]
+        summary.tables[-1].title = 'Parameter statistics'
 
-        row = summary.tables[0][0]
-        row[1].data = self.target
-        
-        for row in summary.tables[1]:
-            if row == summary.tables[1][0]:
-                if add_vif:
-                    self.variance_inflation_factor()
-                    row.append(Cell(ANOVA.VIF, len(row)+1, row=row))
-                continue
-            if add_vif:
-                value = round(self._vif[row[0].data], 3)
+        if vif:
+            self.variance_inflation_factor()
+            values = [ANOVA.VIF] + [f'{v:.3f}' for v in self._vif]
+            for row, value in zip(summary.tables[1], values):
                 row.append(Cell(value, len(row)+1, row=row))
-            row[0].data = self._convert_term_name_(row[0].data)
+                continue
         
-        if add_anova:
-            anova = self.anova(**kwds).round(3)
+        if isinstance(anova_typ, str):
+            anova = self.anova(anova_typ).round(3)
             table = SimpleTable(
-                data = anova.values,
-                headers = anova.columns.to_list(),
-                stubs = anova.index.to_list(),
-                title = f'ANOVA {anova.columns.name}')
-            summary.tables = [table] + summary.tables
+                data=anova.values,
+                headers=[f'ANOVA {anova.columns.name}']+anova.columns.to_list(),
+                stubs=anova.index.to_list())
+            summary.tables.append(table)
         
         return summary
 
@@ -428,7 +437,7 @@ class LinearModel:
         self._model = None
         self.exclude = set()
         self.fit(**kwds)
-        max_steps = len(self.term_names)
+        max_steps = len(self._term_names_)
         step = -1
         for step in range(max_steps):
             if self.has_insignificant_term(rsquared_max):
@@ -443,7 +452,7 @@ class LinearModel:
         
         if ensure_hierarchy and not self.is_hierarchical():
             step = step + 1
-            h_features = hierarchical(self.term_names)
+            h_features = hierarchical(self._term_names_)
             self.exclude = {e for e in self.exclude if e not in h_features}
             self.fit(**kwds)
             yield self.gof_metrics(step)
@@ -561,38 +570,37 @@ class LinearModel:
         anova.index = anova.index.map(self._convert_term_name_)
         return anova
     
-    def variance_inflation_factor(self, decimals: int = 3) -> Series:
+    def variance_inflation_factor(self) -> Series:
         """Calculate the variance inflation factor (VIF) for each 
         predictor variable in the fitted model.
-
-        Parameters
-        ----------
-        decimals : int, optional
-            The number of decimal places to round the VIF values to, 
-            by default 3.
 
         Returns
         -------
         Series
             A pandas Series containing the VIF values for each predictor 
             variable.
-            """
+        """
+        xs = self._term_names_
+        data = self.data.copy()
+        if ANOVA.INTERCEPT in xs:
+            data[ANOVA.INTERCEPT] = 1
+        vif: Dict[str, float] = {}
+
         if self._vif.empty:
-            X = self.model.model.data.exog.copy()
-            param_names = self.model.model.data.param_names
-            vif = {}
-            for idx, name in enumerate(param_names):
-                x_i = X[:, idx]
-                _X = np.delete(X, idx, axis=1)
-                r2 = sm.OLS(x_i, _X).fit().rsquared
-                vif[name] = (1 / (1 - r2)).round(decimals)
+            for x in xs:
+                add_intercept = x != ANOVA.INTERCEPT and ANOVA.INTERCEPT in xs
+                _xs = [_x for _x in xs if _x not in (x, ANOVA.INTERCEPT)]
+                formula = (
+                    f'{x}~{"" if add_intercept else "-1+"}{"+".join(_xs)}')
+                r2 = smf.ols(formula, data).fit().rsquared
+                vif[x] = (1 / (1 - r2))
             self._vif = pd.Series(vif)
-        return self._vif.copy().rename(index=self.term_map)
+        return self._vif.copy().rename(index=self._term_map_)
 
     def highest_features(self) -> List[str]:
         """Get all main and interaction features that do not appear in a 
         higher interaction. Covariates are not taken into account here."""
-        _features = [f for f in self.term_names if not f.startswith('e_')]
+        _features = [f for f in self._term_names_ if not f.startswith('e_')]
         features_splitted = sorted(
             [f.split(ANOVA.SEP) for f in _features], 
             key=len, reverse=True)
@@ -624,7 +632,7 @@ class LinearModel:
             Returns True if the model has any insignificant terms, and 
             False otherwise.
         """
-        if len(self.term_names) == 1:
+        if len(self._term_names_) == 1:
             return False
         
         if all(self.p_values().isna()):
@@ -669,8 +677,8 @@ class LinearModel:
         assert len(xs) == len(self.main_features), (
             f'Please provide a value for each main feature')
         
-        X = np.zeros(len(self.term_names))
-        for i, feature in enumerate(self.term_names):
+        X = np.zeros(len(self._term_names_))
+        for i, feature in enumerate(self._term_names_):
             if ANOVA.SEP not in feature:
                 X[i] = xs[i]
         X[-1] = intercept
