@@ -2,7 +2,6 @@ import warnings
 
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
 from typing import Any
@@ -14,12 +13,10 @@ from typing import Literal
 from typing import LiteralString
 from typing import Generator
 from patsy.desc import ModelDesc
-from numpy.typing import NDArray
 from pandas.core.frame import DataFrame
 from patsy.design_info import DesignInfo
 from pandas.core.series import Series
 from scipy.optimize._optimize import OptimizeResult
-from statsmodels.iolib.table import Cell
 from statsmodels.iolib.table import SimpleTable
 from statsmodels.iolib.summary import forg
 from statsmodels.iolib.summary import Summary
@@ -28,9 +25,11 @@ from statsmodels.iolib.tableformatting import fmt_base
 from statsmodels.regression.linear_model import RegressionResultsWrapper
 
 from .utils import uniques
+from .utils import anova_table
 from .utils import hierarchical
 from .utils import get_term_name
 from .utils import is_main_feature
+from .utils import variance_inflation_factor
 
 from ..constants import ANOVA
 
@@ -541,13 +540,6 @@ class LinearModel:
             self._reset_tables_()
         
         if self._anova.empty:
-            if all(self.model.pvalues.isna()):
-                self._anova = pd.DataFrame()
-                warnings.warn(
-                    'ANOVA table could not be calculated because the model is '
-                    'underdetermined.')
-                return self._anova
-            
             if typ not in ('I', 'II', 'III'):
                 if not self.has_significant_interactions():
                     typ = 'II'
@@ -555,22 +547,10 @@ class LinearModel:
                     typ = 'III'
                 else:
                     typ = 'I'
-            anova = sm.stats.anova_lm(self.model, typ=typ)
-            anova = anova.rename(
-                columns={'df': 'DF', 'sum_sq': 'SS', 'PR(>F)': 'p'})
-            factors = [i for i in anova.index if i != 'Residual']
-            ss_resid = anova.loc['Residual', 'SS']
-            ss_factors = anova.loc[factors,'SS']
-
-            anova['DF'] = anova['DF'].astype(int)
-            anova['MS'] = anova['SS']/anova['DF']
-            anova['n2'] = anova['SS'] / anova['SS'].sum()
-            anova.index.name = ANOVA.SOURCE
-            anova.columns.name = f'Typ-{typ}'
-            self._anova = anova[ANOVA.TABLE_COLNAMES]
+            self._anova = anova_table(self.model, typ=typ)
         
         if vif:
-            _vif = self.variance_inflation_factor()
+            self.variance_inflation_factor()
             indices = [i for i in self._vif.index if i in self._anova.index]
             self._anova.loc[indices, 'VIF'] = self._vif
         anova = self._anova.copy()
@@ -622,20 +602,9 @@ class LinearModel:
             A pandas Series containing the VIF values for each predictor 
             variable.
         """
-        param_names = self.model.model.data.param_names
-        names_map = {n: get_term_name(n) for n in param_names}
-        xs: NDArray = self.model.model.data.exog.copy()
-        vif: Dict[str, float] = {}
-        
         if self._vif.empty:
-            for pos, name in enumerate(param_names):
-                x = xs[:, pos]
-                _xs = np.delete(xs, pos, axis=1)
-                r2 = sm.OLS(x, _xs).fit().rsquared
-                vif[name] = (1 / (1 - r2))
-            self._vif = pd.Series(vif).rename(index=names_map)
-            self._vif = self._vif[~self._vif.index.duplicated()]
-        return self._vif.copy().rename(index=names_map)
+            self._vif = variance_inflation_factor(self.model)
+        return self._vif.copy().rename(index=self._term_map_)
 
     def highest_features(self) -> List[str]:
         """Get all main and interaction features that do not appear in a 

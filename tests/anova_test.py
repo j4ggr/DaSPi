@@ -284,16 +284,20 @@ class TestLinearModel:
         df = daspi.load_dataset('anova3')
         lm = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug'])
         
-        anova = lm.fit().anova()
         valid = anova3_s_valid
+        anova = lm.fit().anova('III')
+        anova.columns.name = None
+        anova = anova.loc[valid.index.to_list(), valid.columns.to_list()]
         assert_frame_equal(
-            anova[valid.columns], valid, check_dtype=False, check_exact=False,
+            anova, valid, check_dtype=False, check_exact=False,
             atol=1e-2)
 
+        valid = anova3_c_valid
         lm = LinearModel(
             df, 'Cholesterol', ['Sex', 'Risk', 'Drug'], order=3)
-        anova = lm.fit().anova()
-        valid = anova3_c_valid
+        anova = lm.fit().anova('III')
+        anova.columns.name = None
+        anova = anova.loc[valid.index.to_list(), valid.columns.to_list()]
         assert_frame_equal(
             anova[valid.columns], valid, check_dtype=False, check_exact=False,
             atol=1e-2)
