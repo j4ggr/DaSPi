@@ -580,20 +580,16 @@ class LinearModel:
             A pandas Series containing the VIF values for each predictor 
             variable.
         """
-        xs = self._term_names_
-        data = self.data.copy()
-        if ANOVA.INTERCEPT in xs:
-            data[ANOVA.INTERCEPT] = 1
+        
+        xs: NDArray = self.model.model.data.exog.copy()
         vif: Dict[str, float] = {}
-
+        
         if self._vif.empty:
-            for x in xs:
-                add_intercept = x != ANOVA.INTERCEPT and ANOVA.INTERCEPT in xs
-                _xs = [_x for _x in xs if _x not in (x, ANOVA.INTERCEPT)]
-                formula = (
-                    f'{x}~{"" if add_intercept else "-1+"}{"+".join(_xs)}')
-                r2 = smf.ols(formula, data).fit().rsquared
-                vif[x] = (1 / (1 - r2))
+            for pos, name in enumerate(self.model.model.data.param_names):
+                x = xs[:, pos]
+                _xs = np.delete(xs, pos, axis=1)
+                r2 = sm.OLS(x, _xs).fit().rsquared
+                vif[name] = (1 / (1 - r2))
             self._vif = pd.Series(vif)
         return self._vif.copy().rename(index=self._term_map_)
 
