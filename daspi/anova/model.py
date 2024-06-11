@@ -21,7 +21,9 @@ from pandas.core.series import Series
 from scipy.optimize._optimize import OptimizeResult
 from statsmodels.iolib.table import Cell
 from statsmodels.iolib.table import SimpleTable
+from statsmodels.iolib.summary import forg
 from statsmodels.iolib.summary import Summary
+from statsmodels.iolib.tableformatting import fmt_base
 from statsmodels.regression.linear_model import RegressionResultsWrapper
 
 from .utils import uniques
@@ -345,7 +347,7 @@ class LinearModel:
             from ANOVA table Type-III.
             - 'hierarchical' = True if model is hierarchical
         """
-        self.anova(typ='III')
+        self.anova(typ='III', vif=False)
         data = {
             'formula': self.formula,
             's': self.uncertainty,
@@ -358,8 +360,9 @@ class LinearModel:
         return pd.DataFrame(data, index=[index])
     
     def summary(
-            self, vif: bool = False, 
-            anova_typ: Literal['', 'I', 'II', 'III', None] = None, **kwds
+            self, 
+            anova_typ: Literal['', 'I', 'II', 'III', None] = None,
+            vif: bool = True, **kwds
             ) -> Summary:
         """Generate a summary of the fitted model.
 
@@ -367,7 +370,8 @@ class LinearModel:
         ----------
         vif : bool, optional
             If True, variance inflation factors (VIF) are added to the 
-            parameters table.
+            anova table. Will only be considered if anova_typ is not 
+            None, by default True
         anova_typ: Literal['', 'I', 'II', 'III', None] , optional
             If not None, add an ANOVA table of provided type to the 
             summary, by default None.
@@ -389,21 +393,17 @@ class LinearModel:
             ) | kwds
         summary: Summary = self.model.summary(**_kwds)
         summary.tables = [summary.tables[i] for i in [0, 2, 1]]
-        summary.tables[-1].title = 'Parameter statistics'
-
-        if vif:
-            self.variance_inflation_factor()
-            values = [ANOVA.VIF] + [f'{v:.3f}' for v in self._vif]
-            for row, value in zip(summary.tables[1], values):
-                row.append(Cell(value, len(row)+1, row=row))
-                continue
-        
+   
         if isinstance(anova_typ, str):
-            anova = self.anova(anova_typ).round(3)
+            anova = self.anova(typ=anova_typ, vif=vif).map(forg)
+            anova['DF'] = anova['DF'].astype(float).astype(int).astype(str)
             table = SimpleTable(
                 data=anova.values,
-                headers=[f'ANOVA {anova.columns.name}']+anova.columns.to_list(),
-                stubs=anova.index.to_list())
+                headers=anova.columns.to_list(),
+                stubs=anova.index.to_list(),
+                txt_fmt=fmt_base)
+            summary.tables[0].title = (
+                f'{summary.tables[0].title} (ANOVA {anova.columns.name})')
             summary.tables.append(table)
         
         return summary
@@ -458,7 +458,8 @@ class LinearModel:
             yield self.gof_metrics(step)
     
     def anova(
-            self, typ: Literal['', 'I', 'II', 'III'] = '') -> DataFrame:
+            self, typ: Literal['', 'I', 'II', 'III'] = '', vif: bool = False
+            ) -> DataFrame:
         """Perform an analysis of variance (ANOVA) on the fitted model.
 
         Parameters
@@ -473,6 +474,9 @@ class LinearModel:
             - 'I' : Type I sum of squares ANOVA.
             - 'II' : Type II sum of squares ANOVA.
             - 'III' : Type III sum of squares ANOVA.
+        vif : bool, optional
+            If True, variance inflation factors (VIF) are added to the 
+            anova table, by default False
 
         Returns
         -------
@@ -561,11 +565,14 @@ class LinearModel:
             anova['DF'] = anova['DF'].astype(int)
             anova['MS'] = anova['SS']/anova['DF']
             anova['n2'] = anova['SS'] / anova['SS'].sum()
-            anova.loc[factors, 'np2'] = ss_factors / (ss_factors + ss_resid)
             anova.index.name = ANOVA.SOURCE
             anova.columns.name = f'Typ-{typ}'
             self._anova = anova[ANOVA.TABLE_COLNAMES]
         
+        if vif:
+            _vif = self.variance_inflation_factor()
+            indices = [i for i in self._vif.index if i in self._anova.index]
+            self._anova.loc[indices, 'VIF'] = self._vif
         anova = self._anova.copy()
         anova.index = anova.index.map(self._convert_term_name_)
         return anova
@@ -580,23 +587,25 @@ class LinearModel:
             A pandas Series containing the VIF values for each predictor 
             variable.
         """
-        
+        param_names = self.model.model.data.param_names
+        names_map = {n: get_term_name(n) for n in param_names}
         xs: NDArray = self.model.model.data.exog.copy()
         vif: Dict[str, float] = {}
         
         if self._vif.empty:
-            for pos, name in enumerate(self.model.model.data.param_names):
+            for pos, name in enumerate(param_names):
                 x = xs[:, pos]
                 _xs = np.delete(xs, pos, axis=1)
                 r2 = sm.OLS(x, _xs).fit().rsquared
                 vif[name] = (1 / (1 - r2))
-            self._vif = pd.Series(vif)
-        return self._vif.copy().rename(index=self._term_map_)
+            self._vif = pd.Series(vif).rename(index=names_map)
+            self._vif = self._vif[~self._vif.index.duplicated()]
+        return self._vif.copy().rename(index=names_map)
 
     def highest_features(self) -> List[str]:
         """Get all main and interaction features that do not appear in a 
         higher interaction. Covariates are not taken into account here."""
-        _features = [f for f in self._term_names_ if not f.startswith('e_')]
+        _features = [f for f in self.term_names if not f.startswith('e')]
         features_splitted = sorted(
             [f.split(ANOVA.SEP) for f in _features], 
             key=len, reverse=True)

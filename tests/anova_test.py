@@ -301,21 +301,65 @@ class TestLinearModel:
     def test_summary(self) -> None:
         df = daspi.load_dataset('anova3')
         lm = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug']).fit()
-
+        lm2 = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug'], order=3).fit()
+        expected_param_table = (
+            '===============================================================================\n'
+            '                  coef    std err          t      P>|t|      [0.025      0.975]\n'
+            '-------------------------------------------------------------------------------\n'
+            'Intercept       5.7072      0.268     21.295      0.000       5.170       6.244\n'
+            'Sex[T.M]        0.3719      0.240      1.551      0.127      -0.109       0.852\n'
+            'Risk[T.Low]    -0.8692      0.240     -3.626      0.001      -1.350      -0.389\n'
+            'Drug[T.B]      -0.1080      0.294     -0.368      0.714      -0.696       0.480\n'
+            'Drug[T.C]       0.1750      0.294      0.596      0.554      -0.413       0.763\n'
+            '===============================================================================')
         smry = lm.summary()
         assert len(smry.tables) == 3
-        assert 'VIF' not in smry.tables[1].as_text()
+        assert smry.tables[-1].as_text() == expected_param_table
 
-        smry_vif = lm.summary(vif=True)
-        assert len(smry.tables) == 3
-        assert 'VIF' in smry_vif.tables[1].as_text()
-
-        smry_anova = lm.summary(anova_typ='')
+        expected_anova_table = (
+            '============================================================================\n'
+            '                   DF         SS         MS          F          p         n2\n'
+            '----------------------------------------------------------------------------\n'
+            'Intercept           1    390.868    390.868    453.467    3.1e-28      0.864\n'
+            'Sex                 1      2.075      2.075      2.407      0.127      0.005\n'
+            'Risk                1     11.332     11.332     13.147      0.001      0.025\n'
+            'Drug                2      0.816      0.408      0.473      0.626      0.002\n'
+            'Residual           55     47.407      0.862        nan        nan      0.105\n'
+            '============================================================================')
+        smry_anova = lm.summary(anova_typ='III', vif=False)
         assert len(smry_anova.tables) == 4
-        assert smry_anova.tables[0].title == 'ANOVA Typ-II'
+        assert 'ANOVA Typ-III' in smry_anova.tables[0].title
+        assert smry_anova.tables[-1].as_text() == expected_anova_table
 
-        smry_vif_anova = lm.summary(vif=True, anova_typ='III')
+        expected_anova_table = (
+            '=======================================================================================\n'
+            '                   DF         SS         MS          F          p         n2        VIF\n'
+            '---------------------------------------------------------------------------------------\n'
+            'Sex                 1      2.075      2.075      2.407      0.127      0.034      1.000\n'
+            'Risk                1     11.332     11.332     13.147      0.001      0.184      1.000\n'
+            'Drug                2      0.816      0.408      0.473      0.626      0.013      1.333\n'
+            'Residual           55     47.407      0.862        nan        nan      0.769        nan\n'
+            '=======================================================================================')
+        smry_vif_anova = lm.summary(anova_typ='', vif=True)
         assert len(smry_vif_anova.tables) == 4
-        assert smry_vif_anova.tables[0].title == 'ANOVA Typ-III'
-        assert 'VIF' in smry_vif_anova.tables[2].as_text()
+        assert 'ANOVA Typ-II' in smry_vif_anova.tables[0].title
+        assert smry_vif_anova.tables[-1].as_text() == expected_anova_table
+
+        expected_anova_table = (
+            '==========================================================================================\n'
+            '                      DF         SS         MS          F          p         n2        VIF\n'
+            '------------------------------------------------------------------------------------------\n'
+            'Sex                    1      2.075      2.075      2.462      0.123      0.034      6.000\n'
+            'Risk                   1     11.332     11.332     13.449      0.001      0.184      6.000\n'
+            'Drug                   2      0.816      0.408      0.484      0.619      0.013      5.333\n'
+            'Sex:Risk               1      0.117      0.117      0.139      0.711      0.002      9.000\n'
+            'Sex:Drug               2      2.564      1.282      1.522      0.229      0.042      6.667\n'
+            'Risk:Drug              2      2.438      1.219      1.446      0.245      0.040      6.667\n'
+            'Sex:Risk:Drug          2      1.844      0.922      1.094      0.343      0.030      7.333\n'
+            'Residual              48     40.445      0.843        nan        nan      0.656        nan\n'
+            '==========================================================================================')
+        smry2 = lm2.summary(anova_typ='', vif=True)
+        assert len(smry2.tables) == 4
+        assert 'ANOVA Typ-II' in smry2.tables[0].title
+        assert smry2.tables[-1].as_text() == expected_anova_table
         
