@@ -23,6 +23,7 @@ from statsmodels.iolib.table import Cell
 from statsmodels.iolib.table import SimpleTable
 from statsmodels.iolib.summary import forg
 from statsmodels.iolib.summary import Summary
+from statsmodels.iolib.summary import summary_params_frame
 from statsmodels.iolib.tableformatting import fmt_base
 from statsmodels.regression.linear_model import RegressionResultsWrapper
 
@@ -405,7 +406,6 @@ class LinearModel:
             summary.tables[0].title = (
                 f'{summary.tables[0].title} (ANOVA {anova.columns.name})')
             summary.tables.append(table)
-        
         return summary
 
     def recursive_feature_elimination(
@@ -528,13 +528,13 @@ class LinearModel:
         >>> df = daspi.load_dataset('anova3')
         >>> lm = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug']).fit()
         >>> print(lm.anova(typ='III').round(3))
-        Typ-III    DF       SS       MS        F      p     n2    np2
-        source                                                       
-        Intercept   1  390.868  390.868  453.467  0.000  0.864  0.892
-        Sex         1    2.075    2.075    2.407  0.127  0.005  0.042
-        Risk        1   11.332   11.332   13.147  0.001  0.025  0.193
-        Drug        2    0.816    0.408    0.473  0.626  0.002  0.017
-        Residual   55   47.407    0.862      NaN    NaN  0.105    NaN
+        Typ-III    DF       SS       MS        F      p     n2
+        source                                                
+        Intercept   1  390.868  390.868  453.467  0.000  0.864
+        Sex         1    2.075    2.075    2.407  0.127  0.005
+        Risk        1   11.332   11.332   13.147  0.001  0.025
+        Drug        2    0.816    0.408    0.473  0.626  0.002
+        Residual   55   47.407    0.862      NaN    NaN  0.105
         """
         column_name = self._anova.columns.name
         if column_name and column_name.split('-')[1] != typ:
@@ -576,6 +576,41 @@ class LinearModel:
         anova = self._anova.copy()
         anova.index = anova.index.map(self._convert_term_name_)
         return anova
+    
+    def parameter_statistics(
+            self, alpha: float = 0.05, use_t: bool = True) -> DataFrame:
+        """Calculate the parameter statistics for the fitted model.
+
+        Parameters
+        ----------
+        alpha : float, optional
+            The significance level for the confidence intervals, by 
+            default 0.05.
+        use_t : bool, optional
+            If True, use t-distribution for hypothesis testing and 
+            confidence intervals. If False, use normal distribution, 
+            by default True.
+
+        Returns
+        -------
+        DataFrame
+            A pandas DataFrame containing the parameter statistics for 
+            the fitted model. The DataFrame includes columns for the 
+            parameter estimates, standard errors, t-values 
+            (or z-values), and p-values.
+        """
+        params_table = summary_params_frame(
+            self.model,
+            yname=self.target,
+            xname=list(map(self._convert_term_name_, self.model.params.index)),
+            alpha=alpha,
+            use_t=use_t)
+        columns_map = {
+            'P>|t|': 'p',
+            'Conf. Int. Low': 'ci_low',
+            'Conf. Int. Upp.': 'ci_upp'}
+        params_table = params_table.rename(columns=columns_map)
+        return params_table
     
     def variance_inflation_factor(self) -> Series:
         """Calculate the variance inflation factor (VIF) for each 
