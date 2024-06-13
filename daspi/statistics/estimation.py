@@ -972,6 +972,8 @@ def estimate_kernel_density(
         Data points of kernel density estimation
     """
     data = np.array(data)[~np.isnan(data)]
+    assert any(data), f'Provided data is empty or contains only zeros: {data}'
+    assert any(data != data[0]), f'All provided data have the same value: {data}'
     sequence = np.linspace(data.min(), data.max(), n_points)
     estimation = stats.gaussian_kde(data, bw_method='scott')(sequence)
     stretch = stretch if height is None else height/estimation.max()

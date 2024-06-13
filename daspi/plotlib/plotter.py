@@ -97,7 +97,6 @@ center_plot = CenterLocation(data, 'target_variable', 'feature_variable', kind='
 center_plot()
 ```
 """
-
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -1890,9 +1889,16 @@ class GaussianKDE(TransformPlotter):
             generated sequence as target data and the estimation as
             feature data.
         """
-        sequence, estimation = estimate_kernel_density(
-            data=target_data, stretch=self.stretch, height=self.height,
-            base=feature_data)
+
+        first_value = target_data.iloc[0]
+        if all(target_data == first_value):
+            stretch = self.stretch if self.height is None else self.height
+            estimation = [stretch + feature_data]
+            sequence = [first_value]
+        else:
+            sequence, estimation = estimate_kernel_density(
+                data=target_data, stretch=self.stretch, height=self.height,
+                base=feature_data)
         data = pd.DataFrame({
             self.target: sequence,
             self.feature: estimation,

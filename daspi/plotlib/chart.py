@@ -67,8 +67,6 @@ from .classify import ShapeLabel
 from .facets import AxesFacets
 from .facets import LabelFacets
 from .facets import StripesFacets
-from .plotter import Bar
-from .plotter import Pareto
 from .plotter import Plotter
 from matplotlib.axes import Axes
 from matplotlib.axis import XAxis
