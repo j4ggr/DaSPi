@@ -383,7 +383,7 @@ class Dodger:
         """
         if category is None:
             return self._default
-        return self.dodge.get(category, self._default)
+        return self.dodge.get(str(category), self._default)
     
     def __call__(self, values: Series, category: str) -> pd.Series:
         """Replace source values with dodged ticks using the given category.

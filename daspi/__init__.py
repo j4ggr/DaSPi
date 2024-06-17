@@ -87,7 +87,6 @@ from .plotlib.chart import MultipleVariateChart
 from .plotlib.templates import ResiduesCharts
 
 
-from . import anova
 from .anova.utils import uniques
 from .anova.utils import anova_table
 from .anova.utils import hierarchical
