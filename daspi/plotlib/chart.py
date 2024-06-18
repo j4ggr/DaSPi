@@ -83,7 +83,7 @@ from ..constants import KW
 from ..constants import COLOR
 
 
-class Chart(ABC):   
+class Chart(ABC):
     """
     Abstract base class for creating chart visualizations.
 

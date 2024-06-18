@@ -1,4 +1,65 @@
-import warnings
+"""The `LinearModel` class in `daspi\anova\model.py` is designed to 
+create and simplify linear models, where only significant features are 
+used to describe the model. It is particularly useful for analyzing 
+balanced models (DOEs or EVOPs) that include both categorical and 
+continuous variables.
+
+The class takes three main inputs:
+
+- source: A pandas DataFrame containing the tabular data in a long 
+format, which will be used for the model.
+- target: The name of the column in the DataFrame that represents the 
+endogenous (dependent) variable.
+- categorical: A list of column names in the DataFrame that represent 
+the categorical exogenous (independent) variables.
+- Additionally, it can take an optional input continuous, which is a 
+list of column names representing continuous exogenous variables.
+
+The purpose of this class is to create a linear model that includes all 
+factor levels and their interactions, and then automatically eliminate 
+any non-significant factors or interactions. This allows for a more 
+concise and accurate representation of the model, where only the 
+relevant features are included.
+
+To achieve this, the class follows these steps:
+
+1. It encodes the design matrix with all factor levels and their 
+interactions.
+2. It fits a linear model using the encoded design matrix and the 
+provided data.
+3. It calculates the p-values for each factor and interaction,
+indicating their significance in the model.
+4. It provides methods to recursively eliminate non-significant factors 
+or interactions based on their p-values, until only significant features 
+remain.
+
+The class also provides methods to analyze the model in more detail, 
+such as:
+
+- Calculating the sum of squares (explained variation) for each factor 
+and interaction.
+- Generating an ANOVA (Analysis of Variance) table to assess the 
+significance of each factor and interaction.
+- Calculating the effects (impact) of each factor and interaction on the 
+target variable.
+- Checking if the model is hierarchical (i.e., if all lower-order 
+interactions are included when higher-order interactions are present).
+- The main output of this class is a simplified linear model that 
+includes only the significant features. Additionally, it provides 
+various statistics and metrics related to the model, such as the ANOVA 
+table, p-values, effects, and goodness-of-fit measures 
+(e.g., R-squared, adjusted R-squared, AIC).
+
+The class achieves its purpose through a combination of linear 
+regression techniques, statistical hypothesis testing, and recursive 
+feature elimination algorithms. It leverages the statsmodels library for 
+fitting the linear models and performing ANOVA calculations.
+
+Overall, the LinearModel class is a powerful tool for analyzing and 
+simplifying linear models, particularly in the context of designed 
+experiments or engineering applications where categorical and continuous 
+variables are involved.
+"""
 
 import numpy as np
 import pandas as pd
@@ -67,21 +128,59 @@ class LinearModel:
         'input_map', 'input_rmap', 'output_map', 'exclude', 'level_map',
         '_initial_terms_', '_p_values', '_anova', '_effects', '_vif')
     data: DataFrame
+    """The Pandas DataFrame containing the data for the linear model."""
     target: str
+    """The name of the target variable for the linear model."""
     categorical: List[str]
+    """The list of categorical feature names used in the linear model."""
     continuous: List[str]
+    """The list of continuous exogenous variables used in the linear 
+    model."""
     _alpha: float
+    """The alpha risk threshold used for automatic elimination of 
+    features during model simplification. All features, including 
+    continuous and intercept, that have a p-value smaller than this 
+    alpha are removed from the model."""
     _model: RegressionResultsWrapper | None
+    """The regression results of the fitted model. This property raises 
+    an AssertionError if no model has been fitted yet."""
     input_map: Dict[str, str]
+    """A dictionary that maps the original feature names to the encoded 
+    feature names used in the model."""
     input_rmap: Dict[str, str]
+    """A dictionary that maps the encoded feature names back to the 
+    original feature names used in the model."""
     output_map: Dict[str, str]
+    """A dictionary that maps the original feature names to the encoded 
+    feature names used in the model."""
     exclude: Set[str]
+    """A set of feature names that should be excluded from the model."""
     level_map: Dict[Any, Any]
+    """A dictionary that maps the original feature names to their 
+    encoded versions used in the model."""
     _initial_terms_: List[LiteralString]
+    """The list of initial terms used in the linear model. These terms 
+    include the categorical features and continuous features up to the 
+    specified interaction order."""
     _p_values: 'Series[float]'
+    """The `_p_values` attribute is a Pandas Series that stores the 
+    p-values for the features in the linear regression model. This 
+    attribute is an implementation detail and is not part of the public 
+    API."""
     _anova: DataFrame
+    """The `_anova` attribute is a Pandas DataFrame that stores the 
+    ANOVA table for the fitted linear regression model. This attribute 
+    is an implementation detail and is not part of the public API."""
     _effects: Series
+    """The `_effects` attribute is a Pandas Series that stores the 
+    effects (coefficients) of the features in the linear regression 
+    model. This attribute is an implementation detail and is not part 
+    of the public API."""
     _vif: 'Series[float]'
+    """The `_vif` attribute is a Pandas Series that stores the Variance 
+    Inflation Factors (VIFs) for the features in the linear regression 
+    model. This attribute is an implementation detail and is not part of 
+    the public API."""
 
     def __init__(
             self,
@@ -128,6 +227,12 @@ class LinearModel:
 
     @property
     def initial_formula(self) -> str:
+        """Get the initial formula for the ANOVA model (read-only).
+        
+        The initial formula is constructed from the target variable and 
+        the initial terms, which are the terms with an interaction order 
+        less than or equal to the specified order.
+        """
         initial_formula = (
             f'{self.output_map[self.target]} ~ '
             + ' + '.join(self._initial_terms_))
