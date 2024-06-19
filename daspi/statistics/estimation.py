@@ -734,8 +734,10 @@ class ProcessEstimator(Estimator):
         self._cp = None
         self._cpk = None
         self._error_values = error_values
-        self._lsl = lsl
-        self._usl = usl
+        self._lsl = None
+        self._usl = None
+        self.lsl = lsl
+        self.usl = usl
         self._reset_values_()
         super().__init__(samples, strategy, agreement, possible_dists)
     
@@ -801,7 +803,7 @@ class ProcessEstimator(Estimator):
     @lsl.setter
     def lsl(self, lsl: SpecLimit) -> None:
         if self._lsl != lsl:
-            self._lsl = lsl
+            self._lsl = lsl if pd.notna(lsl) else None
             self._reset_values_()
 
     @property
@@ -813,7 +815,7 @@ class ProcessEstimator(Estimator):
     @usl.setter
     def usl(self, usl: SpecLimit) -> None:
         if self._usl != usl:
-            self._usl = usl
+            self._usl = usl if pd.notna(usl) else None
             self._reset_values_()
 
     @property

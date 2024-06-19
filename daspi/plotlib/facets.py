@@ -1,4 +1,5 @@
 import math
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from typing import Self
@@ -19,6 +20,7 @@ from matplotlib.artist import Artist
 from matplotlib.patches import Patch
 
 from .._typing import SpecLimit
+from .._typing import NumericSample1D
 from .._typing import LegendHandlesLabels
 
 from ..strings import STR
@@ -499,7 +501,7 @@ class StripesFacets:
     
     def __init__(
         self,
-        target: ArrayLike,
+        target: NumericSample1D,
         single_axes: bool, 
         mean: bool = False,
         median: bool = False,
@@ -511,11 +513,11 @@ class StripesFacets:
             f'Specification limits must contain 2 values, got {spec_limits}. '
             'Set None for limits that do not exist')
         self.single_axes = single_axes
-        self.spec_limits = spec_limits
+        self.spec_limits = tuple(l if pd.notna(l) else None for l in spec_limits) # type: ignore
         self._confidence = confidence
         self.mask = (
             mean, median, *[control_limits]*2,
-            *list(map(lambda lim: lim is not None, self.spec_limits)))
+            *list(map(lambda x: x is not None, self.spec_limits)))
         self.estimation = ProcessEstimator(
             samples=target, lsl=spec_limits[0], usl=spec_limits[1], **kwds)
     

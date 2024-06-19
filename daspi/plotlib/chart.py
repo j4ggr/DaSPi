@@ -649,8 +649,9 @@ class SingleChart(Chart):
             The SingleChart instance.
         """
         self.target_on_y = kwds.pop('target_on_y', self.target_on_y)
-        marker = kwds.pop('marker', self.marker)
+        _marker = kwds.pop('marker', None)
         for data in self:
+            marker = _marker if _marker is not None else self.marker
             plot = plotter(
                 source=data, target=self.target, feature=self.feature,
                 target_on_y=self.target_on_y, color=self.color, 
