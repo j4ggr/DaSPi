@@ -887,6 +887,29 @@ class TestJointChart:
         err_msg = 'Single label not allowed'
         assert err_msg in str(err.value)
 
+    def test_kde_mean_plots(self) -> None:
+        self.base = f'{self.fig_title}_kdes'
+        
+        self.kind = 'kde-mean'
+        chart = JointChart(
+                source = df_aspirin,
+                target = self.target,
+                feature = (self.cat1, ''),
+                hue = self.cat2,
+                ncols = 1,
+                nrows = 2,
+                sharex = True,
+                dodge = (False, True),
+                target_on_y = False,
+                height_ratios=[5, 1],
+            ).plot(GaussianKDE, show_density_axis=True
+            ).plot(MeanTest
+            ).label(
+            #     feature_label = (True, True),
+            #     target_label = (True, True)
+            ).save(self.file_name
+            ).close()
+
     def test_kde_plots(self) -> None:
         self.base = f'{self.fig_title}_kdes'
         

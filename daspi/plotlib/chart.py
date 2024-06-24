@@ -81,6 +81,7 @@ from .._typing import LegendHandlesLabels
 
 from ..constants import KW
 from ..constants import COLOR
+from ..constants import PLOTTER
 
 
 class Chart(ABC):
@@ -404,6 +405,9 @@ class SingleChart(Chart):
             target_on_y: bool = True,
             **kwds) -> None:
         self.categorical_feature = categorical_feature or dodge
+        if feature == '' and dodge:
+            feature = PLOTTER.FEATURE
+            source[feature] = ''
         self.hue = hue
         self.shape = shape
         self.size = size
@@ -413,9 +417,9 @@ class SingleChart(Chart):
         self.hueing = HueLabel(self.get_categorical_labels(self.hue))
         feature_tick_labels = ()
         if self.categorical_feature:
-            assert feature in source, (
+            assert self.feature in source, (
                 'categorical_feature is True, but features is not present')
-            feature_tick_labels = self.get_categorical_labels(feature)
+            feature_tick_labels = self.get_categorical_labels(self.feature)
         dodge_categories = tuple(self.hueing.labels) if dodge else ()
         self.dodging = Dodger(dodge_categories, feature_tick_labels)
         self.shaping = ShapeLabel(self.get_categorical_labels(self.shape))
@@ -864,7 +868,7 @@ class JointChart(Chart):
             shape: str | Tuple[str, ...] = '',
             size: str | Tuple[str, ...] = '',
             dodge: bool | Tuple[bool, ...] = False,
-            categorical_feature: bool | Tuple[str, ...] = False,
+            categorical_feature: bool | Tuple[bool, ...] = False,
             target_on_y: bool | Tuple[bool, ...] = True,
             sharex: bool | Literal['none', 'all', 'row', 'col'] = 'none', 
             sharey: bool | Literal['none', 'all', 'row', 'col'] = 'none', 

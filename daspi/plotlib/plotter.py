@@ -1372,10 +1372,11 @@ class Bar(TransformPlotter):
             t_low, t_upp = map(np.array, zip(*[(b.y0, b.y1) for b in boxs]))
             if not self.target_on_y:
                 f_low, f_upp, t_low, t_upp = t_low, t_upp, f_low, f_upp
-            if (all(feature_ticks > f_low)
-                and all(feature_ticks < f_upp)
-                and any(t_upp > t_base)):
-                t_base = t_upp
+            n = min(len(feature_ticks), len(f_low))
+            if (all(feature_ticks[:n] > f_low[:n])
+                and all(feature_ticks[:n] < f_upp[:n])
+                and any(t_upp[:n] > t_base[:n])):
+                t_base[:n] = t_upp[:n]
         return t_base
     
     def transform(
@@ -2084,9 +2085,6 @@ class Errorbar(TransformPlotter):
         self.upper = upper
         self.show_center = show_center
         self.bars_same_color = bars_same_color
-        if feature not in source and feature != PLOTTER.TRANSFORMED_FEATURE:
-            feature = PLOTTER.FEATURE
-            source[feature] = np.arange(len(source[target]))
 
         super().__init__(
             source=source, target=target, feature=feature,

@@ -358,10 +358,10 @@ class LinearModel:
     
     def effects(self) -> Series:
         """Calculates the impact of each term on the target. The
-        effects are described as twice the parameter coefficients and 
-        occur as an absolute number."""
+        effects are described as absolute number of the parameter 
+        coefficients."""
         if self._effects.empty:
-            params: Series = 2 * self.model.params
+            params: Series = self.model.params
             names_map = {n: get_term_name(n) for n in params.index}
             self._effects = (params
                 .abs()
