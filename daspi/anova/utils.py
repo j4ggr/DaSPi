@@ -139,6 +139,8 @@ def variance_inflation_factor(model: RegressionResultsWrapper) -> Series:
         variable.
     """
     xs: NDArray = model.model.data.exog.copy()
+    assert xs.shape[1] > 1, (
+        'To calculate VIFs, at least two predictor variables must be present.')
     _vif: Dict[str, float] = {}
     
     param_names = model.model.data.param_names
@@ -229,6 +231,43 @@ def anova_table(
         anova.columns.name = f'Typ-{typ}'
         return anova[ANOVA.TABLE_COLNAMES]
 
+def frames_to_html(
+        dfs: DataFrame | List[DataFrame] | Tuple[DataFrame, ...],
+        captions: str | List[str] | Tuple[str, ...]) -> str:
+    """Converts one or more DataFrames to HTML tables with captions.
+
+    Parameters
+    ----------
+    dfs : DataFrame or list/tuple of DataFrames
+        The DataFrame(s) to be converted to HTML.
+    captions : str or list/tuple of str
+        The captions to be used for the HTML tables. The number of 
+        captions must match the number of DataFrames.
+
+    Returns
+    -------
+    str
+        The HTML representation of the DataFrames with captions.
+    """
+    if isinstance(captions, str):
+        captions = (captions,)
+    if isinstance(dfs, DataFrame):
+        dfs = (dfs,)
+    assert len(dfs) == len(captions), (
+        "The number of DataFrames and captions must be equal.")
+    spacing = 2*'</br>'
+    html = ''
+    for (df, caption) in zip(dfs, captions):
+        if html:
+            html += spacing
+        html += (df
+            .style
+            .set_table_attributes("style='display:inline'")
+            .set_caption(caption)
+            .to_html())
+    return html
+
+
 # TODO: implement optimizer in model
 # def optimize(
 #         fun: Callable, x0: List[float], negate: bool, columns: List[str], 
@@ -284,5 +323,5 @@ __all__ = [
     'is_main_feature',
     'variance_inflation_factor',
     'anova_table',
-    'optimize',
+    'frames_to_html',
 ]

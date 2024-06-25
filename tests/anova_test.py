@@ -20,6 +20,7 @@ import daspi
 from daspi.anova import uniques
 from daspi.anova import hierarchical
 from daspi.anova import get_term_name
+from daspi.anova import frames_to_html
 from daspi.anova import is_main_feature
 
 from daspi.anova import LinearModel
@@ -265,11 +266,15 @@ class TestLinearModel:
     def test_main_features_property(self, lm2: LinearModel) -> None:
         lm2.fit()
         assert lm2.main_features == ['x0', 'x1', 'x2', 'x3']
-        for gof in lm2.recursive_feature_elimination():
-            p_least = gof['p_least'][0]
-            if not np.isnan(p_least):
-                assert p_least > lm2.alpha
-        assert lm2.main_features == ['x0', 'x2']
+        formula = ''
+        gof = pd.DataFrame()
+        for i, _gof in enumerate(lm2.recursive_feature_elimination()):
+            assert _gof.loc[i, 'formula'] != formula
+            formula = _gof.loc[i, 'formula']
+            gof = pd.concat([gof, _gof], axis=0)
+        assert gof['p_least'].iloc[-2] >= lm2.alpha
+        assert gof['p_least'].iloc[-1] < lm2.alpha
+        assert lm2.main_features == ['x2']
 
     def test_alpha_property(self, lm: LinearModel) -> None:
         assert lm.alpha == 0.05
@@ -366,4 +371,95 @@ class TestLinearModel:
         assert len(smry2.tables) == 4
         assert 'ANOVA Typ-II' in smry2.tables[0].title
         assert smry2.tables[-1].as_text() == expected_anova_table
+    
+    def test_r2_pred(self) -> None:
+        """Source:
+        https://www.additive-net.de/de/software/support/minitab-support/minitab-faq-analysen/3498-minitab-r19-doe-r-qd-prog"""
+        data = pd.DataFrame({
+            'Ergebnis': [7.5292, 11.1151, 8.3440, 11.9081, 10.9183, 11.7622],
+            'A': [-1, 1, 1, -1, -1, 1],
+            'B': [0, -1, 0, -1, 1, 1],
+            'Center': [1, 0, 1, 0, 0, 0]})
+        lm = daspi.LinearModel(data, 'Ergebnis', ['A', 'B'], ['Center'], order=2).fit()
+        pytest.approx(lm.r2_pred(), 0.350426519634100657)
+    
+    def test_str(self) -> None:
+        df = daspi.load_dataset('anova3')
+        lm = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug']).fit()
+        expected_str = 'Cholesterol ~ 5.7072 + 0.3719*Sex[T.M] - 0.8692*Risk[T.Low] - 0.1080*Drug[T.B] + 0.1750*Drug[T.C]'
+        assert str(lm) == expected_str
+
+    def test_eliminate_term(self, lm3: LinearModel) -> None:
+        lm3.fit()
+        lm3.eliminate('A')
+        assert 'x0' in lm3.exclude
+
+        lm3.eliminate('B')
+        assert 'x1' in lm3.exclude
+
+        lm3.eliminate('C')
+        assert 'x2' in lm3.exclude
+
+    def test_eliminate_interaction_term(self, lm4: LinearModel) -> None:
+        lm4.fit()
+        lm4.eliminate('A:B')
+        assert 'x0:x1' in lm4.exclude
+
+        lm4.eliminate('A:C')
+        assert 'x0:x2' in lm4.exclude
+
+        lm4.eliminate('B:C')
+        assert 'x1:x2' in lm4.exclude
+
+    def test_eliminate_invalid_term(self, lm3: LinearModel) -> None:
+        lm3.fit()
+        with pytest.raises(AssertionError, match=r'Given term Q is not in model'):
+            lm3.eliminate('Q')
+
+        with pytest.raises(AssertionError, match=r'Given term x0:x1:x2 is not in model'):
+            lm3.eliminate('A:B:C')
+
+    def test_eliminate_encoded_term(self, lm3: LinearModel) -> None:
+        lm3.fit()
+        lm3.eliminate('x0')
+        assert 'x0' in lm3.exclude
+
+        lm3.eliminate('x1[T.b]')
+        assert 'x1' in lm3.exclude
+
+        lm3.eliminate('x2[T.2.2]')
+        assert 'x2' in lm3.exclude
+
+
+class TestFramesToHTML:
+    dfs = [
+        DataFrame({'A': [1, 2], 'B': [3, 4]}),
+        DataFrame({'C': [5, 6], 'D': [7, 8]})]
+    captions = ['Table 1', 'Table 2']
+
+    def test_basics(self) -> None:
+        html = frames_to_html(self.dfs, self.captions)
+        assert isinstance(html, str)
+        assert 'Table 1' in html
+        assert 'Table 2' in html
+        assert '>A</th>' in html
+        assert '>B</th>' in html
+        assert '>C</th>' in html
+        assert '>D</th>' in html
+
+    def test_empty_dfs(self) -> None:
+        html = frames_to_html([], [])
+        assert html == ''
+
+    def test_mismatched_lengths(self) -> None:
+        dfs = [DataFrame({'A': [1, 2]})]
+        captions = ['Table 1', 'Table 2']
+        with pytest.raises(AssertionError):
+            frames_to_html(dfs, captions)
+
+    def test_no_captions(self) -> None:
+        dfs = [DataFrame({'A': [1, 2]})]
+        with pytest.raises(AssertionError, match='The number of DataFrames and captions must be equal.'):
+            html = frames_to_html(dfs, [])
+
         

@@ -91,6 +91,7 @@ from .anova.utils import uniques
 from .anova.utils import anova_table
 from .anova.utils import hierarchical
 from .anova.utils import get_term_name
+from .anova.utils import frames_to_html
 from .anova.utils import is_main_feature
 from .anova.utils import variance_inflation_factor
 

@@ -8,9 +8,11 @@ from typing import Sequence
 from typing import Generator
 from numpy.typing import NDArray
 
+from .._typing import NumericSample1D
+
 
 def chunker(
-        samples: Sequence[Any] | NDArray[Any], n_sections: int
+        samples: NumericSample1D, n_sections: int
         ) -> Generator[NDArray, Any, None]:
     """Divides the data into a specified number of sections.
     

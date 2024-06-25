@@ -61,7 +61,7 @@ def anderson_darling_test(
     """
     N = len(sample)
     A2, _, _ = anderson(sample, dist='norm')
-    A_star = A2*(1 + 0.75/N + 2.25/N**2)
+    A_star: float = A2*(1 + 0.75/N + 2.25/N**2)
     if 13 <= A_star:
         p = 0.0
     elif 0.6 <= A_star < 13:

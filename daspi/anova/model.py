@@ -74,6 +74,7 @@ from typing import Literal
 from typing import LiteralString
 from typing import Generator
 from patsy.desc import ModelDesc
+from numpy.linalg import LinAlgError
 from pandas.core.frame import DataFrame
 from patsy.design_info import DesignInfo
 from pandas.core.series import Series
@@ -89,10 +90,13 @@ from .utils import uniques
 from .utils import anova_table
 from .utils import hierarchical
 from .utils import get_term_name
+from .utils import frames_to_html
 from .utils import is_main_feature
 from .utils import variance_inflation_factor
 
 from ..constants import ANOVA
+
+from ..strings import STR
 
 
 class LinearModel:
@@ -242,7 +246,7 @@ class LinearModel:
     def uncertainty(self) -> float:
         """Get uncertainty of the model as square root of MS_Residual
         (read-only)."""
-        if self._anova.empty:
+        if self._anova.empty or 'MS' not in self._anova:
             return np.nan
         else:
             return self._anova['MS']['Residual']**0.5
@@ -427,6 +431,46 @@ class LinearModel:
         self._model = smf.ols(formula, self.data, **kwds).fit()
         return self
     
+    def r2_pred(self) -> float | None:
+        """Calculate the predicted R-squared (R2_pred) for the fitted 
+        model.
+        
+        Returns
+        -------
+        float
+            The predicted R-squared value for the fitted model.
+        
+        Notes
+        -----
+        The predicted R-squared is a measure of how well the model would 
+        predict new observations. It is calculated as:
+        
+        R2_pred = 1 - (Sum of Squared Prediction Errors / Total Sum of Squares)
+        
+        Where the prediction errors are calculated as the residuals 
+        divided by (1 - leverage), where leverage is the diagonal 
+        elements of the projection matrix P = X(X'X)^(-1)X'.
+
+        References
+        ----------
+        Calculations are made according to:
+        https://support.minitab.com/de-de/minitab/help-and-how-to/statistical-modeling/doe/how-to/factorial/analyze-factorial-design/methods-and-formulas/goodness-of-fit-statistics/#press
+        
+        Further information about projection matrix (influence matrix or
+        hat matrix) can be found in:
+        https://en.wikipedia.org/wiki/Projection_matrix
+        """
+        X = self.model.model.data.exog
+        y = self.model.model.data.endog
+        try:
+            P = np.dot(X, np.dot(np.linalg.inv(np.dot(X.T, X)), X.T))
+        except LinAlgError:
+            return None
+        
+        ss_pred = np.sum(np.square(self.model.resid / (1 - np.diag(P))))
+        ss_tot = np.sum(np.square(y - np.mean(y)))
+        return 1 - ss_pred / ss_tot
+    
     def gof_metrics(self, index: int | str = 0) -> DataFrame:
         """Get different goodness-of-fit metrics (read-only).
 
@@ -455,13 +499,14 @@ class LinearModel:
         self.anova(typ='III', vif=False)
         data = {
             'formula': self.formula,
+            'hierarchical': self.is_hierarchical(),
+            'least_term': self._convert_term_name_(self.least_term()),
+            'p_least': self.p_values().max(),
             's': self.uncertainty,
             'aic': self.model.aic,
             'r2': self.model.rsquared,
             'r2_adj': self.model.rsquared_adj,
-            'least_term': self._convert_term_name_(self.least_term()),
-            'p_least': self.p_values().max(),
-            'hierarchical': self.is_hierarchical()}
+            'r2_pred': self.r2_pred()}
         return pd.DataFrame(data, index=[index])
     
     def summary(
@@ -473,13 +518,13 @@ class LinearModel:
 
         Parameters
         ----------
+        anova_typ: Literal['', 'I', 'II', 'III', None] , optional
+            If not None, add an ANOVA table of provided type to the 
+            summary, by default None.
         vif : bool, optional
             If True, variance inflation factors (VIF) are added to the 
             anova table. Will only be considered if anova_typ is not 
             None, by default True
-        anova_typ: Literal['', 'I', 'II', 'III', None] , optional
-            If not None, add an ANOVA table of provided type to the 
-            summary, by default None.
         **kwds
             Additional keyword arguments to be passed to the `summary` 
             method of
@@ -511,16 +556,38 @@ class LinearModel:
                 f'{summary.tables[0].title} (ANOVA {anova.columns.name})')
             summary.tables.append(table)
         return summary
+    
+    def eliminate(self, term: str) -> None:
+        """Removes the given term from the model by adding it to the 
+        `exclude` set.
+        
+        Parameters
+        ----------
+        term : str
+            The term to be removed from the model.
+        
+        Raises
+        ------
+        AssertionError: 
+            If the given term is not in the model.
+        """ 
+        term = ANOVA.SEP.join(map(
+            lambda x: get_term_name(self.input_map.get(x, x)),
+            term.split(ANOVA.SEP)))
+        assert term in self._term_names_, f'Given term {term} is not in model'
+        self.exclude.add(term)
 
     def recursive_feature_elimination(
             self, rsquared_max: float = 0.99, ensure_hierarchy: bool = True,
             **kwds) -> Generator[DataFrame, Any, None]:
-        """Perform a linear regression starting with complete model.
-        Then recursive features are eliminated according to the highest
-        p-value (two-tailed p values for the t-stats of the params).
-        Features are eliminated until only significant features
-        (p-value < given threshold) remain in the model.
-
+        """Perform a recursive feature elimination on the fitted model.
+        
+        This function starts with the complete model and recursively 
+        eliminates features based on their p-values, until only 
+        significant features remain in the model. The function yields 
+        the goodness-of-fit metrics at each step of the elimination
+        process.
+        
         Parameters
         ----------
         rsquared_max : float in (0, 1), optional
@@ -532,11 +599,12 @@ class LinearModel:
         **kwds
             Additional keyword arguments for `ols` function of 
             `statsmodels.formula.api`.
-
-        Notes
-        -----
-        The attribute `exclude` is reset at the beginning and then
-        refilled.
+        
+        Yields
+        ------
+        DataFrame
+            The goodness-of-fit metrics at each step of the recursive 
+            feature elimination.
         """
         self._model = None
         self.exclude = set()
@@ -545,7 +613,7 @@ class LinearModel:
         step = -1
         for step in range(max_steps):
             if self.has_insignificant_term(rsquared_max):
-                self.exclude.add(self.least_term())
+                self.eliminate(self.least_term())
                 self.fit(**kwds)
                 yield self.gof_metrics(step)
             else:
@@ -840,3 +908,81 @@ class LinearModel:
         data = data.to_frame().reset_index()
         data['Prediction'] = self.model.predict()
         return data
+    
+    def _dfs_repr_(self) -> List[DataFrame]:
+        """Returns a list of DataFrames containing the goodness-of-fit 
+        metrics, ANOVA table, and parameter statistics for the fitted 
+        model.
+        
+        Returns
+        -------
+        dfs : List[pandas.DataFrame]
+            A list containing the following DataFrames:
+            - Goodness-of-fit metrics
+            - ANOVA table
+            - Parameter statistics
+        """
+        if self.model is None:
+            self.fit()
+        vif = self.model.model.data.exog.shape[1] > 1
+        dfs = [
+            self.gof_metrics().drop('formula', axis=1),
+            self.parameter_statistics(),
+            self.anova(typ='', vif=vif)]
+        return dfs
+
+    def _repr_html_(self) -> str:
+        """Generates an HTML representation of the model's 
+        goodness-of-fit metrics, ANOVA table, and parameter statistics.
+        
+        Returns
+        -------
+        str:
+            An HTML-formatted string containing the model's diagnostic 
+            information.
+        """
+        html = f'<b>{STR["formula"]}:</b></br>{self}</br></br>'
+        html += frames_to_html(self._dfs_repr_(), STR['lm_repr_captions'])
+        return html
+
+    def __html__(self) -> str:
+        """This method exists to inform other HTML-using modules (e.g. 
+        Markupsafe, htmltag, etc) that this object is HTML and does not 
+        need things like special characters (<>&) escaped."""
+        return self._repr_html_()
+    
+    def __repr__(self) -> str:
+        """Generates an string representation of the model's 
+        goodness-of-fit metrics, ANOVA table, and parameter statistics.
+        
+        Returns
+        -------
+        str:
+            An HTML-formatted string containing the model's diagnostic 
+            information.
+        """
+        spacing = 2*'\n'
+        _repr = f'{STR["formula"]}:\n{str(self)}'
+        for df, caption in zip(self._dfs_repr_(), STR['lm_repr_captions']):
+            _repr += spacing + caption + ':\n' + str(df)
+        return _repr
+    
+    def __str__(self) -> str:
+        """Generates a string representation of the linear regression 
+        model's formula.
+        
+        The formula is constructed by iterating over the parameter 
+        statistics and adding each parameter name and coefficient to the
+        formula string. The target variable is included at the start of 
+        the formula."""
+        formula = f'{self.target} ~'
+        param_stats = self.parameter_statistics()
+        for name in param_stats.index:
+            coef = float(param_stats.loc[name, 'coef']) # type: ignore
+            if name == param_stats.index[0]:
+                sign = '-' if coef < 0 else ''
+            else:
+                sign = '- ' if coef < 0 else '+ '
+            _name = '' if name == ANOVA.INTERCEPT else f'*{name}'
+            formula += f' {sign}{abs(coef):.4f}{_name}'
+        return formula

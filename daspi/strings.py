@@ -49,6 +49,10 @@ class _String_:
         'en': 'CI',
         'de': 'KI'}
     
+    formula: Dict[str, str] = {
+        'en': 'formula',
+        'de': 'Formel'}
+    
     residcharts_fig_title: Dict[str, str] = {
         'en': 'Residues Analysis',
         'de': 'Residuen Analyse'}
@@ -80,6 +84,16 @@ class _String_:
             'Geschätzte Kerndichte',
             'Vorhersage',
             'Beobachtungsreihenfolge')}
+    
+    lm_repr_captions: Dict[str, Tuple[str, ...]] = {
+        'en': (
+            'Model summary',
+            'Parameter statistics',
+            'Analysis of variance'),
+        'de': (
+            'Modellzusammenfassung',
+            'Parameterstatistik',
+            'Varianzanalyse')}
 
     _language_: Literal['en', 'de'] = 'en'
     _username_: str = environ['USERNAME']

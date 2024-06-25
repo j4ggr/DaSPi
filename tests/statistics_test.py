@@ -33,7 +33,7 @@ class TestChunker:
 
     samples = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 
-    def test_chunker_with_valid_input(self) -> None:
+    def test_with_valid_input(self) -> None:
         sections = 3
         result = list(chunker(self.samples, sections))
         assert len(result) == sections
@@ -41,13 +41,13 @@ class TestChunker:
         assert np.array_equal(result[1], np.array([5, 6, 7]))
         assert np.array_equal(result[2], np.array([8, 9, 10]))
 
-    def test_chunker_with_single_section(self) -> None:
+    def test_with_single_section(self) -> None:
         sections = 1
         result = list(chunker(self.samples, sections))
         assert len(result) == sections
         assert np.array_equal(result[0], self.samples)
 
-    def test_chunker_with_single_sample(self) -> None:
+    def test_with_single_sample(self) -> None:
         sections = 2
         samples = ['foo']
         result = list(chunker(samples, sections))
@@ -55,17 +55,17 @@ class TestChunker:
         assert np.array_equal(result[0], samples)
         assert result[1].size == 0
 
-    def test_chunker_with_zero_sections(self) -> None:
+    def test_with_zero_sections(self) -> None:
         sections = 0
         with pytest.raises(AssertionError):
             list(chunker(self.samples, sections))
 
-    def test_chunker_with_negative_sections(self) -> None:
+    def test_with_negative_sections(self) -> None:
         sections = -2
         with pytest.raises(AssertionError):
             list(chunker(self.samples, sections))
 
-    def test_chunker_with_non_integer_sections(self) -> None:
+    def test_with_non_integer_sections(self) -> None:
         sections = 2.5
         with pytest.raises(AssertionError):
             list(chunker(self.samples, sections))
