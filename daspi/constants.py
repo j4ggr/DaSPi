@@ -398,6 +398,12 @@ class _Default_:
     FEATURE_BASE: Literal[0] = 0
     """Default feature base position for e.g. Jitter or KDE."""
 
+    @property
+    def MARKER(self) -> str:
+        """Default marker for scatter plots."""
+        marker = plt.rcParams['lines.marker']
+        return marker if marker != 'None' else CATEGORY.MARKERS[0]
+    
 DEFAULT = _Default_()
 
 

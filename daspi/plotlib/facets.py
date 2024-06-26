@@ -516,8 +516,8 @@ class StripesFacets:
         self.spec_limits = tuple(l if pd.notna(l) else None for l in spec_limits) # type: ignore
         self._confidence = confidence
         self.mask = (
-            mean, median, *[control_limits]*2,
-            *list(map(lambda x: x is not None, self.spec_limits)))
+            mean, median, control_limits, control_limits,
+            self.spec_limits[0] is not None, self.spec_limits[1] is not None)
         self.estimation = ProcessEstimator(
             samples=target, lsl=spec_limits[0], usl=spec_limits[1], **kwds)
     
@@ -558,8 +558,8 @@ class StripesFacets:
         """Get the values for all lines that are plotted (read-only)."""
         attrs = ('mean', 'median', 'lcl', 'ucl')
         values = self._filter(
-            [getattr(self.estimation, a) for a in attrs]
-            + [lim for lim in self.spec_limits if lim is not None])
+            [getattr(self.estimation, a) for a in attrs] 
+            + list(self.spec_limits))
         return values
     
     @property

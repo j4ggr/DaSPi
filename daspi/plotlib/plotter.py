@@ -761,9 +761,9 @@ class ParallelCoordinate(Plotter):
         Column name of the target variable for the plot.
     feature : str
         Column name of the categorical feature variable (coordinates).
-    identities : str
-        Column name of identities of each sample, must occur once for 
-        each coordinate.
+    identity : str
+        Column name containing identities of each sample, must occur 
+        once for each coordinate.
     show_points : bool, optional
         Flag indicating whether to show the individual points, 
         by default True.
@@ -782,9 +782,10 @@ class ParallelCoordinate(Plotter):
         used within chart objects).
     """
 
-    __slots__ = ('identities', 'show_points')
-    identities: str
-    """Column name of identities of each sample.""" 
+    __slots__ = ('identity', 'show_points')
+
+    identity: str
+    """Column name containing identities of each sample.""" 
     show_points: bool
     """Whether to show the individual points or not."""
 
@@ -793,13 +794,13 @@ class ParallelCoordinate(Plotter):
             source: DataFrame,
             target: str,
             feature: str,
-            identities: str,
+            identity: str,
             show_points: bool = True,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
-        self.identities = identities
+        self.identity = identity
         self.show_points = show_points
         super().__init__(
             source=source, target=target, feature=feature,
@@ -819,11 +820,11 @@ class ParallelCoordinate(Plotter):
         **kwds:
             Additional keyword arguments to be passed to the fit line
             plot (Axes `plot` method)."""
-        marker = kwds.pop('marker', plt.rcParams['lines.marker'])
+        marker = kwds.pop('marker', DEFAULT.MARKER)
         if not self.show_points:
             marker = None
         _kwds = self.default_kwds | dict(marker=marker) | kwds
-        for identity, group in self.source.groupby(self.identities):
+        for i, group in self.source.groupby(self.identity):
             self.ax.plot(group[self.x_column], group[self.y_column], **_kwds)
 
 
@@ -859,10 +860,17 @@ class BlandAltman(Plotter):
         Pandas long format DataFrame containing the data source for the
         plot. 
     target : str
-        Column name of the target variable (the second measurement).
+        Column name of the target variable.
     feature : str
-        Column name of the feature variable (the first or reference
-        measurement).
+        Column name indicating which is the first (reference 
+        measurement) and which is the second measurement (the 
+        measurement to be compared).
+    identity : str
+        Column name containing identities of each sample, must occur 
+        once for each measurement.
+    reverse : bool, optional
+        Flag indicating if the order of the measurements should be 
+        reversed, by default False
     agreement : float, optional
         Multiple of the standard deviation to plot agreement limits
         (in both direction). The defaults is 3.92 (± 1.96), which 
@@ -909,7 +917,10 @@ class BlandAltman(Plotter):
            assessing agreement between two methods of clinical
            measurement. The lancet, 327(8476), 307-310.
     """
-    __slots__ = ('confidence', 'estimation')
+    __slots__ = ('identity', 'confidence', 'estimation')
+
+    identity: str
+    """Column name containing identities of each sample.""" 
     confidence: float
     """Confidence level of the confidence interval for mean and
     agreements."""
@@ -921,6 +932,8 @@ class BlandAltman(Plotter):
             source: DataFrame,
             target: str,
             feature: str,
+            identity: str,
+            reverse: bool = False,
             agreement: float = 3.92,
             confidence: float = 0.95, 
             feature_axis: Literal['mean', 'data'] = 'mean',
@@ -928,17 +941,30 @@ class BlandAltman(Plotter):
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
+        self.identity = identity
+        
+        first, second = sorted(list(source[feature].unique()), reverse=reverse)
+        target1 = f'{target}-{first}'
+        target2 = f'{target}-{second}'
+        _target = f'{target2} - {target1}'
         df = pd.DataFrame()
-        _target = f'{target} - {feature}'
-        df[_target] = source[target] - source[feature]
+        for name in (first, second):
+            data = (source[source[feature] == name]
+                [[self.identity, target]]
+                .set_index(self.identity)
+                .rename(columns={target: f'{target}-{name}'})
+                .copy())
+            assert len(data) == data.index.nunique(), (
+                f'Duplicated measurements for {name}')
+            df = pd.concat([df, data], axis=1)
+        df = df.dropna(how='any', axis=0)
+        df[_target] = df[target2] - df[target1]
+        
         if feature_axis == 'mean':
             _feature = feature_axis
-            df[_feature] = (np
-                .vstack((source[target].values, source[feature].values)) # type: ignore
-                .mean(axis=0))
+            df[_feature] = df[[target1, target2]].mean(axis=1)
         else:
-            _feature = feature
-            df[_feature] = source[feature]
+            _feature = target1
         super().__init__(
             source=df, target=_target, feature=_feature,
             target_on_y=target_on_y, color=color, ax=ax)
@@ -2428,6 +2454,7 @@ class ConfidenceInterval(Errorbar):
             **kwds) -> None:
         self.confidence_level = confidence_level
         self.ci_func = ci_func
+        # FIXME: This is a workaround for the fact that the number of groups is not known at this point and should be passed as argument. A good way to do this is to pass the following df.groupby(list_of_variates).ngroups
         self.n_groups = pd.Series(source[feature]).nunique() if feature else 1
         
         super().__init__(
@@ -2778,6 +2805,7 @@ __all__ = [
     'Line',
     'LinearRegression',
     'Probability',
+    'ParallelCoordinate',
     'BlandAltman',
     'TransformPlotter',
     'CenterLocation',

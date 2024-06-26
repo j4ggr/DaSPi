@@ -32,6 +32,7 @@ from .plotter import LinearRegression
 from .plotter import TransformPlotter
 from .plotter import StandardErrorMean
 from .plotter import ConfidenceInterval
+from .plotter import ParallelCoordinate
 
 from .facets import AxesFacets
 from .facets import LabelFacets

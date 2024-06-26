@@ -74,6 +74,7 @@ from .plotlib.plotter import LinearRegression
 from .plotlib.plotter import TransformPlotter
 from .plotlib.plotter import StandardErrorMean
 from .plotlib.plotter import ConfidenceInterval
+from .plotlib.plotter import ParallelCoordinate
 
 from .plotlib.facets import AxesFacets
 from .plotlib.facets import LabelFacets

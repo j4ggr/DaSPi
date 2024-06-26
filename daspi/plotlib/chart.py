@@ -498,8 +498,11 @@ class SingleChart(Chart):
         match label:
             case None | False: 
                 return ''
-            case True: 
-                return self.target if is_target else self.feature
+            case True:
+                for plotter in self.plots:
+                    if type(plotter).__name__ == 'BlandAltman':
+                        return plotter.target if is_target else plotter.feature
+                return self.target if is_target else self. feature
             case _:
                 return str(label)
     
@@ -1060,7 +1063,8 @@ class JointChart(Chart):
         return xlabel, ylabel
 
     def plot(
-            self, plotter: Type[Plotter], kw_call: Dict[str, Any] = {}, **kwds
+            self, plotter: Type[Plotter], kw_call: Dict[str, Any] = {},
+            on_last_axes: bool = False, **kwds
             ) -> Self:
         """Plot the data using the specified plotter.
         
@@ -1070,6 +1074,9 @@ class JointChart(Chart):
             The plotter object.
         kw_call : Dict[str, Any]
             Additional keyword arguments for the plotter call method.
+        on_last_axes : bool, optional
+            If True, plot on the last axes in the grid. If False, plot 
+            on the next axes in the grid, by default False.
         **kwds:
             Additional keyword arguments for the plotter object.
 
@@ -1086,7 +1093,10 @@ class JointChart(Chart):
         arrangement of the subplots. Feel free to use this method to 
         create customized visualizations for each subplot.
         """
-        chart = self._next_chart_()
+        if on_last_axes and self._last_chart is not None:
+            chart = self._last_chart
+        else:
+            chart = self._next_chart_()
         chart.plot(plotter, kw_call, **kwds)
         return self
 
