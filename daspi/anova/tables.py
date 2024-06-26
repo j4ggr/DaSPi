@@ -1,26 +1,20 @@
 import warnings
-import itertools
 
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
 from typing import Any
-from typing import List
 from typing import Dict
-from typing import Tuple
 from typing import Literal
-from typing import Callable
 from typing import Iterable
 from numpy.typing import NDArray
-from scipy.optimize import Bounds
-from scipy.optimize import minimize
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
-from scipy.optimize._optimize import OptimizeResult
 from statsmodels.regression.linear_model import RegressionResultsWrapper
 
-from ..constants import RE
+from .convert import get_term_name
+
 from ..constants import ANOVA
 
 
@@ -55,73 +49,33 @@ def uniques(seq: Iterable) -> list[Any]:
     seen_add = seen.add
     return [x for x in seq if not (x in seen or seen_add(x))]
 
-def get_term_name(feature_name: str) -> str:
-    """Get the original term name of a patsy encoded categorical
-    feature, including interactions.
+def terms_effect(model: RegressionResultsWrapper) -> Series:
+    """Calculates the impact of each term on the target. The
+    effects are described as absolute number of the parameter 
+    coefficients.
 
     Parameters
     ----------
-    feature_name : str
-        The encoded feature name.
-
-    Returns
-    -------
-    str
-        The original term name of the categorical feature.
-
-    Notes
-    -----
-    Patsy encodes categorical features by appending '[T.<value>]' to the
-    original term name. Interactions between features are represented by
-    separating the feature names with ':'. This function extracts the
-    original term name from the encoded feature name, taking into
-    account interactions.
-
-    Examples
-    --------
-    >>> encoded_name = 'Category[T.Value]:OtherCategory[T.OtherValue]'
-    >>> term_name = get_term_name(encoded_name)
-    >>> print(term_name)
-    'Category:OtherCategory'
-    """
-    names = feature_name.split(ANOVA.SEP)
-    matches = list(map(RE.ENCODED_NAME.findall, names))
-    return ANOVA.SEP.join([(m[0] if m else n) for m, n in zip(matches, names)])
-
-def hierarchical(features: List[str]) -> List[str]:
-    """Get all features such that all lower interactions and main 
-    effects are present with the same features that appear in the higher 
-    interactions
-
-    Parameters
-    ----------
-    features : list of str
-        Columns of exogene variables
+    model : RegressionResultsWrapper
+        Statsmodels regression results of fitted model.
     
     Returns
     -------
-    h_features : list of str
-        Sorted features for hierarchical model"""
-
-    h_features = set(features)
-    for feature in features:
-        split = feature.split(ANOVA.SEP)
-        n_splits = len(split)
-        for s in split:
-            h_features.add(s)
-        if n_splits <= ANOVA.SMALLEST_INTERACTION:
-            continue
-
-        for i in range(ANOVA.SMALLEST_INTERACTION, n_splits):
-            for combo in map(ANOVA.SEP.join, itertools.combinations(split, i)):
-                h_features.add(combo)
-
-    return sorted(sorted(list(h_features)), key=lambda x: x.count(ANOVA.SEP))
-
-def is_main_feature(feature: str) -> bool:
-    """Check if given feature is a main parameter (intercept is 
-    excluded)."""
-    return feature != ANOVA.INTERCEPT and ANOVA.SEP not in feature
+    Series
+        A pandas Series containing the effects of each feature
+        on the target variable.
+    """
+    params: Series = model.params
+    names_map = {n: get_term_name(n) for n in params.index}
+    effects = (params
+        .abs()
+        .rename(index=names_map)
+        .groupby(level=0, axis=0)
+        .sum()
+        [uniques(names_map.values())])
+    effects.name = ANOVA.EFFECTS
+    effects.index.name = ANOVA.FEATURES
+    return effects
 
 def variance_inflation_factor(model: RegressionResultsWrapper) -> Series:
     """Calculate the variance inflation factor (VIF) for each predictor
@@ -231,97 +185,40 @@ def anova_table(
         anova.columns.name = f'Typ-{typ}'
         return anova[ANOVA.TABLE_COLNAMES]
 
-def frames_to_html(
-        dfs: DataFrame | List[DataFrame] | Tuple[DataFrame, ...],
-        captions: str | List[str] | Tuple[str, ...]) -> str:
-    """Converts one or more DataFrames to HTML tables with captions.
+def terms_probability(model: RegressionResultsWrapper) -> 'Series[float]':
+    """Compute the p-values for the terms in a regression model using a
+    ANOVA typ-III table.
 
     Parameters
     ----------
-    dfs : DataFrame or list/tuple of DataFrames
-        The DataFrame(s) to be converted to HTML.
-    captions : str or list/tuple of str
-        The captions to be used for the HTML tables. The number of 
-        captions must match the number of DataFrames.
+    model : RegressionResultsWrapper
+        The regression model to compute the p-values for.
 
     Returns
     -------
-    str
-        The HTML representation of the DataFrames with captions.
-    """
-    if isinstance(captions, str):
-        captions = (captions,)
-    if isinstance(dfs, DataFrame):
-        dfs = (dfs,)
-    assert len(dfs) == len(captions), (
-        "The number of DataFrames and captions must be equal.")
-    spacing = 2*'</br>'
-    html = ''
-    for (df, caption) in zip(dfs, captions):
-        if html:
-            html += spacing
-        html += (df
-            .style
-            .set_table_attributes("style='display:inline'")
-            .set_caption(caption)
-            .to_html())
-    return html
-
-
-# TODO: implement optimizer in model
-# def optimize(
-#         fun: Callable, x0: List[float], negate: bool, columns: List[str], 
-#         mapper: dict, bounds: Bounds|None = None, **kwds
-#         ) -> Tuple[List[float], float, OptimizeResult]:
-#     """Base function for optimize output with scipy.optimize.minimize 
-#     function
-
-#     Parameters
-#     ----------
-#     fun : callable
-#         The objective function to be minimized.
-#     x0 : ndarray, shape (n,)
-#         Initial guess. Array of real elements of size (n,), where n is 
-#         the number of independent
-#     negate : bool
-#         If the function was created for maximization, the prediction is 
-#         negated here again
-#     mapper : dict or None
-#         - key: str = feature name of main level
-#         - value: dict = key: originals, value: codes
-#     bounds : scipy optimizer Bounds
-#         Bounds on variables
-#     **kwds
-#         Additional keyword arguments for `scipy.optimize.minimize`
-#         function.
+    Series[float]
+        A Series containing the p-values for each term in the model. If 
+        the ANOVA table could not be calculated, the p-values will be
+        set to NaN.
     
-#     Returns
-#     -------
-#     xs : ndarray
-#         Optimized values for independents
-#     y : float
-#         predicted output
-#     res : OptimizeResult
-#         The optimization result represented as a ``OptimizeResult`` object.
-#         Important attributes are: ``x`` the solution array, ``success`` a
-#         Boolean flag indicating if the optimizer exited successfully and
-#         ``message`` which describes the cause of the termination. See
-#         `OptimizeResult` for a description of other attributes.
-#     """
-#     if not bounds:
-#         bounds = Bounds(-np.ones(len(x0)), np.ones(len(x0))) # type: ignore
-#     res: OptimizeResult = minimize(fun, x0, bounds=bounds, **kwds)
-#     xs = [decode(x, mapper, c) for x, c in zip(res.x, columns)]
-#     y = -res.fun if negate else res.fun
-#     return xs, y, res
+    Notes
+    -----
+    ANOVA typ III table is used, because it is the only one who gives us
+    a p-value for the intercept.
+    """
+    anova = anova_table(model, typ='III')
+    if anova.empty:
+        names = model.model.data.design_info.term_names
+        p_values = pd.Series({n: np.nan for n in names})
+    else:
+        p_values = anova['p'].iloc[:-1]
+    return p_values
 
 
 __all__ = [
     'uniques',
-    'get_term_name',
-    'hierarchical',
-    'is_main_feature',
+    'terms_effect',
     'variance_inflation_factor',
     'anova_table',
-    'frames_to_html',
+    'terms_probability',
 ]

@@ -1,10 +1,12 @@
-from .utils import uniques
-# from .utils import optimize
-from .utils import anova_table
-from .utils import hierarchical
-from .utils import get_term_name
-from .utils import frames_to_html
-from .utils import is_main_feature
-from .utils import variance_inflation_factor
+from .convert import get_term_name
+from .convert import frames_to_html
+
+from .tables import uniques
+from .tables import anova_table
+from .tables import terms_effect
+from .tables import terms_probability
+from .tables import variance_inflation_factor
 
 from .model import LinearModel
+from .model import hierarchical
+from .model import is_main_feature

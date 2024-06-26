@@ -1,4 +1,4 @@
-"""The `LinearModel` class in `daspi\anova\model.py` is designed to 
+"""The `LinearModel` class in `daspi/anova/model.py` is designed to 
 create and simplify linear models, where only significant features are 
 used to describe the model. It is particularly useful for analyzing 
 balanced models (DOEs or EVOPs) that include both categorical and 
@@ -60,6 +60,7 @@ simplifying linear models, particularly in the context of designed
 experiments or engineering applications where categorical and continuous 
 variables are involved.
 """
+import itertools
 
 import numpy as np
 import pandas as pd
@@ -86,17 +87,54 @@ from statsmodels.iolib.summary import summary_params_frame
 from statsmodels.iolib.tableformatting import fmt_base
 from statsmodels.regression.linear_model import RegressionResultsWrapper
 
-from .utils import uniques
-from .utils import anova_table
-from .utils import hierarchical
-from .utils import get_term_name
-from .utils import frames_to_html
-from .utils import is_main_feature
-from .utils import variance_inflation_factor
+from .convert import get_term_name
+from .convert import frames_to_html
+
+from .tables import anova_table
+from .tables import terms_effect
+from .tables import terms_probability
+from .tables import variance_inflation_factor
 
 from ..constants import ANOVA
 
 from ..strings import STR
+
+
+def is_main_feature(feature: str) -> bool:
+    """Check if given feature is a main parameter (intercept is 
+    excluded)."""
+    return feature != ANOVA.INTERCEPT and ANOVA.SEP not in feature
+
+
+def hierarchical(features: List[str]) -> List[str]:
+    """Get all features such that all lower interactions and main 
+    effects are present with the same features that appear in the higher 
+    interactions
+
+    Parameters
+    ----------
+    features : list of str
+        Columns of exogene variables
+    
+    Returns
+    -------
+    h_features : list of str
+        Sorted features for hierarchical model"""
+
+    h_features = set(features)
+    for feature in features:
+        split = feature.split(ANOVA.SEP)
+        n_splits = len(split)
+        for s in split:
+            h_features.add(s)
+        if n_splits <= ANOVA.SMALLEST_INTERACTION:
+            continue
+
+        for i in range(ANOVA.SMALLEST_INTERACTION, n_splits):
+            for combo in map(ANOVA.SEP.join, itertools.combinations(split, i)):
+                h_features.add(combo)
+
+    return sorted(sorted(list(h_features)), key=lambda x: x.count(ANOVA.SEP))
 
 
 class LinearModel:
@@ -365,16 +403,7 @@ class LinearModel:
         effects are described as absolute number of the parameter 
         coefficients."""
         if self._effects.empty:
-            params: Series = self.model.params
-            names_map = {n: get_term_name(n) for n in params.index}
-            self._effects = (params
-                .abs()
-                .rename(index=names_map)
-                .groupby(level=0, axis=0)
-                .sum()
-                [uniques(names_map.values())])
-            self._effects.name = ANOVA.EFFECTS
-            self._effects.index.name = ANOVA.FEATURES
+            self._effects = terms_effect(self.model)
         effects = self._effects.copy().rename(index=self._term_map_)
         return effects
     
@@ -382,12 +411,7 @@ class LinearModel:
         """Get P-value for significance of adding model terms using 
         anova typ III table for current model."""
         if self._p_values.empty:
-            anova = self.anova(typ='III')
-            if anova.empty:
-                self._p_values = pd.Series(
-                    {t: np.nan for t in self.design_info.term_names})
-            else:
-                self._p_values = self._anova['p'].iloc[:-1]
+            self._p_values = terms_probability(self.model)
         return self._p_values.copy().rename(index=self._term_map_)
 
     def least_term(self) -> str:

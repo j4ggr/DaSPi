@@ -88,15 +88,18 @@ from .plotlib.chart import MultipleVariateChart
 from .plotlib.templates import ResiduesCharts
 
 
-from .anova.utils import uniques
-from .anova.utils import anova_table
-from .anova.utils import hierarchical
-from .anova.utils import get_term_name
-from .anova.utils import frames_to_html
-from .anova.utils import is_main_feature
-from .anova.utils import variance_inflation_factor
+from .anova.convert import get_term_name
+from .anova.convert import frames_to_html
 
+from .anova.tables import uniques
+from .anova.tables import anova_table
+from .anova.tables import terms_effect
+from .anova.tables import terms_probability
+from .anova.tables import variance_inflation_factor
+
+from .anova.model import hierarchical
 from .anova.model import LinearModel
+from .anova.model import is_main_feature
 
 
 from .datasets import load_dataset

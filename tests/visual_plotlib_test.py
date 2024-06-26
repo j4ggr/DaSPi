@@ -821,9 +821,13 @@ class TestSingleChart:
         self.kind = 'simple'
         chart = SingleChart(
                 source = load_dataset('shoe-sole'),
-                target = 'new',
-                feature = 'old',
-            ).plot(BlandAltman, feature_axis='mean')
+                target = 'wear',
+                feature = 'status',
+            ).plot(
+                BlandAltman,
+                identity='tester',
+                feature_axis='mean',
+                reverse=True)
         target_label = f'Difference {chart.plots[0].target}'
         sub_title = 'Shoe sole materials dataset'
         feature_label = 'Mean both measurements'
