@@ -1,6 +1,3 @@
-from .utils import chunker
-from .utils import convert_to_continuous
-
 from .confidence import sem
 from .confidence import fit_ci
 from .confidence import mean_ci
@@ -18,12 +15,14 @@ from .confidence import confidence_to_alpha
 from .confidence import delta_proportions_ci
 
 from .hypothesis import f_test
+from .hypothesis import chunker
 from .hypothesis import skew_test
 from .hypothesis import all_normal
 from .hypothesis import levene_test
 from .hypothesis import position_test
 from .hypothesis import variance_test
 from .hypothesis import kurtosis_test
+from .hypothesis import ensure_generic
 from .hypothesis import proportions_test
 from .hypothesis import mean_stability_test
 from .hypothesis import anderson_darling_test

@@ -148,7 +148,7 @@ from ..statistics import Estimator
 from ..statistics import variance_ci
 from ..statistics import prediction_ci
 from ..statistics import proportion_ci
-from ..statistics import convert_to_continuous
+from ..statistics import ensure_generic
 from ..statistics import estimate_kernel_density
 
 
@@ -660,7 +660,7 @@ class Probability(LinearRegression):
             f'kind must be one of {"qq", "pp", "sq", "sp"}, got {kind}')
 
         self.kind = kind
-        self.dist = convert_to_continuous(dist)
+        self.dist = ensure_generic(dist)
         self.prob_fit = ProbPlot(source[target], self.dist, fit=True) # type: ignore
         
         feature_kind = 'quantiles' if self.kind[1] == "q" else 'percentiles'

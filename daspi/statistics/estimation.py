@@ -25,7 +25,6 @@ from .._typing import NumericSample1D
 from ..constants import DIST
 from ..constants import PLOTTER
 
-from .utils import convert_to_continuous
 
 from .confidence import mean_ci
 from .confidence import stdev_ci
@@ -33,6 +32,7 @@ from .confidence import median_ci
 
 from .hypothesis import skew_test
 from .hypothesis import kurtosis_test
+from .hypothesis import ensure_generic
 from .hypothesis import mean_stability_test
 from .hypothesis import anderson_darling_test
 from .hypothesis import variance_stability_test
@@ -927,7 +927,7 @@ def estimate_distribution(
     dists = (dists, ) if isinstance(dists, (str, rv_continuous)) else dists
     results = {d: kolmogorov_smirnov_test(data, d) for d in dists}
     dist, (p, _, params) = max(results.items(), key=lambda i: i[1][0])
-    dist = convert_to_continuous(dist)
+    dist = ensure_generic(dist)
     return dist, p, params
 
 def estimate_kernel_density(

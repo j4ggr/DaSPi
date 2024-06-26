@@ -1,10 +1,12 @@
 import numpy as np
 
 from math import exp
-
+from typing import Any
 from typing import Tuple
-from scipy.stats._distn_infrastructure import rv_continuous
+from typing import Generator
+from numpy.typing import NDArray
 
+from scipy import stats
 from scipy.stats import f
 from scipy.stats import levene
 from scipy.stats import ks_1samp
@@ -15,14 +17,11 @@ from scipy.stats import ttest_ind
 from scipy.stats import kurtosistest
 from scipy.stats import fisher_exact
 from scipy.stats import mannwhitneyu
+from scipy.stats._distn_infrastructure import rv_continuous
 
 from statsmodels.stats.proportion import test_proportions_2indep
 
 from .._typing import NumericSample1D
-
-from .utils import chunker
-from .utils import convert_to_continuous
-
 
 # TDOD: further tests:
 # from scipy.stats import chi2
@@ -33,6 +32,61 @@ from .utils import convert_to_continuous
 # from statsmodels.stats.proportion import proportion_confint
 # from statsmodels.stats.proportion import confint_proportions_2indep
 
+def chunker(
+        samples: NumericSample1D, n_sections: int
+        ) -> Generator[NDArray, Any, None]:
+    """Divides the data into a specified number of sections.
+    
+    Parameters
+    ----------
+    sample : Sequence[Any]
+        A one-dimensional array-like object containing the samples.
+    n_sections : int
+        Amount of sections to divide the data into.
+        
+    Yields
+    ------
+    NDArray
+        A section of the data.
+    
+    Notes
+    -----
+    If equal-sized sections cannot be created, the first sections are 
+    one larger than the rest.
+
+    If more sections are to be created than the number of samples, 
+    empty arrays are created.
+    """
+    assert n_sections > 0 and isinstance(n_sections, int)
+    size, extras = divmod(len(samples), n_sections)
+    sizes = extras*[size + 1] + (n_sections - extras)*[size]
+    slicing_positions = np.array([0] + sizes).cumsum()
+
+    _samples = np.asarray(samples)
+    for i in range(n_sections):
+        yield _samples[slicing_positions[i]:slicing_positions[i+1]]
+
+def ensure_generic(dist: str | rv_continuous) -> rv_continuous:
+    """If the input is a string representing a distribution, convert it
+    to a rv_continuous object.
+    
+    Parameters
+    ----------
+    dist : str or rv_continuous
+        The distribution to convert. Can be either a string representing
+        a distribution or a rv_continuous object.
+    
+    Returns
+    -------
+    rv_continuous
+        The converted rv_continuous object if the input is a
+        string representing a distribution, otherwise returns the input
+        distribution directly.
+    """
+    if isinstance(dist, str):
+        return getattr(stats, dist)
+    else:
+        return dist
 
 def anderson_darling_test(
         sample: NumericSample1D) -> Tuple[float, float]:
@@ -131,7 +185,7 @@ def kolmogorov_smirnov_test(
         statistics will be returned, but there are exceptions 
         (e.g. ``norm``).
     """
-    dist = convert_to_continuous(dist)
+    dist = ensure_generic(dist)
     params = dist.fit(sample)
     D, p = ks_1samp(sample, cdf=dist.cdf, args=params, alternative='two-sided')
     return p, D, params
@@ -448,6 +502,8 @@ def skew_test(sample: NumericSample1D) -> Tuple[float, float]:
 
 
 __all__ = [
+    'chunker',
+    'ensure_generic',
     'anderson_darling_test',
     'all_normal',
     'kolmogorov_smirnov_test',
