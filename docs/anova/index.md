@@ -1,14 +1,14 @@
-::: daspi.anova.utils
+::: daspi.anova.convert
     options:
         members:
-            - is_encoded_categorical
-            - clean_categorical_names
-            - remove_special_characters
-            - prepare_encoding_data
             - get_term_name
-            - decode_cat_main
-            - encoded_dmatrices
-            - hierarchical
-            - is_main_feature
-            - decode
-            - optimize
+            - frames_to_html
+
+::: daspi.anova.tables
+    options:
+        members:
+            - uniques
+            - terms_effect
+            - variance_inflation_factor
+            - anova_table
+            - terms_probability
