@@ -7,7 +7,9 @@ import pytest
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+import statsmodels.formula.api as smf
 
+from pytest import approx
 from pathlib import Path
 from pandas.testing import assert_frame_equal
 from pandas.testing import assert_series_equal
@@ -18,15 +20,15 @@ sys.path.append(str(Path(__file__).parent.resolve()))
 
 import daspi
 
-from daspi.anova import uniques
-from daspi.anova import hierarchical
-from daspi.anova import get_term_name
-from daspi.anova import frames_to_html
-from daspi.anova import is_main_feature
+from daspi import ANOVA
+from daspi import uniques
+from daspi import LinearModel
+from daspi import hierarchical
+from daspi import get_term_name
+from daspi import frames_to_html
+from daspi import is_main_feature
+from daspi import variance_inflation_factor
 
-from daspi.anova import variance_inflation_factor
-
-from daspi.anova import LinearModel
 
 valid_data_dir = Path(__file__).parent/'data'
 
@@ -384,7 +386,7 @@ class TestLinearModel:
             'B': [0, -1, 0, -1, 1, 1],
             'Center': [1, 0, 1, 0, 0, 0]})
         lm = daspi.LinearModel(data, 'Ergebnis', ['A', 'B'], ['Center'], order=2).fit()
-        pytest.approx(lm.r2_pred(), 0.350426519634100657)
+        assert lm.r2_pred(), approx(0.350426519634100657)
     
     def test_str(self) -> None:
         df = daspi.load_dataset('anova3')
@@ -469,46 +471,50 @@ class TestVarianceInflationFactor:
 
     X = pd.DataFrame([[0, 0], [0, 1], [1, 0], [1, 1]], columns=['x1', 'x2'])
     y = pd.Series([1, 2, 3, 4])
+    n_cols = len(ANOVA.VIF_COLNAMES)
 
     def test_two_predictors(self) -> None:
-        
         model = sm.OLS(self.y, self.X).fit()
         vif_table = variance_inflation_factor(model)
-        assert vif_table.shape == (2, 5)
-        assert vif_table.loc['x1', 'Method'] == 'usual'
-        assert vif_table.loc['x2', 'Method'] == 'usual'
-        pytest.approx(vif_table.loc['x1', 'VIF'], 1.333333333333333)
-        pytest.approx(vif_table.loc['x2', 'VIF'], 1.333333333333333)
+        assert vif_table.shape == (2, self.n_cols)
+        assert vif_table.loc['x1', 'Method'] == 'R_squared'
+        assert vif_table.loc['x2', 'Method'] == 'R_squared'
+        assert vif_table.loc['x1', 'VIF'] == 1.0
+        assert vif_table.loc['x2', 'VIF'] == 1.0
 
     def test_collinear_predictors(self) -> None:
         X = self.X.copy()
         X['x3'] = X['x2']
         model = sm.OLS(self.y, X).fit()
         vif_table = variance_inflation_factor(model)
-        assert vif_table.shape == (3, 5)
+        assert vif_table.shape == (3, self.n_cols)
         assert not vif_table.loc['x1', 'Collinear']
         assert vif_table.loc['x2', 'Collinear']
         assert vif_table.loc['x3', 'Collinear']
-        pytest.approx(vif_table.loc['x1', 'VIF'], 1.333333333333333)
+        assert vif_table.loc['x1', 'VIF'] == 1.0
         assert vif_table.loc['x2', 'VIF'] == float('inf')
         assert vif_table.loc['x3', 'VIF'] == float('inf')
 
     def test_categorical_predictors(self) -> None:
-        data = pd.DataFrame({'y': [1, 2, 3, 4], 'x1': ['a', 'b', 'a', 'b'], 'x2': ['c', 'c', 'd', 'd']})
-        X = pd.get_dummies(data[['x1', 'x2']], drop_first=True)
-        y = data['y']
-        model = sm.OLS(y, X).fit()
+        data = pd.DataFrame({
+            'y': [1, 2, 3, 4, 5, 6],
+            'x1': ['a', 'b', 'c', 'a', 'b', 'c'],
+            'x2': ['I', 'II', 'I', 'II', 'I', 'II']})
+        model = smf.ols('y ~ x1*x2', data).fit()
         vif_table = variance_inflation_factor(model)
-        assert vif_table.shape == (3, 5)
-        assert vif_table.loc['x1[T.b]', 'Method'] == 'generalized'
-        assert vif_table.loc['x2[T.d]', 'Method'] == 'generalized'
-
-    def test_intercept(self) -> None:
-        model = sm.OLS(self.y, sm.add_constant(self.X)).fit()
-        vif_table = variance_inflation_factor(model)
-        assert vif_table.shape == (2, 5)
-        assert vif_table.loc['Intercept', 'VIF'] == 1.0
-        assert vif_table.loc['x1', 'VIF'] == 1.0
+        assert vif_table.shape == (4, self.n_cols)
+        assert vif_table.loc[ANOVA.INTERCEPT, 'Method'] == 'R_squared'
+        assert vif_table.loc['x1', 'Method'] == 'generalized'
+        assert vif_table.loc['x2', 'Method'] == 'R_squared'
+        assert vif_table.loc['x1:x2', 'Method'] == 'generalized'
+        assert vif_table.loc[ANOVA.INTERCEPT, 'VIF'] == approx(6.0)
+        assert vif_table.loc['x1', 'VIF'] == approx(4.0)
+        assert vif_table.loc['x2', 'VIF'] == approx(3.0)
+        assert vif_table.loc['x1:x2', 'VIF'] == approx(8.0)
+        assert vif_table.loc[ANOVA.INTERCEPT, 'Collinear']
+        assert not vif_table.loc['x1', 'Collinear']
+        assert not vif_table.loc['x2', 'Collinear']
+        assert vif_table.loc['x1:x2', 'Collinear']
 
     def test_single_predictor(self) -> None:
         # Test case with single predictor variable

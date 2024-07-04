@@ -439,7 +439,7 @@ class _Anova_:
     def VIF_COLNAMES(self) -> List[str]:
         """Column names when crating the vif table using the 
         `variance_inflation_factor` function."""
-        return [self.VIF, 'GVIF', 'Threshold', 'Collinear', 'Method']
+        return ['DF', self.VIF, 'GVIF', 'Threshold', 'Collinear', 'Method']
 
 ANOVA = _Anova_()
 

@@ -42,13 +42,12 @@ def uniques(seq: Iterable) -> list[Any]:
     Examples
     --------
     >>> sequence = [1, 2, 3, 2, 1, 4, 5, 4]
-    >>> unique_elements = preserved_order_uniques(sequence)
+    >>> unique_elements = uniques(sequence)
     >>> print(unique_elements)
     [1, 2, 3, 4, 5]
     """
     seen = set()
-    seen_add = seen.add
-    return [x for x in seq if not (x in seen or seen_add(x))]
+    return [x for x in seq if not (x in seen or seen.add(x))]
 
 def terms_effect(model: RegressionResultsWrapper) -> Series:
     """Calculates the impact of each term on the target. The
@@ -133,43 +132,43 @@ def variance_inflation_factor(
     https://www.rdocumentation.org/packages/car/versions/3.1-2/topics/vif
     https://www.statsmodels.org/dev/generated/statsmodels.stats.outliers_influence.variance_inflation_factor.html
     """
-    param_names = model.model.data.param_names
-    columns = list(map(get_term_name, param_names))
-    data = pd.DataFrame(model.model.data.exog.copy(), columns=columns)
-    assert data.shape[1] > 1, (
+    exog = pd.DataFrame(
+        model.model.data.exog.copy(),
+        columns=list(map(get_term_name, model.model.data.param_names)))
+    assert exog.shape[1] > 1, (
         'To calculate VIFs, at least two predictor variables must be present.')
-
-    vifs: Dict[str, List] = {}
-    for name in columns:
-        if name in vifs:
-            continue
-        XY = data
-        if ANOVA.INTERCEPT in XY and name != ANOVA.INTERCEPT:
-            XY = XY.drop(ANOVA.INTERCEPT, axis=1)
-        X = XY.drop(name, axis=1)
-        Y = XY[name]
-        if Y.ndim == 2 and X.ndim == 2:
-            det_y = np.linalg.det(Y.corr())
-            det_x = np.linalg.det(X.corr())
-            det_xy = np.linalg.det(XY.corr())
-            vif = ((det_y*det_x) / det_xy)
-            dof = Y.shape[0]
-            method = 'generalized'
+    
+    terms = uniques(exog.columns)
+    vifs = pd.DataFrame(index=terms, columns=ANOVA.VIF_COLNAMES)
+    _vifs = []
+    _methods = []
+    det = np.linalg.det
+    for current_x in vifs.index:
+        if ANOVA.INTERCEPT in exog and current_x != ANOVA.INTERCEPT:
+            XY = exog.drop(ANOVA.INTERCEPT, axis=1)
         else:
-            y = Y.to_numpy()[:, 0] if Y.ndim == 2 else Y
-            r2 = sm.OLS(y, X).fit().rsquared
-            vif = 1 / (1 - r2)
-            dof = 1
-            method = 'usual'
-        exp = (1/(2*dof))
-        gvif = vif**exp
-        gvif_treshold = threshold**exp
-        vifs[name] = [vif, gvif, gvif_treshold, gvif >= gvif_treshold, method]
-    vif_table = pd.DataFrame(
-        list(vifs.values()),
-        index=list(vifs.keys()),
-        columns=ANOVA.VIF_COLNAMES)
-    return vif_table
+            XY = exog
+        Y = exog[current_x]
+        X = XY.drop(current_x, axis=1)
+        vif = None
+        method = 'generalized'
+        if Y.ndim == 2 and X.ndim == 2:
+            vif = (det(Y.corr()) * det(X.corr())) / det(XY.corr())
+        if pd.isna(vif):
+            y = Y.iloc[:, 0] if Y.ndim == 2 else Y
+            X = sm.add_constant(X) if current_x != ANOVA.INTERCEPT else X
+            vif = 1 / (1 - sm.OLS(y, X).fit().rsquared)
+            method = 'R_squared'
+        _vifs.append(vif)
+        _methods.append(method)
+
+    vifs['DF'] = [exog[t].shape[0] if exog[t].ndim == 2 else 1 for t in terms]
+    vifs[ANOVA.VIF] = _vifs
+    vifs['GVIF'] = vifs['VIF']**(1/(2*vifs['DF']))
+    vifs['Threshold'] = threshold**(1/(2*vifs['DF']))
+    vifs['Collinear'] = vifs['GVIF'] >= vifs['Threshold']
+    vifs['Method'] = _methods
+    return vifs
 
 def anova_table(
         model: RegressionResultsWrapper,
