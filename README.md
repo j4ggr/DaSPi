@@ -5,6 +5,6 @@ It contains following submodules
 - plotlib: visualizations with Matplotlib
 - anova: analysis of variance (ANOVA)
 - statistics: statistics, hypothesis test and confidence calculations
-- datasets: data for exersices. 
+- datasets: data for exersices.
 
 The goal of this package is to be easy to use and flexible so that it can be adapted to a wide array of data analysis tasks.

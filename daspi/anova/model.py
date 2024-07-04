@@ -212,17 +212,20 @@ class LinearModel:
     _anova: DataFrame
     """The `_anova` attribute is a Pandas DataFrame that stores the 
     ANOVA table for the fitted linear regression model. This attribute 
-    is an implementation detail and is not part of the public API."""
+    is an implementation detail and is not part of the public API.
+    Get a ANOVA-table by calling the `anova()` method."""
     _effects: Series
     """The `_effects` attribute is a Pandas Series that stores the 
     effects (coefficients) of the features in the linear regression 
     model. This attribute is an implementation detail and is not part 
     of the public API."""
-    _vif: 'Series[float]'
-    """The `_vif` attribute is a Pandas Series that stores the Variance 
-    Inflation Factors (VIFs) for the features in the linear regression 
-    model. This attribute is an implementation detail and is not part of 
-    the public API."""
+    _vif: DataFrame
+    """The `_vif` attribute is a Pandas DataFrame that stores the 
+    Variance Inflation Factors (VIFs), the Generalized Variance
+    Inflation Factors (GVIFs) and its threshold for the features in the 
+    linear regression model. This attribute is an implementation detail 
+    and is not part of the public API. Get a VIF-table by calling
+    the `variance_inflation_factor()` method."""
 
     def __init__(
             self,
@@ -351,7 +354,7 @@ class LinearModel:
         self._anova = pd.DataFrame()
         self._effects = pd.Series()
         self._p_values = pd.Series()
-        self._vif = pd.Series()
+        self._vif = pd.DataFrame()
     
     def _convert_single_term_name_(self, term_name: str) -> str:
         """Convert the single term name using the original names stored
@@ -748,8 +751,8 @@ class LinearModel:
         
         if vif:
             self.variance_inflation_factor()
-            indices = [i for i in self._vif.index if i in self._anova.index]
-            self._anova.loc[indices, 'VIF'] = self._vif
+            idx = [i for i in self._vif.index if i in self._anova.index]
+            self._anova.loc[idx, ANOVA.VIF] = self._vif.loc[idx, ANOVA.VIF]
         anova = self._anova.copy()
         anova.index = anova.index.map(self._convert_term_name_)
         return anova
@@ -789,18 +792,33 @@ class LinearModel:
         params_table = params_table.rename(columns=columns_map)
         return params_table
     
-    def variance_inflation_factor(self) -> Series:
-        """Calculate the variance inflation factor (VIF) for each 
-        predictor variable in the fitted model.
-
+    def variance_inflation_factor(self, threshold: int = 5) -> DataFrame:
+        """Calculate the variance inflation factor (VIF) and the 
+        generalized variance inflation factor (GVIF) for each predictor
+        variable in the fitted model.
+            
+        This function takes a regression model as input and returns a 
+        DataFrame containing the VIF, GVIF (= VIF^(1/2*dof)), threshold 
+        for GVIF, collinearity status and calculation kind for each 
+        predictor variable in the model. The VIF and GVIF are measures
+        of multicollinearity, which can help identify variables that are
+        highly correlated with each other.
+            
+        Parameters
+        ----------
+        trheshold : int, optional
+            The threshold for deciding whether a predictor is collinear.
+            Common values are 5 and 10. By default 5.
+        
         Returns
         -------
-        Series
-            A pandas Series containing the VIF values for each predictor 
-            variable.
+        DataFrame
+            A DataFrame containing the VIF, GVIF, threshold, collinearity
+            status and performed method for each predictor variable in the 
+            model.
         """
         if self._vif.empty:
-            self._vif = variance_inflation_factor(self.model)
+            self._vif = variance_inflation_factor(self.model, threshold)
         return self._vif.copy().rename(index=self._term_map_)
 
     def highest_features(self) -> List[str]:
@@ -945,6 +963,7 @@ class LinearModel:
             - Goodness-of-fit metrics
             - ANOVA table
             - Parameter statistics
+            - VIF table (if possible)
         """
         if self.model is None:
             self.fit()
@@ -952,7 +971,9 @@ class LinearModel:
         dfs = [
             self.gof_metrics().drop('formula', axis=1),
             self.parameter_statistics(),
-            self.anova(typ='', vif=vif)]
+            self.anova(typ='')]
+        if vif:
+            dfs.append(self.variance_inflation_factor())
         return dfs
 
     def _repr_html_(self) -> str:

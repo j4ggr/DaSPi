@@ -35,6 +35,9 @@ def get_term_name(name: str) -> str:
     >>> print(term_name)
     'Category:OtherCategory'
     """
+    if not isinstance(name, str):
+        return name
+    
     names = name.split(ANOVA.SEP)
     matches = list(map(RE.ENCODED_NAME.findall, names))
     return ANOVA.SEP.join([(m[0] if m else n) for m, n in zip(matches, names)])
@@ -61,8 +64,8 @@ def frames_to_html(
         captions = (captions,)
     if isinstance(dfs, DataFrame):
         dfs = (dfs,)
-    assert len(dfs) == len(captions), (
-        "The number of DataFrames and captions must be equal.")
+    assert len(dfs) <= len(captions), (
+        "There must be at most as many captions as DataFrames.")
     spacing = 2*'</br>'
     html = ''
     for (df, caption) in zip(dfs, captions):

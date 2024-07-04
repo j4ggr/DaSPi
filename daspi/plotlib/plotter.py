@@ -1501,6 +1501,8 @@ class Pareto(Bar):
     highlighted_as_last: bool, optional
         Whether the highlighted bar should be at the end, by default
         True.
+    no_percentage_line : bool, optional
+        Whether to draw a line as cumulative percentage, by default True
     width: float, optional
         Width of the bars, by default `CATEGORY.FEATURE_SPACE`.
     method : str, optional
@@ -1532,7 +1534,9 @@ class Pareto(Bar):
         If an other Axes object in this Figure instance shares the
         feature axis.
     """
-    __slots__ = ('highlight', 'highlight_color', 'highlighted_as_last')
+    __slots__ = (
+        'highlight', 'highlight_color', 'highlighted_as_last',
+        'no_percentage_line')
 
     highlight: Any
     """The feature value whose bar should be highlighted in the chart."""
@@ -1540,6 +1544,8 @@ class Pareto(Bar):
     """The color to use for highlighting."""
     highlighted_as_last: bool
     """Whether the highlighted bar should be at the end."""
+    no_percentage_line: bool
+    """Whether to draw the percentage line and the percentage text."""
 
     def __init__(
             self,
@@ -1549,6 +1555,7 @@ class Pareto(Bar):
             highlight: Any = None,
             highlight_color: str = COLOR.BAD,
             highlighted_as_last: bool = True,
+            no_percentage_line: bool = False,
             width: float = CATEGORY.FEATURE_SPACE,
             method: str | None = None,
             kw_method: dict = {},
@@ -1559,6 +1566,7 @@ class Pareto(Bar):
         assert not (kwds.get('categorical_feature', False)), (
             "Don't set categorical_feature to True for Pareto charts, "
             'it would mess up the axis tick labels')
+        self.no_percentage_line = no_percentage_line
         self.highlight = highlight
         self.highlight_color = highlight_color
         self.highlighted_as_last = highlighted_as_last
@@ -1639,7 +1647,7 @@ class Pareto(Bar):
 
     def add_percentage_texts(self) -> None:
         """Add percentage texts on top of major grids"""
-        if hasattr(self.ax, 'has_pc_texts'):
+        if hasattr(self.ax, 'has_pc_texts') or self.no_percentage_line:
             return
         
         n_texts = PLOTTER.PARETO_N_TICKS-1
@@ -1673,14 +1681,16 @@ class Pareto(Bar):
         _kwds = self.default_kwds | kwds
         if self.target_on_y:
             bars = self.ax.bar(self.x, self.y, width=self.width, **_kwds)
-            self.ax.plot(
-                self.x, self.y.cumsum(), color=self.color,
-                **KW.PARETO_LINE)
+            if not self.no_percentage_line:
+                self.ax.plot(
+                    self.x, self.y.cumsum(), color=self.color,
+                    **KW.PARETO_LINE)
         else:
             bars = self.ax.barh(self.y, self.x, height=self.width, **_kwds)
-            self.ax.plot(
-                self.x[::-1].cumsum(), self.y[::-1], color=self.color,
-                **KW.PARETO_LINE)
+            if not self.no_percentage_line:
+                self.ax.plot(
+                    self.x[::-1].cumsum(), self.y[::-1], color=self.color,
+                    **KW.PARETO_LINE)
         self._highlight_bar_(bars)
         self._set_margin_()
         self._remove_feature_grid_()

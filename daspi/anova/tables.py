@@ -6,6 +6,7 @@ import statsmodels.api as sm
 
 from typing import Any
 from typing import Dict
+from typing import List
 from typing import Literal
 from typing import Iterable
 from numpy.typing import NDArray
@@ -77,36 +78,98 @@ def terms_effect(model: RegressionResultsWrapper) -> Series:
     effects.index.name = ANOVA.FEATURES
     return effects
 
-def variance_inflation_factor(model: RegressionResultsWrapper) -> Series:
-    """Calculate the variance inflation factor (VIF) for each predictor
-    variable in the fitted model.
-
+def variance_inflation_factor(
+        model: RegressionResultsWrapper, threshold: int = 5) -> DataFrame:
+    """Calculate the variance inflation factor (VIF) and the generalized
+    variance inflation factor (GVIF) for each predictor variable in the
+    fitted model.
+        
+    This function takes a regression model as input and returns a 
+    DataFrame containing the VIF, GVIF (= VIF^(1/2*dof)), threshold for 
+    GVIF, collinearity status and calculation kind for each predictor 
+    variable in the model. The VIF and GVIF are measures of 
+    multicollinearity, which can help identify variables that are highly
+    correlated with each other.
+        
     Parameters
     ----------
     model : RegressionResultsWrapper
-        Statsmodels regression results of fitted model. 
-
+        The regression model to analyze.
+    trheshold : int, optional
+        The threshold for deciding whether a predictor is collinear.
+        Common values are 5 and 10. By default 5.
+    
     Returns
     -------
-    Series
-        A pandas Series containing the VIF values for each predictor 
-        variable.
-    """
-    xs: NDArray = model.model.data.exog.copy()
-    assert xs.shape[1] > 1, (
-        'To calculate VIFs, at least two predictor variables must be present.')
-    _vif: Dict[str, float] = {}
+    DataFrame
+        A DataFrame containing the VIF, GVIF, threshold, collinearity
+        status and performed method for each predictor variable in the 
+        model.
     
+    Notes
+    -----
+    The VIF tells us: The degree to which the standard error of the 
+    predictor is increased due to the predictor's correlation with the 
+    other predictors in the model. VIF values greater than 10 
+    (or, Tolerance values less than 0.10) corresponding to a multiple 
+    correlation of 0.95 indicates a multicollinearity may be a problem 
+    (Hair Jr, JF, Anderson, RE, Tatham, RL and Black, WC, 1998). Fox and 
+    Weisberg also comment that the straightforward VIF can't be used if 
+    there are variables with more than one degree of freedom (e.g. 
+    polynomial and other contrasts relating to categorical variables 
+    with more than two levels) and recommend using the gvif function 
+    (generalized variance inflation factor) in the car package in R in 
+    these cases. gvif is the square root of the VIF for individual 
+    predictors and thus can be used equivalently. More generally 
+    generalized variance-inflation factors consist of the VIF corrected 
+    by the number of degrees of freedom (df) of the predictor variable: 
+    GVIF = VIF[1/(2*df)] and may be compared to thresholds of 
+    10[1/(2*df)] to assess collinearity using the stepVIF (source code: 
+    https://github.com/cran/car/blob/master/R/vif.R) function in R.
+
+    source: https://imaging.mrc-cbu.cam.ac.uk/statswiki/FAQ/Collinearity
+
+    See Also:
+    https://www.rdocumentation.org/packages/car/versions/3.1-2/topics/vif
+    https://www.statsmodels.org/dev/generated/statsmodels.stats.outliers_influence.variance_inflation_factor.html
+    """
     param_names = model.model.data.param_names
-    names_map = {n: get_term_name(n) for n in param_names}
-    for pos, name in enumerate(param_names):
-        x = xs[:, pos]
-        _xs = np.delete(xs, pos, axis=1)
-        r2 = sm.OLS(x, _xs).fit().rsquared
-        _vif[name] = (1 / (1 - r2))
-    vif = pd.Series(_vif).rename(index=names_map)
-    vif = vif[~vif.index.duplicated()]
-    return vif
+    columns = list(map(get_term_name, param_names))
+    data = pd.DataFrame(model.model.data.exog.copy(), columns=columns)
+    assert data.shape[1] > 1, (
+        'To calculate VIFs, at least two predictor variables must be present.')
+
+    vifs: Dict[str, List] = {}
+    for name in columns:
+        if name in vifs:
+            continue
+        XY = data
+        if ANOVA.INTERCEPT in XY and name != ANOVA.INTERCEPT:
+            XY = XY.drop(ANOVA.INTERCEPT, axis=1)
+        X = XY.drop(name, axis=1)
+        Y = XY[name]
+        if Y.ndim == 2 and X.ndim == 2:
+            det_y = np.linalg.det(Y.corr())
+            det_x = np.linalg.det(X.corr())
+            det_xy = np.linalg.det(XY.corr())
+            vif = ((det_y*det_x) / det_xy)
+            dof = Y.shape[0]
+            method = 'generalized'
+        else:
+            y = Y.to_numpy()[:, 0] if Y.ndim == 2 else Y
+            r2 = sm.OLS(y, X).fit().rsquared
+            vif = 1 / (1 - r2)
+            dof = 1
+            method = 'usual'
+        exp = (1/(2*dof))
+        gvif = vif**exp
+        gvif_treshold = threshold**exp
+        vifs[name] = [vif, gvif, gvif_treshold, gvif >= gvif_treshold, method]
+    vif_table = pd.DataFrame(
+        list(vifs.values()),
+        index=list(vifs.keys()),
+        columns=ANOVA.VIF_COLNAMES)
+    return vif_table
 
 def anova_table(
         model: RegressionResultsWrapper,

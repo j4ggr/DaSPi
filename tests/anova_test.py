@@ -6,6 +6,7 @@ import pytest
 
 import numpy as np
 import pandas as pd
+import statsmodels.api as sm
 
 from pathlib import Path
 from pandas.testing import assert_frame_equal
@@ -22,6 +23,8 @@ from daspi.anova import hierarchical
 from daspi.anova import get_term_name
 from daspi.anova import frames_to_html
 from daspi.anova import is_main_feature
+
+from daspi.anova import variance_inflation_factor
 
 from daspi.anova import LinearModel
 
@@ -344,9 +347,9 @@ class TestLinearModel:
             '=======================================================================================\n'
             '                   DF         SS         MS          F          p         n2        VIF\n'
             '---------------------------------------------------------------------------------------\n'
-            'Sex                 1      2.075      2.075      2.407      0.127      0.034      1.000\n'
-            'Risk                1     11.332     11.332     13.147      0.001      0.184      1.000\n'
-            'Drug                2      0.816      0.408      0.473      0.626      0.013      1.333\n'
+            'Sex                 1      2.075      2.075      2.407      0.127      0.034      1.600\n'
+            'Risk                1     11.332     11.332     13.147      0.001      0.184      1.600\n'
+            'Drug                2      0.816      0.408      0.473      0.626      0.013      1.000\n'
             'Residual           55     47.407      0.862        nan        nan      0.769        nan\n'
             '=======================================================================================')
         smry_vif_anova = lm.summary(anova_typ='', vif=True)
@@ -360,11 +363,11 @@ class TestLinearModel:
             '------------------------------------------------------------------------------------------\n'
             'Sex                    1      2.075      2.075      2.462      0.123      0.034      6.000\n'
             'Risk                   1     11.332     11.332     13.449      0.001      0.184      6.000\n'
-            'Drug                   2      0.816      0.408      0.484      0.619      0.013      5.333\n'
+            'Drug                   2      0.816      0.408      0.484      0.619      0.013     16.000\n'
             'Sex:Risk               1      0.117      0.117      0.139      0.711      0.002      9.000\n'
-            'Sex:Drug               2      2.564      1.282      1.522      0.229      0.042      6.667\n'
-            'Risk:Drug              2      2.438      1.219      1.446      0.245      0.040      6.667\n'
-            'Sex:Risk:Drug          2      1.844      0.922      1.094      0.343      0.030      7.333\n'
+            'Sex:Drug               2      2.564      1.282      1.522      0.229      0.042     32.000\n'
+            'Risk:Drug              2      2.438      1.219      1.446      0.245      0.040     32.000\n'
+            'Sex:Risk:Drug          2      1.844      0.922      1.094      0.343      0.030     40.000\n'
             'Residual              48     40.445      0.843        nan        nan      0.656        nan\n'
             '==========================================================================================')
         smry2 = lm2.summary(anova_typ='', vif=True)
@@ -453,13 +456,64 @@ class TestFramesToHTML:
 
     def test_mismatched_lengths(self) -> None:
         dfs = [DataFrame({'A': [1, 2]})]
-        captions = ['Table 1', 'Table 2']
-        with pytest.raises(AssertionError):
-            frames_to_html(dfs, captions)
+        assert bool(frames_to_html(dfs, self.captions))
+        
+        with pytest.raises(AssertionError, match='There must be at most as many captions as DataFrames.'):
+            html = frames_to_html(self.dfs, [self.captions[0]])
 
-    def test_no_captions(self) -> None:
-        dfs = [DataFrame({'A': [1, 2]})]
-        with pytest.raises(AssertionError, match='The number of DataFrames and captions must be equal.'):
+        with pytest.raises(AssertionError, match='There must be at most as many captions as DataFrames.'):
             html = frames_to_html(dfs, [])
 
+
+class TestVarianceInflationFactor:
+
+    X = pd.DataFrame([[0, 0], [0, 1], [1, 0], [1, 1]], columns=['x1', 'x2'])
+    y = pd.Series([1, 2, 3, 4])
+
+    def test_two_predictors(self) -> None:
+        
+        model = sm.OLS(self.y, self.X).fit()
+        vif_table = variance_inflation_factor(model)
+        assert vif_table.shape == (2, 5)
+        assert vif_table.loc['x1', 'Method'] == 'usual'
+        assert vif_table.loc['x2', 'Method'] == 'usual'
+        pytest.approx(vif_table.loc['x1', 'VIF'], 1.333333333333333)
+        pytest.approx(vif_table.loc['x2', 'VIF'], 1.333333333333333)
+
+    def test_collinear_predictors(self) -> None:
+        X = self.X.copy()
+        X['x3'] = X['x2']
+        model = sm.OLS(self.y, X).fit()
+        vif_table = variance_inflation_factor(model)
+        assert vif_table.shape == (3, 5)
+        assert not vif_table.loc['x1', 'Collinear']
+        assert vif_table.loc['x2', 'Collinear']
+        assert vif_table.loc['x3', 'Collinear']
+        pytest.approx(vif_table.loc['x1', 'VIF'], 1.333333333333333)
+        assert vif_table.loc['x2', 'VIF'] == float('inf')
+        assert vif_table.loc['x3', 'VIF'] == float('inf')
+
+    def test_categorical_predictors(self) -> None:
+        data = pd.DataFrame({'y': [1, 2, 3, 4], 'x1': ['a', 'b', 'a', 'b'], 'x2': ['c', 'c', 'd', 'd']})
+        X = pd.get_dummies(data[['x1', 'x2']], drop_first=True)
+        y = data['y']
+        model = sm.OLS(y, X).fit()
+        vif_table = variance_inflation_factor(model)
+        assert vif_table.shape == (3, 5)
+        assert vif_table.loc['x1[T.b]', 'Method'] == 'generalized'
+        assert vif_table.loc['x2[T.d]', 'Method'] == 'generalized'
+
+    def test_intercept(self) -> None:
+        model = sm.OLS(self.y, sm.add_constant(self.X)).fit()
+        vif_table = variance_inflation_factor(model)
+        assert vif_table.shape == (2, 5)
+        assert vif_table.loc['Intercept', 'VIF'] == 1.0
+        assert vif_table.loc['x1', 'VIF'] == 1.0
+
+    def test_single_predictor(self) -> None:
+        # Test case with single predictor variable
+        X = np.array([[1], [2], [3], [4]])
+        y = np.array([1, 2, 3, 4])
+        with pytest.raises(AssertionError):
+            variance_inflation_factor(sm.OLS(y, X).fit())
         

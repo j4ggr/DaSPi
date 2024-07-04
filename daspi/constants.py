@@ -434,6 +434,12 @@ class _Anova_:
         """Column names when crating the anova table using LinearModel 
         class"""
         return ['DF', 'SS', 'MS', 'F', 'p', 'n2']
+    
+    @property
+    def VIF_COLNAMES(self) -> List[str]:
+        """Column names when crating the vif table using the 
+        `variance_inflation_factor` function."""
+        return [self.VIF, 'GVIF', 'Threshold', 'Collinear', 'Method']
 
 ANOVA = _Anova_()
 
