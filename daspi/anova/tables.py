@@ -5,11 +5,8 @@ import pandas as pd
 import statsmodels.api as sm
 
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Literal
 from typing import Iterable
-from numpy.typing import NDArray
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 from statsmodels.regression.linear_model import RegressionResultsWrapper
@@ -52,7 +49,7 @@ def uniques(seq: Iterable) -> list[Any]:
 def terms_effect(model: RegressionResultsWrapper) -> Series:
     """Calculates the impact of each term on the target. The
     effects are described as absolute number of the parameter 
-    coefficients.
+    coefficients devided by its standard error.
 
     Parameters
     ----------
@@ -66,19 +63,27 @@ def terms_effect(model: RegressionResultsWrapper) -> Series:
         on the target variable.
     """
     params: Series = model.params
+    se: Series = model.scale
     names_map = {n: get_term_name(n) for n in params.index}
-    effects = (params
-        .abs()
+    se = (model.bse
         .rename(index=names_map)
+        .pow(2)
         .groupby(level=0, axis=0)
         .sum()
-        [uniques(names_map.values())])
+        .pow(0.5))
+    params = (params
+        .rename(index=names_map)
+        .groupby(level=0, axis=0)
+        .sum())
+    effects = params.abs() / se
     effects.name = ANOVA.EFFECTS
     effects.index.name = ANOVA.FEATURES
     return effects
 
 def variance_inflation_factor(
-        model: RegressionResultsWrapper, threshold: int = 5) -> DataFrame:
+        model: RegressionResultsWrapper,
+        threshold: int = 5,
+        generalized: bool = True) -> DataFrame:
     """Calculate the variance inflation factor (VIF) and the generalized
     variance inflation factor (GVIF) for each predictor variable in the
     fitted model.
@@ -97,6 +102,8 @@ def variance_inflation_factor(
     trheshold : int, optional
         The threshold for deciding whether a predictor is collinear.
         Common values are 5 and 10. By default 5.
+    generalized : bool, optional
+        Whether to calculate the generalized VIF or not, by default True.
     
     Returns
     -------
@@ -140,34 +147,45 @@ def variance_inflation_factor(
     
     terms = uniques(exog.columns)
     vifs = pd.DataFrame(index=terms, columns=ANOVA.VIF_COLNAMES)
-    _vifs = []
-    _methods = []
     det = np.linalg.det
-    for current_x in vifs.index:
-        if ANOVA.INTERCEPT in exog and current_x != ANOVA.INTERCEPT:
-            XY = exog.drop(ANOVA.INTERCEPT, axis=1)
-        else:
-            XY = exog
-        Y = exog[current_x]
-        X = XY.drop(current_x, axis=1)
+    main_terms = [t for t in vifs.index if len(t.split(ANOVA.SEP)) == 1]
+    interaction_terms = [t for t in vifs.index if t not in main_terms]
+    for term in main_terms:
+        Y = exog[term]
+        XY = exog.drop(interaction_terms, axis=1)
+        if ANOVA.INTERCEPT in XY and term != ANOVA.INTERCEPT:
+            XY = XY.drop(ANOVA.INTERCEPT, axis=1)
+        X = XY.drop(term, axis=1)
         vif = None
         method = 'generalized'
-        if Y.ndim == 2 and X.ndim == 2:
+        if X.empty:
+            vif = 1.0
+            method = 'single_term'
+        elif Y.ndim == 2 and X.ndim == 2 and generalized:
             vif = (det(Y.corr()) * det(X.corr())) / det(XY.corr())
         if pd.isna(vif):
             y = Y.iloc[:, 0] if Y.ndim == 2 else Y
-            X = sm.add_constant(X) if current_x != ANOVA.INTERCEPT else X
+            X = sm.add_constant(X) if term != ANOVA.INTERCEPT else X
             vif = 1 / (1 - sm.OLS(y, X).fit().rsquared)
             method = 'R_squared'
-        _vifs.append(vif)
-        _methods.append(method)
+        vifs.loc[term, ANOVA.VIF] = vif
+        vifs.loc[term, 'Method'] = method
+    
+    for term in interaction_terms:
+        term_mains = term.split(ANOVA.SEP)
+        if not vifs.index.isin(term_mains).sum() == len(term_mains):
+            vif = 1.0
+            method = 'single_term'
+        else:
+            vif = vifs.loc[term_mains, ANOVA.VIF].prod() # type: ignore
+            method = 'product'
+        vifs.loc[term, ANOVA.VIF] = vif
+        vifs.loc[term, 'Method'] = method
 
-    vifs['DF'] = [exog[t].shape[0] if exog[t].ndim == 2 else 1 for t in terms]
-    vifs[ANOVA.VIF] = _vifs
+    vifs['DF'] = [exog[t].shape[1] if exog[t].ndim == 2 else 1 for t in terms]
     vifs['GVIF'] = vifs['VIF']**(1/(2*vifs['DF']))
     vifs['Threshold'] = threshold**(1/(2*vifs['DF']))
     vifs['Collinear'] = vifs['GVIF'] >= vifs['Threshold']
-    vifs['Method'] = _methods
     return vifs
 
 def anova_table(

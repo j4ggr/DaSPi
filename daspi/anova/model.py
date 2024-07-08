@@ -64,6 +64,7 @@ import itertools
 
 import numpy as np
 import pandas as pd
+import scipy.stats as stats
 import statsmodels.formula.api as smf
 
 from typing import Any
@@ -164,11 +165,24 @@ class LinearModel:
         Threshold as alpha risk. All features, including continuous and 
         intercept, that have a p-value smaller than alpha are removed 
         during the automatic elimination of the factors. Default is 0.05.
+    skip_intercept_as_least : bool, optional
+        If True, the intercept is not removed as a least significant 
+        term when using recursive feature elimination. Also if True, the
+        intercept does not appear when calling the `least_term` method,
+        by default True.
+    
+    Notes
+    -----
+    Always be careful when removing the intercept. If the intercept is 
+    missing, Patsy will automatically add all one-hot encoded levels for
+    a categorical variable to compensate for this missing term. This 
+    will result in extremely high VIFs.
     """
     __slots__ = (
         'data', 'target', 'categorical', 'continuous', '_model', '_alpha',
-        'input_map', 'input_rmap', 'output_map', 'exclude', 'level_map',
-        '_initial_terms_', '_p_values', '_anova', '_effects', '_vif')
+        'skip_intercept_as_least', 'input_map', 'input_rmap', 'output_map', 
+        'exclude', 'level_map', '_initial_terms_', '_p_values', '_anova',
+        '_effects', '_vif')
     data: DataFrame
     """The Pandas DataFrame containing the data for the linear model."""
     target: str
@@ -183,6 +197,8 @@ class LinearModel:
     features during model simplification. All features, including 
     continuous and intercept, that have a p-value smaller than this 
     alpha are removed from the model."""
+    skip_intercept_as_least: bool
+    """If True, the intercept is not treated as a least significant term"""
     _model: RegressionResultsWrapper | None
     """The regression results of the fitted model. This property raises 
     an AssertionError if no model has been fitted yet."""
@@ -234,7 +250,8 @@ class LinearModel:
             categorical: List[str],
             continuous: List[str] = [],
             alpha: float = 0.05,
-            order: int = 1) -> None:
+            order: int = 1,
+            skip_intercept_as_least: bool = True) -> None:
         assert order >= 0 and isinstance(order, int), (
             'Interaction order must be a positive integer')
         self.target = target
@@ -248,6 +265,7 @@ class LinearModel:
             | {c: _c for c, _c in zip(continuous, _continuous)})
         self.input_rmap = {v: k for k, v in self.input_map.items()}
         self.alpha = alpha
+        self.skip_intercept_as_least = skip_intercept_as_least
         self.exclude = set()
         self._model = None
         self.data = (source
@@ -349,6 +367,23 @@ class LinearModel:
             terms = ['-1'] + terms
         return f'{self.output_map[self.target]} ~ {" + ".join(terms)}'
     
+    @property
+    def effect_threshold(self) -> float:
+        """Calculates the threshold for the effect of adding a term to
+        the model. The threshold is calculated as the inverse survival 
+        function (inverse of sf) at the given alpha (read-only)."""
+        return float(stats.t.isf(self.alpha, self.model.df_resid))
+    
+    @property
+    def design_matrix(self) -> DataFrame:
+        """Get the design matrix of the current fitted model
+        (read-only)."""
+        dm = pd.DataFrame(
+            self.model.model.data.exog,
+            columns=self.model.model.data.xnames)
+        dm[self.model.model.data.ynames] = self.model.model.data.endog
+        return dm
+    
     def _reset_tables_(self) -> None:
         """Reset the anova table, the p_values and the effects."""
         self._anova = pd.DataFrame()
@@ -370,9 +405,12 @@ class LinearModel:
         str
             The converted term name.
         """
-        split = term_name.split('[T.')
+        sep = '[T.' if '[T.' in term_name else '['
+        split = term_name.split(sep)
+        if len(split) > 2:
+            split = [sep.join(split[:-1]), split[-1]]
         split[0] = self.input_rmap.get(split[0], split[0])
-        return '[T.'.join(split)
+        return sep.join(split)
 
     def _convert_term_name_(self, term_name: str) -> str:
         """Convert the term name using the categorical or continuous 
@@ -404,12 +442,12 @@ class LinearModel:
     def effects(self) -> Series:
         """Calculates the impact of each term on the target. The
         effects are described as absolute number of the parameter 
-        coefficients."""
+        coefficients devided by its standard error."""
         if self._effects.empty:
             self._effects = terms_effect(self.model)
         effects = self._effects.copy().rename(index=self._term_map_)
         return effects
-    
+
     def p_values(self) -> 'Series[float]':
         """Get P-value for significance of adding model terms using 
         anova typ III table for current model."""
@@ -434,12 +472,20 @@ class LinearModel:
         the term name with the least p-value for the F-stats coming from
         current ANOVA table.
         """
-        if any(self.p_values().isna()):
+        self.p_values()
+        p_values = self._p_values.copy()
+        has_intercept = ANOVA.INTERCEPT in p_values.index
+        if any(p_values.isna()):
             self.effects()
-            smallest = np.where(self._effects == self._effects.min())[0][-1]
-            least = str(self._effects.index[smallest])
+            effects = self._effects.copy()
+            if has_intercept and self.skip_intercept_as_least:
+                effects = effects.drop(ANOVA.INTERCEPT)
+            smallest = np.where(effects == effects.min())[0][-1]
+            least = str(effects.index[smallest])
         else:
-            least = str(self._p_values.index[self._p_values.argmax()])
+            if has_intercept and self.skip_intercept_as_least:
+                p_values = p_values.drop(ANOVA.INTERCEPT)
+            least = str(p_values.index[p_values.argmax()])
         return least
     
     def fit(self, **kwds) -> Self:
@@ -818,7 +864,7 @@ class LinearModel:
             model.
         """
         if self._vif.empty:
-            self._vif = variance_inflation_factor(self.model, threshold)
+            self._vif = variance_inflation_factor(self.model, threshold, True)
         return self._vif.copy().rename(index=self._term_map_)
 
     def highest_features(self) -> List[str]:

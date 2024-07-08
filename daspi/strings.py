@@ -89,11 +89,13 @@ class _String_:
         'en': (
             'Model summary',
             'Parameter statistics',
-            'Analysis of variance'),
+            'Analysis of variance',
+            'Variance inflation factor'),
         'de': (
             'Modellzusammenfassung',
             'Parameterstatistik',
-            'Varianzanalyse')}
+            'Varianzanalyse',
+            'Varianzinflationfaktor')}
 
     _language_: Literal['en', 'de'] = 'en'
     _username_: str = environ['USERNAME']
