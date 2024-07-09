@@ -7,6 +7,7 @@ import statsmodels.api as sm
 from typing import Any
 from typing import Literal
 from typing import Iterable
+from collections import defaultdict
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 from statsmodels.regression.linear_model import RegressionResultsWrapper
@@ -139,48 +140,42 @@ def variance_inflation_factor(
     https://www.rdocumentation.org/packages/car/versions/3.1-2/topics/vif
     https://www.statsmodels.org/dev/generated/statsmodels.stats.outliers_influence.variance_inflation_factor.html
     """
-    exog = pd.DataFrame(
-        model.model.data.exog.copy(),
-        columns=list(map(get_term_name, model.model.data.param_names)))
+    exog = (pd
+        .DataFrame(
+            model.model.data.exog.copy(),
+            columns=list(map(get_term_name, model.model.data.param_names)))
+        .drop_duplicates()
+        .reset_index(drop=True))
     assert exog.shape[1] > 1, (
         'To calculate VIFs, at least two predictor variables must be present.')
     
     terms = uniques(exog.columns)
     vifs = pd.DataFrame(index=terms, columns=ANOVA.VIF_COLNAMES)
     det = np.linalg.det
-    main_terms = [t for t in vifs.index if len(t.split(ANOVA.SEP)) == 1]
-    interaction_terms = [t for t in vifs.index if t not in main_terms]
-    for term in main_terms:
-        Y = exog[term]
-        XY = exog.drop(interaction_terms, axis=1)
-        if ANOVA.INTERCEPT in XY and term != ANOVA.INTERCEPT:
-            XY = XY.drop(ANOVA.INTERCEPT, axis=1)
-        X = XY.drop(term, axis=1)
-        vif = None
-        method = 'generalized'
-        if X.empty:
-            vif = 1.0
-            method = 'single_term'
-        elif Y.ndim == 2 and X.ndim == 2 and generalized:
-            vif = (det(Y.corr()) * det(X.corr())) / det(XY.corr())
-        if pd.isna(vif):
-            y = Y.iloc[:, 0] if Y.ndim == 2 else Y
-            X = sm.add_constant(X) if term != ANOVA.INTERCEPT else X
-            vif = 1 / (1 - sm.OLS(y, X).fit().rsquared)
-            method = 'R_squared'
-        vifs.loc[term, ANOVA.VIF] = vif
-        vifs.loc[term, 'Method'] = method
-    
-    for term in interaction_terms:
-        term_mains = term.split(ANOVA.SEP)
-        if not vifs.index.isin(term_mains).sum() == len(term_mains):
-            vif = 1.0
-            method = 'single_term'
-        else:
-            vif = vifs.loc[term_mains, ANOVA.VIF].prod() # type: ignore
-            method = 'product'
-        vifs.loc[term, ANOVA.VIF] = vif
-        vifs.loc[term, 'Method'] = method
+    interaction_order_terms = defaultdict(list)
+    for term in terms:
+        interaction_order_terms[len(term.split(ANOVA.SEP))].append(term)
+    for order, _terms in interaction_order_terms.items():
+        for term in _terms:
+            Y = exog[term]
+            XY = exog[_terms]
+            if ANOVA.INTERCEPT in XY and term != ANOVA.INTERCEPT:
+                XY = XY.drop(ANOVA.INTERCEPT, axis=1)
+            X = XY.drop(term, axis=1)
+            vif = None
+            method = f'single_order-{order}_term'
+            if X.empty:
+                vif = 1.0
+            elif Y.ndim == 2 and X.ndim == 2 and generalized:
+                vif = (det(Y.corr()) * det(X.corr())) / det(XY.corr())
+                method = 'generalized'
+            if pd.isna(vif):
+                y = Y.iloc[:, 0] if Y.ndim == 2 else Y
+                X = sm.add_constant(X) if term != ANOVA.INTERCEPT else X
+                vif = 1 / (1 - sm.OLS(y, X).fit().rsquared)
+                method = 'R_squared'
+            vifs.loc[term, ANOVA.VIF] = vif
+            vifs.loc[term, 'Method'] = method
 
     vifs['DF'] = [exog[t].shape[1] if exog[t].ndim == 2 else 1 for t in terms]
     vifs['GVIF'] = vifs['VIF']**(1/(2*vifs['DF']))

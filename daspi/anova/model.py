@@ -170,6 +170,10 @@ class LinearModel:
         term when using recursive feature elimination. Also if True, the
         intercept does not appear when calling the `least_term` method,
         by default True.
+    encode_categorical: bool, optional
+        If True, all of the categorical variables are encoded using
+        one-hot encoding. Otherwise they are interpreted as continuous
+        variables when possible, by default True.
     
     Notes
     -----
@@ -180,9 +184,9 @@ class LinearModel:
     """
     __slots__ = (
         'data', 'target', 'categorical', 'continuous', '_model', '_alpha',
-        'skip_intercept_as_least', 'input_map', 'input_rmap', 'output_map', 
-        'exclude', 'level_map', '_initial_terms_', '_p_values', '_anova',
-        '_effects', '_vif')
+        'skip_intercept_as_least', 'generalized_vif', 'input_map', 'input_rmap',
+        'output_map', 'exclude', 'level_map', '_initial_terms_', '_p_values',
+        '_anova', '_effects', '_vif')
     data: DataFrame
     """The Pandas DataFrame containing the data for the linear model."""
     target: str
@@ -199,6 +203,9 @@ class LinearModel:
     alpha are removed from the model."""
     skip_intercept_as_least: bool
     """If True, the intercept is not treated as a least significant term"""
+    generalized_vif: bool
+    """If True, the generalized VIF is calculated when possible.
+    Otherwise, only the straightforward VIF (via R2) is calculated."""
     _model: RegressionResultsWrapper | None
     """The regression results of the fitted model. This property raises 
     an AssertionError if no model has been fitted yet."""
@@ -251,26 +258,31 @@ class LinearModel:
             continuous: List[str] = [],
             alpha: float = 0.05,
             order: int = 1,
-            skip_intercept_as_least: bool = True) -> None:
+            skip_intercept_as_least: bool = True,
+            generalized_vif: bool = True,
+            encode_categoricals: bool = True) -> None:
         assert order >= 0 and isinstance(order, int), (
             'Interaction order must be a positive integer')
         self.target = target
         self.categorical = categorical
         self.continuous = continuous
         self.output_map = {target: 'y'}
-        _categorical = tuple(f'x{i}' for i in range(len(categorical)))
-        _continuous = tuple(f'e{i}' for i in range(len(continuous)))
+        _categorical = [f'x{i}' for i in range(len(categorical))]
+        _continuous = [f'e{i}' for i in range(len(continuous))]
         self.input_map = (
             {f: _f for f, _f in zip(categorical, _categorical)}
             | {c: _c for c, _c in zip(continuous, _continuous)})
         self.input_rmap = {v: k for k, v in self.input_map.items()}
         self.alpha = alpha
         self.skip_intercept_as_least = skip_intercept_as_least
+        self.generalized_vif = generalized_vif
         self.exclude = set()
         self._model = None
         self.data = (source
             .copy()
             .rename(columns=self.input_map|self.output_map))
+        if encode_categoricals:
+            self.data[_categorical] = self.data[_categorical].astype('category')
         model_desc = ModelDesc.from_formula(
             f'{self.output_map[self.target]}~'
             + ('*'.join(_categorical))
@@ -864,7 +876,8 @@ class LinearModel:
             model.
         """
         if self._vif.empty:
-            self._vif = variance_inflation_factor(self.model, threshold, True)
+            self._vif = variance_inflation_factor(
+                self.model, threshold, generalized=self.generalized_vif)
         return self._vif.copy().rename(index=self._term_map_)
 
     def highest_features(self) -> List[str]:
@@ -991,10 +1004,10 @@ class LinearModel:
         15           15  4.500000e+00       77.50
         """
         data = self.model.resid
-        data.name = 'Residues'
-        data.index.name = 'Observation'
+        data.name = ANOVA.RESIDUAL
+        data.index.name = ANOVA.OBSERVATION
         data = data.to_frame().reset_index()
-        data['Prediction'] = self.model.predict()
+        data[ANOVA.PREDICTION] = self.model.predict()
         return data
     
     def _dfs_repr_(self) -> List[DataFrame]:
@@ -1017,7 +1030,7 @@ class LinearModel:
         dfs = [
             self.gof_metrics().drop('formula', axis=1),
             self.parameter_statistics(),
-            self.anova(typ='')]
+            self.anova(typ='I')]
         if vif:
             dfs.append(self.variance_inflation_factor())
         return dfs

@@ -426,6 +426,10 @@ class _Anova_:
     """Smallest possible interaction"""
     RESIDUAL: Literal['Residual'] = 'Residual'
     """Name in anova table for residual (not explained) values."""
+    OBSERVATION: Literal['Observation'] = 'Observation'
+    """Name in residual table for observation order."""
+    PREDICTION: Literal['Prediction'] = 'Prediction'
+    """Name in residual table for predicted values."""
     TOTAL: Literal['Total'] = 'Total'
     """Name in anova table for total (sum of the others) values."""
 

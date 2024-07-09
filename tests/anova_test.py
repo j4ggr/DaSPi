@@ -385,7 +385,10 @@ class TestLinearModel:
             'A': [-1, 1, 1, -1, -1, 1],
             'B': [0, -1, 0, -1, 1, 1],
             'Center': [1, 0, 1, 0, 0, 0]})
-        lm = daspi.LinearModel(data, 'Ergebnis', ['A', 'B'], ['Center'], order=2).fit()
+        lm = daspi.LinearModel(
+                data, 'Ergebnis', ['A', 'B'], ['Center'], order=2, 
+                encode_categoricals=False
+            ).fit()
         assert lm.r2_pred(), approx(0.350426519634100657)
     
     def test_str(self) -> None:
