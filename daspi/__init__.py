@@ -86,6 +86,7 @@ from .plotlib.chart import SingleChart
 from .plotlib.chart import MultipleVariateChart
 
 from .plotlib.templates import ResiduesCharts
+from .plotlib.templates import ParameterRelevanceCharts
 
 
 from .anova.convert import get_term_name

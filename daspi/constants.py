@@ -207,7 +207,7 @@ KW = _Kw_()
 @dataclass(frozen=True)
 class _Regex_:
 
-    ENCODED_NAME: Pattern = re.compile(r'(\w+)\[T.\S+\]')
+    ENCODED_NAME: Pattern = re.compile(r'(\w+)\[[T.]?\S+\]')
     """Patsy encoded column name."""
 
 RE = _Regex_()
@@ -426,6 +426,10 @@ class _Anova_:
     """Smallest possible interaction"""
     RESIDUAL: Literal['Residual'] = 'Residual'
     """Name in anova table for residual (not explained) values."""
+    OBSERVATION: Literal['Observation'] = 'Observation'
+    """Name in residual table for observation order."""
+    PREDICTION: Literal['Prediction'] = 'Prediction'
+    """Name in residual table for predicted values."""
     TOTAL: Literal['Total'] = 'Total'
     """Name in anova table for total (sum of the others) values."""
 
@@ -434,6 +438,12 @@ class _Anova_:
         """Column names when crating the anova table using LinearModel 
         class"""
         return ['DF', 'SS', 'MS', 'F', 'p', 'n2']
+    
+    @property
+    def VIF_COLNAMES(self) -> List[str]:
+        """Column names when crating the vif table using the 
+        `variance_inflation_factor` function."""
+        return ['DF', self.VIF, 'GVIF', 'Threshold', 'Collinear', 'Method']
 
 ANOVA = _Anova_()
 

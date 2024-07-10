@@ -64,6 +64,7 @@ import itertools
 
 import numpy as np
 import pandas as pd
+import scipy.stats as stats
 import statsmodels.formula.api as smf
 
 from typing import Any
@@ -105,6 +106,10 @@ def is_main_feature(feature: str) -> bool:
     excluded)."""
     return feature != ANOVA.INTERCEPT and ANOVA.SEP not in feature
 
+def get_order(feature: str) -> int:
+    """Get the order of a feature (i.e., how many interactions it
+    contains)."""
+    return feature.count(ANOVA.SEP) + 1
 
 def hierarchical(features: List[str]) -> List[str]:
     """Get all features such that all lower interactions and main 
@@ -134,7 +139,7 @@ def hierarchical(features: List[str]) -> List[str]:
             for combo in map(ANOVA.SEP.join, itertools.combinations(split, i)):
                 h_features.add(combo)
 
-    return sorted(sorted(list(h_features)), key=lambda x: x.count(ANOVA.SEP))
+    return sorted(sorted(h_features), key=get_order)
 
 
 class LinearModel:
@@ -164,11 +169,28 @@ class LinearModel:
         Threshold as alpha risk. All features, including continuous and 
         intercept, that have a p-value smaller than alpha are removed 
         during the automatic elimination of the factors. Default is 0.05.
+    skip_intercept_as_least : bool, optional
+        If True, the intercept is not removed as a least significant 
+        term when using recursive feature elimination. Also if True, the
+        intercept does not appear when calling the `least_term` method,
+        by default True.
+    encode_categoricals : bool, optional
+        If True, all of the categorical variables are encoded using
+        one-hot encoding. Otherwise they are interpreted as continuous
+        variables when possible, by default True.
+    
+    Notes
+    -----
+    Always be careful when removing the intercept. If the intercept is 
+    missing, Patsy will automatically add all one-hot encoded levels for
+    a categorical variable to compensate for this missing term. This 
+    will result in extremely high VIFs.
     """
     __slots__ = (
         'data', 'target', 'categorical', 'continuous', '_model', '_alpha',
-        'input_map', 'input_rmap', 'output_map', 'exclude', 'level_map',
-        '_initial_terms_', '_p_values', '_anova', '_effects', '_vif')
+        'skip_intercept_as_least', 'generalized_vif', 'input_map', 'input_rmap',
+        'output_map', 'excluded', 'level_map', '_initial_terms_', '_p_values',
+        '_anova', '_effects', '_vif')
     data: DataFrame
     """The Pandas DataFrame containing the data for the linear model."""
     target: str
@@ -183,6 +205,11 @@ class LinearModel:
     features during model simplification. All features, including 
     continuous and intercept, that have a p-value smaller than this 
     alpha are removed from the model."""
+    skip_intercept_as_least: bool
+    """If True, the intercept is not treated as a least significant term"""
+    generalized_vif: bool
+    """If True, the generalized VIF is calculated when possible.
+    Otherwise, only the straightforward VIF (via R2) is calculated."""
     _model: RegressionResultsWrapper | None
     """The regression results of the fitted model. This property raises 
     an AssertionError if no model has been fitted yet."""
@@ -195,7 +222,7 @@ class LinearModel:
     output_map: Dict[str, str]
     """A dictionary that maps the original feature names to the encoded 
     feature names used in the model."""
-    exclude: Set[str]
+    excluded: Set[str]
     """A set of feature names that should be excluded from the model."""
     level_map: Dict[Any, Any]
     """A dictionary that maps the original feature names to their 
@@ -212,17 +239,20 @@ class LinearModel:
     _anova: DataFrame
     """The `_anova` attribute is a Pandas DataFrame that stores the 
     ANOVA table for the fitted linear regression model. This attribute 
-    is an implementation detail and is not part of the public API."""
+    is an implementation detail and is not part of the public API.
+    Get a ANOVA-table by calling the `anova()` method."""
     _effects: Series
     """The `_effects` attribute is a Pandas Series that stores the 
     effects (coefficients) of the features in the linear regression 
     model. This attribute is an implementation detail and is not part 
     of the public API."""
-    _vif: 'Series[float]'
-    """The `_vif` attribute is a Pandas Series that stores the Variance 
-    Inflation Factors (VIFs) for the features in the linear regression 
-    model. This attribute is an implementation detail and is not part of 
-    the public API."""
+    _vif: DataFrame
+    """The `_vif` attribute is a Pandas DataFrame that stores the 
+    Variance Inflation Factors (VIFs), the Generalized Variance
+    Inflation Factors (GVIFs) and its threshold for the features in the 
+    linear regression model. This attribute is an implementation detail 
+    and is not part of the public API. Get a VIF-table by calling
+    the `variance_inflation_factor()` method."""
 
     def __init__(
             self,
@@ -231,32 +261,39 @@ class LinearModel:
             categorical: List[str],
             continuous: List[str] = [],
             alpha: float = 0.05,
-            order: int = 1) -> None:
-        assert order >= 0 and isinstance(order, int), (
+            order: int = 1,
+            skip_intercept_as_least: bool = True,
+            generalized_vif: bool = True,
+            encode_categoricals: bool = True) -> None:
+        assert order > 0 and isinstance(order, int), (
             'Interaction order must be a positive integer')
         self.target = target
         self.categorical = categorical
         self.continuous = continuous
         self.output_map = {target: 'y'}
-        _categorical = tuple(f'x{i}' for i in range(len(categorical)))
-        _continuous = tuple(f'e{i}' for i in range(len(continuous)))
+        _categorical = [f'x{i}' for i in range(len(categorical))]
+        _continuous = [f'e{i}' for i in range(len(continuous))]
         self.input_map = (
             {f: _f for f, _f in zip(categorical, _categorical)}
             | {c: _c for c, _c in zip(continuous, _continuous)})
         self.input_rmap = {v: k for k, v in self.input_map.items()}
         self.alpha = alpha
-        self.exclude = set()
+        self.skip_intercept_as_least = skip_intercept_as_least
+        self.generalized_vif = generalized_vif
+        self.excluded = set()
         self._model = None
         self.data = (source
             .copy()
             .rename(columns=self.input_map|self.output_map))
+        if encode_categoricals:
+            self.data[_categorical] = self.data[_categorical].astype('category')
         model_desc = ModelDesc.from_formula(
             f'{self.output_map[self.target]}~'
             + ('*'.join(_categorical))
             + ('+'.join(['', *_continuous]) if _continuous else ''))
         terms = model_desc.describe().split(' ~ ')[1].split(' + ')
         self._initial_terms_ = [
-            t for t in terms if len(t.split(ANOVA.SEP)) <= order]
+            t for t in terms if t.count(ANOVA.SEP) < order]
         self._reset_tables_()
         
     @property
@@ -340,18 +377,35 @@ class LinearModel:
         if self._model is None:
             return self.initial_formula
     
-        ignore = list(self.exclude) + [ANOVA.INTERCEPT]
+        ignore = list(self.excluded) + [ANOVA.INTERCEPT]
         terms = [t for t in self._initial_terms_ if t not in ignore]
-        if ANOVA.INTERCEPT in self.exclude:
+        if ANOVA.INTERCEPT in self.excluded:
             terms = ['-1'] + terms
         return f'{self.output_map[self.target]} ~ {" + ".join(terms)}'
+    
+    @property
+    def effect_threshold(self) -> float:
+        """Calculates the threshold for the effect of adding a term to
+        the model. The threshold is calculated as the inverse survival 
+        function (inverse of sf) at the given alpha (read-only)."""
+        return float(stats.t.isf(self.alpha, self.model.df_resid))
+    
+    @property
+    def design_matrix(self) -> DataFrame:
+        """Get the design matrix of the current fitted model
+        (read-only)."""
+        dm = pd.DataFrame(
+            self.model.model.data.exog,
+            columns=self.model.model.data.xnames)
+        dm[self.model.model.data.ynames] = self.model.model.data.endog
+        return dm
     
     def _reset_tables_(self) -> None:
         """Reset the anova table, the p_values and the effects."""
         self._anova = pd.DataFrame()
         self._effects = pd.Series()
         self._p_values = pd.Series()
-        self._vif = pd.Series()
+        self._vif = pd.DataFrame()
     
     def _convert_single_term_name_(self, term_name: str) -> str:
         """Convert the single term name using the original names stored
@@ -367,9 +421,12 @@ class LinearModel:
         str
             The converted term name.
         """
-        split = term_name.split('[T.')
+        sep = '[T.' if '[T.' in term_name else '['
+        split = term_name.split(sep)
+        if len(split) > 2:
+            split = [sep.join(split[:-1]), split[-1]]
         split[0] = self.input_rmap.get(split[0], split[0])
-        return '[T.'.join(split)
+        return sep.join(split)
 
     def _convert_term_name_(self, term_name: str) -> str:
         """Convert the term name using the categorical or continuous 
@@ -401,12 +458,12 @@ class LinearModel:
     def effects(self) -> Series:
         """Calculates the impact of each term on the target. The
         effects are described as absolute number of the parameter 
-        coefficients."""
+        coefficients devided by its standard error."""
         if self._effects.empty:
             self._effects = terms_effect(self.model)
         effects = self._effects.copy().rename(index=self._term_map_)
         return effects
-    
+
     def p_values(self) -> 'Series[float]':
         """Get P-value for significance of adding model terms using 
         anova typ III table for current model."""
@@ -431,13 +488,22 @@ class LinearModel:
         the term name with the least p-value for the F-stats coming from
         current ANOVA table.
         """
-        if any(self.p_values().isna()):
-            self.effects()
-            smallest = np.where(self._effects == self._effects.min())[0][-1]
-            least = str(self._effects.index[smallest])
+        p_values = self.p_values().copy()
+        has_intercept = ANOVA.INTERCEPT in p_values.index
+        if any(p_values.isna()):
+            effects = self.effects().copy()
+            if has_intercept and self.skip_intercept_as_least:
+                effects = effects.drop(ANOVA.INTERCEPT)
+            if any(effects.isna()):
+                leasts = effects[effects.isna()]
+            else:
+                leasts = effects[effects == effects.min()]
+            least = sorted(leasts.index, key=get_order)[-1]
         else:
-            least = str(self._p_values.index[self._p_values.argmax()])
-        return least
+            if has_intercept and self.skip_intercept_as_least:
+                p_values = p_values.drop(ANOVA.INTERCEPT)
+            least = p_values.iloc[::-1].idxmax()
+        return str(least)
     
     def fit(self, **kwds) -> Self:
         """Create and fit a ordinary least squares model using current 
@@ -581,7 +647,7 @@ class LinearModel:
             summary.tables.append(table)
         return summary
     
-    def eliminate(self, term: str) -> None:
+    def eliminate(self, term: str) -> Self:
         """Removes the given term from the model by adding it to the 
         `exclude` set.
         
@@ -589,6 +655,11 @@ class LinearModel:
         ----------
         term : str
             The term to be removed from the model.
+        
+        Returns
+        -------
+        Self
+            The current instance of the model for more method chaining.
         
         Raises
         ------
@@ -599,7 +670,8 @@ class LinearModel:
             lambda x: get_term_name(self.input_map.get(x, x)),
             term.split(ANOVA.SEP)))
         assert term in self._term_names_, f'Given term {term} is not in model'
-        self.exclude.add(term)
+        self.excluded.add(term)
+        return self
 
     def recursive_feature_elimination(
             self, rsquared_max: float = 0.99, ensure_hierarchy: bool = True,
@@ -631,7 +703,7 @@ class LinearModel:
             feature elimination.
         """
         self._model = None
-        self.exclude = set()
+        self.excluded = set()
         self.fit(**kwds)
         max_steps = len(self._term_names_)
         step = -1
@@ -649,7 +721,7 @@ class LinearModel:
         if ensure_hierarchy and not self.is_hierarchical():
             step = step + 1
             h_features = hierarchical(self._term_names_)
-            self.exclude = {e for e in self.exclude if e not in h_features}
+            self.excluded = {e for e in self.excluded if e not in h_features}
             self.fit(**kwds)
             yield self.gof_metrics(step)
     
@@ -748,8 +820,8 @@ class LinearModel:
         
         if vif:
             self.variance_inflation_factor()
-            indices = [i for i in self._vif.index if i in self._anova.index]
-            self._anova.loc[indices, 'VIF'] = self._vif
+            idx = [i for i in self._vif.index if i in self._anova.index]
+            self._anova.loc[idx, ANOVA.VIF] = self._vif.loc[idx, ANOVA.VIF]
         anova = self._anova.copy()
         anova.index = anova.index.map(self._convert_term_name_)
         return anova
@@ -789,18 +861,34 @@ class LinearModel:
         params_table = params_table.rename(columns=columns_map)
         return params_table
     
-    def variance_inflation_factor(self) -> Series:
-        """Calculate the variance inflation factor (VIF) for each 
-        predictor variable in the fitted model.
-
+    def variance_inflation_factor(self, threshold: int = 5) -> DataFrame:
+        """Calculate the variance inflation factor (VIF) and the 
+        generalized variance inflation factor (GVIF) for each predictor
+        variable in the fitted model.
+            
+        This function takes a regression model as input and returns a 
+        DataFrame containing the VIF, GVIF (= VIF^(1/2*dof)), threshold 
+        for GVIF, collinearity status and calculation kind for each 
+        predictor variable in the model. The VIF and GVIF are measures
+        of multicollinearity, which can help identify variables that are
+        highly correlated with each other.
+            
+        Parameters
+        ----------
+        threshold : int, optional
+            The threshold for deciding whether a predictor is collinear.
+            Common values are 5 and 10. By default 5.
+        
         Returns
         -------
-        Series
-            A pandas Series containing the VIF values for each predictor 
-            variable.
+        DataFrame
+            A DataFrame containing the VIF, GVIF, threshold, collinearity
+            status and performed method for each predictor variable in the 
+            model.
         """
         if self._vif.empty:
-            self._vif = variance_inflation_factor(self.model)
+            self._vif = variance_inflation_factor(
+                self.model, threshold, generalized=self.generalized_vif)
         return self._vif.copy().rename(index=self._term_map_)
 
     def highest_features(self) -> List[str]:
@@ -838,7 +926,8 @@ class LinearModel:
             Returns True if the model has any insignificant terms, and 
             False otherwise.
         """
-        if len(self._term_names_) == 1:
+        n_terms_min = 2 if self.skip_intercept_as_least else 1
+        if len(self._term_names_) == n_terms_min:
             return False
         
         if all(self.p_values().isna()):
@@ -927,10 +1016,10 @@ class LinearModel:
         15           15  4.500000e+00       77.50
         """
         data = self.model.resid
-        data.name = 'Residues'
-        data.index.name = 'Observation'
+        data.name = ANOVA.RESIDUAL
+        data.index.name = ANOVA.OBSERVATION
         data = data.to_frame().reset_index()
-        data['Prediction'] = self.model.predict()
+        data[ANOVA.PREDICTION] = self.model.predict()
         return data
     
     def _dfs_repr_(self) -> List[DataFrame]:
@@ -945,6 +1034,7 @@ class LinearModel:
             - Goodness-of-fit metrics
             - ANOVA table
             - Parameter statistics
+            - VIF table (if possible)
         """
         if self.model is None:
             self.fit()
@@ -952,7 +1042,9 @@ class LinearModel:
         dfs = [
             self.gof_metrics().drop('formula', axis=1),
             self.parameter_statistics(),
-            self.anova(typ='', vif=vif)]
+            self.anova(typ='I')]
+        if vif:
+            dfs.append(self.variance_inflation_factor())
         return dfs
 
     def _repr_html_(self) -> str:

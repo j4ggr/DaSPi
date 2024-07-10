@@ -53,6 +53,26 @@ class _String_:
         'en': 'formula',
         'de': 'Formel'}
     
+    effects_label: Dict[str, str] = {
+        'en': 'Standardized effect',
+        'de': 'Standardisierter Effekt'}
+    
+    ss_label: Dict[str, str] = {
+        'en': 'Sum of Squares',
+        'de': 'Summenquadrate'}
+    
+    paramcharts_fig_title: Dict[str, str] = {
+        'en': 'Parameter Analysis',
+        'de': 'Parameter Analyse'}
+    
+    paramcharts_sub_title: Dict[str, str] = {
+        'en': 'Relative importance of parameters',
+        'de': 'Relative Wichtigkeit der Parameter'}
+    
+    paramcharts_feature_label: Dict[str, Tuple[str, ...]] = {
+        'en': ('Parameter', ''),
+        'de': ('Parameter', '')}
+    
     residcharts_fig_title: Dict[str, str] = {
         'en': 'Residues Analysis',
         'de': 'Residuen Analyse'}
@@ -69,11 +89,11 @@ class _String_:
             'Residuen nach Anpassung',
             'Residuen nach Reihenfolge')}
     
-    residcharts_target_label: Dict[str, str] = {
+    resid_name: Dict[str, str] = {
         'en': 'Residues',
         'de': 'Residuen'}
     
-    residcharts_feature_labels: Dict[str, Tuple[str, ...]] = {
+    residcharts_feature_label: Dict[str, Tuple[str, ...]] = {
         'en': (
             'Quantiles of standard normal distribution',
             'Estimated kernel density',
@@ -89,11 +109,13 @@ class _String_:
         'en': (
             'Model summary',
             'Parameter statistics',
-            'Analysis of variance'),
+            'Analysis of variance',
+            'Variance inflation factor'),
         'de': (
             'Modellzusammenfassung',
             'Parameterstatistik',
-            'Varianzanalyse')}
+            'Varianzanalyse',
+            'Varianzinflationfaktor')}
 
     _language_: Literal['en', 'de'] = 'en'
     _username_: str = environ['USERNAME']

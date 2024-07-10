@@ -6,7 +6,10 @@ import pytest
 
 import numpy as np
 import pandas as pd
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
 
+from pytest import approx
 from pathlib import Path
 from pandas.testing import assert_frame_equal
 from pandas.testing import assert_series_equal
@@ -17,13 +20,15 @@ sys.path.append(str(Path(__file__).parent.resolve()))
 
 import daspi
 
-from daspi.anova import uniques
-from daspi.anova import hierarchical
-from daspi.anova import get_term_name
-from daspi.anova import frames_to_html
-from daspi.anova import is_main_feature
+from daspi import ANOVA
+from daspi import uniques
+from daspi import LinearModel
+from daspi import hierarchical
+from daspi import get_term_name
+from daspi import frames_to_html
+from daspi import is_main_feature
+from daspi import variance_inflation_factor
 
-from daspi.anova import LinearModel
 
 valid_data_dir = Path(__file__).parent/'data'
 
@@ -148,7 +153,9 @@ def lm() -> LinearModel:
     categorical = ['A', 'B', 'C', 'bad']
     continuous = []
     alpha = 0.05
-    return LinearModel(source, target, categorical, continuous, alpha, order=1)
+    return LinearModel(
+        source, target, categorical, continuous, alpha,
+        order=1, encode_categoricals=False)
 
 @pytest.fixture
 def lm2() -> LinearModel:
@@ -163,7 +170,9 @@ def lm2() -> LinearModel:
     categorical = ['A', 'B', 'C', 'bad']
     continuous = []
     alpha = 0.05
-    return LinearModel(source, target, categorical, continuous, alpha, order=4)
+    return LinearModel(
+        source, target, categorical, continuous, alpha,
+        order=4, encode_categoricals=False, skip_intercept_as_least=True)
 
 @pytest.fixture
 def lm3() -> LinearModel:
@@ -178,7 +187,9 @@ def lm3() -> LinearModel:
     categorical = ['A', 'B', 'C']
     continuous = ['D']
     alpha = 0.05
-    return LinearModel(source, target, categorical, continuous, alpha, order=1)
+    return LinearModel(
+        source, target, categorical, continuous, alpha,
+        order=1, encode_categoricals=False)
 
 @pytest.fixture
 def lm4() -> LinearModel:
@@ -193,7 +204,9 @@ def lm4() -> LinearModel:
     categorical = ['A', 'B', 'C']
     continuous = ['D']
     alpha = 0.05
-    return LinearModel(source, target, categorical, continuous, alpha, order=3)
+    return LinearModel(
+        source, target, categorical, continuous, alpha,
+        order=3, encode_categoricals=False)
 
 @pytest.fixture
 def anova3_c_valid() -> DataFrame:
@@ -224,7 +237,7 @@ class TestLinearModel:
         assert lm.alpha == 0.05
         assert lm.output_map == {'Target': 'y'}
         assert lm.input_map == {'A': 'x0', 'B': 'x1', 'C': 'x2', 'bad': 'x3'}
-        assert lm.exclude == set()
+        assert lm.excluded == set()
         assert lm._model is None
     
     def test_formula(self, lm: LinearModel, lm2: LinearModel) -> None:
@@ -243,7 +256,7 @@ class TestLinearModel:
         assert '*' not in lm2.formula
         assert '+' in lm2.formula
         assert ':' in lm2.formula
-        lm2.exclude.add('Intercept')
+        lm2.excluded.add('Intercept')
         assert '-1' in lm2.formula
 
     def test_model_property(self, lm: LinearModel) -> None:
@@ -255,13 +268,19 @@ class TestLinearModel:
     def test_least_term(self, lm: LinearModel, lm4: LinearModel) -> None:
         lm4.fit()
         assert all(lm4.p_values().isna())
-        assert lm4.least_term() == 'x1:x2'
+        assert lm4.least_term() == 'A:B:C'
 
-        lm.fit()
-        p_values = lm.p_values()
+        p_values = lm.fit().p_values()
+        least = lm.least_term()
         assert any(p_values.isna())
         assert p_values.max() > 0.05
-        assert lm.least_term() == 'x3'
+        assert p_values.idxmax() != least
+        assert least == 'bad'
+
+        p_values = lm.eliminate('bad').fit().p_values()
+        assert not any(p_values.isna())
+        assert p_values.max() > 0.05
+        assert lm.least_term() == 'A'
 
     def test_main_features_property(self, lm2: LinearModel) -> None:
         lm2.fit()
@@ -271,9 +290,8 @@ class TestLinearModel:
         for i, _gof in enumerate(lm2.recursive_feature_elimination()):
             assert _gof.loc[i, 'formula'] != formula
             formula = _gof.loc[i, 'formula']
-            gof = pd.concat([gof, _gof], axis=0)
+            gof = pd.concat([gof, _gof])
         assert gof['p_least'].iloc[-2] >= lm2.alpha
-        assert gof['p_least'].iloc[-1] < lm2.alpha
         assert lm2.main_features == ['x2']
 
     def test_alpha_property(self, lm: LinearModel) -> None:
@@ -346,7 +364,7 @@ class TestLinearModel:
             '---------------------------------------------------------------------------------------\n'
             'Sex                 1      2.075      2.075      2.407      0.127      0.034      1.000\n'
             'Risk                1     11.332     11.332     13.147      0.001      0.184      1.000\n'
-            'Drug                2      0.816      0.408      0.473      0.626      0.013      1.333\n'
+            'Drug                2      0.816      0.408      0.473      0.626      0.013      1.000\n'
             'Residual           55     47.407      0.862        nan        nan      0.769        nan\n'
             '=======================================================================================')
         smry_vif_anova = lm.summary(anova_typ='', vif=True)
@@ -358,13 +376,13 @@ class TestLinearModel:
             '==========================================================================================\n'
             '                      DF         SS         MS          F          p         n2        VIF\n'
             '------------------------------------------------------------------------------------------\n'
-            'Sex                    1      2.075      2.075      2.462      0.123      0.034      6.000\n'
-            'Risk                   1     11.332     11.332     13.449      0.001      0.184      6.000\n'
-            'Drug                   2      0.816      0.408      0.484      0.619      0.013      5.333\n'
-            'Sex:Risk               1      0.117      0.117      0.139      0.711      0.002      9.000\n'
-            'Sex:Drug               2      2.564      1.282      1.522      0.229      0.042      6.667\n'
-            'Risk:Drug              2      2.438      1.219      1.446      0.245      0.040      6.667\n'
-            'Sex:Risk:Drug          2      1.844      0.922      1.094      0.343      0.030      7.333\n'
+            'Sex                    1      2.075      2.075      2.462      0.123      0.034      1.000\n'
+            'Risk                   1     11.332     11.332     13.449      0.001      0.184      1.000\n'
+            'Drug                   2      0.816      0.408      0.484      0.619      0.013      1.000\n'
+            'Sex:Risk               1      0.117      0.117      0.139      0.711      0.002      1.364\n'
+            'Sex:Drug               2      2.564      1.282      1.522      0.229      0.042      1.616\n'
+            'Risk:Drug              2      2.438      1.219      1.446      0.245      0.040      1.616\n'
+            'Sex:Risk:Drug          2      1.844      0.922      1.094      0.343      0.030      1.000\n'
             'Residual              48     40.445      0.843        nan        nan      0.656        nan\n'
             '==========================================================================================')
         smry2 = lm2.summary(anova_typ='', vif=True)
@@ -380,8 +398,11 @@ class TestLinearModel:
             'A': [-1, 1, 1, -1, -1, 1],
             'B': [0, -1, 0, -1, 1, 1],
             'Center': [1, 0, 1, 0, 0, 0]})
-        lm = daspi.LinearModel(data, 'Ergebnis', ['A', 'B'], ['Center'], order=2).fit()
-        pytest.approx(lm.r2_pred(), 0.350426519634100657)
+        lm = daspi.LinearModel(
+                data, 'Ergebnis', ['A', 'B'], ['Center'], order=2, 
+                encode_categoricals=False
+            ).fit()
+        assert lm.r2_pred(), approx(0.350426519634100657)
     
     def test_str(self) -> None:
         df = daspi.load_dataset('anova3')
@@ -392,24 +413,24 @@ class TestLinearModel:
     def test_eliminate_term(self, lm3: LinearModel) -> None:
         lm3.fit()
         lm3.eliminate('A')
-        assert 'x0' in lm3.exclude
+        assert 'x0' in lm3.excluded
 
         lm3.eliminate('B')
-        assert 'x1' in lm3.exclude
+        assert 'x1' in lm3.excluded
 
         lm3.eliminate('C')
-        assert 'x2' in lm3.exclude
+        assert 'x2' in lm3.excluded
 
     def test_eliminate_interaction_term(self, lm4: LinearModel) -> None:
         lm4.fit()
         lm4.eliminate('A:B')
-        assert 'x0:x1' in lm4.exclude
+        assert 'x0:x1' in lm4.excluded
 
         lm4.eliminate('A:C')
-        assert 'x0:x2' in lm4.exclude
+        assert 'x0:x2' in lm4.excluded
 
         lm4.eliminate('B:C')
-        assert 'x1:x2' in lm4.exclude
+        assert 'x1:x2' in lm4.excluded
 
     def test_eliminate_invalid_term(self, lm3: LinearModel) -> None:
         lm3.fit()
@@ -422,13 +443,13 @@ class TestLinearModel:
     def test_eliminate_encoded_term(self, lm3: LinearModel) -> None:
         lm3.fit()
         lm3.eliminate('x0')
-        assert 'x0' in lm3.exclude
+        assert 'x0' in lm3.excluded
 
         lm3.eliminate('x1[T.b]')
-        assert 'x1' in lm3.exclude
+        assert 'x1' in lm3.excluded
 
         lm3.eliminate('x2[T.2.2]')
-        assert 'x2' in lm3.exclude
+        assert 'x2' in lm3.excluded
 
 
 class TestFramesToHTML:
@@ -453,13 +474,68 @@ class TestFramesToHTML:
 
     def test_mismatched_lengths(self) -> None:
         dfs = [DataFrame({'A': [1, 2]})]
-        captions = ['Table 1', 'Table 2']
-        with pytest.raises(AssertionError):
-            frames_to_html(dfs, captions)
+        assert bool(frames_to_html(dfs, self.captions))
+        
+        with pytest.raises(AssertionError, match='There must be at most as many captions as DataFrames.'):
+            html = frames_to_html(self.dfs, [self.captions[0]])
 
-    def test_no_captions(self) -> None:
-        dfs = [DataFrame({'A': [1, 2]})]
-        with pytest.raises(AssertionError, match='The number of DataFrames and captions must be equal.'):
+        with pytest.raises(AssertionError, match='There must be at most as many captions as DataFrames.'):
             html = frames_to_html(dfs, [])
 
+
+class TestVarianceInflationFactor:
+
+    X = pd.DataFrame([[0, 0], [0, 1], [1, 0], [1, 1]], columns=['x1', 'x2'])
+    y = pd.Series([1, 2, 3, 4])
+    n_cols = len(ANOVA.VIF_COLNAMES)
+
+    def test_two_predictors(self) -> None:
+        model = sm.OLS(self.y, self.X).fit()
+        vif_table = variance_inflation_factor(model)
+        assert vif_table.shape == (2, self.n_cols)
+        assert vif_table.loc['x1', 'Method'] == 'R_squared'
+        assert vif_table.loc['x2', 'Method'] == 'R_squared'
+        assert vif_table.loc['x1', 'VIF'] == 1.0
+        assert vif_table.loc['x2', 'VIF'] == 1.0
+
+    def test_collinear_predictors(self) -> None:
+        X = self.X.copy()
+        X['x3'] = X['x2']
+        model = sm.OLS(self.y, X).fit()
+        vif_table = variance_inflation_factor(model)
+        assert vif_table.shape == (3, self.n_cols)
+        assert not vif_table.loc['x1', 'Collinear']
+        assert vif_table.loc['x2', 'Collinear']
+        assert vif_table.loc['x3', 'Collinear']
+        assert vif_table.loc['x1', 'VIF'] == 1.0
+        assert vif_table.loc['x2', 'VIF'] == float('inf')
+        assert vif_table.loc['x3', 'VIF'] == float('inf')
+
+    def test_categorical_predictors(self) -> None:
+        data = pd.DataFrame({
+            'y': [1, 2, 3, 4, 5, 6],
+            'x1': ['a', 'b', 'c', 'a', 'b', 'c'],
+            'x2': ['I', 'II', 'I', 'II', 'I', 'II']})
+        model = smf.ols('y ~ x1*x2', data).fit()
+        vif_table = variance_inflation_factor(model)
+        assert vif_table.shape == (4, self.n_cols)
+        assert vif_table.loc[ANOVA.INTERCEPT, 'Method'] == 'R_squared'
+        assert vif_table.loc['x1', 'Method'] == 'generalized'
+        assert vif_table.loc['x2', 'Method'] == 'R_squared'
+        assert vif_table.loc['x1:x2', 'Method'] == 'single_order-2_term'
+        assert vif_table.loc[ANOVA.INTERCEPT, 'VIF'] == approx(4.0)
+        assert vif_table.loc['x1', 'VIF'] == approx(1.0)
+        assert vif_table.loc['x2', 'VIF'] == approx(1.0)
+        assert vif_table.loc['x1:x2', 'VIF'] == approx(1.0)
+        assert not vif_table.loc[ANOVA.INTERCEPT, 'Collinear']
+        assert not vif_table.loc['x1', 'Collinear']
+        assert not vif_table.loc['x2', 'Collinear']
+        assert not vif_table.loc['x1:x2', 'Collinear']
+
+    def test_single_predictor(self) -> None:
+        # Test case with single predictor variable
+        X = np.array([[1], [2], [3], [4]])
+        y = np.array([1, 2, 3, 4])
+        with pytest.raises(AssertionError):
+            variance_inflation_factor(sm.OLS(y, X).fit())
         

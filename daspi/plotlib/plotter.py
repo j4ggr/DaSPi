@@ -1026,6 +1026,13 @@ class TransformPlotter(Plotter):
         Value that serves as the base location (offset) of the 
         feature values. Only taken into account if feature is not 
         given, by default `DEFAULT.FEATURE_BASE`.
+    skip_na : Literal['none', 'all', 'any'], optional
+        Flag indicating whether to skip missing values in the feature 
+        grouped data, by default None
+        - None, no missing values are skipped
+        - all', grouped data is skipped if all values are missing
+        - any', grouped data is skipped if any value is missing
+
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
         the y-axis, by default True
@@ -1035,18 +1042,27 @@ class TransformPlotter(Plotter):
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure ovject with
         one Axes is created, by default None.
+    
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
         used within chart objects).
     """
-    __slots__ = ('_f_base', '_original_f_values')
+    __slots__ = ('_f_base', '_original_f_values', 'skip_na')
 
     _f_base: int | float
     """Value that serves as the base location (offset) of the feature 
     values."""
     _original_f_values: tuple
     """Original values of the feature values."""
+
+    skip_na: Literal['all', 'any'] | None
+    """Flag indicating whether to skip missing values in the feature 
+    grouped data.
+    - `None`: no missing values are skipped
+    - `'all'`: grouped data is skipped if all values are missing
+    - `'any'`: grouped data is skipped if any value is missing
+    """
     
     def __init__(
             self,
@@ -1054,6 +1070,7 @@ class TransformPlotter(Plotter):
             target: str,
             feature: str = '',
             f_base: int | float = DEFAULT.FEATURE_BASE,
+            skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -1062,6 +1079,7 @@ class TransformPlotter(Plotter):
         self.target = target
         self.feature = feature
         self._original_f_values = ()
+        self.skip_na = skip_na
         
         df = pd.DataFrame()
         for _feature, _target in self.feature_grouped(source):
@@ -1094,12 +1112,14 @@ class TransformPlotter(Plotter):
             for i, (f_value, group) in enumerate(
                     source.groupby(self.feature, sort=True),
                     start=DEFAULT.FEATURE_BASE):
+                target_data = group[self.target]
+                if self.skip_na and getattr(target_data.isna(), self.skip_na)():
+                    continue
                 self._original_f_values = self._original_f_values + (f_value, )
                 if isinstance(f_value, (float, int, pd.Timestamp)):
                     feature_data = f_value
                 else:
                     feature_data = i
-                target_data = group[self.target]
                 yield feature_data, target_data
         else:
             self.feature = PLOTTER.TRANSFORMED_FEATURE
@@ -1172,6 +1192,13 @@ class CenterLocation(TransformPlotter):
         Value that serves as the base location (offset) of the 
         feature values. Only taken into account if feature is not 
         given, by default `DEFAULT.FEATURE_BASE`.
+    skip_na : Literal['none', 'all', 'any'], optional
+        Flag indicating whether to skip missing values in the feature 
+        grouped data, by default None
+        - None, no missing values are skipped
+        - all', grouped data is skipped if all values are missing
+        - any', grouped data is skipped if any value is missing
+
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
         the y-axis, by default True
@@ -1207,6 +1234,7 @@ class CenterLocation(TransformPlotter):
             show_line: bool = True,
             show_points: bool = True, #FIXME does not work as individual points only for center points: change to center
             f_base: int | float = DEFAULT.FEATURE_BASE,
+            skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -1218,7 +1246,7 @@ class CenterLocation(TransformPlotter):
         self.marker = marker if marker else plt.rcParams['scatter.marker']
         super().__init__(
             source=source, target=target, feature=feature, f_base=f_base,
-            target_on_y=target_on_y, color=color, ax=ax)
+            skip_na=skip_na, target_on_y=target_on_y, color=color, ax=ax)
 
     @property
     def default_kwds(self) -> Dict[str, Any]:
@@ -1315,6 +1343,13 @@ class Bar(TransformPlotter):
         Value that serves as the base location (offset) of the 
         feature values. Only taken into account if feature is not 
         given, by default `DEFAULT.FEATURE_BASE`.
+    skip_na : Literal['none', 'all', 'any'], optional
+        Flag indicating whether to skip missing values in the feature 
+        grouped data, by default None
+        - None, no missing values are skipped
+        - all', grouped data is skipped if all values are missing
+        - any', grouped data is skipped if any value is missing
+
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
         the y-axis, by default True
@@ -1351,6 +1386,7 @@ class Bar(TransformPlotter):
             method: str | None = None,
             kw_method: dict = {},
             f_base: int | float = DEFAULT.FEATURE_BASE,
+            skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -1361,7 +1397,8 @@ class Bar(TransformPlotter):
         self.kw_method = kw_method
         super().__init__(
             source=source, target=target, feature=feature, f_base=f_base,
-            target_on_y=target_on_y, color=color, ax=ax, **kwds)
+            skip_na=skip_na, target_on_y=target_on_y, color=color, ax=ax,
+            **kwds)
 
         if self.method is not None:
             target = f'{self.target} {self.method}'
@@ -1501,6 +1538,8 @@ class Pareto(Bar):
     highlighted_as_last: bool, optional
         Whether the highlighted bar should be at the end, by default
         True.
+    no_percentage_line : bool, optional
+        Whether to draw a line as cumulative percentage, by default True
     width: float, optional
         Width of the bars, by default `CATEGORY.FEATURE_SPACE`.
     method : str, optional
@@ -1510,6 +1549,13 @@ class Pareto(Bar):
     kw_method : dict, optional
         Additional keyword arguments to be passed to the method,
         by default {}.
+    skip_na : Literal['none', 'all', 'any'], optional
+        Flag indicating whether to skip missing values in the feature 
+        grouped data, by default None
+        - None, no missing values are skipped
+        - all', grouped data is skipped if all values are missing
+        - any', grouped data is skipped if any value is missing
+
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on the
         y-axis, by default True.
@@ -1532,7 +1578,9 @@ class Pareto(Bar):
         If an other Axes object in this Figure instance shares the
         feature axis.
     """
-    __slots__ = ('highlight', 'highlight_color', 'highlighted_as_last')
+    __slots__ = (
+        'highlight', 'highlight_color', 'highlighted_as_last',
+        'no_percentage_line')
 
     highlight: Any
     """The feature value whose bar should be highlighted in the chart."""
@@ -1540,6 +1588,8 @@ class Pareto(Bar):
     """The color to use for highlighting."""
     highlighted_as_last: bool
     """Whether the highlighted bar should be at the end."""
+    no_percentage_line: bool
+    """Whether to draw the percentage line and the percentage text."""
 
     def __init__(
             self,
@@ -1549,9 +1599,11 @@ class Pareto(Bar):
             highlight: Any = None,
             highlight_color: str = COLOR.BAD,
             highlighted_as_last: bool = True,
+            no_percentage_line: bool = False,
             width: float = CATEGORY.FEATURE_SPACE,
             method: str | None = None,
             kw_method: dict = {},
+            skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -1559,13 +1611,14 @@ class Pareto(Bar):
         assert not (kwds.get('categorical_feature', False)), (
             "Don't set categorical_feature to True for Pareto charts, "
             'it would mess up the axis tick labels')
+        self.no_percentage_line = no_percentage_line
         self.highlight = highlight
         self.highlight_color = highlight_color
         self.highlighted_as_last = highlighted_as_last
         
         super().__init__(
             source=source, target=target, feature=feature, stack=False,
-            width=width, method=method, kw_method=kw_method,
+            width=width, method=method, kw_method=kw_method, skip_na=skip_na,
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
         self.source[self.feature] = self._original_f_values
         assert not self.shared_feature_axes, (
@@ -1639,7 +1692,7 @@ class Pareto(Bar):
 
     def add_percentage_texts(self) -> None:
         """Add percentage texts on top of major grids"""
-        if hasattr(self.ax, 'has_pc_texts'):
+        if hasattr(self.ax, 'has_pc_texts') or self.no_percentage_line:
             return
         
         n_texts = PLOTTER.PARETO_N_TICKS-1
@@ -1673,14 +1726,16 @@ class Pareto(Bar):
         _kwds = self.default_kwds | kwds
         if self.target_on_y:
             bars = self.ax.bar(self.x, self.y, width=self.width, **_kwds)
-            self.ax.plot(
-                self.x, self.y.cumsum(), color=self.color,
-                **KW.PARETO_LINE)
+            if not self.no_percentage_line:
+                self.ax.plot(
+                    self.x, self.y.cumsum(), color=self.color,
+                    **KW.PARETO_LINE)
         else:
             bars = self.ax.barh(self.y, self.x, height=self.width, **_kwds)
-            self.ax.plot(
-                self.x[::-1].cumsum(), self.y[::-1], color=self.color,
-                **KW.PARETO_LINE)
+            if not self.no_percentage_line:
+                self.ax.plot(
+                    self.x[::-1].cumsum(), self.y[::-1], color=self.color,
+                    **KW.PARETO_LINE)
         self._highlight_bar_(bars)
         self._set_margin_()
         self._remove_feature_grid_()
@@ -1702,6 +1757,13 @@ class Jitter(TransformPlotter):
         by default ''
     width : float
         The width of the jitter, by default `CATEGORY.FEATURE_SPACE`.
+    skip_na : Literal['none', 'all', 'any'], optional
+        Flag indicating whether to skip missing values in the feature 
+        grouped data, by default None
+        - None, no missing values are skipped
+        - all', grouped data is skipped if all values are missing
+        - any', grouped data is skipped if any value is missing
+
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
         the y-axis, by default True
@@ -1727,13 +1789,14 @@ class Jitter(TransformPlotter):
             target: str,
             feature: str = '',
             width: float = CATEGORY.FEATURE_SPACE,
+            skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         self.width = width
         super().__init__(
-            source=source, target=target, feature=feature,
+            source=source, target=target, feature=feature, skip_na=skip_na,
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
     
     @property
@@ -1828,6 +1891,13 @@ class GaussianKDE(TransformPlotter):
         by default 1.
     height : float | None, optional
         Height of the KDE curve at its maximum, by default None.
+    skip_na : Literal['none', 'all', 'any'], optional
+        Flag indicating whether to skip missing values in the feature 
+        grouped data, by default None
+        - None, no missing values are skipped
+        - all', grouped data is skipped if all values are missing
+        - any', grouped data is skipped if any value is missing
+
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
         the y-axis, by default True.
@@ -1861,6 +1931,7 @@ class GaussianKDE(TransformPlotter):
             target: str,
             stretch: float = 1,
             height: float | None = None,
+            skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -1874,7 +1945,7 @@ class GaussianKDE(TransformPlotter):
         if type(self) != GaussianKDE and _feature:
             feature = _feature
         super().__init__(
-            source=source, target=target, feature=feature,
+            source=source, target=target, feature=feature, skip_na=skip_na,
             target_on_y=target_on_y, color=color, ax=ax, **kwds)
     
     @property
@@ -2068,6 +2139,13 @@ class Errorbar(TransformPlotter):
         Flag indicating whether to use same color for error bars as 
         markers for center. If False, the error bars are black,
         by default False
+    skip_na : Literal['none', 'all', 'any'], optional
+        Flag indicating whether to skip missing values in the feature 
+        grouped data, by default None
+        - None, no missing values are skipped
+        - all', grouped data is skipped if all values are missing
+        - any', grouped data is skipped if any value is missing
+
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
         the y-axis, by default True.
@@ -2103,6 +2181,7 @@ class Errorbar(TransformPlotter):
             feature: str = '',
             show_center: bool = True,
             bars_same_color: bool = False,
+            skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -2113,7 +2192,7 @@ class Errorbar(TransformPlotter):
         self.bars_same_color = bars_same_color
 
         super().__init__(
-            source=source, target=target, feature=feature,
+            source=source, target=target, feature=feature, skip_na=skip_na,
             target_on_y=target_on_y, color=color, ax=ax)
 
     @property
@@ -2198,6 +2277,13 @@ class StandardErrorMean(Errorbar):
     bars_same_color : bool, optional
         Flag indicating whether to use same color for error bars as 
         markers for center. If False, the error bars are black,
+    skip_na : Literal['none', 'all', 'any'], optional
+        Flag indicating whether to skip missing values in the feature 
+        grouped data, by default None
+        - None, no missing values are skipped
+        - all', grouped data is skipped if all values are missing
+        - any', grouped data is skipped if any value is missing
+
         by default False
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
@@ -2220,6 +2306,7 @@ class StandardErrorMean(Errorbar):
             feature: str = '',
             show_center: bool = True,
             bars_same_color: bool = False,
+            skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -2227,8 +2314,8 @@ class StandardErrorMean(Errorbar):
         super().__init__(
             source=source, target=target, lower=PLOTTER.ERR_LOW,
             upper=PLOTTER.ERR_UPP, feature=feature, show_center=show_center,
-            bars_same_color=bars_same_color, target_on_y=target_on_y,
-            color=color, ax=ax)
+            bars_same_color=bars_same_color, skip_na=skip_na, 
+            target_on_y=target_on_y, color=color, ax=ax)
 
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
@@ -2287,6 +2374,13 @@ class SpreadWidth(Errorbar):
         Flag indicating whether to use same color for error bars as 
         markers for center. If False, the error bars are black,
         by default False
+    skip_na : Literal['none', 'all', 'any'], optional
+        Flag indicating whether to skip missing values in the feature 
+        grouped data, by default None
+        - None, no missing values are skipped
+        - all', grouped data is skipped if all values are missing
+        - any', grouped data is skipped if any value is missing
+
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
         the y-axis, by default True.
@@ -2321,6 +2415,7 @@ class SpreadWidth(Errorbar):
             possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
             show_center: bool = True,
             bars_same_color: bool = False,
+            skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -2332,8 +2427,8 @@ class SpreadWidth(Errorbar):
         super().__init__(
             source=source, target=target, lower=PLOTTER.ERR_LOW,
             upper=PLOTTER.ERR_UPP, feature=feature, show_center=show_center,
-            bars_same_color=bars_same_color, target_on_y=target_on_y,
-            color=color, ax=ax)
+            bars_same_color=bars_same_color, skip_na=skip_na,
+            target_on_y=target_on_y, color=color, ax=ax)
 
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
@@ -2407,6 +2502,13 @@ class ConfidenceInterval(Errorbar):
         Flag indicating whether to use same color for error bars as 
         markers for center. If False, the error bars are black,
         by default False
+    skip_na : Literal['none', 'all', 'any'], optional
+        Flag indicating whether to skip missing values in the feature 
+        grouped data, by default None
+        - None, no missing values are skipped
+        - all', grouped data is skipped if all values are missing
+        - any', grouped data is skipped if any value is missing
+
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
         the y-axis, by default True.
@@ -2446,6 +2548,7 @@ class ConfidenceInterval(Errorbar):
             feature: str = '',
             show_center: bool = True,
             bars_same_color: bool = False,
+            skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             confidence_level: float = 0.95,
             ci_func: Callable = mean_ci,
@@ -2460,8 +2563,8 @@ class ConfidenceInterval(Errorbar):
         super().__init__(
             source=source, target=target, lower=PLOTTER.ERR_LOW,
             upper=PLOTTER.ERR_UPP, feature=feature, show_center=show_center,
-            bars_same_color=bars_same_color, target_on_y=target_on_y,
-            color=color, ax=ax)
+            bars_same_color=bars_same_color, skip_na=skip_na, 
+            target_on_y=target_on_y, color=color, ax=ax)
     
     def transform(
             self, feature_data: float | int, target_data: Series
