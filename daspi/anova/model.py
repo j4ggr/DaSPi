@@ -106,6 +106,10 @@ def is_main_feature(feature: str) -> bool:
     excluded)."""
     return feature != ANOVA.INTERCEPT and ANOVA.SEP not in feature
 
+def get_order(feature: str) -> int:
+    """Get the order of a feature (i.e., how many interactions it
+    contains)."""
+    return feature.count(ANOVA.SEP) + 1
 
 def hierarchical(features: List[str]) -> List[str]:
     """Get all features such that all lower interactions and main 
@@ -135,7 +139,7 @@ def hierarchical(features: List[str]) -> List[str]:
             for combo in map(ANOVA.SEP.join, itertools.combinations(split, i)):
                 h_features.add(combo)
 
-    return sorted(sorted(list(h_features)), key=lambda x: x.count(ANOVA.SEP))
+    return sorted(sorted(h_features), key=get_order)
 
 
 class LinearModel:
@@ -170,7 +174,7 @@ class LinearModel:
         term when using recursive feature elimination. Also if True, the
         intercept does not appear when calling the `least_term` method,
         by default True.
-    encode_categorical: bool, optional
+    encode_categoricals : bool, optional
         If True, all of the categorical variables are encoded using
         one-hot encoding. Otherwise they are interpreted as continuous
         variables when possible, by default True.
@@ -185,7 +189,7 @@ class LinearModel:
     __slots__ = (
         'data', 'target', 'categorical', 'continuous', '_model', '_alpha',
         'skip_intercept_as_least', 'generalized_vif', 'input_map', 'input_rmap',
-        'output_map', 'exclude', 'level_map', '_initial_terms_', '_p_values',
+        'output_map', 'excluded', 'level_map', '_initial_terms_', '_p_values',
         '_anova', '_effects', '_vif')
     data: DataFrame
     """The Pandas DataFrame containing the data for the linear model."""
@@ -218,7 +222,7 @@ class LinearModel:
     output_map: Dict[str, str]
     """A dictionary that maps the original feature names to the encoded 
     feature names used in the model."""
-    exclude: Set[str]
+    excluded: Set[str]
     """A set of feature names that should be excluded from the model."""
     level_map: Dict[Any, Any]
     """A dictionary that maps the original feature names to their 
@@ -261,7 +265,7 @@ class LinearModel:
             skip_intercept_as_least: bool = True,
             generalized_vif: bool = True,
             encode_categoricals: bool = True) -> None:
-        assert order >= 0 and isinstance(order, int), (
+        assert order > 0 and isinstance(order, int), (
             'Interaction order must be a positive integer')
         self.target = target
         self.categorical = categorical
@@ -276,7 +280,7 @@ class LinearModel:
         self.alpha = alpha
         self.skip_intercept_as_least = skip_intercept_as_least
         self.generalized_vif = generalized_vif
-        self.exclude = set()
+        self.excluded = set()
         self._model = None
         self.data = (source
             .copy()
@@ -289,7 +293,7 @@ class LinearModel:
             + ('+'.join(['', *_continuous]) if _continuous else ''))
         terms = model_desc.describe().split(' ~ ')[1].split(' + ')
         self._initial_terms_ = [
-            t for t in terms if len(t.split(ANOVA.SEP)) <= order]
+            t for t in terms if t.count(ANOVA.SEP) < order]
         self._reset_tables_()
         
     @property
@@ -373,9 +377,9 @@ class LinearModel:
         if self._model is None:
             return self.initial_formula
     
-        ignore = list(self.exclude) + [ANOVA.INTERCEPT]
+        ignore = list(self.excluded) + [ANOVA.INTERCEPT]
         terms = [t for t in self._initial_terms_ if t not in ignore]
-        if ANOVA.INTERCEPT in self.exclude:
+        if ANOVA.INTERCEPT in self.excluded:
             terms = ['-1'] + terms
         return f'{self.output_map[self.target]} ~ {" + ".join(terms)}'
     
@@ -484,21 +488,22 @@ class LinearModel:
         the term name with the least p-value for the F-stats coming from
         current ANOVA table.
         """
-        self.p_values()
-        p_values = self._p_values.copy()
+        p_values = self.p_values().copy()
         has_intercept = ANOVA.INTERCEPT in p_values.index
         if any(p_values.isna()):
-            self.effects()
-            effects = self._effects.copy()
+            effects = self.effects().copy()
             if has_intercept and self.skip_intercept_as_least:
                 effects = effects.drop(ANOVA.INTERCEPT)
-            smallest = np.where(effects == effects.min())[0][-1]
-            least = str(effects.index[smallest])
+            if any(effects.isna()):
+                leasts = effects[effects.isna()]
+            else:
+                leasts = effects[effects == effects.min()]
+            least = sorted(leasts.index, key=get_order)[-1]
         else:
             if has_intercept and self.skip_intercept_as_least:
                 p_values = p_values.drop(ANOVA.INTERCEPT)
-            least = str(p_values.index[p_values.argmax()])
-        return least
+            least = p_values.iloc[::-1].idxmax()
+        return str(least)
     
     def fit(self, **kwds) -> Self:
         """Create and fit a ordinary least squares model using current 
@@ -642,7 +647,7 @@ class LinearModel:
             summary.tables.append(table)
         return summary
     
-    def eliminate(self, term: str) -> None:
+    def eliminate(self, term: str) -> Self:
         """Removes the given term from the model by adding it to the 
         `exclude` set.
         
@@ -650,6 +655,11 @@ class LinearModel:
         ----------
         term : str
             The term to be removed from the model.
+        
+        Returns
+        -------
+        Self
+            The current instance of the model for more method chaining.
         
         Raises
         ------
@@ -660,7 +670,8 @@ class LinearModel:
             lambda x: get_term_name(self.input_map.get(x, x)),
             term.split(ANOVA.SEP)))
         assert term in self._term_names_, f'Given term {term} is not in model'
-        self.exclude.add(term)
+        self.excluded.add(term)
+        return self
 
     def recursive_feature_elimination(
             self, rsquared_max: float = 0.99, ensure_hierarchy: bool = True,
@@ -692,7 +703,7 @@ class LinearModel:
             feature elimination.
         """
         self._model = None
-        self.exclude = set()
+        self.excluded = set()
         self.fit(**kwds)
         max_steps = len(self._term_names_)
         step = -1
@@ -710,7 +721,7 @@ class LinearModel:
         if ensure_hierarchy and not self.is_hierarchical():
             step = step + 1
             h_features = hierarchical(self._term_names_)
-            self.exclude = {e for e in self.exclude if e not in h_features}
+            self.excluded = {e for e in self.excluded if e not in h_features}
             self.fit(**kwds)
             yield self.gof_metrics(step)
     
@@ -864,7 +875,7 @@ class LinearModel:
             
         Parameters
         ----------
-        trheshold : int, optional
+        threshold : int, optional
             The threshold for deciding whether a predictor is collinear.
             Common values are 5 and 10. By default 5.
         
@@ -915,7 +926,8 @@ class LinearModel:
             Returns True if the model has any insignificant terms, and 
             False otherwise.
         """
-        if len(self._term_names_) == 1:
+        n_terms_min = 2 if self.skip_intercept_as_least else 1
+        if len(self._term_names_) == n_terms_min:
             return False
         
         if all(self.p_values().isna()):

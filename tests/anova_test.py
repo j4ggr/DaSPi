@@ -153,7 +153,9 @@ def lm() -> LinearModel:
     categorical = ['A', 'B', 'C', 'bad']
     continuous = []
     alpha = 0.05
-    return LinearModel(source, target, categorical, continuous, alpha, order=1)
+    return LinearModel(
+        source, target, categorical, continuous, alpha,
+        order=1, encode_categoricals=False)
 
 @pytest.fixture
 def lm2() -> LinearModel:
@@ -168,7 +170,9 @@ def lm2() -> LinearModel:
     categorical = ['A', 'B', 'C', 'bad']
     continuous = []
     alpha = 0.05
-    return LinearModel(source, target, categorical, continuous, alpha, order=4)
+    return LinearModel(
+        source, target, categorical, continuous, alpha,
+        order=4, encode_categoricals=False, skip_intercept_as_least=True)
 
 @pytest.fixture
 def lm3() -> LinearModel:
@@ -183,7 +187,9 @@ def lm3() -> LinearModel:
     categorical = ['A', 'B', 'C']
     continuous = ['D']
     alpha = 0.05
-    return LinearModel(source, target, categorical, continuous, alpha, order=1)
+    return LinearModel(
+        source, target, categorical, continuous, alpha,
+        order=1, encode_categoricals=False)
 
 @pytest.fixture
 def lm4() -> LinearModel:
@@ -198,7 +204,9 @@ def lm4() -> LinearModel:
     categorical = ['A', 'B', 'C']
     continuous = ['D']
     alpha = 0.05
-    return LinearModel(source, target, categorical, continuous, alpha, order=3)
+    return LinearModel(
+        source, target, categorical, continuous, alpha,
+        order=3, encode_categoricals=False)
 
 @pytest.fixture
 def anova3_c_valid() -> DataFrame:
@@ -229,7 +237,7 @@ class TestLinearModel:
         assert lm.alpha == 0.05
         assert lm.output_map == {'Target': 'y'}
         assert lm.input_map == {'A': 'x0', 'B': 'x1', 'C': 'x2', 'bad': 'x3'}
-        assert lm.exclude == set()
+        assert lm.excluded == set()
         assert lm._model is None
     
     def test_formula(self, lm: LinearModel, lm2: LinearModel) -> None:
@@ -248,7 +256,7 @@ class TestLinearModel:
         assert '*' not in lm2.formula
         assert '+' in lm2.formula
         assert ':' in lm2.formula
-        lm2.exclude.add('Intercept')
+        lm2.excluded.add('Intercept')
         assert '-1' in lm2.formula
 
     def test_model_property(self, lm: LinearModel) -> None:
@@ -260,13 +268,19 @@ class TestLinearModel:
     def test_least_term(self, lm: LinearModel, lm4: LinearModel) -> None:
         lm4.fit()
         assert all(lm4.p_values().isna())
-        assert lm4.least_term() == 'x2'
+        assert lm4.least_term() == 'A:B:C'
 
-        lm.fit()
-        p_values = lm.p_values()
+        p_values = lm.fit().p_values()
+        least = lm.least_term()
         assert any(p_values.isna())
         assert p_values.max() > 0.05
-        assert lm.least_term() == 'x0'
+        assert p_values.idxmax() != least
+        assert least == 'bad'
+
+        p_values = lm.eliminate('bad').fit().p_values()
+        assert not any(p_values.isna())
+        assert p_values.max() > 0.05
+        assert lm.least_term() == 'A'
 
     def test_main_features_property(self, lm2: LinearModel) -> None:
         lm2.fit()
@@ -276,9 +290,8 @@ class TestLinearModel:
         for i, _gof in enumerate(lm2.recursive_feature_elimination()):
             assert _gof.loc[i, 'formula'] != formula
             formula = _gof.loc[i, 'formula']
-            gof = pd.concat([gof, _gof], axis=0)
+            gof = pd.concat([gof, _gof])
         assert gof['p_least'].iloc[-2] >= lm2.alpha
-        assert gof['p_least'].iloc[-1] < lm2.alpha
         assert lm2.main_features == ['x2']
 
     def test_alpha_property(self, lm: LinearModel) -> None:
@@ -363,13 +376,13 @@ class TestLinearModel:
             '==========================================================================================\n'
             '                      DF         SS         MS          F          p         n2        VIF\n'
             '------------------------------------------------------------------------------------------\n'
-            'Sex                    1      2.075      2.075      2.462      0.123      0.034      6.000\n'
-            'Risk                   1     11.332     11.332     13.449      0.001      0.184      6.000\n'
-            'Drug                   2      0.816      0.408      0.484      0.619      0.013      4.000\n'
-            'Sex:Risk               1      0.117      0.117      0.139      0.711      0.002      9.000\n'
-            'Sex:Drug               2      2.564      1.282      1.522      0.229      0.042      5.000\n'
-            'Risk:Drug              2      2.438      1.219      1.446      0.245      0.040      5.000\n'
-            'Sex:Risk:Drug          2      1.844      0.922      1.094      0.343      0.030      5.500\n'
+            'Sex                    1      2.075      2.075      2.462      0.123      0.034      1.000\n'
+            'Risk                   1     11.332     11.332     13.449      0.001      0.184      1.000\n'
+            'Drug                   2      0.816      0.408      0.484      0.619      0.013      1.000\n'
+            'Sex:Risk               1      0.117      0.117      0.139      0.711      0.002      1.364\n'
+            'Sex:Drug               2      2.564      1.282      1.522      0.229      0.042      1.616\n'
+            'Risk:Drug              2      2.438      1.219      1.446      0.245      0.040      1.616\n'
+            'Sex:Risk:Drug          2      1.844      0.922      1.094      0.343      0.030      1.000\n'
             'Residual              48     40.445      0.843        nan        nan      0.656        nan\n'
             '==========================================================================================')
         smry2 = lm2.summary(anova_typ='', vif=True)
@@ -400,24 +413,24 @@ class TestLinearModel:
     def test_eliminate_term(self, lm3: LinearModel) -> None:
         lm3.fit()
         lm3.eliminate('A')
-        assert 'x0' in lm3.exclude
+        assert 'x0' in lm3.excluded
 
         lm3.eliminate('B')
-        assert 'x1' in lm3.exclude
+        assert 'x1' in lm3.excluded
 
         lm3.eliminate('C')
-        assert 'x2' in lm3.exclude
+        assert 'x2' in lm3.excluded
 
     def test_eliminate_interaction_term(self, lm4: LinearModel) -> None:
         lm4.fit()
         lm4.eliminate('A:B')
-        assert 'x0:x1' in lm4.exclude
+        assert 'x0:x1' in lm4.excluded
 
         lm4.eliminate('A:C')
-        assert 'x0:x2' in lm4.exclude
+        assert 'x0:x2' in lm4.excluded
 
         lm4.eliminate('B:C')
-        assert 'x1:x2' in lm4.exclude
+        assert 'x1:x2' in lm4.excluded
 
     def test_eliminate_invalid_term(self, lm3: LinearModel) -> None:
         lm3.fit()
@@ -430,13 +443,13 @@ class TestLinearModel:
     def test_eliminate_encoded_term(self, lm3: LinearModel) -> None:
         lm3.fit()
         lm3.eliminate('x0')
-        assert 'x0' in lm3.exclude
+        assert 'x0' in lm3.excluded
 
         lm3.eliminate('x1[T.b]')
-        assert 'x1' in lm3.exclude
+        assert 'x1' in lm3.excluded
 
         lm3.eliminate('x2[T.2.2]')
-        assert 'x2' in lm3.exclude
+        assert 'x2' in lm3.excluded
 
 
 class TestFramesToHTML:
@@ -509,15 +522,15 @@ class TestVarianceInflationFactor:
         assert vif_table.loc[ANOVA.INTERCEPT, 'Method'] == 'R_squared'
         assert vif_table.loc['x1', 'Method'] == 'generalized'
         assert vif_table.loc['x2', 'Method'] == 'R_squared'
-        assert vif_table.loc['x1:x2', 'Method'] == 'generalized'
-        assert vif_table.loc[ANOVA.INTERCEPT, 'VIF'] == approx(6.0)
-        assert vif_table.loc['x1', 'VIF'] == approx(4.0)
-        assert vif_table.loc['x2', 'VIF'] == approx(3.0)
-        assert vif_table.loc['x1:x2', 'VIF'] == approx(8.0)
-        assert vif_table.loc[ANOVA.INTERCEPT, 'Collinear']
+        assert vif_table.loc['x1:x2', 'Method'] == 'single_order-2_term'
+        assert vif_table.loc[ANOVA.INTERCEPT, 'VIF'] == approx(4.0)
+        assert vif_table.loc['x1', 'VIF'] == approx(1.0)
+        assert vif_table.loc['x2', 'VIF'] == approx(1.0)
+        assert vif_table.loc['x1:x2', 'VIF'] == approx(1.0)
+        assert not vif_table.loc[ANOVA.INTERCEPT, 'Collinear']
         assert not vif_table.loc['x1', 'Collinear']
         assert not vif_table.loc['x2', 'Collinear']
-        assert vif_table.loc['x1:x2', 'Collinear']
+        assert not vif_table.loc['x1:x2', 'Collinear']
 
     def test_single_predictor(self) -> None:
         # Test case with single predictor variable

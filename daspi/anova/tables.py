@@ -71,12 +71,13 @@ def terms_effect(model: RegressionResultsWrapper) -> Series:
         .pow(2)
         .groupby(level=0, axis=0)
         .sum()
-        .pow(0.5))
+        .pow(1/2))
     params = (params
         .rename(index=names_map)
         .groupby(level=0, axis=0)
         .sum())
     effects = params.abs() / se
+    effects = effects[uniques(names_map.values())]
     effects.name = ANOVA.EFFECTS
     effects.index.name = ANOVA.FEATURES
     return effects
@@ -100,7 +101,7 @@ def variance_inflation_factor(
     ----------
     model : RegressionResultsWrapper
         The regression model to analyze.
-    trheshold : int, optional
+    threshold : int, optional
         The threshold for deciding whether a predictor is collinear.
         Common values are 5 and 10. By default 5.
     generalized : bool, optional
@@ -281,7 +282,7 @@ def terms_probability(model: RegressionResultsWrapper) -> 'Series[float]':
     ANOVA typ III table is used, because it is the only one who gives us
     a p-value for the intercept.
     """
-    anova = anova_table(model, typ='III')
+    anova = anova_table(model, typ='III') # do not call self.anova() here, it would mess up the internal anova table
     if anova.empty:
         names = model.model.data.design_info.term_names
         p_values = pd.Series({n: np.nan for n in names})
