@@ -105,6 +105,14 @@ class _String_:
             'Vorhersage',
             'Beobachtungsreihenfolge')}
     
+    paircharts_fig_title: Dict[str, str] = {
+        'en': 'Pairwise Analysis',
+        'de': 'Paarweise Analyse'}
+    
+    paircharts_sub_title: Dict[str, str] = {
+        'en': 'Bland-Altman 95 % CI and individual value comparison',
+        'de': 'Bland-Altman 95 %-KI und Einzelwertvergleich'}
+    
     lm_repr_captions: Dict[str, Tuple[str, ...]] = {
         'en': (
             'Model summary',

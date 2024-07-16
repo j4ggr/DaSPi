@@ -922,6 +922,11 @@ class JointChart(Chart):
             legend_data = legend_data | chart.legend_data
         return legend_data
     
+    @property
+    def plots(self) -> List[Plotter]:
+        """Get plotter objects used in `plot` method"""
+        return [p for c in self.charts for p in c.plots]
+    
     def _single_label_allowed_(self, is_target: bool) -> bool:
         """Determines whether a single label is allowed for the 
         specified axis.
