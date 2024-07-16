@@ -14,6 +14,16 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [Unreleased]
+
+### Added
+
+- PairComparisonCharts template, provides a set of charts for visualizing the pairwise comparison of two variables.
+
+### Removed
+
+- BaseTemplate, all template chart classes inherits directly from JointChart.
+
 ## [0.2.0] - 2021-07-10
 
 ### Added
