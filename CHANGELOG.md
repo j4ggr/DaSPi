@@ -19,6 +19,7 @@ __Types of changes__:
 ### Added
 
 - PairComparisonCharts template, provides a set of charts for visualizing the pairwise comparison of two variables.
+- kw_where argument to filter data when calling the plot method of a Chart object. For more information see the documentation [pandas.DataFrame.where](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.where.html)
 
 ### Removed
 

@@ -107,8 +107,8 @@ class Chart(ABC):
     """
     __slots__ = (
         'source', 'target', 'feature', 'target_on_y', 'axes_facets',
-        'label_facets', 'stripes_facets', 'nrows', 'ncols', '_data', '_xlabel',
-        '_ylabel', '_plots')
+        'label_facets', 'stripes_facets', 'nrows', 'ncols', '_data_', '_xlabel',
+        '_ylabel', '_plots', '_kw_where_')
     
     source: DataFrame
     """Pandas DataFrame containing the source data in long-format."""
@@ -133,20 +133,28 @@ class Chart(ABC):
     """Number of rows of subplots in the grid."""
     ncols: int
     """Number of columns of subplots in the grid."""
-    _data: DataFrame
+    _data_: DataFrame
     """Current source data subset used for current Axes."""
     _plots: List[Plotter]
     """All plotter objects used in `plot` method."""
+    _kw_where_: Dict[str, Any]
+    """Key word arguments to filter data in the plot method. This 
+    argument is passed in the `kw_where` argument of the `plot` method.
+    It must then be applied to `source` within `_data_generator_`
+    method."""
 
     def __init__(
             self, source: DataFrame, target: str, feature: str = '',
             target_on_y: bool = True, axes_facets: AxesFacets | None = None, 
             **kwds) -> None:
-        self.source = source
+        self.source = source.copy()
         self.target = target
         self.feature = feature
         self.nrows = kwds.pop('nrows', 1)
         self.ncols = kwds.pop('ncols', 1)
+        # TODO: check if it's possible to fix this by building a FeatureLabel class (like HueLabel) 
+        if getattr(self, 'categorical_feature', False):
+            self.source[self.feature] = self.source[self.feature].astype(str)   # 'category' fails for numerical feature values
         if axes_facets is None:
             self.axes_facets = AxesFacets(self.nrows, self.ncols, **kwds)
         else:
@@ -155,6 +163,7 @@ class Chart(ABC):
         for ax in self.axes.flat:
             getattr(ax, f'set_{"x" if self.target_on_y else "y"}margin')(0)
         self._plots = []
+        self._kw_where_ = {}
 
     @property
     def figure(self) -> Figure:
@@ -195,7 +204,9 @@ class Chart(ABC):
     @abstractmethod
     def _data_genenator_(self) -> Generator[DataFrame, Self, None]:
         """Implement the data generator and add the currently yielded 
-        data to self._data so that it can be used internally.
+        data to self._data_ so that it can be used internally. Also 
+        consider the `_kw_where_` attribute to filter the data here for 
+        the plots.
         
         Returns
         -------
@@ -203,6 +214,8 @@ class Chart(ABC):
             A generator object yielding DataFrames as subsets of the 
             source data, used as plotting data for each Axes.
         """
+        raise NotImplementedError(
+            'Iterate over the Chart object not implemented.')
     
     def __iter__(self) -> Generator[DataFrame, Self, None]:
         """Iterate over the Chart object.
@@ -313,7 +326,40 @@ class Chart(ABC):
     def close(self) -> Self:
         """"Close figure"""
         plt.close(self.figure)
-        return self
+        return self 
+    
+    def specification_limits_iterator(
+            self,
+            spec_limits: SpecLimits | Tuple[SpecLimits, ...],
+            ) -> Generator[SpecLimits, Any, None]:
+        """Generates specification limits based on the provided input.
+
+        Parameters
+        ----------
+        spec_limits : SpecLimits | Tuple[SpecLimits, ...]
+            The specification limits to generate from. If a single limit
+            pair is provided, it will be used for all axes. If a tuple 
+            of values is provided, each value corresponds to an axes.
+
+        Yields
+        ------
+        SpecLimits
+            The generated spec limits.
+
+        Examples
+        --------
+        >>> generator = spec_limits_gen((1.0, 2.0))
+        >>> next(generator)
+        (1.0, 2.0)
+        >>> next(generator)
+        (1.0, 2.0)
+        """
+        if isinstance(spec_limits[0], tuple):
+            _spec_limits = spec_limits
+        else:
+            _spec_limits = tuple([spec_limits]*self.n_axes)
+        for axes_limits  in _spec_limits:
+            yield axes_limits # type: ignore
 
 
 class SingleChart(Chart):
@@ -458,9 +504,9 @@ class SingleChart(Chart):
     def sizes(self) -> NDArray | None:
         """Get sizes for current variate, is set in grouped data 
         generator (read-only)."""
-        if self.size not in self._data:
+        if self.size not in self._data_:
             return None
-        return self.sizing(self._data[self.size])
+        return self.sizing(self._data_[self.size])
     
     @property
     def legend_data(self) -> Dict[str, LegendHandlesLabels]:
@@ -579,8 +625,8 @@ class SingleChart(Chart):
         if not self.dodging:
             return
         hue_variate = self._current_variate.get(self.hue, None)
-        self._data[self.feature] = self.dodging(
-            self._data[self.feature], hue_variate)
+        self._data_[self.feature] = self.dodging(
+            self._data_[self.feature], hue_variate)
         
     def _categorical_feature_grid_(self) -> None:
         """Hide major grid and set one minor grid for feature axis."""
@@ -622,22 +668,31 @@ class SingleChart(Chart):
 
         Yields:
         -------
-        self._data : DataFrame
+        self._data_ : DataFrame
             Containing the grouped data or the entire source DataFrame.
         """
+        source = self.source
+        if self._kw_where_:
+            source = source.where(**self._kw_where_)
+        
         if self.variate_names:
-            for combination, data in self.source.groupby(self.variate_names):
-                self._data = data
+            for combination, data in source.groupby(self.variate_names):
+                self._data_ = data
                 self.update_variate(combination)
                 self.dodge()
-                yield self._data
+                yield self._data_
         else:
-            self._data = self.source
-            yield self._data
+            self._data_ = source
+            yield self._data_
         self._reset_variate_()
+        self._kw_where_ = {}
 
     def plot(
-            self, plotter: Type[Plotter], kw_call: Dict[str, Any] = {}, **kwds
+            self,
+            plotter: Type[Plotter],
+            kw_call: Dict[str, Any] = {},
+            kw_where: Dict[str, Any] = {},
+            **kwds
             ) -> Self:
         """Plot the chart.
 
@@ -647,6 +702,9 @@ class SingleChart(Chart):
             The plotter object.
         kw_call : Dict[str, Any]
             Additional keyword arguments for the plotter call method.
+        kw_where : Dict[str, Any]
+            Additional keyword arguments for the where method used to
+            filter the data.
         **kwds:
             Additional keyword arguments for the plotter object.
 
@@ -657,6 +715,7 @@ class SingleChart(Chart):
         """
         self.target_on_y = kwds.pop('target_on_y', self.target_on_y)
         _marker = kwds.pop('marker', None)
+        self._kw_where_ = kw_where
         for data in self:
             marker = _marker if _marker is not None else self.marker
             plot = plotter(
@@ -987,8 +1046,9 @@ class JointChart(Chart):
         return _attribute
     
     def _data_genenator_(self) -> Generator[DataFrame, Self, None]:
-        return super()._data_genenator_()
-    
+         raise NotImplementedError(
+            'Iterate over the Chart object not implemented.')
+
     def _axis_label_(
             self, label: str | bool | None | Tuple[str | bool | None],
             is_target: bool) -> str | Tuple[str, ...]:
@@ -1068,8 +1128,12 @@ class JointChart(Chart):
         return xlabel, ylabel
 
     def plot(
-            self, plotter: Type[Plotter], kw_call: Dict[str, Any] = {},
-            on_last_axes: bool = False, **kwds
+            self,
+            plotter: Type[Plotter],
+            kw_call: Dict[str, Any] = {},
+            kw_where: Dict[str, Any] = {},
+            on_last_axes: bool = False,
+            **kwds
             ) -> Self:
         """Plot the data using the specified plotter.
         
@@ -1079,6 +1143,9 @@ class JointChart(Chart):
             The plotter object.
         kw_call : Dict[str, Any]
             Additional keyword arguments for the plotter call method.
+        kw_where : Dict[str, Any]
+            Additional keyword arguments for the where method used to
+            filter the data.
         on_last_axes : bool, optional
             If True, plot on the last axes in the grid. If False, plot 
             on the next axes in the grid, by default False.
@@ -1102,13 +1169,13 @@ class JointChart(Chart):
             chart = self._last_chart
         else:
             chart = self._next_chart_()
-        chart.plot(plotter, kw_call, **kwds)
+        chart.plot(plotter, kw_call=kw_call, kw_where=kw_where, **kwds)
         return self
 
     def stripes(
             self, mean: bool = False, median: bool = False,
             control_limits: bool = False, 
-            spec_limits: Tuple[float | None, float | None] = (None, None), 
+            spec_limits: SpecLimits | Tuple[SpecLimits, ...] = (None, None),
             confidence: float | None = None, **kwds) -> Self:
         """Plot location and spread width lines, specification limits 
         and/or confidence interval areas as stripes on each Axes. The
@@ -1126,7 +1193,7 @@ class JointChart(Chart):
         control_limits : bool, optional
             Whether to plot control limits representing the process 
             spread, by default False.
-        spec_limits : Tuple[float], optional
+        spec_limits : SpecLimits | Tuple[SpecLimits, ...], optional
             If provided, specifies the specification limits. 
             The tuple must contain two values for the lower and upper 
             limits. If a limit is not given, use None, by default ().
@@ -1154,10 +1221,11 @@ class JointChart(Chart):
         the appearance and behavior of the stripes using various 
         parameters and keyword arguments.
         """
-        for chart in self.itercharts():
+        _spec_limits = self.specification_limits_iterator(spec_limits)
+        for chart, _spec_limit in zip(self.itercharts(), _spec_limits):
             chart.stripes(
                 mean=mean, median=median, control_limits=control_limits,
-                spec_limits=spec_limits, confidence=confidence, **kwds)
+                spec_limits=_spec_limit, confidence=confidence, **kwds)
         return self
     
     def label(
@@ -1317,38 +1385,6 @@ class MultipleVariateChart(SingleChart):
                 return True
         return False
     
-    def specification_limits_iterator(
-            self, spec_limits: SpecLimits | Tuple[SpecLimits, ...]
-            ) -> Generator[SpecLimits, Any, None]:
-        """Generates specification limits based on the provided input.
-
-        Parameters
-        ----------
-        spec_limits : SpecLimits | Tuple[SpecLimits, ...]
-            The specification limits to generate from. If a single limit
-            pair is provided, it will be used for all axes. If a tuple 
-            of values is provided, each value corresponds to an axes.
-
-        Yields
-        ------
-        SpecLimits
-            The generated spec limits.
-
-        Examples
-        --------
-        >>> generator = spec_limits_gen((1.0, 2.0))
-        >>> next(generator)
-        (1.0, 2.0)
-        >>> next(generator)
-        (1.0, 2.0)
-        """
-        if isinstance(spec_limits[0], tuple):
-            _spec_limits = spec_limits
-        else:
-            _spec_limits = tuple([spec_limits]*self.n_axes)
-        for axes_limits  in _spec_limits:
-            yield axes_limits # type: ignore
-    
     def _categorical_feature_axis_(self) -> None:
         """Set one major tick for each category and label it. Hide 
         major grid and set one minor grid for feature axis."""
@@ -1377,7 +1413,11 @@ class MultipleVariateChart(SingleChart):
             yield axes_data
 
     def plot(
-            self, plotter: Type[Plotter], kw_call: Dict[str, Any] = {}, **kwds
+            self,
+            plotter: Type[Plotter],
+            kw_call: Dict[str, Any] = {},
+            kw_where: dict = {},
+            **kwds
             ) -> Self:
         """Plot the chart using the specified plotter.
 
@@ -1390,6 +1430,8 @@ class MultipleVariateChart(SingleChart):
             The type of plotter to use.
         kw_call : Dict[str, Any]
             Additional keyword arguments for the plotter call method.
+        kw_where : dict
+            Do not use this argument in this instance.
         **kwds : Any
             Additional keyword arguments to pass to the plotter.
 
@@ -1397,6 +1439,9 @@ class MultipleVariateChart(SingleChart):
         -------
         Self
             The updated MultipleVariateChart object."""
+        if kw_where:
+            raise ValueError(
+                'Keyword argument "kw_where" is not allowed in this instance.')
         ax = None
         _ax = iter(self.axes_facets)
         for data in self:
@@ -1432,7 +1477,7 @@ class MultipleVariateChart(SingleChart):
         control_limits : bool, optional
             Whether to plot control limits representing the process
             spread, by default False.
-        spec_limits : Tuple[float], optional
+        spec_limits : SpecLimits | Tuple[SpecLimits, ...], optional
             If provided, specifies the specification limits. The tuple
             must contain two values for the lower and upper limits. If a
             limit is not given, use None, by default ().

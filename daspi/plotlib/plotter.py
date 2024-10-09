@@ -235,12 +235,12 @@ class Plotter(ABC):
         return self.target if self.target_on_y else self.feature
         
     @property
-    def x(self) -> ArrayLike:
+    def x(self) -> Series:
         """Get values used for x-axis (read-only)."""
         return self.source[self.x_column]
     
     @property
-    def y(self) -> ArrayLike:
+    def y(self) -> Series:
         """Get values used for y-axis (read-only)"""
         return self.source[self.y_column]
     

@@ -743,7 +743,7 @@ class ProcessEstimator(Estimator):
     
     @property
     def _descriptive_statistic_attrs_(self) -> Tuple[str, ...]:
-        """Get attribute names used for `describe` method."""
+        """Get attribute names used for `describe` method (read-only)."""
         _attrs = super()._descriptive_statistic_attrs_
         attrs = (_attrs[:2]
                  + ('n_ok', 'n_nok', 'n_errors')
@@ -753,7 +753,8 @@ class ProcessEstimator(Estimator):
         
     @property
     def filtered(self) -> Series:
-        """Get the data without error values and no missing value"""
+        """Get the data without error values and no missing value
+         (read-only)."""
         if self._filtered.empty:
             self._filtered = pd.to_numeric(
                 self.samples[
@@ -763,6 +764,7 @@ class ProcessEstimator(Estimator):
     
     @property
     def n_ok(self) -> int:
+        """Get amount of OK-values (read-only)."""
         if self._n_ok is None:
             self._n_ok = (self.n_samples
                           - self.n_nok
@@ -772,6 +774,7 @@ class ProcessEstimator(Estimator):
     
     @property
     def n_nok(self) -> int:
+        """Get amount of NOK-values (read-only)."""
         if self._n_nok is None:
             self._n_nok = (
                 (self.filtered >= self.usl).sum() if self.usl else 0
@@ -780,23 +783,24 @@ class ProcessEstimator(Estimator):
     
     @property
     def p_ok(self) -> float:
-        """Get amount of OK-values as percent"""
+        """Get amount of OK-values as percent (read-only)."""
         return 100*self.n_ok/self.n_samples
     
     @property
     def p_nok(self) -> float:
-        """Get amount of NOK-values as percent"""
+        """Get amount of NOK-values as percent (read-only)."""
         return 100*self.n_nok/self.n_samples
     
     @property
     def n_errors(self) -> int:
+        """Get amount of error values (read-only)."""
         if self._n_errors is None:
             self._n_errors = self.samples.isin(self._error_values).sum()
         return self._n_errors
 
     @property
     def lsl(self) -> SpecLimit:
-        """Get lower specification limit"""
+        """Get and set lower specification limit."""
         if self._lsl is not None and self._usl is not None:
             assert self._lsl < self._usl
         return self._lsl
@@ -808,7 +812,7 @@ class ProcessEstimator(Estimator):
 
     @property
     def usl(self) -> SpecLimit:
-        """Get upper specification limit"""
+        """Get and set upper specification limit."""
         if self._lsl is not None and self._usl is not None:
             assert self._usl > self._lsl
         return self._usl
@@ -820,16 +824,17 @@ class ProcessEstimator(Estimator):
 
     @property
     def limits(self) -> SpecLimits:
-        """Get lower and upper specification limits."""
+        """Get lower and upper specification limits (read-only)."""
         return (self.lsl, self.usl)
 
     @property
     def control_limits(self) -> Tuple[float, float]:
-        """Get lower and upper control limits."""
+        """Get lower and upper control limits (read-only)."""
         return (self.lcl, self.ucl)
     
     @property
     def cp_tol(self) -> float:
+        """Get tolerance for Cp (read-only)."""
         return 2*self._k
     
     @property

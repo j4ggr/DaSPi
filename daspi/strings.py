@@ -130,7 +130,7 @@ class _String_:
 
     @property
     def TODAY(self) -> str:
-        return date.today().strftime('%Y.%m.%d')
+        return date.today().strftime('%Y-%m-%d')
     
     @property
     def LANGUAGE(self) -> Literal['en', 'de']:
