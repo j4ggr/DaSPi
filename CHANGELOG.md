@@ -14,7 +14,7 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
-## [Unreleased]
+## [0.3.0] - 2024-10-09
 
 ### Added
 
@@ -25,7 +25,7 @@ __Types of changes__:
 
 - BaseTemplate, all template chart classes inherits directly from JointChart.
 
-## [0.2.0] - 2021-07-10
+## [0.2.0] - 2024-07-10
 
 ### Added
 
@@ -55,7 +55,7 @@ __Types of changes__:
 - has_insignificant_term method of LinearModel could not detect minimal terms when the attribute skip_intercept_as_least was set to True.
 - Degrees of freedom for VIF table was calculated wrong.
 
-## [0.1.0] - 2021-07-01
+## [0.1.0] - 2024-07-01
 
 Initial release.
 
