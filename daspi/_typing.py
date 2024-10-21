@@ -1,8 +1,7 @@
 import numpy as np
 
-from typing import Any
 from typing import Tuple
-from typing import Generic
+from typing import Literal
 from typing import Sequence
 from typing import TypeAlias
 from numpy.typing import NDArray
@@ -18,6 +17,8 @@ NumericSample1D: TypeAlias = (
 SpecLimit: TypeAlias = float | int | None
 SpecLimits: TypeAlias = Tuple[SpecLimit, SpecLimit]
 
+ShareAxisProperty: TypeAlias = bool | Literal['none', 'all', 'row', 'col']
+
 LegendHandlesLabels: TypeAlias = Tuple[
     Tuple[Patch |Line2D, ...], Tuple[str, ...]]
 
@@ -26,5 +27,6 @@ __all__ = [
     'NumericSample1D',
     'SpecLimit',
     'SpecLimits',
+    'ShareAxisProperty',
     'LegendHandlesLabels',
 ]

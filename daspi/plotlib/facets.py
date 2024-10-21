@@ -20,6 +20,7 @@ from matplotlib.artist import Artist
 from matplotlib.patches import Patch
 
 from .._typing import SpecLimit
+from .._typing import ShareAxisProperty
 from .._typing import NumericSample1D
 from .._typing import LegendHandlesLabels
 
@@ -358,6 +359,10 @@ class AxesFacets:
     """Number of Axes rows in the grid"""
     _ncols: int
     """Number of Axes columns in the grid"""
+    _sharex: ShareAxisProperty
+    """Controls sharing of properties along the x-axis."""
+    _sharey: ShareAxisProperty
+    """Controls sharing of properties along the y-axis."""
     _ax: Axes | None
     """The current axes being worked on"""
     index: int
@@ -365,8 +370,8 @@ class AxesFacets:
 
     def __init__(
             self, nrows: int = 1, ncols: int = 1, 
-            sharex: bool | Literal['none', 'all', 'row', 'col'] = 'none', 
-            sharey: bool | Literal['none', 'all', 'row', 'col'] = 'none', 
+            sharex: ShareAxisProperty = 'none', 
+            sharey: ShareAxisProperty = 'none', 
             width_ratios: Sequence[float] | None = None,
             height_ratios: Sequence[float] | None = None, 
             stretch_figsize: bool = True, **kwds
@@ -383,8 +388,10 @@ class AxesFacets:
             height_ratios=height_ratios, **kwds,)
         self.figure: Figure = fig
         self.axes: NDArray = axes
-        self._nrows: int = nrows
-        self._ncols: int = ncols
+        self._nrows = nrows
+        self._ncols = ncols
+        self._sharex = sharex
+        self._sharey = sharey
         self._ax = self.axes[0, 0] if self.nrows == self.ncols == 1 else None
         self.index = 0
 
@@ -404,6 +411,16 @@ class AxesFacets:
     def ncols(self) -> int:
         """Get the number of Axes columns in the grid (read-only)."""
         return self._ncols
+
+    @property
+    def sharex(self) -> ShareAxisProperty:
+        """Get the sharing of properties along the x-axis (read-only)."""
+        return self._sharex
+
+    @property
+    def sharey(self) -> ShareAxisProperty:
+        """Get the sharing of properties along the y-axis (read-only)."""
+        return self._sharey
     
     def __iter__(self) -> Generator[Axes, Self, None]:
         """Iterate over the axes in the grid.

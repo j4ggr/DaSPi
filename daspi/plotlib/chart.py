@@ -77,6 +77,7 @@ from matplotlib.ticker import AutoMinorLocator
 from ..strings import STR
 from .._typing import SpecLimit
 from .._typing import SpecLimits
+from .._typing import ShareAxisProperty
 from .._typing import LegendHandlesLabels
 
 from ..constants import KW
@@ -869,10 +870,10 @@ class JointChart(Chart):
         False.
     target_on_y : bool or List[bool], optional
         Flag indicating whether target is on y-axis, by default True.
-    sharex : bool | Literal['none', 'all', 'row', 'col'], optional
+    sharex : ShareAxisProperty, optional
         Flag indicating whether x-axis should be shared among subplots,
         by default False.
-    sharey : bool | Literal['none', 'all', 'row', 'col'], optional
+    sharey : ShareAxisProperty, optional
         Flag indicating whether y-axis should be shared among subplots,
         by default False.
     width_ratios : List[float], optional
@@ -932,8 +933,8 @@ class JointChart(Chart):
             dodge: bool | Tuple[bool, ...] = False,
             categorical_feature: bool | Tuple[bool, ...] = False,
             target_on_y: bool | Tuple[bool, ...] = True,
-            sharex: bool | Literal['none', 'all', 'row', 'col'] = 'none', 
-            sharey: bool | Literal['none', 'all', 'row', 'col'] = 'none', 
+            sharex: ShareAxisProperty = 'none', 
+            sharey: ShareAxisProperty = 'none', 
             width_ratios: List[float] | None = None,
             height_ratios: List[float] | None = None,
             stretch_figsize: bool = True,
@@ -986,14 +987,36 @@ class JointChart(Chart):
         """Get plotter objects used in `plot` method"""
         return [p for c in self.charts for p in c.plots]
     
-    def _single_label_allowed_(self, is_target: bool) -> bool:
+    @property
+    def share_feature_axis(self) -> ShareAxisProperty:
+        """Get the sharing of properties along the feature-axis
+        (read-only)."""
+        if self.target_on_y:
+            share = self.axes_facets.sharex
+        else:
+            share = self.axes_facets.sharey
+        return share
+
+    @property
+    def share_target_axis(self) -> ShareAxisProperty:
+        """Get the sharing of properties along the target-axis
+        (read-only)."""
+        if self.target_on_y:
+            share = self.axes_facets.sharey
+        else:
+            share = self.axes_facets.sharex
+        return share
+    
+    def single_label_allowed(self, is_target: bool) -> bool:
         """Determines whether a single label is allowed for the 
         specified axis.
         
         This method checks whether a single axis label is allowed for 
         either target or feature dimensions based on certain conditions.
-        The `same_target_on_y` attribute and the number of unique labels
-        are considered.
+        The `same_target_on_y` attribute is allways considered. It is 
+        also checked whether the number of unique values in the 
+        respective dimension (features or targets) is 1 or whether the 
+        sharing of the axis is set to True or 'all'.
         
         Parameters
         ----------
@@ -1006,9 +1029,15 @@ class JointChart(Chart):
         bool
             True if a single label is allowed, False otherwise.
         """
+        if is_target:
+            share_axis = self.share_target_axis
+            n_unique = len(set(self.targets))
+        else:
+            share_axis = self.share_feature_axis
+            n_unique = len(set(self.features))
         allowed = all([
             self.same_target_on_y,
-            len(set(self.targets if is_target else self.features)) == 1])
+            (n_unique == 1 or share_axis in (True, 'all'))])
         return allowed 
     
     def _next_chart_(self) -> SingleChart:
@@ -1078,8 +1107,8 @@ class JointChart(Chart):
         else:
             _label = str(label)
 
-        _kind = "target" if is_target else "feature"
-        assert self._single_label_allowed_(is_target), (
+        _kind = 'target' if is_target else 'feature'
+        assert self.single_label_allowed(is_target), (
             f'Single label not allowed for the {_kind} axis. '
             f'Ensure all subplots have the same orientation and {_kind}')
         return _label
