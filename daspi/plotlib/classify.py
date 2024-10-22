@@ -60,30 +60,36 @@ class _CategoryLabel(ABC):
         Labels corresponding to the categories.
     """
 
-    __slots__ = ('_default', '_labels', '_n')
+    __slots__ = ('_default', '_categories', '_labels', '_n')
 
     _default: Any
     """Default category item."""
+    _categories: Tuple[Any, ...]
+    """Available categories."""
     _labels: Tuple[str, ...]
     """Labels corresponding to the categories."""
     _n: int
     """Number of used categories."""
     
-    def __init__(self, labels: Sequence[Scalar]) -> None:
+    def __init__(
+            self,
+            labels: Sequence[Scalar],
+            categories: Tuple[Any, ...]) -> None:
         self._n = len(labels)
         self._default = None
+        self._categories = categories
         self.labels = labels
 
     @property
-    @abstractmethod
     def categories(self) -> Tuple[Any, ...]:
         """Get the available categories (read-only)."""
+        return self._categories[:self.n_used]
 
     @property
     def default(self) -> Any:
         """Get default category item (read-only)."""
         if self._default is None:
-            self._default = self.categories[0]
+            self._default = self._categories[0]
         return self._default
 
     @property
@@ -106,7 +112,7 @@ class _CategoryLabel(ABC):
     @property
     def n_allowed(self) -> int:
         """Get the allowed amount of categories (read-only)."""
-        return len(self.categories)
+        return len(self._categories)
     
     def __getitem__(self, label: Any) -> Any:
         """Get the category item corresponding to the given label.
@@ -157,22 +163,28 @@ class HueLabel(_CategoryLabel):
     ----------
     labels : Sequence[Scalar]
         Labels corresponding to the hue categories.
+    colors : Tuple[str, ...], optional
+        Tuple of available hue categories as hex or str colors,
+        by default `CATEGORY.PALETTE`.
     """
 
-    def __init__(self, labels: Sequence[Scalar]) -> None:
-        super().__init__(labels)
+    def __init__(
+            self,
+            labels: Sequence[Scalar],
+            colors: Tuple[str, ...]) -> None:
+        super().__init__(labels, colors)
     
     @property
     def categories(self) -> Tuple[str, ...]:
         """Tuple containing the available hue categories as the current
-        color palette as defined in constants `CATEGORY.MARKERS`
-        (read-only)."""
-        return CATEGORY.PALETTE
+        color palette as defined in constants `CATEGORY.MARKERS` or
+        the given colors during initialization (read-only)."""
+        return super().categories
 
     @property
     def colors(self) -> Tuple[str, ...]:
         """Get the available hue colors (read-only)."""
-        return self.categories[:self.n_used]
+        return self.categories
 
     def handles_labels(self) -> LegendHandlesLabels:
         """Retrieve legend handles and labels for hue categories.
@@ -193,21 +205,28 @@ class ShapeLabel(_CategoryLabel):
     ----------
     labels : Sequence[Scalar]
         Labels corresponding to the shape marker categories.
+    markers : Tuple[str, ...], optional
+        Tuple of available shape marker categories as strings,
+        by default `CATEGORY.MARKERS`.
     """
 
-    def __init__(self, labels: Sequence[Scalar]) -> None:
-        super().__init__(tuple(map(str, labels)))
+    def __init__(
+            self,
+            labels: Sequence[Scalar],
+            markers: Tuple[str, ...]) -> None:
+        super().__init__(tuple(map(str, labels)), markers)
     
     @property
     def categories(self) -> Tuple[str, ...]:
         """Tuple containing the available shape markers as defined
-        in constants `CATEGORY.MARKERS` (read-only)."""
-        return CATEGORY.MARKERS
+        in constants `CATEGORY.MARKERS` or the given markers during
+        initialization (read-only)."""
+        return super().categories
     
     @property
     def markers(self) -> Tuple[str, ...]:
         """Get the used shape markers (read-only)."""
-        return self.categories[:self.n_used]
+        return self.categories
 
     def handles_labels(self) -> LegendHandlesLabels:
         """Retrieve legend handles and labels for shape markers.
@@ -231,6 +250,9 @@ class SizeLabel(_CategoryLabel):
         Minimum value for the size range.
     max_value : int | float
         Maximum value for the size range.
+    n_bins : int, optional
+        Number of bins for the size range, by default 
+        `CATEGORY.N_SIZE_BINS`.
     """
 
     __slots__ = ('_min', '_max')
@@ -241,25 +263,29 @@ class SizeLabel(_CategoryLabel):
     """Maximum value for the size range."""
 
     def __init__(
-            self, min_value: int | float, max_value: int | float,
-            ) -> None:
+            self, 
+            min_value: int | float,
+            max_value: int | float,
+            n_bins: int) -> None:
         assert max_value > min_value
         self._min = min_value
         self._max = max_value
-        _int = isinstance(self._min, int) and isinstance(self._max, int)
+        use_integer = isinstance(self._min, int) and isinstance(self._max, int)
         labels = np.linspace(
                 self._min, self._max, CATEGORY.N_SIZE_BINS, 
-                dtype = int if _int else float)
-        if _int:
+                dtype = int if use_integer else float)
+        if use_integer:
             labels = tuple(map(str, labels))
         else:
             labels = tuple(map(lambda x: f'{x:.3f}', labels))
-        super().__init__(labels)
+        handle_sizes = tuple(np.linspace(
+            *CATEGORY.MARKERSIZE_LIMITS, n_bins, dtype=int))
+        super().__init__(labels, handle_sizes)
     
     @property
     def categories(self) -> Tuple[int, ...]:
-        """Tuple containing the available marker sizes."""
-        return CATEGORY.HANDLE_SIZES
+        """Tuple containing the available marker sizes (read-only)."""
+        return super().categories
     
     @property
     def offset(self) -> int:

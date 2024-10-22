@@ -21,9 +21,9 @@ from daspi import SingleChart
 
 
 class TestCategoryLabel:
-    colors = HueLabel(('alpha', 'beta', 'gamma', 'delta'))
-    markers = ShapeLabel(('foo', 'bar', 'bazz'))
-    sizes = SizeLabel(1.5, 3.5)
+    colors = HueLabel(('alpha', 'beta', 'gamma', 'delta'), CATEGORY.PALETTE)
+    markers = ShapeLabel(('foo', 'bar', 'bazz'), CATEGORY.MARKERS)
+    sizes = SizeLabel(1.5, 3.5, CATEGORY.N_SIZE_BINS)
 
     def test_str(self) -> None:
         assert str(self.colors) == 'HueLabel'
@@ -37,12 +37,12 @@ class TestCategoryLabel:
         
         n = self.colors.n_allowed
         with pytest.raises(AssertionError) as err:
-            HueLabel([i for i in range(n+1)])
+            HueLabel([i for i in range(n+1)], CATEGORY.PALETTE)
         assert str(err.value) == (
             f'HueLabel can handle {n} categories, got {n+1}')
 
         with pytest.raises(AssertionError) as err:
-            ShapeLabel(('foo', 'foo', 'bar', 'bazz'))
+            ShapeLabel(('foo', 'foo', 'bar', 'bazz'), CATEGORY.MARKERS)
         assert str(err.value) == (
             'Labels occur more than once, only unique labels are allowed')
 

@@ -350,13 +350,6 @@ class _Category_:
         return (self.MARKERSIZE_LIMITS[0]**2, self.MARKERSIZE_LIMITS[1]**2)
 
     @property
-    def HANDLE_SIZES(self) -> Tuple[int, ...]:
-        """Get marker sizes for legend handles."""
-        sizes = tuple(np.linspace(
-            *self.MARKERSIZE_LIMITS, self.N_SIZE_BINS, dtype=int))
-        return sizes
-
-    @property
     def PALETTE(self) -> Tuple[str, ...]:
         """Get the current color palette as tuple."""
         return tuple(COLOR.PALETTE)

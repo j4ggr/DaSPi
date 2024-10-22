@@ -83,6 +83,7 @@ from .._typing import LegendHandlesLabels
 from ..constants import KW
 from ..constants import COLOR
 from ..constants import PLOTTER
+from ..constants import CATEGORY
 
 
 class Chart(ABC):
@@ -461,10 +462,13 @@ class SingleChart(Chart):
         self.hue = hue
         self.shape = shape
         self.size = size
+        colors = kwds.pop('colors', CATEGORY.PALETTE)
+        markers = kwds.pop('markers', CATEGORY.MARKERS)
+        size_bins = kwds.pop('size_bins', CATEGORY.N_SIZE_BINS)
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, **kwds)
-        self.hueing = HueLabel(self.get_categorical_labels(self.hue))
+        self.hueing = HueLabel(self.get_categorical_labels(self.hue), colors)
         feature_tick_labels = ()
         if self.categorical_feature:
             assert self.feature in source, (
@@ -472,10 +476,13 @@ class SingleChart(Chart):
             feature_tick_labels = self.get_categorical_labels(self.feature)
         dodge_categories = tuple(self.hueing.labels) if dodge else ()
         self.dodging = Dodger(dodge_categories, feature_tick_labels)
-        self.shaping = ShapeLabel(self.get_categorical_labels(self.shape))
+        self.shaping = ShapeLabel(
+            self.get_categorical_labels(self.shape), markers)
         if self.size:
             self.sizing = SizeLabel(
-                self.source[self.size].min(), self.source[self.size].max())
+                self.source[self.size].min(),
+                self.source[self.size].max(),
+                size_bins)
         self._variate_names = (self.hue, self.shape)
         self._current_variate = {}
         self._last_variate = {}
