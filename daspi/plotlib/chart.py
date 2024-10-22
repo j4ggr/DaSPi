@@ -40,7 +40,7 @@ documentation.
 - Emphasizes modularity and extensibility, allowing users to create and 
 customize a wide range of chart visualizations.
 """
-
+import warnings
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -359,6 +359,9 @@ class Chart(ABC):
             _spec_limits = spec_limits
         else:
             _spec_limits = tuple([spec_limits]*self.n_axes)
+        assert len(_spec_limits) == self.n_axes, (
+            f'spec_limits length {len(_spec_limits)} does not match '
+            f'the number of axes {self.n_axes}')
         for axes_limits  in _spec_limits:
             yield axes_limits # type: ignore
 
@@ -919,6 +922,9 @@ class JointChart(Chart):
     """Flags indicating if feature is categorical for each axes."""
     target_on_ys: Tuple[bool, ...]
     """Flags indicating whether target is on y-axis for each axes."""
+    target_on_y: bool
+    """Flag indicating whether target is on y-axis for current chart. 
+    This flag is set during iterating over charts."""
 
     def __init__(
             self,
@@ -958,6 +964,13 @@ class JointChart(Chart):
         self.dodges = self.ensure_tuple(dodge)
         self.categorical_feature = self.ensure_tuple(categorical_feature)
         self.target_on_ys = self.ensure_tuple(target_on_y)
+        self.target_on_y = self.target_on_ys[0]
+
+        if (not all(t == self.target_on_ys[0] for t in self.target_on_ys)
+            and (sharex in (True, 'all') or sharey in (True, 'all'))):
+            warnings.warn(
+                'Shares axes along chart with mixed target_on_y!', UserWarning)
+
         for i in [self.axes_facets.index for _ in self.axes_facets]:
             self.charts.append(SingleChart(
                 source=self.source, target=self.targets[i],
@@ -988,7 +1001,7 @@ class JointChart(Chart):
         return [p for c in self.charts for p in c.plots]
     
     @property
-    def share_feature_axis(self) -> ShareAxisProperty:
+    def axes_share_feature(self) -> ShareAxisProperty:
         """Get the sharing of properties along the feature-axis
         (read-only)."""
         if self.target_on_y:
@@ -998,7 +1011,7 @@ class JointChart(Chart):
         return share
 
     @property
-    def share_target_axis(self) -> ShareAxisProperty:
+    def axes_share_target(self) -> ShareAxisProperty:
         """Get the sharing of properties along the target-axis
         (read-only)."""
         if self.target_on_y:
@@ -1030,10 +1043,10 @@ class JointChart(Chart):
             True if a single label is allowed, False otherwise.
         """
         if is_target:
-            share_axis = self.share_target_axis
+            share_axis = self.axes_share_target
             n_unique = len(set(self.targets))
         else:
-            share_axis = self.share_feature_axis
+            share_axis = self.axes_share_feature
             n_unique = len(set(self.features))
         allowed = all([
             self.same_target_on_y,
@@ -1051,8 +1064,9 @@ class JointChart(Chart):
     def itercharts(self) -> Generator[SingleChart, Self, None]:
         """Iter over charts simultaneosly iters over axes of 
         `axes_facets`. That ensures that the current Axes to which the 
-        current chart belongs is set."""
+        current chart belongs is set. The"""
         for _, chart in zip(self.axes_facets, self.charts):
+            self.target_on_y = chart.target_on_y
             yield chart
     
     def ensure_tuple(
