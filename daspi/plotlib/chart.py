@@ -155,8 +155,8 @@ class Chart(ABC):
         self.nrows = kwds.pop('nrows', 1)
         self.ncols = kwds.pop('ncols', 1)
         # TODO: check if it's possible to fix this by building a FeatureLabel class (like HueLabel) 
-        if getattr(self, 'categorical_feature', False):
-            self.source[self.feature] = self.source[self.feature].astype(str)   # 'category' fails for numerical feature values
+        # if getattr(self, 'categorical_feature', False):
+        #     self.source[self.feature] = self.source[self.feature].astype(str)   # 'category' fails for numerical feature values
         if axes_facets is None:
             self.axes_facets = AxesFacets(self.nrows, self.ncols, **kwds)
         else:
@@ -465,7 +465,7 @@ class SingleChart(Chart):
             target_on_y: bool = True,
             **kwds) -> None:
         self.categorical_feature = categorical_feature or dodge
-        if feature == '' and dodge:
+        if feature == '' and self.categorical_feature:
             feature = PLOTTER.FEATURE
             source[feature] = ''
         self.hue = hue
@@ -477,16 +477,18 @@ class SingleChart(Chart):
         super().__init__(
             source=source, target=target, feature=feature,
             target_on_y=target_on_y, **kwds)
-        self.hueing = HueLabel(self.get_categorical_labels(self.hue), colors)
-        feature_tick_labels = ()
+        assert self.feature in source or not self.categorical_feature, (
+            'categorical_feature is True, but features is not present')
+        self.hueing = HueLabel(self.unique_labels(self.hue), colors)
+        dodge_labels = ()
+        dodge_categories = ()
         if self.categorical_feature:
-            assert self.feature in source, (
-                'categorical_feature is True, but features is not present')
-            feature_tick_labels = self.get_categorical_labels(self.feature)
-        dodge_categories = tuple(self.hueing.labels) if dodge else ()
-        self.dodging = Dodger(dodge_categories, feature_tick_labels)
+            dodge_labels = self.unique_labels(self.feature)
+        if dodge:
+            dodge_categories = tuple(self.hueing.labels)
+        self.dodging = Dodger(dodge_categories, dodge_labels)
         self.shaping = ShapeLabel(
-            self.get_categorical_labels(self.shape), markers)
+            self.unique_labels(self.shape), markers)
         if self.size:
             self.sizing = SizeLabel(
                 self.source[self.size].min(),
@@ -601,7 +603,7 @@ class SingleChart(Chart):
             xlabel, ylabel = ylabel, xlabel
         return xlabel, ylabel
     
-    def get_categorical_labels(self, colname: str) -> Tuple[Any, ...]:
+    def unique_labels(self, colname: str) -> Tuple[Any, ...]:
         """Get sorted unique elements of given column name if in source.
 
         Parameters
@@ -642,8 +644,9 @@ class SingleChart(Chart):
     def dodge(self) -> None:
         """Converts the feature data to tick positions, taking dodging 
         into account."""
-        if not self.dodging:
+        if not self.categorical_feature:
             return
+        
         hue_variate = self._current_variate.get(self.hue, None)
         self._data_[self.feature] = self.dodging(
             self._data_[self.feature], hue_variate)
@@ -703,6 +706,7 @@ class SingleChart(Chart):
                 yield self._data_
         else:
             self._data_ = source
+            self.dodge()
             yield self._data_
         self._reset_variate_()
         self._kw_where_ = {}
@@ -1443,8 +1447,8 @@ class MultipleVariateChart(SingleChart):
         self.source = source
         self.col = col
         self.row = row
-        self.row_labels = self.get_categorical_labels(self.row)
-        self.col_labels = self.get_categorical_labels(self.col)
+        self.row_labels = self.unique_labels(self.row)
+        self.col_labels = self.unique_labels(self.col)
         nrows = max([1, len(self.row_labels)])
         ncols = max([1, len(self.col_labels)])
         super().__init__(

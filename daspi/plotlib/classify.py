@@ -426,10 +426,9 @@ class Dodger:
         pd.Series
             Series with replaced values.
         """
-        if not self:
-            return values
         if not isinstance(values, pd.Series):
             values = pd.Series(values)
+        values = values.astype(str)
         ticks = self.ticks + self[category]
         return values.replace(dict(zip(self.tick_lables, ticks)))
     

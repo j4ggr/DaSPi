@@ -850,6 +850,34 @@ class TestSingleChart:
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
+    
+    def test_categorical_float_features(self) -> None:
+        self.base = f'{self.fig_title}_categorical-float-features'
+        
+        self.kind = 'simple'
+        chart = SingleChart(
+                source = df_aspirin,
+                target = 'dissolution',
+                feature = 'temperature',
+                categorical_feature = True,
+            ).plot(
+                Violine,
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = self.feature_label,
+                target_label = self.target_label,
+                info = self.info_msg
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert self.file_name.is_file()
+        assert len(texts) == 5
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+
 
 class TestJointChart:
 
