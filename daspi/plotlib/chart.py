@@ -102,6 +102,15 @@ class Chart(ABC):
         If True, the target variable is plotted on the y-axis.
     axes_facets : AxesFacets
         An instance containing the subplots' Axes and their arrangement.
+    colors: Tuple[str, ...], optional
+        Tuple of colors used for hue categories as hex or str,
+        by default `CATEGORY.PALETTE`.
+    markers : Tuple[str, ...], optional
+        Tuple of markers used for shape marker categories as strings,
+        by default `CATEGORY.MARKERS`.
+    n_size_bins : int, optional
+        Number of bins for the size range, by default 
+        `CATEGORY.N_SIZE_BINS`.
     **kwds
         Additional key word arguments to instantiate the `AxesFacets`
         object. Only taken into account if `axes_facets` is not
@@ -109,8 +118,8 @@ class Chart(ABC):
     """
     __slots__ = (
         'source', 'target', 'feature', 'target_on_y', 'axes_facets',
-        'label_facets', 'stripes_facets', 'nrows', 'ncols', '_data_', '_xlabel',
-        '_ylabel', '_plots', '_kw_where_')
+        'label_facets', 'stripes_facets', 'nrows', 'ncols', '_data',
+        '_plots', '_colors', '_markers', '_n_size_bins', '_kw_where')
     
     source: DataFrame
     """Pandas DataFrame containing the source data in long-format."""
@@ -135,28 +144,42 @@ class Chart(ABC):
     """Number of rows of subplots in the grid."""
     ncols: int
     """Number of columns of subplots in the grid."""
-    _data_: DataFrame
+    _data: DataFrame
     """Current source data subset used for current Axes."""
+    _colors: Tuple[str, ...]
+    """Tuple of colors used for hue categories as hex or str."""
+    _markers: Tuple[str, ...]
+    """Tuple of markers used for shape marker categories as strings."""
+    _n_size_bins: int
+    """Number of bins for the size range."""
     _plots: List[Plotter]
     """All plotter objects used in `plot` method."""
-    _kw_where_: Dict[str, Any]
+    _kw_where: Dict[str, Any]
     """Key word arguments to filter data in the plot method. This 
     argument is passed in the `kw_where` argument of the `plot` method.
     It must then be applied to `source` within `_data_generator_`
     method."""
 
     def __init__(
-            self, source: DataFrame, target: str, feature: str = '',
-            target_on_y: bool = True, axes_facets: AxesFacets | None = None, 
-            **kwds) -> None:
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str = '',
+            target_on_y: bool = True,
+            axes_facets: AxesFacets | None = None, 
+            **kwds
+            ) -> None:
         self.source = source.copy()
         self.target = target
         self.feature = feature
         self.nrows = kwds.pop('nrows', 1)
         self.ncols = kwds.pop('ncols', 1)
-        # TODO: check if it's possible to fix this by building a FeatureLabel class (like HueLabel) 
-        # if getattr(self, 'categorical_feature', False):
-        #     self.source[self.feature] = self.source[self.feature].astype(str)   # 'category' fails for numerical feature values
+        self._colors = kwds.pop('colors', CATEGORY.PALETTE)
+        self._markers = kwds.pop('markers', CATEGORY.MARKERS)
+        self._n_size_bins = kwds.pop('n_size_bins', CATEGORY.N_SIZE_BINS)
+        self._plots = []
+        self._kw_where = {}
+
         if axes_facets is None:
             self.axes_facets = AxesFacets(self.nrows, self.ncols, **kwds)
         else:
@@ -164,8 +187,6 @@ class Chart(ABC):
         self.target_on_y = target_on_y
         for ax in self.axes.flat:
             getattr(ax, f'set_{"x" if self.target_on_y else "y"}margin')(0)
-        self._plots = []
-        self._kw_where_ = {}
 
     @property
     def figure(self) -> Figure:
@@ -204,10 +225,10 @@ class Chart(ABC):
         """
         
     @abstractmethod
-    def _data_genenator_(self) -> Generator[DataFrame, Self, None]:
+    def _data_generator_(self) -> Generator[DataFrame, Self, None]:
         """Implement the data generator and add the currently yielded 
-        data to self._data_ so that it can be used internally. Also 
-        consider the `_kw_where_` attribute to filter the data here for 
+        data to self._data so that it can be used internally. Also 
+        consider the `_kw_where` attribute to filter the data here for 
         the plots.
         
         Returns
@@ -228,7 +249,7 @@ class Chart(ABC):
             A generator object yielding DataFrames as subsets of the 
             source data, used as plotting data for each Axes.
         """
-        return self._data_genenator_()
+        return self._data_generator_()
         
     def __next__(self) -> DataFrame:
         """Get the next subset of the source data.
@@ -278,9 +299,13 @@ class Chart(ABC):
 
     @abstractmethod
     def label(
-        self, fig_title: str = '', sub_title: str = '',
-        feature_label: bool | str = '', target_label: bool | str = '',
-        info: bool | str = False) -> Self:
+            self,
+            fig_title: str = '',
+            sub_title: str = '',
+            feature_label: bool | str = '',
+            target_label: bool | str = '',
+            info: bool | str = False
+            ) -> Self:
         """Add labels and titles to the chart.
 
         This method sets various labels and titles for the chart,
@@ -415,7 +440,7 @@ class SingleChart(Chart):
     markers : Tuple[str, ...], optional
         Tuple of markers used for shape marker categories as strings,
         by default `CATEGORY.MARKERS`.
-    size_bins : int, optional
+    n_size_bins : int, optional
         Number of bins for the size range, by default 
         `CATEGORY.N_SIZE_BINS`.
     **kwds
@@ -471,15 +496,15 @@ class SingleChart(Chart):
         self.hue = hue
         self.shape = shape
         self.size = size
-        colors = kwds.pop('colors', CATEGORY.PALETTE)
-        markers = kwds.pop('markers', CATEGORY.MARKERS)
-        size_bins = kwds.pop('size_bins', CATEGORY.N_SIZE_BINS)
         super().__init__(
-            source=source, target=target, feature=feature,
-            target_on_y=target_on_y, **kwds)
+            source=source,
+            target=target,
+            feature=feature,
+            target_on_y=target_on_y,
+            **kwds)
         assert self.feature in source or not self.categorical_feature, (
             'categorical_feature is True, but features is not present')
-        self.hueing = HueLabel(self.unique_labels(self.hue), colors)
+        self.hueing = HueLabel(self.unique_labels(self.hue), self._colors)
         dodge_labels = ()
         dodge_categories = ()
         if self.categorical_feature:
@@ -488,12 +513,12 @@ class SingleChart(Chart):
             dodge_categories = tuple(self.hueing.labels)
         self.dodging = Dodger(dodge_categories, dodge_labels)
         self.shaping = ShapeLabel(
-            self.unique_labels(self.shape), markers)
+            self.unique_labels(self.shape), self._markers)
         if self.size:
             self.sizing = SizeLabel(
                 self.source[self.size].min(),
                 self.source[self.size].max(),
-                size_bins)
+                self._n_size_bins)
         self._variate_names = (self.hue, self.shape)
         self._current_variate = {}
         self._last_variate = {}
@@ -526,9 +551,9 @@ class SingleChart(Chart):
     def sizes(self) -> NDArray | None:
         """Get sizes for current variate, is set in grouped data 
         generator (read-only)."""
-        if self.size not in self._data_:
+        if self.size not in self._data:
             return None
-        return self.sizing(self._data_[self.size])
+        return self.sizing(self._data[self.size])
     
     @property
     def legend_data(self) -> Dict[str, LegendHandlesLabels]:
@@ -575,7 +600,8 @@ class SingleChart(Chart):
                 return str(label)
     
     def axis_labels(
-            self, feature_label: bool | str | None, 
+            self,
+            feature_label: bool | str | None, 
             target_label: bool | str | None
             ) -> Tuple[str, str]:
         """Get the x and y axis labels based on the provided 
@@ -648,8 +674,8 @@ class SingleChart(Chart):
             return
         
         hue_variate = self._current_variate.get(self.hue, None)
-        self._data_[self.feature] = self.dodging(
-            self._data_[self.feature], hue_variate)
+        self._data[self.feature] = self.dodging(
+            self._data[self.feature], hue_variate)
         
     def _categorical_feature_grid_(self) -> None:
         """Hide major grid and set one minor grid for feature axis."""
@@ -680,7 +706,7 @@ class SingleChart(Chart):
         self._categorical_feature_grid_()
         self._categorical_feature_ticks_()
 
-    def _data_genenator_(self) -> Generator[DataFrame, Self, None]:
+    def _data_generator_(self) -> Generator[DataFrame, Self, None]:
         """Generate grouped data if `variate_names` are set, otherwise 
         yield the entire source DataFrame.
 
@@ -691,25 +717,25 @@ class SingleChart(Chart):
 
         Yields:
         -------
-        self._data_ : DataFrame
+        self._data : DataFrame
             Containing the grouped data or the entire source DataFrame.
         """
         source = self.source
-        if self._kw_where_:
-            source = source.where(**self._kw_where_)
+        if self._kw_where:
+            source = source.where(**self._kw_where)
         
         if self.variate_names:
             for combination, data in source.groupby(self.variate_names):
-                self._data_ = data
+                self._data = data
                 self.update_variate(combination)
                 self.dodge()
-                yield self._data_
+                yield self._data
         else:
-            self._data_ = source
+            self._data = source
             self.dodge()
-            yield self._data_
+            yield self._data
         self._reset_variate_()
-        self._kw_where_ = {}
+        self._kw_where = {}
 
     def plot(
             self,
@@ -739,24 +765,34 @@ class SingleChart(Chart):
         """
         self.target_on_y = kwds.pop('target_on_y', self.target_on_y)
         _marker = kwds.pop('marker', None)
-        self._kw_where_ = kw_where
+        self._kw_where = kw_where
         for data in self:
             marker = _marker if _marker is not None else self.marker
             plot = plotter(
-                source=data, target=self.target, feature=self.feature,
-                target_on_y=self.target_on_y, color=self.color, 
-                ax=self.axes_facets.ax, marker=marker, size=self.sizes,
+                source=data,
+                target=self.target,
+                feature=self.feature,
+                target_on_y=self.target_on_y,
+                color=self.color, 
+                ax=self.axes_facets.ax,
+                marker=marker,
+                size=self.sizes,
                 width=self.dodging.width,
-                categorical_feature=self.categorical_feature, **kwds)
+                categorical_feature=self.categorical_feature,
+                **kwds)
             plot(**kw_call)
             self._plots.append(plot)
         return self
     
     def stripes(
-            self, mean: bool = False, median: bool = False,
+            self,
+            mean: bool = False,
+            median: bool = False,
             control_limits: bool = False, 
             spec_limits: Tuple[SpecLimit, SpecLimit] = (None, None), 
-            confidence: float | None = None, **kwds) -> Self:
+            confidence: float | None = None,
+            **kwds
+            ) -> Self:
         """Plot location and spread width lines, specification limits 
         and/or confidence interval areas as stripes on each Axes. The
         location and spread (and their confidence bands) represent the 
@@ -799,16 +835,25 @@ class SingleChart(Chart):
         target = kwds.pop('target', self.source[self.target]) # TODO: consider target of bar and pareto
         single_axes = len(self.axes_facets) == 1
         self.stripes_facets = StripesFacets(
-            target=target, single_axes=single_axes, mean=mean, median=median,
-            control_limits=control_limits, spec_limits=spec_limits,
-            confidence=confidence, **kwds)
+            target=target,
+            single_axes=single_axes,
+            mean=mean,
+            median=median,
+            control_limits=control_limits,
+            spec_limits=spec_limits,
+            confidence=confidence,
+            **kwds)
         self.stripes_facets.draw(ax=self.ax, target_on_y=self.target_on_y)
         return self
 
     def label(
-        self, fig_title: str = '', sub_title: str = '',
-        feature_label: bool | str = '', target_label: bool | str = '',
-        info: bool | str = False) -> Self:
+            self,
+            fig_title: str = '',
+            sub_title: str = '',
+            feature_label: bool | str = '',
+            target_label: bool | str = '',
+            info: bool | str = False
+            ) -> Self:
         """Add labels and titles to the chart.
 
         This method sets various labels and titles for the chart,
@@ -853,9 +898,14 @@ class SingleChart(Chart):
         xlabel, ylabel = self.axis_labels(feature_label, target_label)
 
         self.label_facets = LabelFacets(
-            figure=self.figure, axes=self.axes, fig_title=fig_title,
-            sub_title=sub_title, xlabel=xlabel, ylabel=ylabel,
-            info=info, legend_data=self.legend_data)
+            figure=self.figure,
+            axes=self.axes,
+            fig_title=fig_title,
+            sub_title=sub_title,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            info=info,
+            legend_data=self.legend_data)
         self.label_facets.draw()
 
         return self
@@ -912,7 +962,7 @@ class JointChart(Chart):
     markers : Tuple[str, ...], optional
         Tuple of markers used for shape marker categories as strings,
         by default `CATEGORY.MARKERS`.
-    size_bins : int, optional
+    n_size_bins : int, optional
         Number of bins for the size range, by default 
         `CATEGORY.N_SIZE_BINS`.
     **kwds : dict
@@ -981,10 +1031,17 @@ class JointChart(Chart):
         self.nrows = nrows
 
         super().__init__(
-            source=source, target='', feature='', 
-            sharex=sharex, sharey=sharey, width_ratios=width_ratios,
-            height_ratios=height_ratios, stretch_figsize=stretch_figsize,
-            nrows=nrows, ncols=ncols, **kwds)
+            source=source,
+            target='',
+            feature='', 
+            sharex=sharex,
+            sharey=sharey,
+            width_ratios=width_ratios,
+            height_ratios=height_ratios,
+            stretch_figsize=stretch_figsize,
+            nrows=nrows,
+            ncols=ncols,
+            **kwds)
         self.targets = self.ensure_tuple(target)
         self.features = self.ensure_tuple(feature)
         self.hues = self.ensure_tuple(hue)
@@ -1002,11 +1059,19 @@ class JointChart(Chart):
 
         for i in [self.axes_facets.index for _ in self.axes_facets]:
             self.charts.append(SingleChart(
-                source=self.source, target=self.targets[i],
-                feature=self.features[i], hue=self.hues[i],
-                dodge=self.dodges[i], shape=self.shapes[i], size=self.sizes[i],
+                source=self.source,
+                target=self.targets[i],
+                feature=self.features[i],
+                hue=self.hues[i],
+                dodge=self.dodges[i],
+                shape=self.shapes[i],
+                size=self.sizes[i],
                 categorical_feature=self.categorical_feature[i],
-                target_on_y=self.target_on_ys[i], axes_facets=self.axes_facets))
+                target_on_y=self.target_on_ys[i],
+                axes_facets=self.axes_facets,
+                colors=self._colors,
+                markers=self._markers,
+                n_size_bins = self._n_size_bins))
 
     @property
     def same_target_on_y(self) -> bool:
@@ -1117,12 +1182,13 @@ class JointChart(Chart):
 
         return _attribute
     
-    def _data_genenator_(self) -> Generator[DataFrame, Self, None]:
+    def _data_generator_(self) -> Generator[DataFrame, Self, None]:
          raise NotImplementedError(
             'Iterate over the Chart object not implemented.')
 
     def _axis_label_(
-            self, label: str | bool | None | Tuple[str | bool | None],
+            self,
+            label: str | bool | None | Tuple[str | bool | None],
             is_target: bool) -> str | Tuple[str, ...]:
         """Helper method to get the axis label based on the provided 
         label and is_target flag.
@@ -1189,7 +1255,8 @@ class JointChart(Chart):
         return xlabel, ylabel
     
     def axis_labels(
-            self, feature_label: str | bool | None | Tuple[str | bool | None], 
+            self,
+            feature_label: str | bool | None | Tuple[str | bool | None], 
             target_label: str | bool | None | Tuple[str | bool | None]
             ) -> Tuple[str | Tuple[str, ...], str | Tuple[str, ...]]:
         """Get the x and y axis labels based on the provided 
@@ -1245,10 +1312,13 @@ class JointChart(Chart):
         return self
 
     def stripes(
-            self, mean: bool = False, median: bool = False,
+            self,
+            mean: bool = False,
+            median: bool = False,
             control_limits: bool = False, 
             spec_limits: SpecLimits | Tuple[SpecLimits, ...] = (None, None),
-            confidence: float | None = None, **kwds) -> Self:
+            confidence: float | None = None,
+            **kwds) -> Self:
         """Plot location and spread width lines, specification limits 
         and/or confidence interval areas as stripes on each Axes. The
         location and spread (and their confidence bands) represent the 
@@ -1296,16 +1366,24 @@ class JointChart(Chart):
         _spec_limits = self.specification_limits_iterator(spec_limits)
         for chart, _spec_limit in zip(self.itercharts(), _spec_limits):
             chart.stripes(
-                mean=mean, median=median, control_limits=control_limits,
-                spec_limits=_spec_limit, confidence=confidence, **kwds)
+                mean=mean,
+                median=median,
+                control_limits=control_limits,
+                spec_limits=_spec_limit,
+                confidence=confidence,
+                **kwds)
         return self
     
     def label(
-            self, fig_title: str = '', sub_title: str = '',
+            self,
+            fig_title: str = '',
+            sub_title: str = '',
             feature_label: str | bool | Tuple = '', 
             target_label: str | bool | Tuple = '', 
-            info: bool | str = False, axes_titles: Tuple[str, ...] = (),
-            row_title: str = '', col_title: str = '') -> Self:
+            info: bool | str = False,
+            axes_titles: Tuple[str, ...] = (),
+            row_title: str = '',
+            col_title: str = '') -> Self:
         """Add labels and titles to the chart.
 
         This method sets various labels and titles for the chart,
@@ -1358,10 +1436,17 @@ class JointChart(Chart):
         xlabel, ylabel = self.axis_labels(feature_label, target_label)
 
         self.label_facets = LabelFacets(
-            figure=self.figure, axes=self.axes, fig_title=fig_title,
-            sub_title=sub_title, xlabel=xlabel, ylabel=ylabel,
-            info=info, row_title=row_title, col_title=col_title,
-            axes_titles=axes_titles, legend_data=self.legend_data)
+            figure=self.figure,
+            axes=self.axes,
+            fig_title=fig_title,
+            sub_title=sub_title,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            info=info,
+            row_title=row_title,
+            col_title=col_title,
+            axes_titles=axes_titles,
+            legend_data=self.legend_data)
         self.label_facets.draw()
         return self
 
@@ -1405,7 +1490,7 @@ class MultipleVariateChart(SingleChart):
     markers : Tuple[str, ...], optional
         Tuple of markers used for shape marker categories as strings,
         by default `CATEGORY.MARKERS`.
-    size_bins : int, optional
+    n_size_bins : int, optional
         Number of bins for the size range, by default 
         `CATEGORY.N_SIZE_BINS`.
 
@@ -1441,7 +1526,7 @@ class MultipleVariateChart(SingleChart):
             categorical_feature: bool = False,
             colors: Tuple[str, ...] = CATEGORY.PALETTE,
             markers: Tuple[str, ...] = CATEGORY.MARKERS,
-            size_bins: int = CATEGORY.N_SIZE_BINS,
+            n_size_bins: int = CATEGORY.N_SIZE_BINS,
             ) -> None:
         self.target_on_y = True
         self.source = source
@@ -1452,11 +1537,22 @@ class MultipleVariateChart(SingleChart):
         nrows = max([1, len(self.row_labels)])
         ncols = max([1, len(self.col_labels)])
         super().__init__(
-            source=self.source, target=target, feature=feature, hue=hue, 
-            shape=shape, size=size, dodge=dodge, sharex=True, sharey=True,
-            nrows=nrows, ncols=ncols, stretch_figsize=stretch_figsize,
-            categorical_feature=categorical_feature, colors=colors,
-            markers=markers, size_bins=size_bins)
+            source=self.source,
+            target=target,
+            feature=feature,
+            hue=hue, 
+            shape=shape,
+            size=size,
+            dodge=dodge,
+            sharex=True,
+            sharey=True,
+            nrows=nrows,
+            ncols=ncols,
+            stretch_figsize=stretch_figsize,
+            categorical_feature=categorical_feature,
+            colors=colors,
+            markers=markers,
+            n_size_bins=n_size_bins)
         self._variate_names = (self.row, self.col, self.hue, self.shape)
         self._reset_variate_()
     
@@ -1476,7 +1572,7 @@ class MultipleVariateChart(SingleChart):
         for ax in self.axes_facets:
             super()._categorical_feature_axis_()
     
-    def _axes_data_(self) -> Generator[Series, Self, None]:
+    def _axes_data(self) -> Generator[Series, Self, None]:
         """Generate all target data of each axes in one Series there are
         multiple axes, otherwise yield the entire target column. This
         function ensures also the current axes of `axes_facets`.
@@ -1533,19 +1629,28 @@ class MultipleVariateChart(SingleChart):
             if self.row_or_col_changed or ax is None:
                 ax = next(_ax)
             plot = plotter(
-                source=data, target=self.target, feature=self.feature,
-                target_on_y=self.target_on_y, color=self.color, ax=ax, 
-                marker=self.marker, size=self.sizes,
-                width=self.dodging.width, **kwds)
+                source=data,
+                target=self.target,
+                feature=self.feature,
+                target_on_y=self.target_on_y,
+                color=self.color,
+                ax=ax, 
+                marker=self.marker,
+                size=self.sizes,
+                width=self.dodging.width,
+                **kwds)
             plot(**kw_call)
             self._plots.append(plot)
         return self
     
     def stripes(
-            self, mean: bool = False, median: bool = False,
+            self,
+            mean: bool = False,
+            median: bool = False,
             control_limits: bool = False,
             spec_limits: SpecLimits | Tuple[SpecLimits, ...] = (None, None),
-            confidence: float | None = None, **kwds) -> Self:
+            confidence: float | None = None,
+            **kwds) -> Self:
         """Plot location and spread width lines, specification limits, 
         and/or confidence interval areas as stripes on each Axes. The
         location and spread (and their confidence bands) represent the
@@ -1586,18 +1691,26 @@ class MultipleVariateChart(SingleChart):
         parameters and keyword arguments.
         """
         _spec_limits = self.specification_limits_iterator(spec_limits)
-        for axes_data, axes_limits in zip(self._axes_data_(), _spec_limits):
+        for axes_data, axes_limits in zip(self._axes_data(), _spec_limits):
             super().stripes(
-                target=axes_data, mean=mean, median=median, 
-                control_limits=control_limits, spec_limits=axes_limits,
-                confidence=confidence, **kwds)
+                target=axes_data,
+                mean=mean,
+                median=median, 
+                control_limits=control_limits,
+                spec_limits=axes_limits,
+                confidence=confidence,
+                **kwds)
         return self
 
     def label(
-            self, fig_title: str = '', sub_title: str = '',
+            self,
+            fig_title: str = '',
+            sub_title: str = '',
             feature_label: str | bool | None = '',
-            target_label: str | bool | None = '', info: bool | str = False,
-            row_title: str = '', col_title: str = '') -> Self:
+            target_label: str | bool | None = '',
+            info: bool | str = False,
+            row_title: str = '',
+            col_title: str = '') -> Self:
         """Add labels and titles to the chart.
 
         This method sets various labels and titles for the chart,
@@ -1651,10 +1764,17 @@ class MultipleVariateChart(SingleChart):
         xlabel, ylabel = self.axis_labels(feature_label, target_label)
 
         self.label_facets = LabelFacets(
-            figure=self.figure, axes=self.axes, fig_title=fig_title,
-            sub_title=sub_title, xlabel=xlabel, ylabel=ylabel,
-            rows=self.row_labels, cols=self.col_labels,
-            info=info, row_title=row_title, col_title=col_title,
+            figure=self.figure,
+            axes=self.axes,
+            fig_title=fig_title,
+            sub_title=sub_title,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            rows=self.row_labels,
+            cols=self.col_labels,
+            info=info,
+            row_title=row_title,
+            col_title=col_title,
             legend_data=self.legend_data)
         self.label_facets.draw()
         return self
