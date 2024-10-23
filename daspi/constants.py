@@ -395,7 +395,9 @@ class _Default_:
     def MARKER(self) -> str:
         """Default marker for scatter plots."""
         marker = plt.rcParams['lines.marker']
-        return marker if marker != 'None' else CATEGORY.MARKERS[0]
+        if marker == 'None':
+            marker = CATEGORY.MARKERS[0]
+        return marker
     
 DEFAULT = _Default_()
 

@@ -171,6 +171,10 @@ class Plotter(ABC):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the scatters. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure ovject with
         one Axes is created, by default None.
@@ -180,7 +184,8 @@ class Plotter(ABC):
         used within chart objects).
     """
     __slots__ = (
-        'source', 'target', 'feature', '_color', 'target_on_y', 'fig', 'ax')
+        'source', 'target', 'feature', 'target_on_y', '_color', '_marker',
+        'fig', 'ax')
     source: DataFrame
     """The data source for the plot"""
     target: str
@@ -189,6 +194,8 @@ class Plotter(ABC):
     """The column name of the feature variable."""
     _color: str | None
     """Provided color for the artist"""
+    _marker: str | None
+    """Provided marker for the artist"""
     target_on_y: bool
     """Flag indicating whether the target variable is plotted on the
     y-axis."""
@@ -204,6 +211,7 @@ class Plotter(ABC):
             feature: str = '',
             target_on_y : bool = True,
             color: str | None = None,
+            marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         self.target_on_y = target_on_y
@@ -216,6 +224,7 @@ class Plotter(ABC):
         
         self.fig, self.ax = plt.subplots(1, 1) if ax is None else ax.figure, ax # type: ignore
         self._color = color
+        self._marker = marker
     
     @property
     @abstractmethod
@@ -250,6 +259,11 @@ class Plotter(ABC):
         if self._color is None:
             self._color = COLOR.PALETTE[0]
         return self._color
+
+    @property
+    def marker(self) -> str | None:
+        """Get marker of drawn artist"""
+        return self._marker
     
     @staticmethod
     def shared_axes(
@@ -320,9 +334,7 @@ class Scatter(Plotter):
         arguments that have no use here (occurs when this class is 
         used within chart objects).
     """
-    __slots__ = ('marker', 'size')
-    marker: str | None
-    """Provided marker style for the scatter plot."""
+    __slots__ = ('size')
     size: Iterable[int] | None
     """The sizes of the markers in the scatter plot."""
 
@@ -338,16 +350,22 @@ class Scatter(Plotter):
             ax: Axes | None = None,
             **kwds) -> None:
         super().__init__(
-            source=source, target=target, feature=feature,
-            target_on_y=target_on_y, color=color, ax=ax)
-        self.marker = marker
+            source=source,
+            target=target,
+            feature=feature,
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax)
         self.size = size
     
     @property
     def default_kwds(self) -> Dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
         kwds = dict(
-            c=self.color, marker=self.marker, s=self.size,
+            c=self.color,
+            marker=self.marker,
+            s=self.size,
             alpha=COLOR.MARKER_ALPHA)
         return kwds
     
@@ -383,6 +401,10 @@ class Line(Plotter):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the individual points. Available markers
+        see: https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure ovject with
         one Axes is created, by default None.
@@ -398,31 +420,39 @@ class Line(Plotter):
             feature: str = '',
             target_on_y: bool = True, 
             color: str | None = None,
+            marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         super().__init__(
-            source=source, target=target, feature=feature,
-            target_on_y=target_on_y, color=color, ax=ax)
+            source=source,
+            target=target,
+            feature=feature,
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax)
+        
     @property
     def default_kwds(self) -> Dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(c=self.color)
+        kwds = dict(c=self._color)
         return kwds
     
     def __call__(self, marker: str | None = None, **kwds) -> None:
-        """Perform the scatter plot operation.
+        """Perform the line plot operation.
 
         Parameters
         ----------
         marker : str | None, optional
-            The marker style for the scatter plot. Available markers see:
+            The marker style for the individuals. Available markers see:
             https://matplotlib.org/stable/api/markers_api.html, 
             by default None
         **kwds : 
             Additional keyword arguments to be passed to the Axes `plot` 
             method.
         """
-        alpha = None if marker is None else COLOR.MARKER_ALPHA
+        marker = marker or self.marker
+        alpha = COLOR.MARKER_ALPHA if marker is not None else None
         _kwds = self.default_kwds | dict(marker=marker, alpha=alpha) | kwds
         self.ax.plot(self.x, self.y, **_kwds)
             
@@ -446,6 +476,10 @@ class LinearRegression(Plotter):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the scatter plot. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure ovject with
         one Axes is created, by default None.
@@ -485,6 +519,7 @@ class LinearRegression(Plotter):
             feature: str,
             target_on_y: bool = True,
             color: str | None = None,
+            marker: str | None = None,
             ax: Axes | None = None,
             show_points: bool = True,
             show_fit_ci: bool = False,
@@ -504,8 +539,13 @@ class LinearRegression(Plotter):
         df[self.target_fit] = self.model.fittedvalues
         df = pd.concat([df, self.ci_data()], axis=1)
         super().__init__(
-            source=df, target=target, feature=feature, target_on_y=target_on_y,
-            color=color, ax=ax)
+            source=df,
+            target=target,
+            feature=feature,
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax)
     
     @property
     def default_kwds(self) -> Dict[str, Any]:
@@ -537,14 +577,17 @@ class LinearRegression(Plotter):
         return ci_data
     
     def __call__(
-            self, kw_scatter: dict = {}, kw_fit_ci: dict = {},
-            kw_pred_ci: dict = {}, **kwds) -> None:
+            self,
+            kw_scatter: dict = {},
+            kw_fit_ci: dict = {},
+            kw_pred_ci: dict = {},
+            **kwds) -> None:
         """
         Perform the linear regression plot operation.
 
         Parameters
         ----------
-        kw_scatter : dict, optional
+        kw_fit_line : dict, optional
             Additional keyword arguments for the Axes `scatter` method,
             by default {}.
         kw_fit_ci : dict, optional
@@ -562,7 +605,7 @@ class LinearRegression(Plotter):
         self.ax.plot(self.x_fit, self.y_fit, **_kwds)
         
         if self.show_points:
-            kw_scatter = color | kw_scatter
+            kw_scatter = color | dict(marker=self.marker) | kw_scatter
             self.ax.scatter(self.x, self.y, **kw_scatter)
         if self.show_fit_ci:
             kw_fit_ci = KW.FIT_CI | color | kw_fit_ci
@@ -612,6 +655,10 @@ class Probability(LinearRegression):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the scatter plot. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure ovject with
         one Axes is created, by default None.
@@ -651,6 +698,7 @@ class Probability(LinearRegression):
             kind: Literal['qq', 'pp', 'sq', 'sp'] = 'sq',
             target_on_y: bool = True,
             color: str | None = None,
+            marker: str | None = None,
             ax: Axes | None = None,
             show_points: bool = True,
             show_fit_ci: bool = True,
@@ -670,8 +718,13 @@ class Probability(LinearRegression):
             feature: self.theoretical_data})
 
         super().__init__(
-            source=df, target=target, feature=feature,
-            target_on_y=target_on_y, color=color, ax=ax, 
+            source=df,
+            target=target,
+            feature=feature,
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax, 
             show_points=show_points, show_fit_ci=show_fit_ci,
             show_pred_ci=show_pred_ci)
     
@@ -725,8 +778,11 @@ class Probability(LinearRegression):
         return data
     
     def __call__(
-            self, kw_scatter: dict = {}, kw_fit_ci: dict = {},
-            kw_pred_ci: dict = {}, **kwds) -> None:
+            self,
+            kw_scatter: dict = {},
+            kw_fit_ci: dict = {},
+            kw_pred_ci: dict = {},
+            **kwds) -> None:
         """Perform the probability plot operation.
 
         Parameters
@@ -773,6 +829,10 @@ class ParallelCoordinate(Plotter):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the scatter plot. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure ovject with
         one Axes is created, by default None.
@@ -798,13 +858,19 @@ class ParallelCoordinate(Plotter):
             show_points: bool = True,
             target_on_y: bool = True,
             color: str | None = None,
+            marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         self.identity = identity
         self.show_points = show_points
         super().__init__(
-            source=source, target=target, feature=feature,
-            target_on_y=target_on_y, color=color, ax=ax)
+            source=source,
+            target=target,
+            feature=feature,
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax)
     
     @property
     def default_kwds(self) -> Dict[str, Any]:
@@ -820,7 +886,7 @@ class ParallelCoordinate(Plotter):
         **kwds:
             Additional keyword arguments to be passed to the fit line
             plot (Axes `plot` method)."""
-        marker = kwds.pop('marker', DEFAULT.MARKER)
+        marker = kwds.pop('marker', self.marker) or DEFAULT.MARKER
         if not self.show_points:
             marker = None
         _kwds = self.default_kwds | dict(marker=marker) | kwds
@@ -894,6 +960,10 @@ class BlandAltman(Plotter):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the scatter plot. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure ovject with
         one Axes is created, by default None.
@@ -939,6 +1009,7 @@ class BlandAltman(Plotter):
             feature_axis: Literal['mean', 'data'] = 'mean',
             target_on_y: bool = True,
             color: str | None = None,
+            marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         self.identity = identity
@@ -966,8 +1037,13 @@ class BlandAltman(Plotter):
         else:
             _feature = target1
         super().__init__(
-            source=df, target=_target, feature=_feature,
-            target_on_y=target_on_y, color=color, ax=ax)
+            source=df,
+            target=_target,
+            feature=_feature,
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax)
         self.confidence = confidence
         self.estimation = Estimator(
             samples=df[_target], strategy='norm', agreement=agreement)
@@ -975,7 +1051,7 @@ class BlandAltman(Plotter):
     @property
     def default_kwds(self) -> Dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(color=self.color)
+        kwds = dict(color=self.color, marker=self.marker)
         return kwds
     
     def __call__(self, **kwds) -> None:
@@ -1073,6 +1149,7 @@ class TransformPlotter(Plotter):
             skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
+            marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         self._f_base = f_base
@@ -1087,8 +1164,12 @@ class TransformPlotter(Plotter):
             df = pd.concat([df, _data], axis=0)
         df.reset_index(drop=True, inplace=True)
         super().__init__(
-            source=df, target=target, feature=feature,
-            target_on_y=target_on_y, color=color, ax=ax)
+            source=df,
+            target=target,
+            feature=feature,
+            target_on_y=target_on_y,
+            color=color,
+            ax=ax)
     
     def feature_grouped(
             self, source: DataFrame) -> Generator[Tuple, Self, None]:
@@ -1178,10 +1259,6 @@ class CenterLocation(TransformPlotter):
     kind : Literal['mean', 'median'], optional
         The type of center to plot ('mean' or 'median'),
         by default 'mean'.
-    marker : str | None, optional
-        The marker style for the scatter plot. Available markers see:
-        https://matplotlib.org/stable/api/markers_api.html, 
-        by default None
     show_line : bool
         Flag indicating whether to draw a line between the calculated 
         mean or median points.
@@ -1205,6 +1282,10 @@ class CenterLocation(TransformPlotter):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the center points. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure ovject with
         one Axes is created, by default None.
@@ -1213,7 +1294,7 @@ class CenterLocation(TransformPlotter):
         arguments that have no use here (occurs when this class is 
         used within chart objects).
     """
-    __slots__ = ('_kind', 'show_line', 'show_points', 'marker')
+    __slots__ = ('_kind', 'show_line', 'show_points')
 
     _kind: Literal['mean', 'median']
     """The type of center to plot ('mean' or'median')."""
@@ -1221,8 +1302,6 @@ class CenterLocation(TransformPlotter):
     """Whether to draw a line between the calculated means or medians."""
     show_points: bool
     """Whether to draw the individual points."""
-    marker: str | None
-    """The provided marker style for the scatter plot."""
 
     def __init__(
             self,
@@ -1230,28 +1309,37 @@ class CenterLocation(TransformPlotter):
             target: str,
             feature: str = '',
             kind: Literal['mean', 'median'] = 'mean',
-            marker: str | None = None,
             show_line: bool = True,
             show_points: bool = True, #FIXME does not work as individual points only for center points: change to center
             f_base: int | float = DEFAULT.FEATURE_BASE,
             skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
+            marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         self._kind = 'mean'
         self.kind = kind
         self.show_line = show_line
         self.show_points = show_points
-        self.marker = marker if marker else plt.rcParams['scatter.marker']
         super().__init__(
-            source=source, target=target, feature=feature, f_base=f_base,
-            skip_na=skip_na, target_on_y=target_on_y, color=color, ax=ax)
+            source=source,
+            target=target,
+            feature=feature,
+            f_base=f_base,
+            skip_na=skip_na,
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax)
 
     @property
     def default_kwds(self) -> Dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(c=self.color)
+        kwds = dict(
+            c=self.color,
+            marker=self.marker,
+            linestyle=self.linestyle)
         return kwds
     
     @property
@@ -1269,6 +1357,20 @@ class CenterLocation(TransformPlotter):
     def kind(self, kind: Literal['mean', 'median']) -> None:
         assert kind in ('mean', 'median')
         self._kind = kind
+    
+    @property
+    def marker(self) -> str:
+        """Get the marker style for the center points if show_points is
+        True, otherwise '' is returned (read-only)."""
+        if self._marker is None:
+            self._marker = DEFAULT.MARKER
+        return self._marker if self.show_points else ''
+    
+    @property
+    def linestyle(self) -> str:
+        """Get rcParams line style if show_line is True, otherwise '' is
+        returned (read-only)."""
+        return plt.rcParams['lines.linestyle'] if self.show_line else ''
     
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
@@ -1305,11 +1407,8 @@ class CenterLocation(TransformPlotter):
             Additional keyword arguments to be passed to the Axes
             `plot` method.
         """
-        marker = self.marker if self.show_points else ''
-        linestyle = plt.rcParams['lines.linestyle'] if self.show_line else ''
-        alpha = None if marker is None else COLOR.MARKER_ALPHA
-        _kwds = self.default_kwds | dict(
-            marker=marker, linestyle=linestyle, alpha=alpha) | kwds
+        alpha = COLOR.MARKER_ALPHA if self.marker else None
+        _kwds = self.default_kwds | dict(alpha=alpha) | kwds
         self.ax.plot(self.x, self.y, **_kwds)
 
 
@@ -1396,8 +1495,14 @@ class Bar(TransformPlotter):
         self.method = method
         self.kw_method = kw_method
         super().__init__(
-            source=source, target=target, feature=feature, f_base=f_base,
-            skip_na=skip_na, target_on_y=target_on_y, color=color, ax=ax,
+            source=source,
+            target=target,
+            feature=feature,
+            f_base=f_base,
+            skip_na=skip_na,
+            target_on_y=target_on_y,
+            color=color,
+            ax=ax,
             **kwds)
 
         if self.method is not None:
@@ -1410,7 +1515,8 @@ class Bar(TransformPlotter):
         """Default keyword arguments for plotting (read-only)"""
         facecolor = mcolors.to_rgba(self.color, alpha=COLOR.FILL_ALPHA) # type: ignore[attr-defined]
         kwds = dict(
-            facecolor=facecolor, edgecolor=self.color,
+            facecolor=facecolor,
+            edgecolor=self.color,
             linewidth=plt.rcParams['lines.linewidth'])
         return kwds
     
@@ -1617,9 +1723,18 @@ class Pareto(Bar):
         self.highlighted_as_last = highlighted_as_last
         
         super().__init__(
-            source=source, target=target, feature=feature, stack=False,
-            width=width, method=method, kw_method=kw_method, skip_na=skip_na,
-            target_on_y=target_on_y, color=color, ax=ax, **kwds)
+            source=source,
+            target=target,
+            feature=feature,
+            stack=False,
+            width=width,
+            method=method,
+            kw_method=kw_method,
+            skip_na=skip_na,
+            target_on_y=target_on_y,
+            color=color,
+            ax=ax,
+            **kwds)
         self.source[self.feature] = self._original_f_values
         assert not self.shared_feature_axes, (
             'Do not use Pareto plotter in an chart where the feature axis '
@@ -1770,6 +1885,10 @@ class Jitter(TransformPlotter):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the scatter plot. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure ovject with
         one Axes is created, by default None.
@@ -1792,17 +1911,25 @@ class Jitter(TransformPlotter):
             skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
+            marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         self.width = width
         super().__init__(
-            source=source, target=target, feature=feature, skip_na=skip_na,
-            target_on_y=target_on_y, color=color, ax=ax, **kwds)
+            source=source,
+            target=target,
+            feature=feature,
+            skip_na=skip_na,
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax,
+            **kwds)
     
     @property
     def default_kwds(self) -> Dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(color=self.color)
+        kwds = dict(color=self.color, marker=self.marker)
         return kwds
         
     def jitter(self, loc: float, size: int) -> NDArray:
@@ -1945,8 +2072,14 @@ class GaussianKDE(TransformPlotter):
         if type(self) != GaussianKDE and _feature:
             feature = _feature
         super().__init__(
-            source=source, target=target, feature=feature, skip_na=skip_na,
-            target_on_y=target_on_y, color=color, ax=ax, **kwds)
+            source=source,
+            target=target,
+            feature=feature,
+            skip_na=skip_na,
+            target_on_y=target_on_y,
+            color=color,
+            ax=ax,
+            **kwds)
     
     @property
     def default_kwds(self) -> Dict[str, Any]:
@@ -2076,9 +2209,15 @@ class Violine(GaussianKDE):
             ax: Axes | None = None,
             **kwds) -> None:
         super().__init__(
-            source=source, target=target, feature=feature,
-            height=width/2, target_on_y=target_on_y, color=color, ax=ax,
-            show_density_axis=True, **kwds)
+            source=source,
+            target=target,
+            feature=feature,
+            height=width/2,
+            target_on_y=target_on_y,
+            color=color,
+            ax=ax,
+            show_density_axis=True,
+            **kwds)
 
     @property
     def default_kwds(self) -> Dict[str, Any]:
@@ -2152,6 +2291,10 @@ class Errorbar(TransformPlotter):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first
         color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the center points. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure object with
         one Axes is created, by default None.
@@ -2184,6 +2327,7 @@ class Errorbar(TransformPlotter):
             skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
+            marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         self.lower = lower
@@ -2192,8 +2336,14 @@ class Errorbar(TransformPlotter):
         self.bars_same_color = bars_same_color
 
         super().__init__(
-            source=source, target=target, feature=feature, skip_na=skip_na,
-            target_on_y=target_on_y, color=color, ax=ax)
+            source=source,
+            target=target,
+            feature=feature,
+            skip_na=skip_na,
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax)
 
     @property
     def default_kwds(self) -> Dict[str, Any]:
@@ -2201,6 +2351,14 @@ class Errorbar(TransformPlotter):
         _color = dict(color=self.color) if self.bars_same_color else {}
         kwds = KW.ERROR_BAR | _color
         return kwds
+    
+    @property
+    def marker(self) -> str:
+        """Get the marker style for the center points if show_center is
+        True, otherwise '' is returned (read-only)."""
+        if self._marker is None:
+            self._marker = DEFAULT.MARKER
+        return self._marker if self.show_center else ''
         
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
@@ -2248,7 +2406,7 @@ class Errorbar(TransformPlotter):
             Additional keyword arguments for the axes `errorbar` method.
         """
         if self.show_center:
-            kw_points = dict(color=self.color) | kw_points
+            kw_points = dict(color=self.color, marker=self.marker) | kw_points
             self.ax.scatter(self.x, self.y, **kw_points)
         _kwds = self.default_kwds | kwds
         if self.target_on_y:
@@ -2291,6 +2449,10 @@ class StandardErrorMean(Errorbar):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first
         color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the center points. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure object with
         one Axes is created, by default None.
@@ -2309,13 +2471,22 @@ class StandardErrorMean(Errorbar):
             skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
+            marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         super().__init__(
-            source=source, target=target, lower=PLOTTER.ERR_LOW,
-            upper=PLOTTER.ERR_UPP, feature=feature, show_center=show_center,
-            bars_same_color=bars_same_color, skip_na=skip_na, 
-            target_on_y=target_on_y, color=color, ax=ax)
+            source=source,
+            target=target,
+            lower=PLOTTER.ERR_LOW,
+            upper=PLOTTER.ERR_UPP,
+            feature=feature,
+            show_center=show_center,
+            bars_same_color=bars_same_color,
+            skip_na=skip_na, 
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax)
 
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
@@ -2387,6 +2558,10 @@ class SpreadWidth(Errorbar):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first
         color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the center points. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure object with
         one Axes is created, by default None.
@@ -2418,6 +2593,7 @@ class SpreadWidth(Errorbar):
             skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
+            marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         self.strategy = strategy
@@ -2425,10 +2601,27 @@ class SpreadWidth(Errorbar):
         self.possible_dists = possible_dists
         
         super().__init__(
-            source=source, target=target, lower=PLOTTER.ERR_LOW,
-            upper=PLOTTER.ERR_UPP, feature=feature, show_center=show_center,
-            bars_same_color=bars_same_color, skip_na=skip_na,
-            target_on_y=target_on_y, color=color, ax=ax)
+            source=source,
+            target=target,
+            lower=PLOTTER.ERR_LOW,
+            upper=PLOTTER.ERR_UPP,
+            feature=feature,
+            show_center=show_center,
+            bars_same_color=bars_same_color,
+            skip_na=skip_na,
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax)
+
+    @property
+    def marker(self) -> str:
+        """Get the marker style for the center points if `show_center`
+        is True, otherwise '' is returned. By default the marker is '_' 
+        if `target_on_y` is True, '|' otherwise (read-only)."""
+        if self._marker is None:
+            self._marker = '_' if self.target_on_y else '|'
+        return self._marker if self.show_center else ''
 
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
@@ -2470,7 +2663,7 @@ class SpreadWidth(Errorbar):
         **kwds :
             Additional keyword arguments for the axes `errorbar` method.
         """
-        kw_points = dict(marker= '_' if self.target_on_y else '|') | kw_points
+        kw_points = dict(marker= self.marker) | kw_points
         return super().__call__(kw_points, **kwds)
 
 
@@ -2524,6 +2717,10 @@ class ConfidenceInterval(Errorbar):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first
         color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the center points. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure object with
         one Axes is created, by default None.
@@ -2553,18 +2750,29 @@ class ConfidenceInterval(Errorbar):
             confidence_level: float = 0.95,
             ci_func: Callable = mean_ci,
             color: str | None = None,
+            marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         self.confidence_level = confidence_level
         self.ci_func = ci_func
-        # FIXME: This is a workaround for the fact that the number of groups is not known at this point and should be passed as argument. A good way to do this is to pass the following df.groupby(list_of_variates).ngroups
+        # FIXME: This is a workaround for the fact that the number of groups is not known at this point
+        #  and should be passed as argument. 
+        # A good way to do this is to pass the following df.groupby(list_of_variates).ngroups
         self.n_groups = pd.Series(source[feature]).nunique() if feature else 1
         
         super().__init__(
-            source=source, target=target, lower=PLOTTER.ERR_LOW,
-            upper=PLOTTER.ERR_UPP, feature=feature, show_center=show_center,
-            bars_same_color=bars_same_color, skip_na=skip_na, 
-            target_on_y=target_on_y, color=color, ax=ax)
+            source=source,
+            target=target,
+            lower=PLOTTER.ERR_LOW,
+            upper=PLOTTER.ERR_UPP,
+            feature=feature,
+            show_center=show_center,
+            bars_same_color=bars_same_color,
+            skip_na=skip_na, 
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax)
     
     def transform(
             self, feature_data: float | int, target_data: Series
@@ -2632,6 +2840,10 @@ class MeanTest(ConfidenceInterval):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first
         color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the center points. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure object with
         one Axes is created, by default None.
@@ -2650,13 +2862,21 @@ class MeanTest(ConfidenceInterval):
             target_on_y: bool = True,
             confidence_level: float = 0.95,
             color: str | None = None,
+            marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         super().__init__(
-            source=source, target=target, feature=feature,
-            show_center=show_center, bars_same_color=bars_same_color,
-            target_on_y=target_on_y, confidence_level=confidence_level,
-            ci_func=mean_ci, color=color, ax=ax)
+            source=source,
+            target=target,
+            feature=feature,
+            show_center=show_center,
+            bars_same_color=bars_same_color,
+            target_on_y=target_on_y,
+            confidence_level=confidence_level,
+            ci_func=mean_ci,
+            color=color,
+            marker=marker,
+            ax=ax)
 
 
 class VariationTest(ConfidenceInterval):
@@ -2698,6 +2918,10 @@ class VariationTest(ConfidenceInterval):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first
         color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the center points. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure object with
         one Axes is created, by default None.
@@ -2717,14 +2941,22 @@ class VariationTest(ConfidenceInterval):
             confidence_level: float = 0.95,
             kind: Literal['stdev', 'variance'] = 'stdev',
             color: str | None = None,
+            marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         ci_func = stdev_ci if kind == 'stdev' else variance_ci
         super().__init__(
-            source=source, target=target, feature=feature,
-            show_center=show_center, bars_same_color=bars_same_color,
-            target_on_y=target_on_y, confidence_level=confidence_level,
-            ci_func=ci_func, color=color, ax=ax)
+            source=source,
+            target=target,
+            feature=feature,
+            show_center=show_center,
+            bars_same_color=bars_same_color,
+            target_on_y=target_on_y,
+            confidence_level=confidence_level,
+            ci_func=ci_func,
+            color=color,
+            marker=marker,
+            ax=ax)
 
 
 class ProportionTest(ConfidenceInterval):
@@ -2777,6 +3009,10 @@ class ProportionTest(ConfidenceInterval):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first
         color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the center points. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
     ax : Axes | None, optional
         The axes object for the plot. If None, a Figure object with
         one Axes is created, by default None.
@@ -2811,6 +3047,7 @@ class ProportionTest(ConfidenceInterval):
             target_on_y: bool = True,
             confidence_level: float = 0.95,
             color: str | None = None,
+            marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         target = target if target else f'{events}/{observations}'
@@ -2821,10 +3058,17 @@ class ProportionTest(ConfidenceInterval):
             feature = PLOTTER.TRANSFORMED_FEATURE
             data[feature] = DEFAULT.FEATURE_BASE
         super().__init__(
-            source=data, target=target, feature=feature,
-            show_center=show_center, bars_same_color=bars_same_color,
-            target_on_y=target_on_y, confidence_level=confidence_level,
-            ci_func=proportion_ci, color=color, ax=ax)
+            source=data,
+            target=target,
+            feature=feature,
+            show_center=show_center,
+            bars_same_color=bars_same_color,
+            target_on_y=target_on_y,
+            confidence_level=confidence_level,
+            ci_func=proportion_ci,
+            color=color,
+            marker=marker,
+            ax=ax)
     
     def transform(
             self, feature_data: float | int, target_data: Series
