@@ -1,17 +1,23 @@
 import pandas as pd
 
 from typing import Any
+from typing import List
 from typing import Self
+from typing import Dict
+from typing import Type
 from typing import Tuple
-from pathlib import Path
+from matplotlib.axes import Axes
 from pandas.core.frame import DataFrame
 
 from .chart import JointChart
 from .plotter import Line
 from .plotter import Pareto
+from .plotter import Plotter
 from .plotter import Scatter
 from .plotter import Violine
 from .plotter import MeanTest
+from .plotter import SkipSubplot
+from .plotter import HideSubplot
 from .plotter import Probability
 from .plotter import GaussianKDE
 from .plotter import BlandAltman
@@ -307,9 +313,269 @@ class PairComparisonCharts(JointChart):
         super().label(**labels) # type: ignore
         return self
 
+# TODO: add tests
+class BivariateUnivariateCharts(JointChart):
+    """Provides a set of charts for visualizing the relationship between
+    a target variable and a feature variable.
+
+    This class prepares a grid for drawing a bivariate plot with 
+    marginal univariate plots:
+    - Bottom left there is a large square axis for the bivariate
+      diagram. For example, use a `LinearRegression` plotter to show the 
+      dependence of the target variable on the feature variable.
+    - Top left there is a small square axis for the univariate
+      plot of the feature variable.
+    - Bottom right there is a small square axis for the univariate
+      plot of the target variable.
+    - Top right there is a small square axis hidden as soon a plot is 
+      done.
+
+    Parameters
+    ----------
+    source : DataFrame
+        The source data.
+    target : str
+        The target (dependant) variable.
+    feature : str
+        The feature (independant) variable.
+    hue : str, optional
+        The hue variable.
+    dodge_univariates : bool, optional
+        Whether to dodge the univariate plots, by default False.
+    categorical_feature_univariates : bool, optional
+        Whether to treat the feature variable for univariate charts as
+        categorical, by default False.
+    ratios : List[float], optional
+        The ratios of the bivariate axes height to the univariate axes 
+        height, by default [4, 1].
+    stretch_figsize : bool, optional
+        Whether to stretch the figure size, by default True.
+    """
+    __slots__ = ('_top_right_hidden')
+
+    _top_right_hidden: bool
+    """Whether the top right axis is hidden."""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str | Tuple[str],
+            feature: str | Tuple[str],
+            hue: str | Tuple[str] = '',
+            dodge_univariates: bool = False,
+            categorical_feature_univariates: bool = False,
+            ratios: List[float] = [4, 1],
+            stretch_figsize: bool = True,
+            **kwds) -> None:
+        assert len(ratios) == 2, ('ratios must be a list of two floats')
+        self._top_right_hidden = False
+        _kwds: Dict[str, Any] = dict(
+            nrows=2,
+            ncols=2,
+            dodge=(
+                dodge_univariates, False,
+                False, dodge_univariates),
+            categorical_feature=(
+                categorical_feature_univariates, False,
+                False, categorical_feature_univariates),
+            target_on_y=(
+                False, True,
+                True, True),
+            sharex='col',
+            sharey='row',
+            width_ratios=ratios,
+            height_ratios=ratios[::-1],
+            stretch_figsize=stretch_figsize
+            ) | kwds
+        super().__init__(
+            source=source,
+            target=target,
+            feature=feature,
+            hue=hue,
+            **_kwds)
+    
+    @property
+    def hidden_ax(self) -> Axes:
+        """Get the top right axis (read-only)."""
+        return self.axes.flatten()[1]
+    
+    @property
+    def univariate_axs(self) -> List[Axes]:
+        """Get the univariate axes (read-only)."""
+        axes = self.axes.flatten()
+        return [axes[0], axes[-1]]
+    
+    @property
+    def bivariate_ax(self) -> Axes:
+        """Get the bivariate axis (read-only)."""
+        return self.axes.flatten()[2]
+    
+    def hide_top_right_ax(self) -> None:
+        """Hides the top right axis if it is not already hidden."""
+        if self._top_right_hidden:
+            return
+        HideSubplot(self.axes.flatten()[1])()
+        self._top_right_hidden = True
+    
+    def plot_univariates(
+            self,
+            plotter: Type[Plotter],
+            kw_call: Dict[str, Any] = {},
+            kw_where: Dict[str, Any] = {},
+            **kwds
+            ) -> Self:
+        """Plots the univariate plots on the top left and bottom right
+        axes.
+
+        Parameters
+        ----------
+        plotter : Type[Plotter]
+            The plotter to use for the univariate plots.
+        kw_call : Dict[str, Any]
+            Additional keyword arguments for the plotter call method.
+        kw_where : Dict[str, Any]
+            Additional keyword arguments for the where method used to
+            filter the data.
+        on_last_axes : bool, optional
+            If True, plot on the last axes in the grid. If False, plot 
+            on the next axes in the grid, by default False.
+        **kwds
+            Additional keyword arguments to be passed to the super plot
+            method.
+
+        Returns
+        -------
+        Self
+            The `BivariateUnivariateCharts` instance, for method 
+            chaining.
+        """
+        self.hide_top_right_ax()
+        for ax in self.axes.flat:
+            if ax in self.univariate_axs:
+                super().plot(
+                    plotter,
+                    kw_call=kw_call,
+                    kw_where=kw_where,
+                    on_last_axes=False,
+                    **kwds)
+            else:
+                super().plot(SkipSubplot)
+        return self
+
+    def plot_bivariate(
+            self,
+            plotter: Type[Plotter],
+            kw_call: Dict[str, Any] = {},
+            kw_where: Dict[str, Any] = {},
+            **kwds) -> Self:
+        """Plots the bivariate plot on the bottom left axis.
+
+        Parameters
+        ----------
+        plotter : Type[Plotter]
+            The plotter to use for the univariate plots.
+        kw_call : Dict[str, Any]
+            Additional keyword arguments for the plotter call method.
+        kw_where : Dict[str, Any]
+            Additional keyword arguments for the where method used to
+            filter the data.
+        **kwds
+            Additional keyword arguments to be passed to the super plot
+            method.
+
+        Returns
+        -------
+        Self
+            The `BivariateUnivariateCharts` instance, for method 
+            chaining.
+        """
+        self.hide_top_right_ax()
+        for ax in self.axes.flat:
+            if ax == self.bivariate_ax:
+                super().plot(
+                    plotter,
+                    kw_call=kw_call,
+                    kw_where=kw_where,
+                    on_last_axes=False,
+                    **kwds)
+            else:
+                super().plot(SkipSubplot)
+        return self
+    
+    def label(
+            self,
+            fig_title: str = '',
+            sub_title: str = '',
+            feature_label: str | bool | Tuple = '', 
+            target_label: str | bool | Tuple = '', 
+            info: bool | str = False,
+            axes_titles: Tuple[str, ...] = (),
+            row_title: str = '',
+            col_title: str = '') -> Self:
+        """Add labels and titles to the chart.
+
+        This method sets various labels and titles for the chart,
+        including figure title, subplot title, axis labels, row and
+        column titles, and additional information.
+
+        Parameters
+        ----------
+        fig_title : str, optional
+            The main title for the entire figure, by default ''.
+        sub_title : str, optional
+            The subtitle for the entire figure, by default ''.
+        feature_label : str | bool | None, optional
+            The label for the feature variable (x-axis), by default ''.
+            If set to True, the feature variable name will be used.
+            If set to False or None, no label will be added.
+        target_label : str | bool | None, optional
+            The label for the target variable (y-axis), by default ''.
+            If set to True, the target variable name will be used.
+            If set to False or None, no label will be added.
+        info : bool | str, optional
+            Additional information to display on the chart. If True,
+            the date and user information will be automatically added at
+            the lower left corner of the figure. If a string is
+            provided, it will be shown next to the date and user,
+            separated by a comma. By default, no additional information
+            is displayed.
+        axes_titles : Tuple[str, ...]
+            Title for each Axes, by default ()
+        row_title : str, optional
+            The title of the rows, by default ''.
+        col_title : str, optional
+            The title of the columns, by default ''.
+
+        Returns
+        -------
+        Self
+            The `BivariateUnivariateCharts` instance, for method
+            chaining.
+
+        Notes
+        -----
+        This method allows customization of chart labels and titles to
+        enhance readability and provide context for the visualized data.
+        """
+        super().label(
+            fig_title=fig_title,
+            sub_title=sub_title,
+            feature_label=(
+                '', '',
+                feature_label, ''),
+            target_label=(
+                '', '',
+                target_label, ''),
+            info=info,
+            axes_titles=axes_titles,
+            row_title=row_title,
+            col_title=col_title)
+        return self
+
 
 __all__ = [
     'ResiduesCharts',
     'ParameterRelevanceCharts',
     'PairComparisonCharts',
+    'BivariateUnivariateCharts',
     ]

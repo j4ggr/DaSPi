@@ -46,5 +46,6 @@ from .chart import MultipleVariateChart
 from .templates import ResiduesCharts
 from .templates import PairComparisonCharts
 from .templates import ParameterRelevanceCharts
+from .templates import BivariateUnivariateCharts
 
 plt.style.use(Path(__file__).parent/'daspi.mplstyle')

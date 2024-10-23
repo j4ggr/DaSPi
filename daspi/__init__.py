@@ -88,6 +88,7 @@ from .plotlib.chart import MultipleVariateChart
 from .plotlib.templates import ResiduesCharts
 from .plotlib.templates import PairComparisonCharts
 from .plotlib.templates import ParameterRelevanceCharts
+from .plotlib.templates import BivariateUnivariateCharts
 
 
 from .anova.convert import get_term_name
