@@ -14,25 +14,30 @@ from scipy.stats._continuous_distns import _distn_names
 
 
 @dataclass(frozen=True)
+class _Line_:
+    WIDTH: float = 0.8
+    """Line width for special lines e.g. StripeLines."""
+    SOLID: tuple = (0, ())
+    """Line style argument for a solid line."""
+    DOTTED: tuple = (0, (2, 2))
+    """Line style argument for a dotted line."""
+    DASHED: tuple = (0, (5, 5))
+    """Line style argument for a dashed line."""
+    DASHDOT: tuple = (0, (8, 5, 2, 5))
+    """Line style argument for a dashed dotted line."""
+LINE = _Line_()
+
+
+@dataclass(frozen=True)
 class _Kw_:
 
     _x: float = 0.035
     """X position for fig title, subtitle and info."""
-    _lw: float = 0.8
-    """line width for special lines."""
-    _solid: tuple = (0, ())
-    """Line style argument for a solid line."""
-    _dotted: tuple = (0, (2, 2))
-    """Line style argument for a dotted line."""
-    _dashed: tuple = (0, (5, 5))
-    """Line style argument for a dashed line."""
-    _dashdot: tuple = (0, (8, 5, 2, 5))
-    """Line style argument for a dashed dotted line."""
 
     @property
     def LINE(self) -> Dict[str, Any]:
         """Base kwds for horizontal or vertical lines."""
-        return dict(lw=self._lw, ls=self._dashed)
+        return dict(lw=LINE.WIDTH, ls=LINE.DASHED)
 
     @property
     def HUE_HANDLES(self) -> Dict[str, Any]:
@@ -142,7 +147,7 @@ class _Kw_:
     def PRED_CI(self) -> Dict[str, Any]:
         """Keyword arguments for confidence interval area for fit."""
         return dict(
-            zorder=2.1, alpha=COLOR.CI_ALPHA, lw=self._lw, ls=self._dashed)
+            zorder=2.1, alpha=COLOR.CI_ALPHA, lw=LINE.WIDTH, ls=LINE.DASHED)
 
     @property
     def PROB_PC_FORMAT(self) -> Dict[str, Any]:
@@ -153,25 +158,25 @@ class _Kw_:
     @property
     def MEAN_LINE(self) -> Dict[str, Any]:
         """Keyword arguments for mean line."""
-        return dict(lw=self._lw, ls=self._dashed, color=COLOR.MEAN, zorder=0.9)
+        return dict(lw=LINE.WIDTH, ls=LINE.DASHED, color=COLOR.MEAN, zorder=0.9)
 
     @property
     def MEDIAN_LINE(self) -> Dict[str, Any]:
         """Keyword arguments for median line."""
         return dict(
-            lw=self._lw, ls=self._dashdot, color=COLOR.MEDIAN, zorder=0.8)
+            lw=LINE.WIDTH, ls=LINE.DASHDOT, color=COLOR.MEDIAN, zorder=0.8)
 
     @property
     def CONTROL_LINE(self) -> Dict[str, Any]:
         """Keyword arguments for control limit line."""
         return dict(
-            lw=self._lw, ls=self._solid, color=COLOR.PERCENTIL, zorder=0.7)
+            lw=LINE.WIDTH, ls=LINE.SOLID, color=COLOR.PERCENTIL, zorder=0.7)
 
     @property
     def SPECIFICATION_LINE(self) -> Dict[str, Any]:
         """Keyword arguments for specification limit line."""
         return dict(
-            lw=self._lw, ls=self._solid, color=COLOR.BAD[:7], zorder=0.7)
+            lw=LINE.WIDTH, ls=LINE.SOLID, color=COLOR.BAD[:7], zorder=0.7)
 
     @property
     def STRIPES_CONFIDENCE(self) -> Dict[str, Any]:
@@ -228,6 +233,8 @@ class _Color_:
     """Color for upper and lower percentil line used for StripesFacets."""
     HANDLES: str = '#202020'
     """Color for size and shape legend handles."""
+    STRIPE: str = '#404040'
+    """Color for individual stripes."""
     TRANSPARENT: str = '#ffffff00'
     """Transparent 'color' to hide ticks or other stuff."""
     BLUR: str = '#ffffffaa'
@@ -444,6 +451,7 @@ ANOVA = _Anova_()
 
 
 __all__ = [
+    'LINE',
     'KW',
     'RE',
     'DIST',

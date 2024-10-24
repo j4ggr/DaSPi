@@ -4,6 +4,7 @@ from .strings import STR
 from .constants import KW
 from .constants import RE
 from .constants import DIST
+from .constants import LINE
 from .constants import COLOR
 from .constants import LABEL
 from .constants import ANOVA
