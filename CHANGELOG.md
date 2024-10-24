@@ -14,6 +14,19 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [0.4.0] - 2024-10-24
+
+### Added
+
+- BivariateUnivariateCharts template, provides  a set of charts for visualizing the relationship between a target variable and a feature variable.
+- Option for Plotters to change the marker. This can be set during initialization of the Plotter.
+- Option for Charts to change markers, colors and amount of size bins for categorical differentiation.
+- Single feature or target label for JointCharts if all aubplots shares the corressponding axis.
+
+### Fixed
+
+- Categorical feature failed when using floats. Categorical features failed when using floats. Dodging is now always performed, but only with one category if dodge was set to False.
+
 ## [0.3.0] - 2024-10-09
 
 ### Added
