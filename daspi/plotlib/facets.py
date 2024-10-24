@@ -6,12 +6,10 @@ from typing import Self
 from typing import List
 from typing import Dict
 from typing import Tuple
-from typing import Literal
 from typing import Callable
 from typing import Sequence
 from typing import Generator
 from numpy.typing import NDArray
-from numpy.typing import ArrayLike
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.figure import Figure

@@ -27,6 +27,7 @@ from ..anova import LinearModel
 from ..strings import STR
 from ..constants import KW
 from ..constants import ANOVA
+from ..constants import CATEGORY
 
 
 class ParameterRelevanceCharts(JointChart):
@@ -350,6 +351,9 @@ class BivariateUnivariateCharts(JointChart):
         height, by default [4, 1].
     stretch_figsize : bool, optional
         Whether to stretch the figure size, by default True.
+    colors: Tuple[str, ...], optional
+        Tuple of unique colors used for hue categories as hex or str,
+        by default `CATEGORY.PALETTE`.
     """
     __slots__ = ('_top_right_hidden')
 
@@ -359,19 +363,27 @@ class BivariateUnivariateCharts(JointChart):
     def __init__(
             self,
             source: DataFrame,
-            target: str | Tuple[str],
-            feature: str | Tuple[str],
-            hue: str | Tuple[str] = '',
+            target: str,
+            feature: str,
+            hue: str = '',
             dodge_univariates: bool = False,
             categorical_feature_univariates: bool = False,
-            ratios: List[float] = [4, 1],
+            ratios: List[float] = [3, 1],
             stretch_figsize: bool = True,
-            **kwds) -> None:
+            colors: Tuple[str, ...] = CATEGORY.PALETTE
+            ) -> None:
         assert len(ratios) == 2, ('ratios must be a list of two floats')
         self._top_right_hidden = False
-        _kwds: Dict[str, Any] = dict(
-            nrows=2,
-            ncols=2,
+
+        super().__init__(
+            source=source,
+            target=(
+                feature, '',
+                target, target),
+            feature=(
+                '', '',
+                feature, ''),
+            hue=hue,
             dodge=(
                 dodge_univariates, False,
                 False, dodge_univariates),
@@ -381,18 +393,14 @@ class BivariateUnivariateCharts(JointChart):
             target_on_y=(
                 False, True,
                 True, True),
+            nrows=2,
+            ncols=2,
             sharex='col',
             sharey='row',
             width_ratios=ratios,
             height_ratios=ratios[::-1],
-            stretch_figsize=stretch_figsize
-            ) | kwds
-        super().__init__(
-            source=source,
-            target=target,
-            feature=feature,
-            hue=hue,
-            **_kwds)
+            stretch_figsize=stretch_figsize,
+            colors=colors)
     
     @property
     def hidden_ax(self) -> Axes:

@@ -18,26 +18,29 @@ from matplotlib.ticker import PercentFormatter
 sys.path.append(Path(__file__).parent.resolve())
 
 from daspi import load_dataset
-from daspi.strings import STR
-from daspi.constants import COLOR
-from daspi.plotlib.chart import Chart
-from daspi.plotlib.chart import JointChart
-from daspi.plotlib.chart import SingleChart
-from daspi.plotlib.chart import MultipleVariateChart
-from daspi.plotlib.plotter import Bar
-from daspi.plotlib.plotter import Line
-from daspi.plotlib.plotter import Pareto
-from daspi.plotlib.plotter import Jitter
-from daspi.plotlib.plotter import Scatter
-from daspi.plotlib.plotter import Violine
-from daspi.plotlib.plotter import MeanTest
-from daspi.plotlib.plotter import HideSubplot
-from daspi.plotlib.plotter import BlandAltman
-from daspi.plotlib.plotter import Probability
-from daspi.plotlib.plotter import GaussianKDE
-from daspi.plotlib.plotter import VariationTest
-from daspi.plotlib.plotter import LinearRegression
-from daspi.plotlib.plotter import StandardErrorMean
+from daspi import STR
+from daspi import COLOR
+from daspi import Bar
+from daspi import Line
+from daspi import Pareto
+from daspi import Jitter
+from daspi import Scatter
+from daspi import Violine
+from daspi import MeanTest
+from daspi import JointChart
+from daspi import SingleChart
+from daspi import HideSubplot
+from daspi import BlandAltman
+from daspi import Probability
+from daspi import GaussianKDE
+from daspi import VariationTest
+from daspi import ResiduesCharts
+from daspi import LinearRegression
+from daspi import StandardErrorMean
+from daspi import MultipleVariateChart
+from daspi import PairComparisonCharts
+from daspi import ParameterRelevanceCharts
+from daspi import BivariateUnivariateCharts
 
 
 matplotlib.use("Agg")
@@ -1207,6 +1210,7 @@ class TestJointChart:
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
 
+
 class TestMultipleVariateChart:
 
     fig_title: str = 'MultipleVariateChart'
@@ -1271,4 +1275,103 @@ class TestMultipleVariateChart:
                 info = 'pytest figure')
         chart.save(self.file_name).close()
         assert self.file_name.is_file()
+
+
+class TestTemplates:
+
+    fig_title: str = 'Templates'
+    _sub_title: str = 'Aspirin Dissolution Dataset'
+    target_label: str = 'Dissolution time (s)'
+    feature_label: str = 'Water temperature (°C)'
+    target: str = 'dissolution'
+    feature: str = 'temperature'
+    kind: str = ''
+    base: str = ''
+    info_msg: str = 'Pytest figure, additional info message'
+    cat1 = 'employee'
+    cat2 ='brand'
+    size = 'preparation'
+
+    @property
+    def sub_title(self) -> str:
+        return f'{self._sub_title}: {self.kind}'
+    
+    @property
+    def file_name(self) -> Path:
+        return savedir/f'{self.base}_{self.kind}.png'
+    
+    @pytest.fixture
+    def df_aspirin(self) -> pd.DataFrame:
+        return load_dataset('aspirin-dissolution')
+    
+    def test_bivariate_univariate_charts(self, df_aspirin: pd.DataFrame) -> None:
+        
+        self.base = f'{self.fig_title}_bivariate-univariate-charts'
+        self.kind = 'simple'
+        chart = BivariateUnivariateCharts(
+                source = df_aspirin,
+                target = self.target,
+                feature = self.feature,
+                hue = self.cat1
+            ).plot_univariates(
+                GaussianKDE
+            ).plot_bivariate(
+                LinearRegression
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = True,
+                info = self.info_msg
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        xlabels = tuple(ax.get_xlabel() for ax in chart.axes.flat)
+        ylabels = tuple(ax.get_ylabel() for ax in chart.axes.flat)
+        assert self.file_name.is_file()
+        assert len(texts) == 3
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == self.sub_title
+        assert xlabels == ('', '', self.feature, '')
+        assert ylabels == ('', '', self.target, '')
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+        
+        self.kind = 'mean-test'
+        _title = '95 % confidence interval of mean'
+        chart = BivariateUnivariateCharts(
+                source = df_aspirin,
+                target = self.target,
+                feature = self.feature,
+                hue = self.cat2,
+                dodge_univariates=True,
+                stretch_figsize=False,
+            ).plot_univariates(
+                MeanTest
+            ).plot_bivariate(
+                LinearRegression, show_fit_ci=True
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = self.feature_label,
+                target_label = self.target_label,
+                axes_titles = (_title, '', '', ''),
+                info = self.info_msg
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        xlabels = tuple(ax.get_xlabel() for ax in chart.axes.flat)
+        ylabels = tuple(ax.get_ylabel() for ax in chart.axes.flat)
+        assert self.file_name.is_file()
+        assert len(texts) == 3
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == self.sub_title
+        assert xlabels == ('', '', self.feature_label, '')
+        assert ylabels == ('', '', self.target_label, '')
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
 

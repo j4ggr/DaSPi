@@ -3138,12 +3138,18 @@ class HideSubplot(Plotter):
 class SkipSubplot(Plotter):
     """Class for skip plotting at current axes in a JointChart."""
 
+    def __init__(self, *args, **kwds) -> None:
+        """Initialize the class and store nothing."""
+        pass
+
     @property
     def default_kwds(self) -> Dict[str, Any]:
+        """Get empty dict (read-only)."""
         return {}
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         """Do Nothing"""
+        pass
 
 
 __all__ = [

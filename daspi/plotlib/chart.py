@@ -103,7 +103,7 @@ class Chart(ABC):
     axes_facets : AxesFacets
         An instance containing the subplots' Axes and their arrangement.
     colors: Tuple[str, ...], optional
-        Tuple of colors used for hue categories as hex or str,
+        Tuple of unique colors used for hue categories as hex or str,
         by default `CATEGORY.PALETTE`.
     markers : Tuple[str, ...], optional
         Tuple of markers used for shape marker categories as strings,
@@ -435,7 +435,7 @@ class SingleChart(Chart):
         Flag indicating whether the target variable is plotted on the
         y-axis, by default True
     colors: Tuple[str, ...], optional
-        Tuple of colors used for hue categories as hex or str,
+        Tuple of unique colors used for hue categories as hex or str,
         by default `CATEGORY.PALETTE`.
     markers : Tuple[str, ...], optional
         Tuple of markers used for shape marker categories as strings,
@@ -957,7 +957,7 @@ class JointChart(Chart):
         Flag indicating whether figure size should be stretched to fill
         the grid, by default True.
     colors: Tuple[str, ...], optional
-        Tuple of colors used for hue categories as hex or str,
+        Tuple of unique colors used for hue categories as hex or str,
         by default `CATEGORY.PALETTE`.
     markers : Tuple[str, ...], optional
         Tuple of markers used for shape marker categories as strings,
@@ -970,7 +970,7 @@ class JointChart(Chart):
     """
     __slots__ = (
         'charts', '_last_chart', '_chart_iterator', 'targets', 'features', 
-        'hues', 'shapes', 'sizes', 'dodges', 'categorical_feature',
+        'hues', 'shapes', 'sizes', 'dodges', 'categorical_features',
         'target_on_ys')
 
     charts: List[SingleChart]
@@ -997,7 +997,7 @@ class JointChart(Chart):
     each axes."""
     dodges: Tuple[bool, ...]
     """Flag indicating whether dodging is enabled for each axes."""
-    categorical_feature: bool | Tuple[bool, ...]
+    categorical_features: bool | Tuple[bool, ...]
     """Flags indicating if feature is categorical for each axes."""
     target_on_ys: Tuple[bool, ...]
     """Flags indicating whether target is on y-axis for each axes."""
@@ -1048,7 +1048,9 @@ class JointChart(Chart):
         self.shapes = self.ensure_tuple(shape)
         self.sizes = self.ensure_tuple(size)
         self.dodges = self.ensure_tuple(dodge)
-        self.categorical_feature = self.ensure_tuple(categorical_feature)
+        self.categorical_features = tuple(
+            dodge or categorical for dodge, categorical in 
+            zip(self.dodges, self.ensure_tuple(categorical_feature)))
         self.target_on_ys = self.ensure_tuple(target_on_y)
         self.target_on_y = self.target_on_ys[0]
 
@@ -1066,7 +1068,7 @@ class JointChart(Chart):
                 dodge=self.dodges[i],
                 shape=self.shapes[i],
                 size=self.sizes[i],
-                categorical_feature=self.categorical_feature[i],
+                categorical_feature=self.categorical_features[i],
                 target_on_y=self.target_on_ys[i],
                 axes_facets=self.axes_facets,
                 colors=self._colors,
@@ -1485,7 +1487,7 @@ class MultipleVariateChart(SingleChart):
         Whether the feature variable is categorical. If `dodge` is True,
         this will be automatically set to True, by default False.
     colors: Tuple[str, ...], optional
-        Tuple of colors used for hue categories as hex or str,
+        Tuple of unique colors used for hue categories as hex or str,
         by default `CATEGORY.PALETTE`.
     markers : Tuple[str, ...], optional
         Tuple of markers used for shape marker categories as strings,
