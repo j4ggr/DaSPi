@@ -111,5 +111,5 @@ def list_dataset():
     return df_info.set_index("dataset")
 
 __all__ = [
-    load_dataset.__name__,
-    list_dataset.__name__]
+    'load_dataset',
+    'list_dataset']
