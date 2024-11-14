@@ -3218,9 +3218,12 @@ class Stripe(ABC):
         The position of the stripe on the x- or y-axis.
     width : float
         The width of the stripe.
-    color, c : str, optional
+    color : str, optional
         The color of the stripe as string or hex value. Defaults to
         `COLOR.STRIPE`
+    alpha : float or None, optional
+        Set the alpha value used for blending. Must be between 0-1.
+        Defaults to None.
     lower_limit : float, optional
         The lower limit (start) of the stripe relative to the plotting
         area. Should be between 0 and 1. Defaults to 1.
@@ -3240,8 +3243,9 @@ class Stripe(ABC):
     """
 
     __slots__ = (
-        '_label', 'orientation', 'position', 'width', 'color', 'lower_limit',
-        'upper_limit', 'zorder', 'show_position', '_decimals', '_axes')
+        '_label', 'orientation', 'position', 'width', 'color', 'alpha',
+        'lower_limit', 'upper_limit', 'zorder', 'show_position', '_decimals',
+        '_axes')
     
     _label: str
     """The label of the stripe as it appears in the legend."""
@@ -3253,6 +3257,8 @@ class Stripe(ABC):
     """The width of the stripe."""
     color: str
     """The color of the stripe as string or hex value."""
+    alpha: float | None
+    """Value used for blending the color."""
     lower_limit: float
     """The lower limit (start) of the stripe relative to the plotting
     area. Should be between 0 and 1."""
@@ -3280,6 +3286,7 @@ class Stripe(ABC):
             position: float,
             width: float,
             color: str = COLOR.STRIPE,
+            alpha: float | None = None,
             lower_limit: float = 0.0, # TODO: Add support for data limits not only relative axes limits
             upper_limit: float = 1.0,
             zorder: float = 0.7,
@@ -3293,6 +3300,7 @@ class Stripe(ABC):
         self.orientation = orientation
         self.width = width
         self.color = color
+        self.alpha = alpha
         self.lower_limit = lower_limit
         self.upper_limit = upper_limit
         self.zorder = zorder
@@ -3375,6 +3383,9 @@ class StripeLine(Stripe):
     color, c : str, optional
         The color of the stripe as string or hex value. Defaults to
         `COLOR.STRIPE`
+    alpha : float or None, optional
+        Set the alpha value used for blending. Must be between 0-1.
+        Defaults to None.
     lower_limit : float, optional
         The lower limit (start) of the stripe relative to the plotting
         area. Should be between 0 and 1. Defaults to 1.
@@ -3414,6 +3425,7 @@ class StripeLine(Stripe):
             position: float,
             width: float = LINE.WIDTH,
             color: str = COLOR.STRIPE,
+            alpha: float | None = None,
             lower_limit: float = 0.0,
             upper_limit: float = 1.0,
             zorder: float = 0.7,
@@ -3431,12 +3443,13 @@ class StripeLine(Stripe):
             position=position,
             width=width,
             color=color,
+            alpha=alpha,
             lower_limit=lower_limit,
             upper_limit=upper_limit,
             zorder=zorder,
             show_position=show_position,
             decimals=decimals)
-        self.linestyle = kwds['ls'] if 'ls' in kwds else linestyle
+        self.linestyle = kwds.get('ls', linestyle)
     
     @property
     def handle(self) -> Line2D:
@@ -3447,7 +3460,8 @@ class StripeLine(Stripe):
             linewidth=self.width,
             linestyle=self.linestyle,
             color=self.color,
-            markersize=0,)
+            markersize=0,
+            alpha=self.alpha)
         return handle
 
     def __call__(self, ax: Axes, **kwds: Any) -> Any:
@@ -3461,6 +3475,7 @@ class StripeLine(Stripe):
                 xmin=self.lower_limit,
                 xmax=self.upper_limit,
                 color=self.color,
+                alpha=self.alpha,
                 linewidth=self.width,
                 zorder=self.zorder)
         else:
@@ -3469,36 +3484,146 @@ class StripeLine(Stripe):
                 ymin=self.lower_limit,
                 ymax=self.upper_limit,
                 color=self.color,
+                alpha=self.alpha,
                 linewidth=self.width,
                 zorder=self.zorder)
         self._axes.append(ax)
 
 
-class StripeArea(Stripe):
-    """Class for drawing wide stripes on Axes objects."""
+class StripeSpan(Stripe):
+    """Class for drawing wide stripes on Axes objects.
+    
+    Parameters
+    ----------
+    label : str
+        The label of the stripe as it appears in the legend.
+    orientation : {'horizontal', 'vertical'}
+        The orientation of the stripe.
+    lower_position : float or None, optional
+        The lower position of the stripe on the x- or y-axis. Must be 
+        provided if position and width is not given. Defaults to None.
+    upper_position : float or None, optional
+        The upper position of the stripe on the x- or y-axis. Must be 
+        provided if position and width is not given. Defaults to None.
+    position : float or None, optional
+        The position of the stripe on the x- or y-axis. Must be provided
+        if lower_position and upper_position is not given. Defaults to
+        None.
+    width : float or None, optional
+        The width of the stripe.. Must be provided if lower_position and
+        upper_position is not given. Defaults to None.
+    color, c : str, optional
+        The color of the stripe as string or hex value. Defaults to
+        `COLOR.STRIPE`
+    alpha : float or None, optional
+        Set the alpha value used for blending. Must be between 0-1.
+        Defaults to None.
+    lower_limit : float, optional
+        The lower limit (start) of the stripe relative to the plotting
+        area. Should be between 0 and 1. Defaults to 1.
+    upper_limit : float, optional
+        The upper limit (end) of the stripe relative to the plotting
+        area. Should be between 0 and 1. Defaults to 1.
+    zorder : float, optional
+        The order in "z" direction of the artis. Defaults to 0.7.
+    **kwds: 
+        Additional keyword arguments such as `ls`, `lw`, `c` or 
+        `linewidth` are supported. The priority orders are as follows
+        (first mentioned corresponds to higher priority):
+        - Line width = `lw`, `linewidth`, `width`
+        - Color = `c`, `color`
+        - Style = `ls`, `linestyle`
+    """
 
-    __slots__ = ('linestyle')
-
-    linestyle: LineStyle
-    """The linestyle of the stripe."""
+    __slots__ = ('lower_position', 'upper_position', 'border_linewidth')
+    
+    lower_position: float
+    """Target position of the lower border of the stripe."""
+    upper_position: float
+    """Target position of the upper border of the stripe."""
+    border_linewidth: float
+    """Width of the border line. Could also be set during initialisation
+    via `lw` or `linewidth`."""
 
     def __init__(
             self,
             label: str,
             orientation: Literal['horizontal', 'vertical'],
-            position: float,
-            width: float = LINE.WIDTH,
+            lower_position: float | None = None,
+            upper_position: float | None = None,
+            position: float | None = None,
+            width: float | None = None,
             color: str = COLOR.STRIPE,
+            alpha: float = COLOR.CI_ALPHA,
             lower_limit: float = 0.0,
             upper_limit: float = 1.0,
             zorder: float = 0.7,
-            show_position: bool = False,
-            decimals: int | None = None,
-            linestyle: LineStyle = LINE.DASHED,
-            **kwds
-            ) -> None:
+            border_linewidth: float = 0,
+            **kwds) -> None:
 
-        ...
+        if lower_position is None or upper_position is None:
+            assert position is not None and width is not None, (
+                f'Either position and width or lower_position and '
+                f'upper_position must be given!')
+            lower_position = position - abs(width/2)
+            upper_position = position + abs(width/2)
+        else:
+            assert position is None and width is None, (
+                f'Either position and width or lower_position and '
+                f'upper_position must be given!')
+            position = (lower_position + upper_position) / 2
+            width = abs(upper_position - lower_position)
+        
+        super().__init__(
+            label=label,
+            orientation=orientation,
+            position=position,
+            width=width,
+            color=color,
+            alpha=alpha,
+            lower_limit=lower_limit,
+            upper_limit=upper_limit,
+            zorder=zorder,
+            show_position=False)
+        self.lower_position = lower_position
+        self.upper_position = upper_position
+        self.border_linewidth = kwds.get(
+            'lw', kwds.get('linewidth', border_linewidth))
+
+    @property
+    def handle(self) -> Patch:
+        """Get the handle of the stripe used for legend."""
+        handle = Patch(color=self.color, alpha=self.alpha)
+        return handle
+
+    def __call__(self, ax: Axes, **kwds) -> None:
+        """Draw the stripe on the given Axes object."""
+        if ax in self._axes:
+            return
+        
+        if self.orientation == 'horizontal':
+            ax.axhspan(
+                ymin=self.lower_position,
+                ymax=self.upper_position,
+                xmin=self.lower_limit,
+                xmax=self.upper_limit,
+                color=self.color,
+                alpha=self.alpha,
+                linewidth=self.border_linewidth,
+                zorder=self.zorder)
+        else:
+            ax.axvspan(
+                xmin=self.lower_position,
+                xmax=self.upper_position,
+                ymin=self.lower_limit,
+                ymax=self.upper_limit,
+                color=self.color,
+                alpha=self.alpha,
+                linewidth=self.border_linewidth,
+                zorder=self.zorder)
+        self._axes.append(ax)
+
+
 
 __all__ = [
     'Plotter',
@@ -3526,5 +3651,5 @@ __all__ = [
     'SkipSubplot',
     'Stripe',
     'StripeLine',
-    'StripeArea',
+    'StripeSpan',
     ]
