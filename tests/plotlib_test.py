@@ -333,7 +333,7 @@ class TestStripe:
         def handle(self) -> Patch:
             return Patch()
             
-        def __call__(self, **kwds) -> None:
+        def __call__(self, ax, **kwds) -> None:
             pass
 
     @pytest.fixture
@@ -434,6 +434,44 @@ class TestStripeLine:
         assert stripe.show_position == True
         assert stripe.linestyle == 'solid'
         assert stripe.width == 3.0
+    
+    def test_init_priorities(self) -> None:
+        stripe = StripeLine(
+            label='custom',
+            orientation='vertical',
+            position=2.0,
+            width=1,
+            color='red',
+            linestyle='solid',)
+        assert stripe.width == 1
+        assert stripe.color == 'red'
+        assert stripe.linestyle == 'solid'
+        
+        stripe = StripeLine(
+            label='custom',
+            orientation='vertical',
+            position=2.0,
+            width=1,
+            linewidth=2,
+            color='red',
+            linestyle='solid',)
+        assert stripe.width == 2
+        assert stripe.color == 'red'
+        assert stripe.linestyle == 'solid'
+        stripe = StripeLine(
+            label='custom',
+            orientation='vertical',
+            position=2.0,
+            width=1,
+            linewidth=2,
+            lw=3,
+            color='red',
+            c='blue',
+            linestyle='solid',
+            ls='dashed')
+        assert stripe.width == 3
+        assert stripe.color == 'blue'
+        assert stripe.linestyle == 'dashed'
 
     def test_init_with_kwds(self) -> None:
         stripe = StripeLine(

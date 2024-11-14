@@ -3280,7 +3280,7 @@ class Stripe(ABC):
             position: float,
             width: float,
             color: str = COLOR.STRIPE,
-            lower_limit: float = 0.0,
+            lower_limit: float = 0.0, # TODO: Add support for data limits not only relative axes limits
             upper_limit: float = 1.0,
             zorder: float = 0.7,
             show_position: bool = False,
@@ -3360,9 +3360,52 @@ class Stripe(ABC):
 
 
 class StripeLine(Stripe):
-    """Class for drawing straight lines on Axes objects."""
+    """Class for drawing straight lines on Axes objects.
+    
+    Parameters
+    ----------
+    label : str
+        The label of the stripe as it appears in the legend.
+    orientation : {'horizontal', 'vertical'}
+        The orientation of the stripe.
+    position : float
+        The position of the stripe on the x- or y-axis.
+    width : float
+        The width of the stripe.
+    color, c : str, optional
+        The color of the stripe as string or hex value. Defaults to
+        `COLOR.STRIPE`
+    lower_limit : float, optional
+        The lower limit (start) of the stripe relative to the plotting
+        area. Should be between 0 and 1. Defaults to 1.
+    upper_limit : float, optional
+        The upper limit (end) of the stripe relative to the plotting
+        area. Should be between 0 and 1. Defaults to 1.
+    zorder : float, optional
+        The order in "z" direction of the artis. Defaults to 0.7.
+    show_position : bool, optional
+        Whether position value of the stripe should be displayed the 
+        label. Default to False.
+    decimals : int | None, optional
+        Number of decimal places with which the position value should be
+        formatted. If None is given for setting decimals, it is 
+        determined based on the size of the position value see 
+        `determine_decimals` method. Default to None.
+    linestyle : LineStyle, optional
+        The linestyle of the stripe. Defaults to `LINE.DASHED`.
+    **kwds: 
+        Additional keyword arguments such as `ls`, `lw`, `c` or 
+        `linewidth` are supported. The priority orders are as follows
+        (first mentioned corresponds to higher priority):
+        - Line width = `lw`, `linewidth`, `width`
+        - Color = `c`, `color`
+        - Style = `ls`, `linestyle`
+    """
 
     __slots__ = ('linestyle')
+
+    linestyle: LineStyle
+    """The linestyle of the stripe."""
 
     def __init__(
             self,
@@ -3431,12 +3474,31 @@ class StripeLine(Stripe):
         self._axes.append(ax)
 
 
-class StripeArea:
+class StripeArea(Stripe):
+    """Class for drawing wide stripes on Axes objects."""
 
-    def __init__(self) -> None:
+    __slots__ = ('linestyle')
+
+    linestyle: LineStyle
+    """The linestyle of the stripe."""
+
+    def __init__(
+            self,
+            label: str,
+            orientation: Literal['horizontal', 'vertical'],
+            position: float,
+            width: float = LINE.WIDTH,
+            color: str = COLOR.STRIPE,
+            lower_limit: float = 0.0,
+            upper_limit: float = 1.0,
+            zorder: float = 0.7,
+            show_position: bool = False,
+            decimals: int | None = None,
+            linestyle: LineStyle = LINE.DASHED,
+            **kwds
+            ) -> None:
+
         ...
-
-
 
 __all__ = [
     'Plotter',
