@@ -62,6 +62,8 @@ from .plotlib.plotter import Scatter
 from .plotlib.plotter import Violine
 from .plotlib.plotter import Errorbar
 from .plotlib.plotter import MeanTest
+from .plotlib.plotter import StripeLine
+from .plotlib.plotter import StripeArea
 from .plotlib.plotter import HideSubplot
 from .plotlib.plotter import SkipSubplot
 from .plotlib.plotter import SpreadWidth

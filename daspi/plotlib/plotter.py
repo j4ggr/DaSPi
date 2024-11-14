@@ -121,8 +121,11 @@ from numpy.typing import ArrayLike
 
 from matplotlib import colors as mcolors
 from matplotlib.axes import Axes
+from matplotlib.lines import Line2D
 from matplotlib.figure import Figure
+from matplotlib.artist import Artist
 from matplotlib.ticker import PercentFormatter
+from matplotlib.patches import Patch
 from matplotlib.container import BarContainer
 
 from scipy import stats
@@ -135,7 +138,9 @@ from pandas.api.types import is_scalar
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
+from .._typing import LineStyle
 from ..constants import KW
+from ..constants import LINE
 from ..constants import DIST
 from ..constants import COLOR
 from ..constants import DEFAULT
@@ -176,8 +181,10 @@ class Plotter(ABC):
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure ovject with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -222,7 +229,7 @@ class Plotter(ABC):
         self.feature = feature
         self.target = target
         
-        self.fig, self.ax = plt.subplots(1, 1) if ax is None else ax.figure, ax # type: ignore
+        self.fig, self.ax = self.figure_axes(ax)
         self._color = color
         self._marker = marker
     
@@ -264,6 +271,13 @@ class Plotter(ABC):
     def marker(self) -> str | None:
         """Get marker of drawn artist"""
         return self._marker
+    
+    @staticmethod
+    def figure_axes(ax: Axes | None) -> Tuple[Figure, Axes]:
+        """Create a figure and axes object if not provided."""
+        ax = plt.gca() if ax is None else ax
+        fig: Figure = ax.get_figure() # type: ignore
+        return fig, ax
     
     @staticmethod
     def shared_axes(
@@ -327,8 +341,10 @@ class Scatter(Plotter):
     size : Iterable[int] | None, optional
         The size of the markers in the scatter plot, by default None
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure ovject with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -406,8 +422,10 @@ class Line(Plotter):
         see: https://matplotlib.org/stable/api/markers_api.html, 
         by default None
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure ovject with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -481,8 +499,10 @@ class LinearRegression(Plotter):
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure ovject with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     show_points : bool, optional
         Flag indicating whether to show the individual points, 
         by default True.
@@ -660,8 +680,10 @@ class Probability(LinearRegression):
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure ovject with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     show_points : bool, optional
         Flag indicating whether to show the individual points, 
         by default True.
@@ -834,8 +856,10 @@ class ParallelCoordinate(Plotter):
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure ovject with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -965,8 +989,10 @@ class BlandAltman(Plotter):
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure ovject with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -1116,9 +1142,10 @@ class TransformPlotter(Plotter):
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure ovject with
-        one Axes is created, by default None.
-    
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -1287,8 +1314,10 @@ class CenterLocation(TransformPlotter):
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure ovject with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -1310,12 +1339,12 @@ class CenterLocation(TransformPlotter):
             feature: str = '',
             kind: Literal['mean', 'median'] = 'mean',
             show_line: bool = True,
-            show_points: bool = True, #FIXME does not work as individual points only for center points: change to center
+            show_points: bool = True, # FIXME does not work as individual points only for center points: change to center
             f_base: int | float = DEFAULT.FEATURE_BASE,
             skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
-            marker: str | None = None,
+            marker: str | None = None, # FIXME, the whole marker thing is messed up
             ax: Axes | None = None,
             **kwds) -> None:
         self._kind = 'mean'
@@ -1456,8 +1485,10 @@ class Bar(TransformPlotter):
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure ovject with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -1669,8 +1700,10 @@ class Pareto(Bar):
         Color to be used to draw the artists. If None, the first color
         is taken from the color cycle, by default None.
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure ovject with one
-        Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is used
@@ -1890,8 +1923,10 @@ class Jitter(TransformPlotter):
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure ovject with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -1952,9 +1987,9 @@ class Jitter(TransformPlotter):
             width
         """
         jiiter = np.clip(
-            np.random.normal(loc=loc, scale=self.width/6, size=size),
-            a_min = loc - self.width/2,
-            a_max = loc + self.width/2)
+            a=np.random.normal(loc=loc, scale=self.width/6, size=size),
+            a_min=loc - self.width/2,
+            a_max=loc + self.width/2,)
         return jiiter
         
     def transform(
@@ -2032,8 +2067,10 @@ class GaussianKDE(TransformPlotter):
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure object with 
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     show_density_axis : bool, optional
         Flag indicating whether to show the density axis,
         by default True.
@@ -2191,8 +2228,10 @@ class Violine(GaussianKDE):
         Color to be used to draw the artists. If None, the first
         color is taken from the color cycle, by default None.
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure object with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -2296,8 +2335,10 @@ class Errorbar(TransformPlotter):
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure object with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -2454,8 +2495,10 @@ class StandardErrorMean(Errorbar):
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure object with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -2563,8 +2606,10 @@ class SpreadWidth(Errorbar):
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure object with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -2722,8 +2767,10 @@ class ConfidenceInterval(Errorbar):
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure object with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -2845,8 +2892,10 @@ class MeanTest(ConfidenceInterval):
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure object with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -2923,8 +2972,10 @@ class VariationTest(ConfidenceInterval):
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure object with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -3014,8 +3065,10 @@ class ProportionTest(ConfidenceInterval):
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
     ax : Axes | None, optional
-        The axes object for the plot. If None, a Figure object with
-        one Axes is created, by default None.
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -3152,6 +3205,239 @@ class SkipSubplot(Plotter):
         pass
 
 
+class Stripe(ABC):
+    """Abstract base class for drawing a line or area on Axes objects.
+    
+    Parameters
+    ----------
+    label : str
+        The label of the stripe as it appears in the legend.
+    orientation : {'horizontal', 'vertical'}
+        The orientation of the stripe.
+    position : float
+        The position of the stripe on the x- or y-axis.
+    width : float
+        The width of the stripe.
+    color, c : str, optional
+        The color of the stripe as string or hex value. Defaults to
+        `COLOR.STRIPE`
+    lower_limit : float, optional
+        The lower limit (start) of the stripe relative to the plotting
+        area. Should be between 0 and 1. Defaults to 1.
+    upper_limit : float, optional
+        The upper limit (end) of the stripe relative to the plotting
+        area. Should be between 0 and 1. Defaults to 1.
+    zorder : float, optional
+        The order in "z" direction of the artis. Defaults to 0.7.
+    show_position : bool, optional
+        Whether position value of the stripe should be displayed the 
+        label. Default to False.
+    decimals : int | None, optional
+        Number of decimal places with which the position value should be
+        formatted. If None is given for setting decimals, it is 
+        determined based on the size of the position value see 
+        `determine_decimals` method. Default to None.
+    """
+
+    __slots__ = (
+        '_label', 'orientation', 'position', 'width', 'color', 'lower_limit',
+        'upper_limit', 'zorder', 'show_position', '_decimals', '_axes')
+    
+    _label: str
+    """The label of the stripe as it appears in the legend."""
+    orientation: Literal['horizontal', 'vertical']
+    """The orientation of the stripe."""
+    position: float
+    """The position of the stripe on the x- or y-axis."""
+    width: float
+    """The width of the stripe."""
+    color: str
+    """The color of the stripe as string or hex value."""
+    lower_limit: float
+    """The lower limit (start) of the stripe relative to the plotting
+    area. Should be between 0 and 1."""
+    upper_limit: float
+    """The upper limit (end) of the stripe relative to the plotting
+    area. Should be between 0 and 1."""
+    linestyle: LineStyle
+    """The linestyle of the stripe."""
+    zorder: float
+    """The zorder of the stripe."""
+    show_position: bool
+    """Whether position value of the stripe should be displayed the 
+    label."""
+    _decimals: int
+    """The number of decimals for the position value showed in the 
+    label. Only has an effect if show_position is True"""
+    _axes: List[Axes]
+    """The axes objects the stripe is plotted on. This attribute is 
+    necessary so that each strip can only be drawn once on each axis."""
+
+    def __init__(
+            self,
+            label: str,
+            orientation: Literal['horizontal', 'vertical'],
+            position: float,
+            width: float,
+            color: str = COLOR.STRIPE,
+            lower_limit: float = 0.0,
+            upper_limit: float = 1.0,
+            zorder: float = 0.7,
+            show_position: bool = False,
+            decimals: int | None = None
+            ) -> None:
+        self.show_position = show_position
+        self.position = position
+        self.decimals= decimals
+        self.label = label
+        self.orientation = orientation
+        self.width = width
+        self.color = color
+        self.lower_limit = lower_limit
+        self.upper_limit = upper_limit
+        self.zorder = zorder
+        self._axes = []
+    
+    @property
+    def decimals(self) -> int:
+        """Get number of decimals used to format position value in
+        label. If None is given for setting decimals, it is determined 
+        based on the size of the position value see `determine_decimals`
+        method."""
+        return self._decimals
+    @decimals.setter
+    def decimals(self, decimals: int | None) -> None:
+        if decimals is None:
+            decimals = self.determine_decimals(self.position)
+        self._decimals = decimals
+    
+    @staticmethod
+    def determine_decimals(value: int | float) -> int:
+        """Determine the number of decimal places to format values for 
+        e.g. legend labels. The number of decimal places depends on the
+        size of the provided value."""
+        if value <= 0.5:
+            return 4
+        elif value <= 5:
+            return 3
+        elif value <= 50:
+            return 2
+        elif value <= 5000:
+            return 1 
+        else:
+            return 0
+    
+    @property
+    def label(self) -> str:
+        """Get the label of the stripe. The label is always returned
+        with a leading and trailing $ sign so that it is interpreted as
+        a mathematical expression in the legend."""
+        label = self._label
+        if self.show_position:
+            label = f'{label}={self.position:.{self.decimals}f}'
+        return f'${label}$'
+    @label.setter
+    def label(self, label: str) -> None:
+        self._label = label.strip('$')
+
+    @property
+    def identity(self) -> str:
+        """Get the identity of the strip. Needed so that it only appears
+        once in the legend. The identity is composed of the label and
+        the color (read-only)."""
+        return f'{self.label}_{self.color}'
+
+    @property
+    @abstractmethod
+    def handle(self) -> Patch | Line2D:
+        """Get the handle of the stripe used for legend."""
+        raise NotImplementedError
+    
+    @abstractmethod
+    def __call__(self, ax: Axes, **kwds: Any) -> Any:
+        """Draw the stripe on the given Axes object."""
+        raise NotImplementedError
+
+
+class StripeLine(Stripe):
+    """Class for drawing straight lines on Axes objects."""
+
+    __slots__ = ('linestyle')
+
+    def __init__(
+            self,
+            label: str,
+            orientation: Literal['horizontal', 'vertical'],
+            position: float,
+            width: float = LINE.WIDTH,
+            color: str = COLOR.STRIPE,
+            lower_limit: float = 0.0,
+            upper_limit: float = 1.0,
+            zorder: float = 0.7,
+            show_position: bool = False,
+            decimals: int | None = None,
+            linestyle: LineStyle = LINE.DASHED,
+            **kwds
+            ) -> None:
+        
+        width = kwds.get('lw', kwds.get('linewidth', width))
+        color = kwds.get('c', color)
+        super().__init__(
+            label=label,
+            orientation=orientation,
+            position=position,
+            width=width,
+            color=color,
+            lower_limit=lower_limit,
+            upper_limit=upper_limit,
+            zorder=zorder,
+            show_position=show_position,
+            decimals=decimals)
+        self.linestyle = kwds['ls'] if 'ls' in kwds else linestyle
+    
+    @property
+    def handle(self) -> Line2D:
+        """Get the handle of the stripe used for legend."""
+        handle = Line2D(
+            xdata=[],
+            ydata=[],
+            linewidth=self.width,
+            linestyle=self.linestyle,
+            color=self.color,
+            markersize=0,)
+        return handle
+
+    def __call__(self, ax: Axes, **kwds: Any) -> Any:
+        """Draw the stripe on the given Axes object."""
+        if ax in self._axes:
+            return
+        
+        if self.orientation == 'horizontal':
+            ax.axhline(
+                y=self.position,
+                xmin=self.lower_limit,
+                xmax=self.upper_limit,
+                color=self.color,
+                linewidth=self.width,
+                zorder=self.zorder)
+        else:
+            ax.axvline(
+                x=self.position,
+                ymin=self.lower_limit,
+                ymax=self.upper_limit,
+                color=self.color,
+                linewidth=self.width,
+                zorder=self.zorder)
+        self._axes.append(ax)
+
+
+class StripeArea:
+
+    def __init__(self) -> None:
+        ...
+
+
+
 __all__ = [
     'Plotter',
     'Scatter',
@@ -3176,4 +3462,7 @@ __all__ = [
     'ProportionTest',
     'HideSubplot',
     'SkipSubplot',
+    'Stripe',
+    'StripeLine',
+    'StripeArea',
     ]

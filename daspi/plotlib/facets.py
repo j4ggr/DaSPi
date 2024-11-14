@@ -483,8 +483,10 @@ class StripesFacets:
     target : ArrayLike
         The target data for the estimation.
     single_axes : bool
-        Whether to use a single axes for the chart or multiple axes for
-        each facet.
+        Whether a single axis is used for the chart or whether the 
+        stripes are used on multiple axes. This affects how the 
+        predefined legend labels are handled. If True, the corresponding
+        position values are added to the label.
     mean : bool, optional
         Whether to include a mean line on the chart, by default False.
     median : bool, optional
@@ -512,7 +514,10 @@ class StripesFacets:
     spec_limits: Tuple[SpecLimit, SpecLimit]
     """The specification limits for the chart."""
     single_axes: bool
-    """Whether to use a single axes for the chart or multiple axes for each facet."""
+    """Whether a single axis is used for the chart or whether the 
+    stripes are used on multiple axes. This affects how the predefined
+    legend labels are handled. If True, the corresponding position
+    values are added to the label."""
     
     def __init__(
         self,
@@ -606,7 +611,7 @@ class StripesFacets:
         return labels
     
     @property
-    def handles(self) -> Tuple[Patch |Line2D, ...]:
+    def handles(self) -> Tuple[Patch | Line2D, ...]:
         """Get the legend handles for added lines and spans (read-only)."""
         handles = tuple(
             Line2D([], [], markersize=0, **kwds) for kwds in self.kwds)
