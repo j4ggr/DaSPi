@@ -1,5 +1,4 @@
 import re
-import numpy as np
 import matplotlib.pyplot as plt
 
 from re import Pattern
@@ -12,18 +11,20 @@ from patsy.desc import INTERCEPT
 from dataclasses import dataclass
 from scipy.stats._continuous_distns import _distn_names
 
+from ._typing import LineStyle
+
 
 @dataclass(frozen=True)
 class _Line_:
     WIDTH: float = 0.8
     """Line width for special lines e.g. StripeLines."""
-    SOLID: tuple = (0, ())
+    SOLID: LineStyle = (0, ())
     """Line style argument for a solid line."""
-    DOTTED: tuple = (0, (2, 2))
+    DOTTED: LineStyle = (0, (2, 2))
     """Line style argument for a dotted line."""
-    DASHED: tuple = (0, (5, 5))
+    DASHED: LineStyle = (0, (5, 5))
     """Line style argument for a dashed line."""
-    DASHDOT: tuple = (0, (8, 5, 2, 5))
+    DASHDOT: LineStyle = (0, (8, 5, 2, 5))
     """Line style argument for a dashed dotted line."""
 LINE = _Line_()
 

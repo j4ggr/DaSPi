@@ -314,7 +314,7 @@ class PairComparisonCharts(JointChart):
         super().label(**labels) # type: ignore
         return self
 
-# TODO: add tests
+
 class BivariateUnivariateCharts(JointChart):
     """Provides a set of charts for visualizing the relationship between
     a target variable and a feature variable.
@@ -352,8 +352,8 @@ class BivariateUnivariateCharts(JointChart):
     stretch_figsize : bool, optional
         Whether to stretch the figure size, by default True.
     colors: Tuple[str, ...], optional
-        Tuple of unique colors used for hue categories as hex or str,
-        by default `CATEGORY.PALETTE`.
+        Tuple of unique colors used for hue categories as hex or str. If
+        not provided, the default colors will be used, by default ().
     """
     __slots__ = ('_top_right_hidden')
 
@@ -370,7 +370,7 @@ class BivariateUnivariateCharts(JointChart):
             categorical_feature_univariates: bool = False,
             ratios: List[float] = [3, 1],
             stretch_figsize: bool = True,
-            colors: Tuple[str, ...] = CATEGORY.PALETTE
+            colors: Tuple[str, ...] = ()
             ) -> None:
         assert len(ratios) == 2, ('ratios must be a list of two floats')
         self._top_right_hidden = False
@@ -400,7 +400,7 @@ class BivariateUnivariateCharts(JointChart):
             width_ratios=ratios,
             height_ratios=ratios[::-1],
             stretch_figsize=stretch_figsize,
-            colors=colors)
+            colors=colors or CATEGORY.PALETTE)
     
     @property
     def hidden_ax(self) -> Axes:

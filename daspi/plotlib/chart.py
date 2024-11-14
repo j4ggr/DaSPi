@@ -1526,8 +1526,8 @@ class MultipleVariateChart(SingleChart):
             dodge: bool = False,
             stretch_figsize: bool = True,
             categorical_feature: bool = False,
-            colors: Tuple[str, ...] = CATEGORY.PALETTE,
-            markers: Tuple[str, ...] = CATEGORY.MARKERS,
+            colors: Tuple[str, ...] = (),
+            markers: Tuple[str, ...] = (),
             n_size_bins: int = CATEGORY.N_SIZE_BINS,
             ) -> None:
         self.target_on_y = True
@@ -1552,8 +1552,8 @@ class MultipleVariateChart(SingleChart):
             ncols=ncols,
             stretch_figsize=stretch_figsize,
             categorical_feature=categorical_feature,
-            colors=colors,
-            markers=markers,
+            colors=colors or CATEGORY.PALETTE,
+            markers=markers or CATEGORY.MARKERS,
             n_size_bins=n_size_bins)
         self._variate_names = (self.row, self.col, self.hue, self.shape)
         self._reset_variate_()
