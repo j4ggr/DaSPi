@@ -3435,14 +3435,12 @@ class StripeLine(Stripe):
             **kwds
             ) -> None:
         
-        width = kwds.get('lw', kwds.get('linewidth', width))
-        color = kwds.get('c', color)
         super().__init__(
             label=label,
             orientation=orientation,
             position=position,
-            width=width,
-            color=color,
+            width=kwds.get('lw', kwds.get('linewidth', width)),
+            color=kwds.get('c', color),
             alpha=alpha,
             lower_limit=lower_limit,
             upper_limit=upper_limit,
@@ -3468,25 +3466,20 @@ class StripeLine(Stripe):
         """Draw the stripe on the given Axes object."""
         if ax in self._axes:
             return
-        
+        args = (
+            self.position,
+            self.lower_limit,
+            self.upper_limit)
+        kwds = dict(
+            color=self.color,
+            alpha=self.alpha,
+            linewidth=self.width,
+            zorder=self.zorder
+            ) | kwds
         if self.orientation == 'horizontal':
-            ax.axhline(
-                y=self.position,
-                xmin=self.lower_limit,
-                xmax=self.upper_limit,
-                color=self.color,
-                alpha=self.alpha,
-                linewidth=self.width,
-                zorder=self.zorder)
+            ax.axhline(*args, **kwds)
         else:
-            ax.axvline(
-                x=self.position,
-                ymin=self.lower_limit,
-                ymax=self.upper_limit,
-                color=self.color,
-                alpha=self.alpha,
-                linewidth=self.width,
-                zorder=self.zorder)
+            ax.axvline(*args, **kwds)
         self._axes.append(ax)
 
 
@@ -3561,18 +3554,8 @@ class StripeSpan(Stripe):
             border_linewidth: float = 0,
             **kwds) -> None:
 
-        if lower_position is None or upper_position is None:
-            assert position is not None and width is not None, (
-                f'Either position and width or lower_position and '
-                f'upper_position must be given!')
-            lower_position = position - abs(width/2)
-            upper_position = position + abs(width/2)
-        else:
-            assert position is None and width is None, (
-                f'Either position and width or lower_position and '
-                f'upper_position must be given!')
-            position = (lower_position + upper_position) / 2
-            width = abs(upper_position - lower_position)
+        position, width = self._position_values_(
+            lower_position, upper_position, position, width)
         
         super().__init__(
             label=label,
@@ -3585,10 +3568,35 @@ class StripeSpan(Stripe):
             upper_limit=upper_limit,
             zorder=zorder,
             show_position=False)
-        self.lower_position = lower_position
-        self.upper_position = upper_position
         self.border_linewidth = kwds.get(
             'lw', kwds.get('linewidth', border_linewidth))
+    
+    def _position_values_(
+            self,
+            lower: float | None,
+            upper: float | None,
+            pos: float | None, 
+            width: float | None
+            ) -> Tuple[float, float]:
+        """Check if either the edges values or the position and width is
+        given but not both. Then set the edges attributes and return
+        position and width."""
+        _msg = (
+            'Either position and width or lower_position and upper_position '
+            'must be given!')
+        if lower is None and upper is None:
+            assert pos is not None and width is not None, _msg
+            lower = pos - abs(width/2)
+            upper = pos + abs(width/2)
+        else:
+            assert pos is None and width is None, _msg
+            assert lower is not None and upper is not None, _msg
+            pos = (lower + upper) / 2
+            width = abs(upper - lower)
+        
+        self.lower_position = lower
+        self.upper_position = upper
+        return pos, width
 
     @property
     def handle(self) -> Patch:
@@ -3601,26 +3609,21 @@ class StripeSpan(Stripe):
         if ax in self._axes:
             return
         
+        args = (
+            self.lower_position,
+            self.upper_position,
+            self.lower_limit,
+            self.upper_limit)
+        kwds = dict(
+            color=self.color,
+            alpha=self.alpha,
+            linewidth=self.border_linewidth,
+            zorder=self.zorder
+            ) | kwds
         if self.orientation == 'horizontal':
-            ax.axhspan(
-                ymin=self.lower_position,
-                ymax=self.upper_position,
-                xmin=self.lower_limit,
-                xmax=self.upper_limit,
-                color=self.color,
-                alpha=self.alpha,
-                linewidth=self.border_linewidth,
-                zorder=self.zorder)
+            ax.axhspan(*args, **kwds)
         else:
-            ax.axvspan(
-                xmin=self.lower_position,
-                xmax=self.upper_position,
-                ymin=self.lower_limit,
-                ymax=self.upper_limit,
-                color=self.color,
-                alpha=self.alpha,
-                linewidth=self.border_linewidth,
-                zorder=self.zorder)
+            ax.axvspan(*args, **kwds)
         self._axes.append(ax)
 
 

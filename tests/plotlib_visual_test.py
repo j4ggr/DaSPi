@@ -2,20 +2,18 @@ import sys
 import pytest
 import matplotlib
 
-import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
 
-from pytest import approx
-from typing import Type
+from typing import Any
+from typing import Dict
 from typing import List
 from pathlib import Path
 from matplotlib.text import Text
 from pandas.core.frame import DataFrame
-from matplotlib.ticker import PercentFormatter
 
-sys.path.append(Path(__file__).parent.resolve())
+sys.path.append(Path(__file__).parent.resolve()) # type: ignore
 
 from daspi import load_dataset
 from daspi import STR
@@ -78,9 +76,9 @@ Feature name difinitions:
     dissolution = continuous (covariate)
         [dissolution] = s
 """
-df_affairs: DataFrame = sm.datasets.fair.load_pandas().data
+df_affairs: DataFrame = sm.datasets.fair.load_pandas().data # type: ignore
 
-df_travel: DataFrame = sm.datasets.modechoice.load_pandas().data
+df_travel: DataFrame = sm.datasets.modechoice.load_pandas().data # type: ignore
 df_travel['mode'] = df_travel['mode'].replace(
     {1: 'air', 2: 'train', 3: 'bus', 4: 'car'})
 df_travel['choice'] = df_travel['choice'].replace({0: 'no', 1: 'yes'})
@@ -111,14 +109,14 @@ https://www.statsmodels.org/stable/datasets/generated/modechoice.html
 """
 
 source = Path(__file__).parent/'data'
-KW_READ = dict(sep=';', index_col=0, skiprows=1)
+KW_READ: Dict[str, Any] = dict(sep=';', index_col=0, skiprows=1)
 df_dist10: DataFrame = pd.read_csv(
     source/f'dists_10-samples.csv', nrows=10, **KW_READ)
 df_dist25: DataFrame = pd.read_csv(
     source/f'dists_25-samples.csv', nrows=25, **KW_READ)
 
 def get_texts(chart: SingleChart | JointChart | MultipleVariateChart) -> List[Text]:
-    return sorted(chart.figure.texts, key=lambda t: t._y, reverse=True)
+    return sorted(chart.figure.texts, key=lambda t: t._y, reverse=True) # type: ignore
 
 
 class TestSingleChart:
@@ -167,7 +165,7 @@ class TestSingleChart:
         assert self.file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 2
-        assert legend_artists[0].get_children()[0].get_text() == self.cat1
+        assert legend_artists[0].get_children()[0].get_text() == self.cat1 # type: ignore
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target
@@ -200,8 +198,8 @@ class TestSingleChart:
         assert self.file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 4
-        assert legend_artists[0].get_children()[0].get_text() == self.cat1
-        assert legend_artists[2].get_children()[0].get_text() == self.size
+        assert legend_artists[0].get_children()[0].get_text() == self.cat1 # type: ignore
+        assert legend_artists[2].get_children()[0].get_text() == self.size # type: ignore
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target_label
@@ -272,7 +270,7 @@ class TestSingleChart:
         assert self.file_name.is_file()
         assert len(texts) == 4
         assert len(legend_artists) == 2
-        assert legend_artists[0].get_children()[0].get_text() == self.cat1
+        assert legend_artists[0].get_children()[0].get_text() == self.cat1 # type: ignore
         assert texts[0].get_text() == self.sub_title
         assert texts[1].get_text() == self.target_label
         assert texts[2].get_text() == self.feature_label
@@ -301,7 +299,7 @@ class TestSingleChart:
         assert self.file_name.is_file()
         assert len(texts) == 4
         assert len(legend_artists) == 2
-        assert legend_artists[0].get_children()[0].get_text() == self.cat2
+        assert legend_artists[0].get_children()[0].get_text() == self.cat2 # type: ignore
         assert texts[0].get_text() == self.sub_title
         assert texts[1].get_text() == self.target_label
         assert texts[2].get_text() == self.feature_label
@@ -330,7 +328,7 @@ class TestSingleChart:
         assert self.file_name.is_file()
         assert len(texts) == 4
         assert len(legend_artists) == 2
-        assert legend_artists[0].get_children()[0].get_text() == self.size
+        assert legend_artists[0].get_children()[0].get_text() == self.size # type: ignore
         assert texts[0].get_text() == self.sub_title
         assert texts[1].get_text() == self.target_label
         assert texts[2].get_text() == self.feature_label
@@ -361,8 +359,8 @@ class TestSingleChart:
         assert self.file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 4
-        assert legend_artists[0].get_children()[0].get_text() == self.cat1
-        assert legend_artists[2].get_children()[0].get_text() == self.size
+        assert legend_artists[0].get_children()[0].get_text() == self.cat1 # type: ignore
+        assert legend_artists[2].get_children()[0].get_text() == self.size # type: ignore
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target_label
@@ -393,8 +391,8 @@ class TestSingleChart:
         assert self.file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 4
-        assert legend_artists[0].get_children()[0].get_text() == self.cat1
-        assert legend_artists[2].get_children()[0].get_text() == self.cat2
+        assert legend_artists[0].get_children()[0].get_text() == self.cat1 # type: ignore
+        assert legend_artists[2].get_children()[0].get_text() == self.cat2 # type: ignore
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target_label
@@ -425,8 +423,8 @@ class TestSingleChart:
         assert self.file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 4
-        assert legend_artists[0].get_children()[0].get_text() == self.cat2
-        assert legend_artists[2].get_children()[0].get_text() == self.size
+        assert legend_artists[0].get_children()[0].get_text() == self.cat2 # type: ignore
+        assert legend_artists[2].get_children()[0].get_text() == self.size # type: ignore
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target_label
@@ -458,9 +456,9 @@ class TestSingleChart:
         assert self.file_name.is_file()
         assert len(texts) == 5
         assert len(legend_artists) == 6
-        assert legend_artists[0].get_children()[0].get_text() == self.cat1
-        assert legend_artists[2].get_children()[0].get_text() == self.cat2
-        assert legend_artists[4].get_children()[0].get_text() == self.size
+        assert legend_artists[0].get_children()[0].get_text() == self.cat1 # type: ignore
+        assert legend_artists[2].get_children()[0].get_text() == self.cat2 # type: ignore
+        assert legend_artists[4].get_children()[0].get_text() == self.size # type: ignore
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target_label
@@ -582,7 +580,7 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 4 # feature label should not appear
-        assert legend_artists[0].get_children()[0].get_text() == self.cat1
+        assert legend_artists[0].get_children()[0].get_text() == self.cat1 # type: ignore
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target
@@ -963,8 +961,8 @@ class TestJointChart:
             ).plot(GaussianKDE, show_density_axis=True
             ).plot(Violine
             ).label(
-                feature_label = [True]*2,
-                target_label = [True]*2
+                feature_label = (True, True),
+                target_label = (True, True),
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -974,7 +972,7 @@ class TestJointChart:
         xticklabels1 = [t.get_text() for t in chart.axes[1][0].get_xticklabels()]
         assert self.file_name.is_file()
         assert len(texts) == 0 # No text added to figure only to axes
-        assert legend_artists[0].get_children()[0].get_text() == self.cat2
+        assert legend_artists[0].get_children()[0].get_text() == self.cat2 # type: ignore
         assert yticklabels1 == sorted(df_aspirin[self.cat1].unique())
         assert bool(xticklabels0) == False
         assert bool(xticklabels1) == True
@@ -1039,7 +1037,7 @@ class TestJointChart:
             assert '%' not in l
 
         self.kind = 'dists-prob'
-        target = df_dist25.columns.to_list()[1:]
+        target = tuple(df_dist25.columns.to_list()[1:])
         target_labels = tuple(f'{d} quantiles' for d in target)
         feature_label = 'theoretical quantiles'
         chart = JointChart(
@@ -1083,7 +1081,7 @@ class TestJointChart:
                 source = df_travel,
                 target = ('invc', '', 'invt', 'invt'),
                 feature = ('', '', 'invc', ''),
-                target_on_y = [False, False, True, True],
+                target_on_y = (False, False, True, True),
                 hue = 'mode',
                 nrows = 2,
                 ncols = 2,
@@ -1188,8 +1186,8 @@ class TestJointChart:
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,
-                feature_label = [True]*4,
-                target_label = [self.target_label]*4,
+                feature_label = (True, True, True, True),
+                target_label = tuple([self.target_label]*4),
                 info = self.info_msg
             ).save(self.file_name
             ).close()

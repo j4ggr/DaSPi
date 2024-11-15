@@ -1,13 +1,21 @@
 import numpy as np
 
+from typing import Any
 from typing import Tuple
 from typing import Literal
 from typing import Sequence
 from typing import TypeAlias
+from datetime import date
+from datetime import datetime
 from numpy.typing import NDArray
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 from pandas.core.series import Series
+
+Sample1D: TypeAlias = (
+    Sequence[int | float | str | datetime | date]
+    | 'Series[int | float | str | datetime | date]'
+    | NDArray[np.integer | np.floating | np.str_ | np.datetime64])
 
 NumericSample1D: TypeAlias = (
     Sequence[int | float]
@@ -42,6 +50,7 @@ empty tuple (the same as continuous), once (containing 2 numbers On and
 Off), or multiple times with different On and Off numbers."""
 
 __all__ = [
+    'Sample1D',
     'NumericSample1D',
     'SpecLimit',
     'SpecLimits',

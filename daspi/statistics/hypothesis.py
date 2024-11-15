@@ -3,8 +3,10 @@ import numpy as np
 from math import exp
 from typing import Any
 from typing import Tuple
+from typing import Sequence
 from typing import Generator
 from numpy.typing import NDArray
+from pandas.core.series import Series
 
 from scipy import stats
 from scipy.stats import f
@@ -33,7 +35,8 @@ from .._typing import NumericSample1D
 # from statsmodels.stats.proportion import confint_proportions_2indep
 
 def chunker(
-        samples: NumericSample1D, n_sections: int
+        samples: Sequence[Any] | Series | NDArray,
+        n_sections: int
         ) -> Generator[NDArray, Any, None]:
     """Divides the data into a specified number of sections.
     
@@ -66,7 +69,9 @@ def chunker(
     for i in range(n_sections):
         yield _samples[slicing_positions[i]:slicing_positions[i+1]]
 
-def ensure_generic(dist: str | rv_continuous) -> rv_continuous:
+def ensure_generic(
+        dist: str | rv_continuous
+        ) -> rv_continuous:
     """If the input is a string representing a distribution, convert it
     to a rv_continuous object.
     
@@ -89,7 +94,8 @@ def ensure_generic(dist: str | rv_continuous) -> rv_continuous:
         return dist
 
 def anderson_darling_test(
-        sample: NumericSample1D) -> Tuple[float, float]:
+        sample: NumericSample1D
+        ) -> Tuple[float, float]:
     """The Anderson-Darling test compares the measured values with the 
     theoretical values of a given distribution (in this case the normal 
     distribution). This test is considered to be one of the most 
@@ -114,8 +120,8 @@ def anderson_darling_test(
     https://real-statistics.com/non-parametric-tests/goodness-of-fit-tests/anderson-darling-test/
     """
     N = len(sample)
-    A2, _, _ = anderson(sample, dist='norm')
-    A_star: float = A2*(1 + 0.75/N + 2.25/N**2)
+    A2: float = anderson(sample, dist='norm')[0] # type: ignore
+    A_star = A2*(1 + 0.75/N + 2.25/N**2)
     if 13 <= A_star:
         p = 0.0
     elif 0.6 <= A_star < 13:
@@ -129,7 +135,8 @@ def anderson_darling_test(
     return p, A_star
 
 def all_normal(
-        *samples: NumericSample1D, p_threshold: float = 0.05
+        *samples: NumericSample1D,
+        p_threshold: float = 0.05
         ) -> bool:
     """Performs the Anderson-Darling test against the normal
     distribution for each given sample data. Only one-dimensional
@@ -158,7 +165,8 @@ def all_normal(
     return all([anderson_darling_test(x)[0] > p_threshold for x in samples])
 
 def kolmogorov_smirnov_test(
-        sample: NumericSample1D, dist: str | rv_continuous
+        sample: NumericSample1D,
+        dist: str | rv_continuous
         ) -> Tuple[float, float, Tuple[float, ...]]:
     """Perform a one-sample Kolmogorov-Smirnov-Test. This hypothesis
     test compares the underlying distribution F(x) of a sample against a 
@@ -187,11 +195,13 @@ def kolmogorov_smirnov_test(
     """
     dist = ensure_generic(dist)
     params = dist.fit(sample)
-    D, p = ks_1samp(sample, cdf=dist.cdf, args=params, alternative='two-sided')
-    return p, D, params
+    D, p = ks_1samp(
+        sample, cdf=dist.cdf, args=params, alternative='two-sided')
+    return p, D, params # type: ignore
 
 def f_test(
-        sample1: NumericSample1D, sample2: NumericSample1D
+        sample1: NumericSample1D,
+        sample2: NumericSample1D
         ) -> Tuple[float, float]:
     """The F-test is a test for equal variances between two populations. 
     The probability distribution on which the F-test is based is called 
@@ -219,8 +229,10 @@ def f_test(
     return p, F
 
 def levene_test(
-        sample1: NumericSample1D, sample2: NumericSample1D,
-        heavy_tailed: bool = False) -> Tuple[float, float]:
+        sample1: NumericSample1D,
+        sample2: NumericSample1D,
+        heavy_tailed: bool = False
+        ) -> Tuple[float, float]:
     """Perform Levene test for equal variances.
     The Levene test tests the null hypothesis that all input samples are 
     from populations with equal variances.
@@ -247,7 +259,8 @@ def levene_test(
     return p, L
 
 def variance_stability_test(
-        sample: NumericSample1D, n_sections: int = 3
+        sample: NumericSample1D,
+        n_sections: int = 3
         ) -> Tuple[float, float]:
     """Perform Levene test for equal variances within one sample.
     
@@ -273,7 +286,8 @@ def variance_stability_test(
     return p, L
 
 def mean_stability_test(
-        sample: NumericSample1D, n_sections: int = 3
+        sample: NumericSample1D,
+        n_sections: int = 3
         ) -> Tuple[float, float]:
     """Perform one-way ANOVA for equal means within one sample.
     
@@ -299,8 +313,11 @@ def mean_stability_test(
     return p, statistic
 
 def position_test(
-        sample1: NumericSample1D, sample2: NumericSample1D,
-        equal_var: bool = True, normal: bool | None = None, u_test: bool=True
+        sample1: NumericSample1D,
+        sample2: NumericSample1D,
+        equal_var: bool = True,
+        normal: bool | None = None,
+        u_test: bool=True
         ) -> Tuple[float, float, str]:
     """calculate the test for the means of *two independent* samples of 
     scores.
@@ -356,11 +373,13 @@ def position_test(
     else:
         statistic, p = ttest_ind(sample1, sample2, equal_var=equal_var)
         test = 't'
-    return p, statistic, test
+    return p, statistic, test # type: ignore
 
 def variance_test(
-        sample1: NumericSample1D, sample2: NumericSample1D,
-        normal: bool | None = None, heavy_tailed: bool = False
+        sample1: NumericSample1D,
+        sample2: NumericSample1D,
+        normal: bool | None = None,
+        heavy_tailed: bool = False
         ) -> Tuple[float, float, str]:
     """Perform test for equal variances of two independent variables.
     This test tests the null hypothesis that all input samples are 
@@ -405,8 +424,12 @@ def variance_test(
     return p, statistic, test
 
 def proportions_test(
-        events1: int, observations1: int, events2: int, observations2: int,
-        decision_threshold: int = 1000) -> Tuple[float, float, str]:
+        events1: int,
+        observations1: int,
+        events2: int,
+        observations2: int,
+        decision_threshold: int = 1000
+        ) -> Tuple[float, float, str]:
     """Hypothesis test for comparing two independent proportions
     This assumes that we have two independent binomial samples.
     
@@ -452,9 +475,11 @@ def proportions_test(
             method='wald', alternative='two-sided')
         p, statistic = res.pvalue, res.statistic
         test = 'Wald'
-    return p, statistic, test
+    return p, statistic, test # type: ignore
 
-def kurtosis_test(sample: NumericSample1D) -> Tuple[float, float]:
+def kurtosis_test(
+        sample: NumericSample1D
+        ) -> Tuple[float, float]:
     """Two sided hypothesis test whether a dataset has normal kurtosis.
 
     This function tests the null hypothesis that the kurtosis of the 
@@ -477,7 +502,9 @@ def kurtosis_test(sample: NumericSample1D) -> Tuple[float, float]:
         sample, nan_policy='omit', alternative='two-sided')
     return p, statistic
 
-def skew_test(sample: NumericSample1D) -> Tuple[float, float]:
+def skew_test(
+        sample: NumericSample1D
+        ) -> Tuple[float, float]:
     """Two sided hypothesis whether the skew is different from the 
     normal distribution.
 
