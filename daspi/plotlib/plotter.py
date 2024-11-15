@@ -417,10 +417,6 @@ class Line(Plotter):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
-    marker : str | None, optional
-        The marker style for the individual points. Available markers
-        see: https://matplotlib.org/stable/api/markers_api.html, 
-        by default None
     ax : Axes | None, optional
         The axes object for the plot. If None, an attempt is made to get
         the current one using `plt.gca`. If none is available, one is 
@@ -438,7 +434,6 @@ class Line(Plotter):
             feature: str = '',
             target_on_y: bool = True, 
             color: str | None = None,
-            marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         super().__init__(
@@ -447,7 +442,7 @@ class Line(Plotter):
             feature=feature,
             target_on_y=target_on_y,
             color=color,
-            marker=marker,
+            marker=None,
             ax=ax)
         
     @property
@@ -469,7 +464,6 @@ class Line(Plotter):
             Additional keyword arguments to be passed to the Axes `plot` 
             method.
         """
-        marker = marker or self.marker
         alpha = COLOR.MARKER_ALPHA if marker is not None else None
         _kwds = self.default_kwds | dict(marker=marker, alpha=alpha) | kwds
         self.ax.plot(self.x, self.y, **_kwds)
