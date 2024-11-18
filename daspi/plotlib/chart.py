@@ -842,8 +842,9 @@ class SingleChart(Chart):
             control_limits=control_limits,
             spec_limits=spec_limits,
             confidence=confidence,
+            target_on_y=self.target_on_y,
             **kwds)
-        self.stripes_facets.draw(ax=self.ax, target_on_y=self.target_on_y)
+        self.stripes_facets.draw(ax=self.ax)
         return self
 
     def label(

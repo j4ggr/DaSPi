@@ -228,6 +228,68 @@ class TestSingleChart:
         assert chart.label_facets.legend is None
         assert texts[0].get_text() == self.sub_title
 
+        self.kind = 'simple-stripes'
+        chart = SingleChart(
+                source = df_aspirin,
+                target = self.target,
+                feature = self.feature
+            ).plot(Scatter
+            ).stripes(
+                mean=True,
+                median=True,
+                control_limits=True,
+                spec_limits=(8, 35),
+            ).label(
+                sub_title = self.sub_title
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        assert self.file_name.is_file()
+        assert len(texts) == 1
+        assert chart.label_facets.legend is not None
+        assert texts[0].get_text() == self.sub_title
+
+        self.kind = 'simple-stripes-65ci'
+        chart = SingleChart(
+                source = df_aspirin,
+                target = self.target,
+                feature = self.feature
+            ).plot(Scatter
+            ).stripes(
+                mean=True,
+                median=True,
+                control_limits=True,
+                confidence=0.65,
+            ).label(
+                sub_title = self.sub_title
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        assert self.file_name.is_file()
+        assert len(texts) == 1
+        assert chart.label_facets.legend is not None
+        assert texts[0].get_text() == self.sub_title
+
+        self.kind = 'simple-stripes-99ci'
+        chart = SingleChart(
+                source = df_aspirin,
+                target = self.target,
+                feature = self.feature
+            ).plot(Scatter
+            ).stripes(
+                mean=True,
+                median=True,
+                control_limits=True,
+                confidence=0.99,
+            ).label(
+                sub_title = self.sub_title
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        assert self.file_name.is_file()
+        assert len(texts) == 1
+        assert chart.label_facets.legend is not None
+        assert texts[0].get_text() == self.sub_title
 
         self.kind = 'transposed'
         chart =SingleChart(

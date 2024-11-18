@@ -3206,12 +3206,12 @@ class Stripe(ABC):
     ----------
     label : str
         The label of the stripe as it appears in the legend.
-    orientation : {'horizontal', 'vertical'}
-        The orientation of the stripe.
     position : float
         The position of the stripe on the x- or y-axis.
     width : float
         The width of the stripe.
+    orientation : {'horizontal', 'vertical'}, optional
+        The orientation of the stripe. Defaults to 'horizontal'.
     color : str, optional
         The color of the stripe as string or hex value. Defaults to
         `COLOR.STRIPE`
@@ -3237,18 +3237,18 @@ class Stripe(ABC):
     """
 
     __slots__ = (
-        '_label', 'orientation', 'position', 'width', 'color', 'alpha',
+        '_label', 'position', 'width', 'orientation', 'color', 'alpha',
         'lower_limit', 'upper_limit', 'zorder', 'show_position', '_decimals',
         '_axes')
     
     _label: str
     """The label of the stripe as it appears in the legend."""
-    orientation: Literal['horizontal', 'vertical']
-    """The orientation of the stripe."""
     position: float
     """The position of the stripe on the x- or y-axis."""
     width: float
     """The width of the stripe."""
+    orientation: Literal['horizontal', 'vertical']
+    """The orientation of the stripe."""
     color: str
     """The color of the stripe as string or hex value."""
     alpha: float | None
@@ -3276,9 +3276,9 @@ class Stripe(ABC):
     def __init__(
             self,
             label: str,
-            orientation: Literal['horizontal', 'vertical'],
             position: float,
             width: float,
+            orientation: Literal['horizontal', 'vertical'] = 'horizontal',
             color: str = COLOR.STRIPE,
             alpha: float | None = None,
             lower_limit: float = 0.0, # TODO: Add support for data limits not only relative axes limits
@@ -3356,7 +3356,7 @@ class Stripe(ABC):
         raise NotImplementedError
     
     @abstractmethod
-    def __call__(self, ax: Axes, **kwds: Any) -> Any:
+    def __call__(self, ax: Axes) -> Any:
         """Draw the stripe on the given Axes object."""
         raise NotImplementedError
 
@@ -3368,12 +3368,12 @@ class StripeLine(Stripe):
     ----------
     label : str
         The label of the stripe as it appears in the legend.
-    orientation : {'horizontal', 'vertical'}
-        The orientation of the stripe.
     position : float
         The position of the stripe on the x- or y-axis.
     width : float
         The width of the stripe.
+    orientation : {'horizontal', 'vertical'}, optional
+        The orientation of the stripe. Defaults to 'horizontal'.
     color, c : str, optional
         The color of the stripe as string or hex value. Defaults to
         `COLOR.STRIPE`
@@ -3415,9 +3415,9 @@ class StripeLine(Stripe):
     def __init__(
             self,
             label: str,
-            orientation: Literal['horizontal', 'vertical'],
             position: float,
             width: float = LINE.WIDTH,
+            orientation: Literal['horizontal', 'vertical'] = 'horizontal',
             color: str = COLOR.STRIPE,
             alpha: float | None = None,
             lower_limit: float = 0.0,
@@ -3456,7 +3456,7 @@ class StripeLine(Stripe):
             alpha=self.alpha)
         return handle
 
-    def __call__(self, ax: Axes, **kwds: Any) -> Any:
+    def __call__(self, ax: Axes) -> Any:
         """Draw the stripe on the given Axes object."""
         if ax in self._axes:
             return
@@ -3468,8 +3468,9 @@ class StripeLine(Stripe):
             color=self.color,
             alpha=self.alpha,
             linewidth=self.width,
+            linestyle=self.linestyle,
             zorder=self.zorder
-            ) | kwds
+            )
         if self.orientation == 'horizontal':
             ax.axhline(*args, **kwds)
         else:
@@ -3484,8 +3485,6 @@ class StripeSpan(Stripe):
     ----------
     label : str
         The label of the stripe as it appears in the legend.
-    orientation : {'horizontal', 'vertical'}
-        The orientation of the stripe.
     lower_position : float or None, optional
         The lower position of the stripe on the x- or y-axis. Must be 
         provided if position and width is not given. Defaults to None.
@@ -3499,6 +3498,8 @@ class StripeSpan(Stripe):
     width : float or None, optional
         The width of the stripe.. Must be provided if lower_position and
         upper_position is not given. Defaults to None.
+    orientation : {'horizontal', 'vertical'}, optional
+        The orientation of the stripe. Defaults to 'horizontal'.
     color, c : str, optional
         The color of the stripe as string or hex value. Defaults to
         `COLOR.STRIPE`
@@ -3535,11 +3536,11 @@ class StripeSpan(Stripe):
     def __init__(
             self,
             label: str,
-            orientation: Literal['horizontal', 'vertical'],
             lower_position: float | None = None,
             upper_position: float | None = None,
             position: float | None = None,
             width: float | None = None,
+            orientation: Literal['horizontal', 'vertical'] = 'horizontal',
             color: str = COLOR.STRIPE,
             alpha: float = COLOR.CI_ALPHA,
             lower_limit: float = 0.0,
@@ -3598,7 +3599,7 @@ class StripeSpan(Stripe):
         handle = Patch(color=self.color, alpha=self.alpha)
         return handle
 
-    def __call__(self, ax: Axes, **kwds) -> None:
+    def __call__(self, ax: Axes) -> None:
         """Draw the stripe on the given Axes object."""
         if ax in self._axes:
             return
@@ -3613,7 +3614,7 @@ class StripeSpan(Stripe):
             alpha=self.alpha,
             linewidth=self.border_linewidth,
             zorder=self.zorder
-            ) | kwds
+            )
         if self.orientation == 'horizontal':
             ax.axhspan(*args, **kwds)
         else:
