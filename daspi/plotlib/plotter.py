@@ -139,6 +139,7 @@ from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
 from .._typing import LineStyle
+from ..strings import STR
 from ..constants import KW
 from ..constants import LINE
 from ..constants import DIST
@@ -910,199 +911,6 @@ class ParallelCoordinate(Plotter):
         _kwds = self.default_kwds | dict(marker=marker) | kwds
         for i, group in self.source.groupby(self.identity):
             self.ax.plot(group[self.x_column], group[self.y_column], **_kwds)
-
-
-class BlandAltman(Plotter):
-    """Generate a Bland-Altman plot to compare two sets of measurements.
-
-    Bland-Altman plots [1]_ are extensively used to evaluate the 
-    agreement among two different instruments or two measurements 
-    techniques. They allow identification of any systematic difference 
-    between the measurements (i.e., fixed bias) or possible outliers.
-
-    The mean difference (= second - first) is the estimated bias, and 
-    the SD of the differences measures the random fluctuations around 
-    this mean. If the mean value of the difference differs significantly 
-    from 0 on the basis of a 1-sample t-test, this indicates the 
-    presence of fixed bias. If there is a consistent bias, it can be 
-    adjusted for by subtracting the mean difference from the new method.
-
-    It is common to compute 95% limits of agreement for each comparison 
-    (average difference ± 1.96 standard deviation of the difference), 
-    which tells us how far apart measurements by 2 methods were more 
-    likely to be for most individuals. If the differences within 
-    mean ± 1.96 SD are not clinically important, the two methods may be 
-    used interchangeably. The 95% limits of agreement can be unreliable 
-    estimates of the population parameters especially for small sample 
-    sizes so, when comparing methods or assessing repeatability, it is 
-    important to calculate confidence intervals for the 95% limits of 
-    agreement.
-
-    Parameters
-    ----------
-    source : pandas DataFrame
-        Pandas long format DataFrame containing the data source for the
-        plot. 
-    target : str
-        Column name of the target variable.
-    feature : str
-        Column name indicating which is the first (reference 
-        measurement) and which is the second measurement (the 
-        measurement to be compared).
-    identity : str
-        Column name containing identities of each sample, must occur 
-        once for each measurement.
-    reverse : bool, optional
-        Flag indicating if the order of the measurements should be 
-        reversed, by default False
-    agreement : float, optional
-        Multiple of the standard deviation to plot agreement limits
-        (in both direction). The defaults is 3.92 (± 1.96), which 
-        corresponds to 95 % confidence interval if the differences
-        are normally distributed.
-    confidence : float or None, optional
-        If not None, plot the specified percentage confidence
-        interval of the mean and limits of agreement. The CIs of the
-        mean difference and agreement limits describe a possible
-        error in the estimate due to a sampling error. The greater
-        the sample size, the narrower the CIs will be,
-        by default 0.95
-    feature_axis : Literal['mean', 'data']
-        Definition of data used as feature axis (reference axis). 
-        - If 'mean' the mean for each measurement is calculated
-        as (first + second)/2.
-        - If 'data' the feature values are used for feature axis.
-    target_on_y : bool, optional
-        Flag indicating whether the target variable is plotted on 
-        the y-axis, by default True.
-    color : str | None, optional
-        Color to be used to draw the artists. If None, the first 
-        color is taken from the color cycle, by default None.
-    marker : str | None, optional
-        The marker style for the scatter plot. Available markers see:
-        https://matplotlib.org/stable/api/markers_api.html, 
-        by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
-    **kwds:
-        Those arguments have no effect. Only serves to catch further
-        arguments that have no use here (occurs when this class is 
-        used within chart objects).
-
-    Notes
-    -----
-    The code is an adaptation of the Pingouin package.
-    https://pingouin-stats.org/generated/pingouin.plot_blandaltman.html
-    
-    The pingouin implementation is also a simplified version of the 
-    PyCombare package:
-    https://github.com/jaketmp/pyCompare
-    
-    References
-    ----------
-    .. [1] Bland, J. M., & Altman, D. (1986). Statistical methods for 
-           assessing agreement between two methods of clinical
-           measurement. The lancet, 327(8476), 307-310.
-    """
-    __slots__ = ('identity', 'confidence', 'estimation')
-
-    identity: str
-    """Column name containing identities of each sample.""" 
-    confidence: float
-    """Confidence level of the confidence interval for mean and
-    agreements."""
-    estimation: Estimator
-    """Estimator instance to estimate the mean and limits of agreement."""
-
-    def __init__(
-            self,
-            source: DataFrame,
-            target: str,
-            feature: str,
-            identity: str,
-            reverse: bool = False,
-            agreement: float = 3.92,
-            confidence: float = 0.95, 
-            feature_axis: Literal['mean', 'data'] = 'mean',
-            target_on_y: bool = True,
-            color: str | None = None,
-            marker: str | None = None,
-            ax: Axes | None = None,
-            **kwds) -> None:
-        self.identity = identity
-        
-        first, second = sorted(list(source[feature].unique()), reverse=reverse)
-        target1 = f'{target}-{first}'
-        target2 = f'{target}-{second}'
-        _target = f'{target2} - {target1}'
-        df = pd.DataFrame()
-        for name in (first, second):
-            data = (source[source[feature] == name]
-                [[self.identity, target]]
-                .set_index(self.identity)
-                .rename(columns={target: f'{target}-{name}'})
-                .copy())
-            assert len(data) == data.index.nunique(), (
-                f'Duplicated measurements for {name}')
-            df = pd.concat([df, data], axis=1)
-        df = df.dropna(how='any', axis=0)
-        df[_target] = df[target2] - df[target1]
-        
-        if feature_axis == 'mean':
-            _feature = feature_axis
-            df[_feature] = df[[target1, target2]].mean(axis=1)
-        else:
-            _feature = target1
-        super().__init__(
-            source=df,
-            target=_target,
-            feature=_feature,
-            target_on_y=target_on_y,
-            color=color,
-            marker=marker,
-            ax=ax)
-        self.confidence = confidence
-        self.estimation = Estimator(
-            samples=df[_target], strategy='norm', agreement=agreement)
-
-    @property
-    def default_kwds(self) -> Dict[str, Any]:
-        """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(color=self.color, marker=self.marker)
-        return kwds
-    
-    def __call__(self, **kwds) -> None:
-        """Perform the Bland-Altman plot operation.
-
-        Parameters
-        ----------
-        **kwds : 
-            Additional keyword arguments to be passed to the Axes
-            `scatter` method.
-        """
-        _kwds = self.default_kwds | kwds
-        self.ax.scatter(self.x, self.y, **_kwds)
-        
-        kws = (KW.CONTROL_LINE, KW.CONTROL_LINE, KW.MEAN_LINE)
-        attrs = ('lcl', 'ucl', 'mean')
-        ci_funs = ('stdev_ci', 'stdev_ci', 'mean_ci')
-        for kw, attr, ci_fun in zip(kws, attrs, ci_funs):
-            value = getattr(self.estimation, attr)
-            _low, _upp = getattr(self.estimation, ci_fun)()
-            span = _upp - _low
-            low = value - span/2
-            upp = value + span/2
-            if self.target_on_y:
-                self.ax.axhline(value, **kw)
-                if self.confidence is not None:
-                    self.ax.axhspan(low, upp, **KW.STRIPES_CONFIDENCE)
-            else:
-                self.ax.axvline(value, **kw)
-                if self.confidence is not None:
-                    self.ax.axvspan(low, upp, **KW.STRIPES_CONFIDENCE)
 
 
 class TransformPlotter(Plotter):
@@ -3622,6 +3430,232 @@ class StripeSpan(Stripe):
         self._axes.append(ax)
 
 
+class BlandAltman(Plotter):
+    """Generate a Bland-Altman plot to compare two sets of measurements.
+
+    Bland-Altman plots [1]_ are extensively used to evaluate the 
+    agreement among two different instruments or two measurements 
+    techniques. They allow identification of any systematic difference 
+    between the measurements (i.e., fixed bias) or possible outliers.
+
+    The mean difference (= second - first) is the estimated bias, and 
+    the SD of the differences measures the random fluctuations around 
+    this mean. If the mean value of the difference differs significantly 
+    from 0 on the basis of a 1-sample t-test, this indicates the 
+    presence of fixed bias. If there is a consistent bias, it can be 
+    adjusted for by subtracting the mean difference from the new method.
+
+    It is common to compute 95% limits of agreement for each comparison 
+    (average difference ± 1.96 standard deviation of the difference), 
+    which tells us how far apart measurements by 2 methods were more 
+    likely to be for most individuals. If the differences within 
+    mean ± 1.96 SD are not clinically important, the two methods may be 
+    used interchangeably. The 95% limits of agreement can be unreliable 
+    estimates of the population parameters especially for small sample 
+    sizes so, when comparing methods or assessing repeatability, it is 
+    important to calculate confidence intervals for the 95% limits of 
+    agreement.
+
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot. 
+    target : str
+        Column name of the target variable.
+    feature : str
+        Column name indicating which is the first (reference 
+        measurement) and which is the second measurement (the 
+        measurement to be compared).
+    identity : str
+        Column name containing identities of each sample, must occur 
+        once for each measurement.
+    reverse : bool, optional
+        Flag indicating if the order of the measurements should be 
+        reversed, by default False
+    agreement : float, optional
+        Multiple of the standard deviation to plot agreement limits
+        (in both direction). The defaults is 3.92 (± 1.96), which 
+        corresponds to 95 % confidence interval if the differences
+        are normally distributed.
+    confidence : float or None, optional
+        If not None, plot the specified percentage confidence
+        interval of the mean and limits of agreement. The CIs of the
+        mean difference and agreement limits describe a possible
+        error in the estimate due to a sampling error. The greater
+        the sample size, the narrower the CIs will be,
+        by default 0.95
+    feature_axis : Literal['mean', 'data']
+        Definition of data used as feature axis (reference axis). 
+        - If 'mean' the mean for each measurement is calculated
+        as (first + second)/2.
+        - If 'data' the feature values are used for feature axis.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on 
+        the y-axis, by default True.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the scatter plot. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
+    ax : Axes | None, optional
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
+
+    Notes
+    -----
+    The code is an adaptation of the Pingouin package.
+    https://pingouin-stats.org/generated/pingouin.plot_blandaltman.html
+    
+    The pingouin implementation is also a simplified version of the 
+    PyCombare package:
+    https://github.com/jaketmp/pyCompare
+    
+    References
+    ----------
+    .. [1] Bland, J. M., & Altman, D. (1986). Statistical methods for 
+           assessing agreement between two methods of clinical
+           measurement. The lancet, 327(8476), 307-310.
+    """
+    __slots__ = ('identity', 'confidence', 'estimation', 'stripes',
+        'lines_same_color')
+
+    identity: str
+    """Column name containing identities of each sample.""" 
+    confidence: float
+    """Confidence level of the confidence interval for mean and
+    agreements."""
+    estimation: Estimator
+    """Estimator instance to estimate the mean and limits of agreement."""
+    stripes: Dict[str, StripeLine | StripeSpan]
+    """Dictionary of Stripe objects used for drawing lines and their
+    confidence intervals."""
+    lines_same_color: bool
+    """Whether to use same color for lines and their confidence 
+    intervals as for the points."""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str,
+            identity: str,
+            reverse: bool = False,
+            agreement: float = 3.92,
+            confidence: float = 0.95,
+            feature_axis: Literal['mean', 'data'] = 'mean',
+            lines_same_color: bool = False,
+            target_on_y: bool = True,
+            color: str | None = None,
+            marker: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        self.identity = identity
+        
+        first, second = sorted(list(source[feature].unique()), reverse=reverse)
+        target1 = f'{target}-{first}'
+        target2 = f'{target}-{second}'
+        _target = f'{target2} - {target1}'
+        df = pd.DataFrame()
+        for name in (first, second):
+            data = (source[source[feature] == name]
+                [[self.identity, target]]
+                .set_index(self.identity)
+                .rename(columns={target: f'{target}-{name}'})
+                .copy())
+            assert len(data) == data.index.nunique(), (
+                f'Duplicated measurements for {name}')
+            df = pd.concat([df, data], axis=1)
+        df = df.dropna(how='any', axis=0)
+        df[_target] = df[target2] - df[target1]
+        
+        if feature_axis == 'mean':
+            _feature = feature_axis
+            df[_feature] = df[[target1, target2]].mean(axis=1)
+        else:
+            _feature = target1
+        super().__init__(
+            source=df,
+            target=_target,
+            feature=_feature,
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax)
+        self.stripes = {}
+        self.lines_same_color = lines_same_color
+        self.confidence = confidence
+        self.estimation = Estimator(
+            samples=df[_target], strategy='norm', agreement=agreement)
+
+    @property
+    def default_kwds(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = dict(color=self.color, marker=self.marker)
+        return kwds
+    
+    def __call__(self, **kwds) -> None:
+        """Perform the Bland-Altman plot operation.
+
+        Parameters
+        ----------
+        **kwds : 
+            Additional keyword arguments to be passed to the Axes
+            `scatter` method.
+        """
+        _kwds = self.default_kwds | kwds
+        self.ax.scatter(self.x, self.y, **_kwds)
+
+        orientation = 'horizontal' if self.target_on_y else 'vertical'
+        kw_stripe: Dict[str, Any] = dict(
+            orientation=orientation,
+            show_position=True)
+        if self.lines_same_color:
+            kw_stripe['color'] = self.color
+        span_label = f'{100*self.confidence:.0f} \\%-{STR["ci"]}'
+        mean_ci = self.estimation.mean_ci(self.confidence)
+        stdev_ci = self.estimation.stdev_ci(self.confidence)
+        stdev_width = stdev_ci[1] - stdev_ci[0]
+        stripes = (
+            StripeLine(
+                label=r'\bar x',
+                position=self.estimation.mean,
+                **(KW.MEAN_LINE | kw_stripe)),
+            StripeSpan(
+                label=span_label,
+                lower_position=mean_ci[0],
+                upper_position=mean_ci[1],
+                **(KW.STRIPES_CONFIDENCE | kw_stripe)),
+            StripeLine(
+                label=str(STR['lcl']),
+                position=self.estimation.lcl,
+                **(KW.CONTROL_LINE | kw_stripe)),
+            StripeSpan(
+                label=span_label,
+                position=self.estimation.lcl,
+                width=stdev_width,
+                **(KW.STRIPES_CONFIDENCE | kw_stripe)),
+            StripeLine(
+                label=str(STR['lcl']),
+                position=self.estimation.ucl,
+                **(KW.CONTROL_LINE | kw_stripe)),
+            StripeSpan(
+                label=span_label,
+                position=self.estimation.ucl,
+                width=stdev_width,
+                **(KW.STRIPES_CONFIDENCE | kw_stripe)))
+        for stripe in stripes:
+            stripe(self.ax)
+            self.stripes[stripe.identity] = stripe
+
 
 __all__ = [
     'Plotter',
@@ -3630,7 +3664,6 @@ __all__ = [
     'LinearRegression',
     'Probability',
     'ParallelCoordinate',
-    'BlandAltman',
     'TransformPlotter',
     'CenterLocation',
     'Bar',
@@ -3650,4 +3683,5 @@ __all__ = [
     'Stripe',
     'StripeLine',
     'StripeSpan',
+    'BlandAltman',
     ]

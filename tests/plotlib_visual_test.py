@@ -913,6 +913,43 @@ class TestSingleChart:
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
+
+        self.kind = 'user'
+        chart = SingleChart(
+                source = load_dataset('shoe-sole'),
+                target = 'wear',
+                feature = 'status',
+            ).plot(
+                BlandAltman,
+                identity='tester',
+                feature_axis='mean',
+                agreement=6,
+                confidence=0.65,
+                lines_same_color=True,
+                target_on_y=False,
+                reverse=True)
+        target_label = f'Difference {chart.plots[0].target}'
+        sub_title = 'Shoe sole materials dataset'
+        feature_label = 'Mean both measurements'
+        chart = chart.label(
+                fig_title = self.fig_title,
+                sub_title = sub_title,
+                feature_label = feature_label,
+                target_label = target_label,    
+                info = self.info_msg
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert self.file_name.is_file()
+        assert len(texts) == 5
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == sub_title
+        assert texts[2].get_text() == feature_label
+        assert texts[3].get_text() == target_label
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
     
     def test_categorical_float_features(self) -> None:
         self.base = f'{self.fig_title}_categorical-float-features'
