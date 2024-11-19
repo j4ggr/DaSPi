@@ -56,7 +56,9 @@ plugins:
           group_by_category: true
 
 nav:
-  - Home: index.md
+  - Home: 
+    - Home: index.md
+    - Changelog: CHANGELOG.md
   - Installing: installing.md
   - Anova:
     - ANOVA: anova/index.md
@@ -106,5 +108,4 @@ nav:
       - statistics/estimation/process-estimator.md
     - Confidence:
       - statistics/confidence/index.md
-
   - Examples: examples.md
