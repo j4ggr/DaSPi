@@ -46,6 +46,7 @@ from .statistics.estimation import Estimator
 from .statistics.estimation import ProcessEstimator
 from .statistics.estimation import estimate_distribution
 from .statistics.estimation import estimate_kernel_density
+from .statistics.estimation import estimate_kernel_density_2d
 
 
 from .plotlib.classify import Dodger
@@ -78,6 +79,7 @@ from .plotlib.plotter import TransformPlotter
 from .plotlib.plotter import StandardErrorMean
 from .plotlib.plotter import ConfidenceInterval
 from .plotlib.plotter import ParallelCoordinate
+from .plotlib.plotter import GaussianKDEContour
 
 from .plotlib.facets import AxesFacets
 from .plotlib.facets import LabelFacets

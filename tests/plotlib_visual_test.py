@@ -35,6 +35,7 @@ from daspi import VariationTest
 from daspi import ResiduesCharts
 from daspi import LinearRegression
 from daspi import StandardErrorMean
+from daspi import GaussianKDEContour
 from daspi import MultipleVariateChart
 from daspi import PairComparisonCharts
 from daspi import ParameterRelevanceCharts
@@ -1472,3 +1473,76 @@ class TestTemplates:
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
 
+        self.kind = 'contour-mean-test'
+        _title = '95 % confidence interval of mean'
+        chart = BivariateUnivariateCharts(
+                source = df_aspirin,
+                target = self.target,
+                feature = self.feature,
+                hue = self.cat2,
+                dodge_univariates=True,
+                stretch_figsize=False,
+            ).plot_univariates(
+                MeanTest
+            ).plot_bivariate(
+                GaussianKDEContour
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = self.feature_label,
+                target_label = self.target_label,
+                axes_titles = (_title, '', '', ''),
+                info = self.info_msg
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        xlabels = tuple(ax.get_xlabel() for ax in chart.axes.flat)
+        ylabels = tuple(ax.get_ylabel() for ax in chart.axes.flat)
+        assert self.file_name.is_file()
+        assert len(texts) == 3
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == self.sub_title
+        assert xlabels == ('', '', self.feature_label, '')
+        assert ylabels == ('', '', self.target_label, '')
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+
+        self.kind = 'user'
+        _title = '95 % confidence interval of mean'
+        chart = BivariateUnivariateCharts(
+                source = df_aspirin,
+                target = self.target,
+                feature = self.feature,
+                hue = self.cat2,
+                dodge_univariates=True,
+                stretch_figsize=False,
+            ).plot_univariates(
+                MeanTest
+            ).plot_bivariate(
+                GaussianKDEContour, fill=False, fade_outers=False
+            ).plot_bivariate(
+                Scatter
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = self.feature_label,
+                target_label = self.target_label,
+                axes_titles = (_title, '', '', ''),
+                info = self.info_msg
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        xlabels = tuple(ax.get_xlabel() for ax in chart.axes.flat)
+        ylabels = tuple(ax.get_ylabel() for ax in chart.axes.flat)
+        assert self.file_name.is_file()
+        assert len(texts) == 3
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == self.sub_title
+        assert xlabels == ('', '', self.feature_label, '')
+        assert ylabels == ('', '', self.target_label, '')
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg

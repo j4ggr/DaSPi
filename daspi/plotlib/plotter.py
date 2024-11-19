@@ -123,8 +123,9 @@ from matplotlib import colors as mcolors
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.figure import Figure
-from matplotlib.artist import Artist
 from matplotlib.ticker import PercentFormatter
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import to_rgba
 from matplotlib.patches import Patch
 from matplotlib.container import BarContainer
 
@@ -156,6 +157,7 @@ from ..statistics import prediction_ci
 from ..statistics import proportion_ci
 from ..statistics import ensure_generic
 from ..statistics import estimate_kernel_density
+from ..statistics import estimate_kernel_density_2d
 
 
 class Plotter(ABC):
@@ -262,7 +264,7 @@ class Plotter(ABC):
         return self.source[self.y_column]
     
     @property
-    def color(self) -> str | None:
+    def color(self) -> str:
         """Get color of drawn artist"""
         if self._color is None:
             self._color = COLOR.PALETTE[0]
@@ -1833,7 +1835,7 @@ class Jitter(TransformPlotter):
 
 class GaussianKDE(TransformPlotter):
     """Class for creating Gaussian Kernel Density Estimation (KDE) 
-    plotters.
+    plotters. Use this class for univariate plots.
 
     Kernel density estimation is a way to estimate the probability 
     density function (PDF) of a random variable in a non-parametric way.
@@ -2002,6 +2004,116 @@ class GaussianKDE(TransformPlotter):
             self.ax.fill_between(self.x, self._f_base, self.y, **_kw_fill)
         if not self.show_density_axis:
             self.hide_density_axis()
+
+
+class GaussianKDEContour(Plotter):
+    """Class for creating contour plotters. Use this class for bivariate
+    plots.
+
+    Performs a 2 dimensional kernel density estimation using Gaussian
+    Kernels. The estimation is then shown as contour lines. The x- and
+    y-axes remain as feature and target axes.
+
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''
+    fill : bool, optional
+        Flag indicating whether to fill between the contour lines,
+        by default True
+    fade_outers: bool, optional
+        Flag indicating whether the outer lines of the contour plot
+        should be faded. This has no effect if fill is True,
+        by default True.
+    n_points : int, optional
+        Number of points the estimate and the sequence should have. 
+        Note that the calculated points are equal to the square of the 
+        given number (because the contour is two-dimensional).
+        by default KD_SEQUENCE_LEN (defined in constants.py)
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on 
+        the y-axis. If False, all contour lines have the same color. 
+        by default True
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
+    """
+    __slots__ = ('cmap', 'shape', 'fill')
+
+    cmap : LinearSegmentedColormap
+    """The colormap to be used for the contour plot."""
+    shape: Tuple[int, int]
+    """Shape used to reshape data before plotting the contours."""
+    fill: bool
+    """Flag indicating whether to fill between the contour lines."""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str,
+            fill: bool = True,
+            fade_outers: bool = True,
+            n_points: int = PLOTTER.KD_SEQUENCE_LEN,
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        self.shape = (n_points, n_points)
+        self.fill = fill
+        feature_seq, target_seq, estimation = estimate_kernel_density_2d(
+            feature= source[feature], target=source[target], n_points=n_points)
+        data = pd.DataFrame({
+            feature: feature_seq.ravel(),
+            target: target_seq.ravel(),
+            PLOTTER.TRANSFORMED_FEATURE: estimation.ravel()})
+        super().__init__(
+            source=data,
+            target=target,
+            feature=feature,
+            target_on_y=target_on_y,
+            color=color,
+            ax=ax,
+            **kwds)
+        if fade_outers:
+            rgba = to_rgba(self.color)
+            colors = [(1, 1, 1, 0), self.color]
+        else:
+            colors = [self.color, self.color]
+        self.cmap = LinearSegmentedColormap.from_list('', colors)
+
+    @property
+    def default_kwds(self) -> Dict[str, Any]:
+        """Return the default keyword arguments for the plot."""
+        kwds = dict(cmap=self.cmap)
+        return kwds
+
+    def __call__(self, **kwds) -> None:
+        """Perform the plotting operation."""
+        X = self.x.to_numpy().reshape(self.shape)
+        Y = self.y.to_numpy().reshape(self.shape)
+        estimation = self.source[PLOTTER.TRANSFORMED_FEATURE]
+        Z = estimation.to_numpy().reshape(self.shape)
+        _kwds = self.default_kwds | kwds
+        if self.fill:
+            self.ax.contourf(X, Y, Z, **_kwds)
+        else:
+            self.ax.contour(X, Y, Z, **_kwds)
 
 
 class Violine(GaussianKDE):
@@ -3670,6 +3782,7 @@ __all__ = [
     'Pareto',
     'Jitter',
     'GaussianKDE',
+    'GaussianKDEContour',
     'Violine',
     'Errorbar',
     'StandardErrorMean',

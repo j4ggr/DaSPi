@@ -992,7 +992,8 @@ def estimate_kernel_density(
 def estimate_kernel_density_2d(
         feature: NumericSample1D,
         target: NumericSample1D,
-        n_points: int = PLOTTER.KD_SEQUENCE_LEN
+        n_points: int = PLOTTER.KD_SEQUENCE_LEN,
+        margin: float = 0.5,
         ) -> Tuple[NDArray, NDArray, NDArray]:
     """Estimates the kernel density of 2 dimensional data and returns 
     values that are useful for a contour plot.
@@ -1012,6 +1013,8 @@ def estimate_kernel_density_2d(
     n_points : int, optional
         Number of points the estimation and sequence should have,
         by default KD_SEQUENCE_LEN (defined in constants.py)
+    margin : float, optional
+        Margin for the sequence as factor of data range, by default 0.5.
 
     Returns
     -------
@@ -1037,9 +1040,15 @@ def estimate_kernel_density_2d(
         f'All provided target data have the same value: {target}')
     assert any(feature != feature[0]), (
         f'All provided feature data have the same value: {feature}')
+    f_min = feature.min()
+    f_max = feature.max()
+    f_margin = (f_max - f_min) * margin
+    t_min = target.min()
+    t_max = target.max()
+    t_margin = (t_max - t_min) * margin
     feature_seq, target_seq = np.meshgrid(
-        np.linspace(feature.min(), feature.max(), n_points),
-        np.linspace(target.min(), target.max(), n_points))
+        np.linspace(f_min - f_margin, f_max + f_margin, n_points),
+        np.linspace(t_min - t_margin, t_max + t_margin, n_points))
     _values = np.vstack([feature, target])
     _sequences = np.vstack([feature_seq.ravel(), target_seq.ravel()])
     estimation = stats.gaussian_kde(_values, bw_method='scott')(_sequences)

@@ -47,19 +47,19 @@ class TestStripe:
         assert stripe.show_position == False
 
     def test_decimals_property(self) -> None:
-        stripe = self.ConcreteStripe('test', 'vertical', 0.1, 1.0)
+        stripe = self.ConcreteStripe('test', 0.1, 1.0, 'vertical')
         assert stripe.decimals == 4
         
-        stripe = self.ConcreteStripe('test', 'vertical', 3.0, 1.0)
+        stripe = self.ConcreteStripe('test', 3.0, 1.0, 'vertical')
         assert stripe.decimals == 3
         
-        stripe = self.ConcreteStripe('test', 'vertical', 25.0, 1.0)
+        stripe = self.ConcreteStripe('test', 25.0, 1.0, 'vertical')
         assert stripe.decimals == 2
         
-        stripe = self.ConcreteStripe('test', 'vertical', 500.0, 1.0)
+        stripe = self.ConcreteStripe('test', 500.0, 1.0, 'vertical')
         assert stripe.decimals == 1
         
-        stripe = self.ConcreteStripe('test', 'vertical', 10000.0, 1.0)
+        stripe = self.ConcreteStripe('test', 10000.0, 1.0, 'vertical')
         assert stripe.decimals == 0
 
     def test_determine_decimals(self) -> None:
@@ -71,10 +71,10 @@ class TestStripe:
 
     def test_label_with_position(self) -> None:
         stripe = self.ConcreteStripe(
-            'test', 'horizontal', 1.234, 1.0, show_position=True)
+            'test', 1.234, 1.0, 'horizontal', show_position=True)
         assert stripe.label == '$test=1.234$'
         
-        stripe = self.ConcreteStripe('test', 'horizontal', 10000, 1.0, show_position=True)
+        stripe = self.ConcreteStripe('test', 10000, 1.0, 'horizontal', show_position=True)
         assert stripe.label == '$test=10000$'
 
     def test_label_without_position(self, stripe: ConcreteStripe) -> None:
