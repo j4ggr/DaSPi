@@ -604,7 +604,7 @@ class LinearRegression(Plotter):
 
         Parameters
         ----------
-        kw_fit_line : dict, optional
+        kw_scatter : dict, optional
             Additional keyword arguments for the Axes `scatter` method,
             by default {}.
         kw_fit_ci : dict, optional

@@ -171,3 +171,5 @@ playground.ipynb
 
 /tests/charts/*.png
 /tests/charts/_archived/*.png
+
+.markdownlint.json

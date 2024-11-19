@@ -59,18 +59,18 @@ nav:
   - Home: index.md
   - Installing: installing.md
   - Anova:
-    - anova/index.md
+    - ANOVA: anova/index.md
     - anova/linear-model.md
-  - Plotlib:
-    - plotlib/index.md
+  - Plotlib: 
+    - Plotting Library: plotlib/index.md
     - Chart:
-      - plotlib/chart/index.md
+      - Chart Module: plotlib/chart/index.md
       - plotlib/chart/chart.md
-      - plotlib/chart/simple-chart.md
+      - plotlib/chart/single-chart.md
       - plotlib/chart/multiple-variate-chart.md
       - plotlib/chart/joint-chart.md
     - Plotter:
-      - plotlib/plotter/index.md
+      - Plotter Module: plotlib/plotter/index.md
       - plotlib/plotter/plotter.md
       - plotlib/plotter/scatter.md
       - plotlib/plotter/line.md
@@ -92,11 +92,12 @@ nav:
       - plotlib/plotter/mean-test.md
       - plotlib/plotter/variation-test.md
     - Facets:
-      - plotlib/facets/index.md
+      - Facets Module: plotlib/facets/index.md
       - plotlib/facets/axes-facets.md
       - plotlib/facets/label-facets.md
       - plotlib/facets/stripes-facets.md
   - Statistics:
+    - Statistics Library: statistics/index.md
     - Hypothesis:
       - statistics/hypothesis/index.md
     - Estimation:
@@ -106,4 +107,4 @@ nav:
     - Confidence:
       - statistics/confidence/index.md
 
-  - About: about.md
+  - Examples: examples.md

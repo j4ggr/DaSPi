@@ -166,7 +166,10 @@ class Chart(ABC):
             target: str,
             feature: str = '',
             target_on_y: bool = True,
-            axes_facets: AxesFacets | None = None, 
+            axes_facets: AxesFacets | None = None,
+            colors: Tuple[str, ...] | None = None,
+            markers: Tuple[str, ...] | None = None,
+            n_size_bins: int = CATEGORY.N_SIZE_BINS,
             **kwds
             ) -> None:
         self.source = source.copy()
@@ -174,9 +177,9 @@ class Chart(ABC):
         self.feature = feature
         self.nrows = kwds.pop('nrows', 1)
         self.ncols = kwds.pop('ncols', 1)
-        self._colors = kwds.pop('colors', CATEGORY.PALETTE)
-        self._markers = kwds.pop('markers', CATEGORY.MARKERS)
-        self._n_size_bins = kwds.pop('n_size_bins', CATEGORY.N_SIZE_BINS)
+        self._colors = colors if colors is not None else CATEGORY.PALETTE
+        self._markers = markers if markers is not None else CATEGORY.MARKERS
+        self._n_size_bins = n_size_bins
         self._plots = []
         self._kw_where = {}
 
@@ -488,6 +491,9 @@ class SingleChart(Chart):
             size: str = '', 
             categorical_feature: bool = False,
             target_on_y: bool = True,
+            colors: Tuple[str, ...] | None = None,
+            markers: Tuple[str, ...] | None = None,
+            n_size_bins: int = CATEGORY.N_SIZE_BINS,
             **kwds) -> None:
         self.categorical_feature = categorical_feature or dodge
         if feature == '' and self.categorical_feature:
@@ -501,6 +507,9 @@ class SingleChart(Chart):
             target=target,
             feature=feature,
             target_on_y=target_on_y,
+            colors=colors,
+            markers=markers,
+            n_size_bins=n_size_bins,
             **kwds)
         assert self.feature in source or not self.categorical_feature, (
             'categorical_feature is True, but features is not present')
@@ -1024,6 +1033,9 @@ class JointChart(Chart):
             width_ratios: List[float] | None = None,
             height_ratios: List[float] | None = None,
             stretch_figsize: bool = True,
+            colors: Tuple[str, ...] | None = None,
+            markers: Tuple[str, ...] | None = None,
+            n_size_bins: int = CATEGORY.N_SIZE_BINS,
             **kwds) -> None:
 
         self.charts = []
@@ -1042,6 +1054,9 @@ class JointChart(Chart):
             stretch_figsize=stretch_figsize,
             nrows=nrows,
             ncols=ncols,
+            colors=colors,
+            markers=markers,
+            n_size_bins=n_size_bins,
             **kwds)
         self.targets = self.ensure_tuple(target)
         self.features = self.ensure_tuple(feature)
@@ -1527,8 +1542,8 @@ class MultipleVariateChart(SingleChart):
             dodge: bool = False,
             stretch_figsize: bool = True,
             categorical_feature: bool = False,
-            colors: Tuple[str, ...] = (),
-            markers: Tuple[str, ...] = (),
+            colors: Tuple[str, ...] | None = None,
+            markers: Tuple[str, ...] | None = None,
             n_size_bins: int = CATEGORY.N_SIZE_BINS,
             ) -> None:
         self.target_on_y = True
@@ -1553,8 +1568,8 @@ class MultipleVariateChart(SingleChart):
             ncols=ncols,
             stretch_figsize=stretch_figsize,
             categorical_feature=categorical_feature,
-            colors=colors or CATEGORY.PALETTE,
-            markers=markers or CATEGORY.MARKERS,
+            colors=colors,
+            markers=markers,
             n_size_bins=n_size_bins)
         self._variate_names = (self.row, self.col, self.hue, self.shape)
         self._reset_variate_()
