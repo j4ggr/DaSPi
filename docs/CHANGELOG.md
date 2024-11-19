@@ -14,13 +14,14 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
-## [0.5.0] - 2024-11-19
+## [0.5.1] - 2024-11-19
 
 ### Added
 
 - GaussianKDEContour Plotter for plotting bivariate distributions as contour lines.
 - kernel_density_estimation_2d function used to calculate bivariate kernel density estimations.
 - Stripe, StripeLine and StripeSpan Plotter for plotting stripes using StripesFacets class or within BlandAltman Plotter.
+- Documentation site
 
 ### Changed
 
