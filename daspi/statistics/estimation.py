@@ -25,7 +25,6 @@ from .._typing import NumericSample1D
 from ..constants import DIST
 from ..constants import PLOTTER
 
-
 from .confidence import mean_ci
 from .confidence import stdev_ci
 from .confidence import median_ci
@@ -936,8 +935,11 @@ def estimate_distribution(
     return dist, p, params
 
 def estimate_kernel_density(
-        data: ArrayLike, stretch: float = 1, height: float | None = None, 
-        base: float = 0, n_points: int = PLOTTER.KD_SEQUENCE_LEN
+        data: NumericSample1D,
+        stretch: float = 1,
+        height: float | None = None, 
+        base: float = 0,
+        n_points: int = PLOTTER.KD_SEQUENCE_LEN
         ) -> Tuple[NDArray, NDArray]:
     """Estimates the kernel density of data and returns values that are 
     useful for a plot. If those values are plotted in combination with 
@@ -953,7 +955,7 @@ def estimate_kernel_density(
     
     Parameters
     ----------
-    data : array_like
+    data : NumericSample1D
         1-D array of datapoints to estimate from.
     stretch : float, optional
         Stretch the distribution estimate by the given factor, is only 
@@ -987,8 +989,67 @@ def estimate_kernel_density(
     estimation = stretch*estimation + base
     return sequence, estimation
 
+def estimate_kernel_density_2d(
+        feature: NumericSample1D,
+        target: NumericSample1D,
+        n_points: int = PLOTTER.KD_SEQUENCE_LEN
+        ) -> Tuple[NDArray, NDArray, NDArray]:
+    """Estimates the kernel density of 2 dimensional data and returns 
+    values that are useful for a contour plot.
+    
+    Kernel density estimation is a way to estimate the probability 
+    density function (PDF) of a random variable in a non-parametric way. 
+    The used gaussian_kde function of scipy.stats works for both 
+    uni-variate and multi-variate data. It includes automatic bandwidth 
+    determination. The estimation works best for a unimodal 
+    distribution; bimodal or multi-modal distributions tend to be 
+    oversmoothed.
+    
+    Parameters
+    ----------
+    target, feature : array_like
+        1-D array of datapoints to estimate from.
+    n_points : int, optional
+        Number of points the estimation and sequence should have,
+        by default KD_SEQUENCE_LEN (defined in constants.py)
+
+    Returns
+    -------
+    feature_seq : 2D array
+        Data points at regular intervals from input data minimum to 
+        maximum used for feature data
+    target_seq : 2D array
+        Data points at regular intervals from input data minimum to 
+        maximum used for target data
+    estimation : 2D array
+        Data points of kernel density estimation
+    """
+    feature = np.array(feature)
+    target = np.array(target)
+    mask = pd.notna(feature) & pd.notna(target)
+    target = target[mask]
+    feature = feature[mask]
+    assert any(target), (
+        f'Provided target data is empty or contains only zeros: {target}')
+    assert any(feature), (
+        f'Provided feature data is empty or contains only zeros: {feature}')
+    assert any(target != target[0]), (
+        f'All provided target data have the same value: {target}')
+    assert any(feature != feature[0]), (
+        f'All provided feature data have the same value: {feature}')
+    feature_seq, target_seq = np.meshgrid(
+        np.linspace(feature.min(), feature.max(), n_points),
+        np.linspace(target.min(), target.max(), n_points))
+    _values = np.vstack([feature, target])
+    _sequences = np.vstack([feature_seq.ravel(), target_seq.ravel()])
+    estimation = stats.gaussian_kde(_values, bw_method='scott')(_sequences)
+    estimation = np.reshape(estimation.T, feature_seq.shape)
+    return feature_seq, target_seq, estimation
+
+
 __all__ = [
     'Estimator',
     'ProcessEstimator',
     'estimate_distribution',
-    'estimate_kernel_density',]
+    'estimate_kernel_density',
+    'estimate_kernel_density_2d']
