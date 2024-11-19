@@ -14,11 +14,34 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [0.5.0] - 2024-11-19
+
+### Added
+
+- GaussianKDEContour Plotter for plotting bivariate distributions as contour lines.
+- kernel_density_estimation_2d function used to calculate bivariate kernel density estimations.
+- Stripe, StripeLine and StripeSpan Plotter for plotting stripes using StripesFacets class or within BlandAltman Plotter.
+
+### Changed
+
+- StripesFacets now uses the new StripeLine and StripeSpan Plotters.
+- BlandAltmanPlotter now uses the new StripeLine and StripeSpan Plotters.
+- The target_on_y option is moved from StripesFacets draw method to init.
+- Getting Figure and Axes behavior if not given during initialization of a Plotter class. The plt.gca() function is now used.
+
+### Removed
+
+- Option marker when initializing a Line Plotter. Set the marker if needed when calling the plotter.
+
+### Fixed
+
+- Charts got wrong colors if not given during initialization.
+
 ## [0.4.0] - 2024-10-24
 
 ### Added
 
-- BivariateUnivariateCharts template, provides  a set of charts for visualizing the relationship between a target variable and a feature variable.
+- BivariateUnivariateCharts template, provides a set of charts for visualizing the relationship between a target variable and a feature variable.
 - Option for Plotters to change the marker. This can be set during initialization of the Plotter.
 - Option for Charts to change markers, colors and amount of size bins for categorical differentiation.
 - Single feature or target label for JointCharts if all aubplots shares the corressponding axis.
