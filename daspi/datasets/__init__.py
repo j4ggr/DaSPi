@@ -18,6 +18,7 @@ eeprom_partial-factorial,Partial factorial DOE of a process improvement project 
 partial-factorial,Partial factorial DOE of a process improvement project,anova,Six Sigma TC GmbH
 shoe-sole,Hypothetical data of an agreement between two shoe sole materials (old and new).,BlandAltman Plotter,Bland J. M. & Altman D. (1986)
 tips,One waiter recorded information about each tip he received over a period of a few months working in one restaurant,anova, https://vincentarelbundock.github.io/Rdatasets/doc/reshape2/tips.html
+iris,This is one of the earliest datasets used in the literature on classification methods and widely used in statistics and machine learning. Here it's in a long format., BivariateUnivariate Chart,https://archive.ics.uci.edu/ml/datasets/iris
 """
 df_info = pd.read_csv(StringIO(dataset_info), sep=',')
 
@@ -31,7 +32,7 @@ def load_dataset(dataset_name: str) -> DataFrame:
     ----------
     dataset_name : string
         Name of dataset to load (without extension).
-        Must be a valid dataset present in pingouin.datasets
+        Must be a valid dataset present in `daspi.datasets`
 
     Returns
     -------
@@ -40,24 +41,26 @@ def load_dataset(dataset_name: str) -> DataFrame:
 
     Examples
     --------
-    Load the `Penguin <https://github.com/allisonhorst/palmerpenguins>`_
+    Load the `Iris <https://archive.ics.uci.edu/dataset/53/iris>`_
     dataset:
 
     >>> import daspi
-    >>> df = daspi.load_dataset('penguins')
-    >>> df # doctest: +SKIP
-        species  island  bill_length_mm  ...  flipper_length_mm  body_mass_g     sex
-    0    Adelie  Biscoe            37.8  ...              174.0       3400.0  female
-    1    Adelie  Biscoe            37.7  ...              180.0       3600.0    male
-    2    Adelie  Biscoe            35.9  ...              189.0       3800.0  female
-    3    Adelie  Biscoe            38.2  ...              185.0       3950.0    male
-    4    Adelie  Biscoe            38.8  ...              180.0       3800.0    male
-    ..      ...     ...             ...  ...                ...          ...     ...
-    339  Gentoo  Biscoe             NaN  ...                NaN          NaN     NaN
-    340  Gentoo  Biscoe            46.8  ...              215.0       4850.0  female
-    341  Gentoo  Biscoe            50.4  ...              222.0       5750.0    male
-    342  Gentoo  Biscoe            45.2  ...              212.0       5200.0  female
-    343  Gentoo  Biscoe            49.9  ...              213.0       5400.0    male
+    >>> df = daspi.load_dataset('iris')
+    >>> df
+        species   leaf  width  length
+    0       setosa  sepal    3.5     5.1
+    1       setosa  sepal    3.0     4.9
+    2       setosa  sepal    3.2     4.7
+    3       setosa  sepal    3.1     4.6
+    4       setosa  sepal    3.6     5.0
+    ..         ...    ...    ...     ...
+    295  virginica  petal    2.3     5.2
+    296  virginica  petal    1.9     5.0
+    297  virginica  petal    2.0     5.2
+    298  virginica  petal    2.3     5.4
+    299  virginica  petal    1.8     5.1
+
+    [300 rows x 4 columns]
     """
     assert dataset_name in DATASET_NAMES, (
         f'Dataset does not exist. Valid datasets names are {DATASET_NAMES}')

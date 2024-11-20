@@ -267,6 +267,8 @@ class LinearModel:
             encode_categoricals: bool = True) -> None:
         assert order > 0 and isinstance(order, int), (
             'Interaction order must be a positive integer')
+        for column in categorical + continuous:
+            assert column in source, f'{column=} not found in source!'
         self.target = target
         self.categorical = categorical
         self.continuous = continuous

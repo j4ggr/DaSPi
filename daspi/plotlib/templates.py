@@ -425,6 +425,17 @@ class BivariateUnivariateCharts(JointChart):
         HideSubplot(self.axes.flatten()[1])()
         self._top_right_hidden = True
     
+    def plot(
+            self,
+            plotter: Type[Plotter],
+            kw_call: Dict[str, Any] = {},
+            kw_where: Dict[str, Any] = {},
+            on_last_axes: bool = False,
+            **kwds
+            ) -> Self:
+        raise NotImplementedError(
+            'Use the methods "plot_univariates" and "plot_bivariate"!')
+    
     def plot_univariates(
             self,
             plotter: Type[Plotter],
