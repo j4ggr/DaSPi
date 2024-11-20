@@ -16,6 +16,7 @@ from .plotter import Plotter
 from .plotter import Scatter
 from .plotter import Violine
 from .plotter import MeanTest
+from .plotter import StripeLine
 from .plotter import SkipSubplot
 from .plotter import HideSubplot
 from .plotter import Probability
@@ -205,6 +206,7 @@ class ResiduesCharts(JointChart):
         super().plot(GaussianKDE)
         super().plot(Scatter)
         super().plot(Line, {'marker': 'o'})
+        # TODO : super().plot(StripeLine, label='fit', value=0, color='red') 
         return self
 
     def label(self, info: bool | str = True, **kwds) -> Self: # type: ignore
