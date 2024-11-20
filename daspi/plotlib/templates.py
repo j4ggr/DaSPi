@@ -51,6 +51,9 @@ class ParameterRelevanceCharts(JointChart):
         The linear regression model whose parameters will be visualized.
     drop_intercept : bool, optional
         Whether to drop the intercept from the model, by default True.
+    stretch_figsize : bool, optional
+        If True, stretch the figure height and width based on the number of
+        rows and columns, by default False.
     """
     __slots__ = ('lm')
 
@@ -58,7 +61,10 @@ class ParameterRelevanceCharts(JointChart):
     """The linear regression model whose parameters are visualized."""
 
     def __init__(
-            self, linear_model: LinearModel, drop_intercept: bool = True
+            self,
+            linear_model: LinearModel,
+            drop_intercept: bool = True,
+            stretch_figsize: bool = False
             ) -> None:
         self.lm = linear_model
         effects =  self.lm.effects()
@@ -76,7 +82,7 @@ class ParameterRelevanceCharts(JointChart):
             target_on_y=False,
             ncols=2,
             nrows=1,
-            stretch_figsize=True)
+            stretch_figsize=stretch_figsize)
         
     def plot(self) -> Self: # type: ignore
         """Generates a set of two charts for visualizing the relevance 
@@ -158,13 +164,20 @@ class ResiduesCharts(JointChart):
     ----------
     linear_model : LinearModel
         The linear regression model whose residuals will be visualized.
+    stretch_figsize : bool, optional
+        If True, stretch the figure height and width based on the number of
+        rows and columns, by default False.
     """
     __slots__ = ('lm')
 
     lm: LinearModel
     """The linear regression model whose residuals are visualized."""
 
-    def __init__(self, linear_model: LinearModel) -> None:
+    def __init__(
+            self,
+            linear_model: LinearModel,
+            stretch_figsize: bool = False
+            ) -> None:
         self.lm = linear_model
         super().__init__(
             source=self.lm.residual_data(),
@@ -173,7 +186,7 @@ class ResiduesCharts(JointChart):
             nrows=2,
             ncols=2,
             sharey=True,
-            stretch_figsize=False)
+            stretch_figsize=stretch_figsize)
         
     def plot(self) -> Self: # type: ignore
         """Generates a set of four charts for visualizing the residuals 
@@ -242,6 +255,9 @@ class PairComparisonCharts(JointChart):
     identity : str
         Column name containing identities of each sample, must occur 
         once for each measurement.
+    stretch_figsize : bool, optional
+        If True, stretch the figure height and width based on the number of
+        rows and columns, by default False.
     """
 
     __slots__ = ('identity')
@@ -254,7 +270,9 @@ class PairComparisonCharts(JointChart):
             source: DataFrame,
             target: str,
             feature: str,
-            identity: str) -> None:
+            identity: str,
+            stretch_figsize: bool = False
+            ) -> None:
         self.identity = identity
         super().__init__(
             source=source,
@@ -264,7 +282,7 @@ class PairComparisonCharts(JointChart):
             ncols=2,
             width_ratios=[4, 1],
             categorical_feature = (False, True),
-            stretch_figsize=False)
+            stretch_figsize=stretch_figsize)
     
     def plot(self) -> Self: # type: ignore
         """Generates a set of two charts for visualizing the difference
@@ -350,7 +368,8 @@ class BivariateUnivariateCharts(JointChart):
         The ratios of the bivariate axes height to the univariate axes 
         height, by default [4, 1].
     stretch_figsize : bool, optional
-        Whether to stretch the figure size, by default True.
+        If True, stretch the figure height and width based on the number of
+        rows and columns, by default False.
     colors: Tuple[str, ...], optional
         Tuple of unique colors used for hue categories as hex or str. If
         not provided, the default colors will be used, by default ().
@@ -369,7 +388,7 @@ class BivariateUnivariateCharts(JointChart):
             dodge_univariates: bool = False,
             categorical_feature_univariates: bool = False,
             ratios: List[float] = [3, 1],
-            stretch_figsize: bool = True,
+            stretch_figsize: bool = False,
             colors: Tuple[str, ...] = ()
             ) -> None:
         assert len(ratios) == 2, ('ratios must be a list of two floats')

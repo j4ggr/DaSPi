@@ -346,7 +346,7 @@ class AxesFacets:
         Relative heights of the rows, by default None.
     stretch_figsize : bool, optional
         If True, stretch the figure height and width based on the number of
-        rows and columns, by default True.
+        rows and columns, by default False.
     **kwds : dict, optional
         Additional keyword arguments to pass to the `plt.subplots` function.
     """
@@ -376,7 +376,8 @@ class AxesFacets:
             sharey: ShareAxisProperty = 'none', 
             width_ratios: Sequence[float] | None = None,
             height_ratios: Sequence[float] | None = None, 
-            stretch_figsize: bool = True, **kwds
+            stretch_figsize: bool = False,
+            **kwds
             ) -> None:
 
         figsize = kwds.pop('figsize', plt.rcParams['figure.figsize'])

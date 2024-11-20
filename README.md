@@ -44,8 +44,7 @@ chart = daspi.MultipleVariateChart(
         feature='width',
         hue='species',
         col='leaf',
-        markers=('x',),
-        stretch_figsize=False,
+        markers=('x',)
     ).plot(
         daspi.GaussianKDEContour
     ).plot(

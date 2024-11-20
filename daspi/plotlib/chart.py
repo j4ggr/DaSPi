@@ -965,7 +965,7 @@ class JointChart(Chart):
         The height ratios for the subplot grid, by default None.
     stretch_figsize : bool, optional
         Flag indicating whether figure size should be stretched to fill
-        the grid, by default True.
+        the grid, by default False.
     colors: Tuple[str, ...], optional
         Tuple of unique colors used for hue categories as hex or str,
         by default `CATEGORY.PALETTE`.
@@ -1032,7 +1032,7 @@ class JointChart(Chart):
             sharey: ShareAxisProperty = 'none', 
             width_ratios: List[float] | None = None,
             height_ratios: List[float] | None = None,
-            stretch_figsize: bool = True,
+            stretch_figsize: bool = False,
             colors: Tuple[str, ...] | None = None,
             markers: Tuple[str, ...] | None = None,
             n_size_bins: int = CATEGORY.N_SIZE_BINS,
@@ -1498,7 +1498,7 @@ class MultipleVariateChart(SingleChart):
     dodge : bool, optional
         Whether to dodge categorical variables, by default False.
     stretch_figsize : bool, optional
-        Whether to stretch the figure size, by default True.
+        Whether to stretch the figure size, by default False.
     categorical_feature : bool, optional
         Whether the feature variable is categorical. If `dodge` is True,
         this will be automatically set to True, by default False.
@@ -1540,7 +1540,7 @@ class MultipleVariateChart(SingleChart):
             col: str = '',
             row: str = '',
             dodge: bool = False,
-            stretch_figsize: bool = True,
+            stretch_figsize: bool = False,
             categorical_feature: bool = False,
             colors: Tuple[str, ...] | None = None,
             markers: Tuple[str, ...] | None = None,
