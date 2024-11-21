@@ -10,17 +10,23 @@
 
 The easiest way to install is via pip:
 
-```bash
+``` bash
 pip install daspi
 ```
 
 ## Verifying Installation
 
-To verify the installation:
+Verify the installation by executing the following lines with a Python interpreter:
 
-```python
+``` py
 import daspi
 print(daspi.__version__)
+```
+
+Or directly in the terminal:
+
+``` bash
+python -c "import daspi; print(daspi.__version__)" 
 ```
 
 ## Troubleshooting
@@ -44,7 +50,7 @@ print(daspi.__version__)
 
 - Read the [Quick Start Guide](index.md)
 - Check out the API References:
-    - [Plotlib](plotlib/chart/index.md)
-    - [Statistics](statistics/hypothesis/index.md)
-    - [Anova](anova/index.md)
-- View [Examples](examples.md)
+    - [Plotlib](../plotlib/chart/index.md)
+    - [Statistics](../statistics/hypothesis/index.md)
+    - [Anova](../anova/index.md)
+- View [User Guide](../user_guide/index.md)

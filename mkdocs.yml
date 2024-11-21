@@ -67,8 +67,14 @@ markdown_extensions:
 nav:
   - Home: 
     - DaSPi: index.md
-    - Installing: installing.md
     - Changelog: CHANGELOG.md
+  - User Guide:
+    - user_guide/index.md
+    - user_guide/installing.md
+    # - user_guide/anova.md
+    - user_guide/process_improvement.md
+    # - user_guide/plotting.md
+    # - user_guide/hypothesis-testing.md
   - API:
     - Anova:
       - ANOVA: anova/index.md
@@ -118,4 +124,3 @@ nav:
         - statistics/estimation/process-estimator.md
       - Confidence:
         - statistics/confidence/index.md
-  - Examples: examples.md
