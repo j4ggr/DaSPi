@@ -683,7 +683,7 @@ class SingleChart(Chart):
             return
         
         hue_variate = self._current_variate.get(self.hue, None)
-        self._data[self.feature] = self.dodging(
+        self._data.loc[:, self.feature] = self.dodging(
             self._data[self.feature], hue_variate)
         
     def _categorical_feature_grid_(self) -> None:

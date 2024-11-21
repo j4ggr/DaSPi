@@ -411,8 +411,14 @@ class Dodger:
             return self._default
         return self.dodge.get(str(category), self._default)
     
-    def __call__(self, values: Series, category: str) -> pd.Series:
-        """Replace source values with dodged ticks using the given category.
+    def __call__(self, values: Series, category: str) -> 'Series[float]':
+        """Replace source values with dodged ticks using the given 
+        category to get the right offset.
+
+        First it ensurse that the tick values are strings like the once 
+        in the `tick_labels` attribute. Then it replaces the values with
+        the positions (basic ticks + doddging offset). Finally it 
+        converts the values to floats.
 
         Parameters
         ----------
@@ -423,14 +429,14 @@ class Dodger:
 
         Returns
         -------
-        pd.Series
+        Series[float]
             Series with replaced values.
         """
         if not isinstance(values, pd.Series):
             values = pd.Series(values)
-        values = values.astype(str)
-        ticks = self.ticks + self[category]
-        return values.replace(dict(zip(self.tick_lables, ticks)))
+        offset = self[category]
+        mapper = dict(zip(self.tick_lables, (self.ticks + offset).astype(str)))
+        return values.astype(str).replace(mapper).astype(float)
     
     def __bool__(self) -> bool:
         """Check if the Dodger object has more than one category.
