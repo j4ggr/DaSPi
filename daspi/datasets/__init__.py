@@ -6,7 +6,7 @@ from pandas.core.frame import DataFrame
 
 dataset_info = """dataset,description,useful,ref
 ancova,Teaching method with family income as covariate,ANCOVA,www.real-statistics.com
-anova,Pain threshold per hair color,anova - pairwise_tukey,McClave and Dietrich 1991
+anova,Pain threshold per hair color,anova,McClave and Dietrich 1991
 anova2,Fertilizer impact on the yield of crops,anova,www.real-statistics.com
 anova2_unbalanced,Diet and exercise impact,anova,http://onlinestatbook.com/2/analysis_of_variance/unequal.html
 anova3,Cholesterol in different groups,anova,Pingouin
@@ -15,10 +15,10 @@ aspirin-dissolution,exercise improving the dissolution speed of an aspirin table
 carpet_full-factorial,Full factorial DOE of a process improvement project for carpet dyeing,anova,Six Sigma TC GmbH
 eeprom_full-factorial,Full factorial DOE of a process improvement project for eeproms,anova,Six Sigma TC GmbH
 eeprom_partial-factorial,Partial factorial DOE of a process improvement project for eeproms,anova,Six Sigma TC GmbH
+iris,This is one of the earliest datasets used in the literature on classification methods and widely used in statistics and machine learning. Here it's in a long format., BivariateUnivariate Chart,https://archive.ics.uci.edu/ml/datasets/iris
 partial-factorial,Partial factorial DOE of a process improvement project,anova,Six Sigma TC GmbH
 shoe-sole,Hypothetical data of an agreement between two shoe sole materials (old and new).,BlandAltman Plotter,Bland J. M. & Altman D. (1986)
 tips,One waiter recorded information about each tip he received over a period of a few months working in one restaurant,anova, https://vincentarelbundock.github.io/Rdatasets/doc/reshape2/tips.html
-iris,This is one of the earliest datasets used in the literature on classification methods and widely used in statistics and machine learning. Here it's in a long format., BivariateUnivariate Chart,https://archive.ics.uci.edu/ml/datasets/iris
 """
 df_info = pd.read_csv(StringIO(dataset_info), sep=',')
 

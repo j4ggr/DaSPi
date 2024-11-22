@@ -55,7 +55,7 @@ chart = dsp.MultipleVariateChart(
     )
 ```
 
-![Iris sepal length species](img/iris_sepal_length_species.png)
+![Iris sepal length species](img/iris_contour_size-leaf-species.png)
 """
 
 from ._version import __version__

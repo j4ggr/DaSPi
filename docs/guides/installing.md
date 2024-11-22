@@ -53,4 +53,4 @@ python -c "import daspi; print(daspi.__version__)"
     - [Plotlib](../plotlib/chart/index.md)
     - [Statistics](../statistics/hypothesis/index.md)
     - [Anova](../anova/index.md)
-- View [User Guide](../user_guide/index.md)
+- View [User Guide](../guides/index.md)
