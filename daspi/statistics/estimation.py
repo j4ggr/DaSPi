@@ -243,10 +243,7 @@ class Estimator:
         the agreement is given as 6, this value corresponds to the 0.135 % 
         quantile (6 sigma ~ 99.73 % of the samples)."""
         if self._q_low is None:
-            if isinstance(self.agreement, int):
-                self._q_low = float(stats.norm.cdf(-self.agreement/2))
-            else:
-                self._q_low = (1 - self.agreement)/2
+            self._q_low = float(stats.norm.cdf(-self.agreement/2))
         return self._q_low
 
     @property
@@ -371,7 +368,7 @@ class Estimator:
             self._reset_values_()
 
     @property
-    def agreement(self) -> int | float:
+    def agreement(self) -> float:
         """Get the multiplier of the sigma agreement for Cp and Cpk 
         value (default 6). By setting this value the cp and cpk values
         are resetted to None.
@@ -386,13 +383,35 @@ class Estimator:
             'Agreement must be set as a percentage (0 < agreement < 1) '
             + 'or as a multiple of the standard deviation (agreement >= 1), '
             + f'got {agreement}.')
+        
         if agreement >= 1:
             self._k = agreement / 2
         else:
             self._k = float(stats.norm.ppf((1 + agreement) / 2))
+            agreement = 2 * self._k
+        
         if self._agreement != agreement:
             self._agreement = agreement
             self._reset_values_()
+    
+    def z_transform(self, x: float) -> float:
+        """Transform value to z-score.
+        
+        This method produces a value from a distribution with a mean of 
+        0 and a standard deviation of 1. The value indicates how many
+        standard deviations the value is from the mean.
+
+        Parameters
+        ----------
+        x : float
+            value to be transformed
+
+        Returns
+        -------
+        z : float
+            z-score
+        """
+        return (x - self.mean) / self.std
 
     def mean_ci(self, level: float = 0.95) -> Tuple[float, float]:
         """Two sided confidence interval for mean of filtered data
@@ -662,8 +681,8 @@ class ProcessEstimator(Estimator):
     _n_nok: int | None
     _error_values: Tuple[float, ...]
     _n_errrors: int
-    _cp: int | None
-    _cpk: int | None
+    _cp: float | None
+    _cpk: float | None
 
     def __init__(
             self,
@@ -832,9 +851,12 @@ class ProcessEstimator(Estimator):
         return (self.lcl, self.ucl)
     
     @property
-    def cp_tol(self) -> float:
-        """Get tolerance for Cp (read-only)."""
-        return 2*self._k
+    def tolerance_range(self) -> float:
+        """Get tolerance range. If one of the specification limits is 
+        not specified, inf is returned (read-only)."""
+        if self.usl is None or self.lsl is None:
+            return float('inf')
+        return self.usl - self.lsl
     
     @property
     def cp(self) -> float | None:
@@ -845,11 +867,11 @@ class ProcessEstimator(Estimator):
         the Cpk value.
         This value cannot be calculated unless an upper and lower 
         specification limit is given. In this case, None is returned."""
-        if self.usl is None or self.lsl is None:
+        if None in self.limits:
             return None
+        
         if self._cp is None:
-            agreement = 2 * self._k
-            self._cp = (self.usl - self.lsl)/(agreement*self.std) # type: ignore
+            self._cp = self.tolerance_range / (self.agreement * self.std)
         return self._cp
     
     @property
@@ -858,9 +880,9 @@ class ProcessEstimator(Estimator):
         of the distance between the process mean and the lower 
         specification limit and the lower spread of the process.
         Returns inf if no lower specification limit is specified."""
-        space = float('inf') if self.lsl is None else self.mean - self.lsl
-        spread = self.mean - self.lcl
-        return space/spread
+        if self.lsl is None:
+            return float('inf')
+        return (self.mean - self.lsl) / (self.mean - self.lcl)
     
     @property
     def cpu(self) -> float:
@@ -868,9 +890,9 @@ class ProcessEstimator(Estimator):
         of the distance between the process mean and the upper 
         specification limit and the upper spread of the process.
         Returns inf if no upper specification limit is specified."""
-        space = float('inf') if self.usl is None else self.usl - self.mean
-        spread = self.ucl - self.mean
-        return space/spread
+        if self.usl is None:
+            return float('inf')
+        return (self.usl - self.mean) / (self.ucl - self.mean)
     
     @property
     def cpk(self) -> float | None:
@@ -880,7 +902,8 @@ class ProcessEstimator(Estimator):
         Cpl and Cpu.
         In general, higher Cpk values indicate a more capable process. 
         Lower Cpk values indicate that the process may need improvement."""
-        if self.limits == (None, None): return None
+        if self.limits == (None, None):
+            return None
         return min([self.cpl, self.cpu])
 
     def _reset_values_(self) -> None:
