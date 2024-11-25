@@ -842,7 +842,7 @@ class SingleChart(Chart):
         parameters and keyword arguments.
         """
         target = kwds.pop('target', self.source[self.target]) # TODO: consider target of bar and pareto
-        single_axes = len(self.axes_facets) == 1
+        single_axes = kwds.pop('single_axes', len(self.axes_facets) == 1)
         self.stripes_facets = StripesFacets(
             target=target,
             single_axes=single_axes,
