@@ -14,6 +14,15 @@ from scipy.stats._continuous_distns import _distn_names
 from ._typing import LineStyle
 
 
+SIGMA_DIFFERENCE: float = 1.5
+"""In order to make statements about long-term capabilities, the value 
+of 1.5 is subtracted from the Sigma level from short-term data. This 
+value was determined empirically from manufacturing processes and takes 
+into account that there are more influences on the process in the long 
+term than in the short term. This value is the average of the short-term 
+and long-term differences."""
+
+
 @dataclass(frozen=True)
 class _Line_:
     WIDTH: float = 0.8
@@ -452,6 +461,7 @@ ANOVA = _Anova_()
 
 
 __all__ = [
+    'SIGMA_DIFFERENCE',
     'LINE',
     'KW',
     'RE',

@@ -24,6 +24,7 @@ from .._typing import NumericSample1D
 
 from ..constants import DIST
 from ..constants import PLOTTER
+from ..constants import SIGMA_DIFFERENCE
 
 from .confidence import mean_ci
 from .confidence import stdev_ci
@@ -674,7 +675,7 @@ class ProcessEstimator(Estimator):
 
     __slots__ = (
         '_lsl', '_usl', '_n_ok', '_n_nok', '_error_values', '_n_errors', 
-        '_cp', '_cpk')
+        '_cp', '_cpk', '_Z', '_Z_lt')
     _lsl: SpecLimit
     _usl: SpecLimit
     _n_ok: int | None
@@ -683,6 +684,8 @@ class ProcessEstimator(Estimator):
     _n_errrors: int
     _cp: float | None
     _cpk: float | None
+    _Z: float | None
+    _Z_lt: float | None
 
     def __init__(
             self,
@@ -751,6 +754,8 @@ class ProcessEstimator(Estimator):
         self._n_errors = None
         self._cp = None
         self._cpk = None
+        self._Z = None
+        self._Z_lt = None
         self._error_values = error_values
         self._lsl = None
         self._usl = None
@@ -766,7 +771,7 @@ class ProcessEstimator(Estimator):
         attrs = (_attrs[:2]
                  + ('n_ok', 'n_nok', 'n_errors')
                  + _attrs[2:]
-                 + ('lsl', 'usl', 'cp', 'cpk'))
+                 + ('lsl', 'usl', 'cp', 'cpk', 'Z', 'Z_lt'))
         return attrs
         
     @property
@@ -905,6 +910,26 @@ class ProcessEstimator(Estimator):
         if self.limits == (None, None):
             return None
         return min([self.cpl, self.cpu])
+    
+    @property
+    def Z(self) -> float:
+        """The Sigma level Z is another process capability indicator 
+        alongside cp and cpk. It describes how many standard deviations 
+        can be placed between the mean value and the nearest tolerance 
+        limit of a process."""
+        if self._Z is None:
+            limit: float = self.lsl if self.cpl < self.cpu else self.usl # type: ignore
+            self._Z = abs(self.z_transform(limit))
+        return self._Z
+    
+    @property
+    def Z_lt(self) -> float:
+        """Statements about long-term capabilities can be derived from 
+        short-term capabilities using the sigma level. The empirically 
+        determined value of 1.5 is subtracted from the sigma level."""
+        if self._Z_lt is None:
+            self._Z_lt = self.Z - SIGMA_DIFFERENCE
+        return self._Z_lt
 
     def _reset_values_(self) -> None:
         """Set all values relevant to process capability to None. This 
@@ -918,6 +943,8 @@ class ProcessEstimator(Estimator):
         self._n_errors = None
         self._cp = None
         self._cpk = None
+        self._Z = None
+        self._Z_lt = None
 
 def estimate_distribution(
         data: NumericSample1D,

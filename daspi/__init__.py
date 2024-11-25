@@ -73,6 +73,7 @@ from .constants import ANOVA
 from .constants import PLOTTER
 from .constants import DEFAULT
 from .constants import CATEGORY
+from .constants import SIGMA_DIFFERENCE
 
 
 from .statistics.confidence import sem
