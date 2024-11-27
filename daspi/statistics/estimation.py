@@ -26,6 +26,8 @@ from ..constants import DIST
 from ..constants import PLOTTER
 from ..constants import SIGMA_DIFFERENCE
 
+from .confidence import cp_ci
+from .confidence import cpk_ci
 from .confidence import mean_ci
 from .confidence import stdev_ci
 from .confidence import median_ci
@@ -1105,10 +1107,82 @@ def estimate_kernel_density_2d(
     estimation = np.reshape(estimation.T, feature_seq.shape)
     return feature_seq, target_seq, estimation
 
+def estimate_capability_confidence(
+        samples: NumericSample1D, 
+        lsl: SpecLimit, 
+        usl: SpecLimit,
+        kind: Literal['cp', 'cpk'] = 'cpk',
+        level: float = 0.95,
+        n_groups: int = 1,
+        **kwds
+        ) -> Tuple[float, float, float]:
+    """Calculates the confidence interval for the process capability 
+    index (Cp or Cpk) of a process.
+    
+    This function is an extension of the `cp_ci` and `cpk_ci` functions.
+    It instantiates a `ProcessEstimator` and then determines the 
+    confidence intervals using the Cp or Cpk values from the estimator.
+    
+    Parameters
+    ----------
+    samples : NumericSample1D
+        1D array of process data.
+    lsl, usl : float
+        Lower and upper specification limit for process data.
+    kind : Literal['cp', 'cpk], optional
+        Specifies whether to calculate the confidence interval for Cp or 
+        Cpk ('cp' or 'cpk'). Defaults is 'cpk'.
+    level : float, optional
+        The desired confidence level for the interval, expressed as a 
+        decimal. Default is 0.95 (95% confidence).
+    n_groups : int, optional
+        The number of groups for Bonferroni correction to adjust for 
+        multiple comparisons. Default is 1, indicating no correction
+
+    Returns
+    -------
+    Tuple[float, float, float]:
+        A tuple containing the estimate, lower bound, and upper bound of 
+        the confidence interval for the specified process capability 
+        index.
+    
+    Raises
+    ------
+    AssertionError:
+        If provided kind is not 'cp' or 'cpk'.
+    ValueError:
+        If no limit is provided or if only one limit is provided and 
+        kind is set to 'cp'.
+    """
+    estimator = ProcessEstimator(samples, lsl, usl, **kwds)
+    assert kind in ('cp', 'cpk'), f'Unkown value for {kind=}'
+    
+    if kind == 'cp':
+        if estimator.cp is None:
+            raise ValueError(
+                'To calculate the cp values, both limits must be provided')
+        ci_values = cp_ci(
+            cp=estimator.cp,
+            n_samples=estimator.n_samples,
+            level=level,
+            n_groups=n_groups)
+    
+    elif kind == 'cpk':
+        if estimator.cpk is None:
+            raise ValueError(
+                'At least one spec limit must be provided')
+        ci_values = cpk_ci(
+            cpk=estimator.cpk,
+            n_samples=estimator.n_samples,
+            level=level,
+            n_groups=n_groups)
+
+    return ci_values
 
 __all__ = [
     'Estimator',
     'ProcessEstimator',
     'estimate_distribution',
     'estimate_kernel_density',
-    'estimate_kernel_density_2d']
+    'estimate_kernel_density_2d',
+    'estimate_capability_confidence']

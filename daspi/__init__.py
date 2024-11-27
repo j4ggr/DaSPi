@@ -77,6 +77,8 @@ from .constants import SIGMA_DIFFERENCE
 
 
 from .statistics.confidence import sem
+from .statistics.confidence import cp_ci
+from .statistics.confidence import cpk_ci
 from .statistics.confidence import fit_ci
 from .statistics.confidence import mean_ci
 from .statistics.confidence import stdev_ci
@@ -110,6 +112,7 @@ from .statistics.estimation import ProcessEstimator
 from .statistics.estimation import estimate_distribution
 from .statistics.estimation import estimate_kernel_density
 from .statistics.estimation import estimate_kernel_density_2d
+from .statistics.estimation import estimate_capability_confidence
 
 
 from .plotlib.classify import Dodger
@@ -143,6 +146,7 @@ from .plotlib.plotter import StandardErrorMean
 from .plotlib.plotter import ConfidenceInterval
 from .plotlib.plotter import ParallelCoordinate
 from .plotlib.plotter import GaussianKDEContour
+from .plotlib.plotter import CapabilityConfidenceInterval
 
 from .plotlib.facets import AxesFacets
 from .plotlib.facets import LabelFacets

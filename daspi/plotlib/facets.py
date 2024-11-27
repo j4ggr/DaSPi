@@ -371,7 +371,9 @@ class AxesFacets:
     """The axes flatten array index of current axes being worked on. """
 
     def __init__(
-            self, nrows: int = 1, ncols: int = 1, 
+            self,
+            nrows: int = 1,
+            ncols: int = 1, 
             sharex: ShareAxisProperty = 'none', 
             sharey: ShareAxisProperty = 'none', 
             width_ratios: Sequence[float] | None = None,
@@ -385,12 +387,10 @@ class AxesFacets:
             figsize = ((1 + math.log(ncols, math.e)) * figsize[0],
                        (1 + math.log(nrows, math.e)) * figsize[1])
         self.figsize = figsize
-        fig, axes = plt.subplots(
+        self.figure, self.axes = plt.subplots(
             nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey, 
             squeeze=False, figsize=self.figsize, width_ratios=width_ratios,
             height_ratios=height_ratios, **kwds,)
-        self.figure: Figure = fig
-        self.axes: NDArray = axes
         self._nrows = nrows
         self._ncols = ncols
         self._sharex = sharex

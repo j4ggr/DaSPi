@@ -24,7 +24,9 @@ from statsmodels.sandbox.regression.predstd import wls_prediction_std
 from .._typing import NumericSample1D
 
 
-def sem(sample: NumericSample1D, ddof: int = 1) -> float:
+def sem(
+        sample: NumericSample1D,
+        ddof: int = 1) -> float:
     """Calculate the standard error of the mean (or standard error of
     measurement) of the values in the input array.
 
@@ -46,7 +48,9 @@ def sem(sample: NumericSample1D, ddof: int = 1) -> float:
     return se
 
 def mean_ci(
-        sample: NumericSample1D, level: float = 0.95, n_groups: int = 1
+        sample: NumericSample1D,
+        level: float = 0.95,
+        n_groups: int = 1
         ) -> Tuple[float, float, float]:
     """Two sided confidence interval for mean of data.
 
@@ -83,7 +87,9 @@ def mean_ci(
     return x_bar, ci_low, ci_upp
 
 def median_ci(
-        sample: NumericSample1D, level: float = 0.95, n_groups: int = 1
+        sample: NumericSample1D,
+        level: float = 0.95,
+        n_groups: int = 1
         ) -> Tuple[float, float, float]:
     """Two sided confidence interval for median of data
 
@@ -120,7 +126,9 @@ def median_ci(
     return median, ci_low, ci_upp
 
 def variance_ci(
-        sample: NumericSample1D, level: float = 0.95, n_groups: int = 1
+        sample: NumericSample1D,
+        level: float = 0.95,
+        n_groups: int = 1
         ) -> Tuple[float, float, float]:
     """Two sided confidence interval for variance of data
 
@@ -150,7 +158,9 @@ def variance_ci(
     return s2, ci_low, ci_upp
 
 def stdev_ci(
-        sample: NumericSample1D, level: float = 0.95, n_groups: int = 1
+        sample: NumericSample1D,
+        level: float = 0.95,
+        n_groups: int = 1
         ) -> Tuple[float, float, float]:
     """Two sided confidence interval for standard deviation of data
 
@@ -176,7 +186,10 @@ def stdev_ci(
     return s, ci_low, ci_upp
 
 def proportion_ci(
-        events: int, observations: int, level: float = 0.95, n_groups: int = 1
+        events: int,
+        observations: int,
+        level: float = 0.95,
+        n_groups: int = 1
         ) -> Tuple[float, float, float]:
     """Confidence interval for a binomial proportion with a asymptotic 
     normal approximation.
@@ -199,12 +212,129 @@ def proportion_ci(
     portion : float
         Portion as ratio events/observations.
     ci_low, ci_upp : float
-        lower and upper confidence level with coverage approximately ci. 
+        The lower and upper confidence level with coverage approximately 
+        ci. 
     """
     alpha = confidence_to_alpha(level, two_sided=False, n_groups=n_groups)
     ci_low, ci_upp = proportion_confint(events, observations, alpha, 'normal')
     portion = events/observations
     return portion, ci_low, ci_upp # type: ignore
+
+def cp_ci(
+        cp: float,
+        n_samples: int,
+        level: float = 0.95,
+        n_groups: int = 1
+        ) -> Tuple[float, float, float]:
+    """Calculate the confidence interval for the Cp estimator of process 
+    capability.
+
+    This function computes the confidence interval for the Cp value, 
+    which quantifies the capability of a process to produce output 
+    within specified limits. The width of the confidence interval is 
+    influenced by the number of samples and the specified confidence 
+    level. The calculation is based on the Chi-squared (χ²) distribution.
+
+    Parameters
+    ----------
+    cp : float
+        The Cp value representing the process capability.
+    n_samples : int
+        The total number of samples used in the estimation.
+    level : float, optional
+        The desired confidence level for the interval, expressed as a 
+        decimal. Default is 0.95 (95% confidence).
+    n_groups : int, optional
+        The number of groups for Bonferroni correction to adjust for 
+        multiple comparisons. Default is 1, indicating no correction.
+
+    Returns
+    -------
+    cp : float
+        For coherence with the other functions, the Cp value is 
+        returned unchanged.
+    ci_low, ci_upp : float
+        The lower and upper bounds of the confidence interval for the Cp 
+        value.
+
+    Notes
+    -----
+    - The confidence interval provides a range within which the true 
+      process capability is expected to lie, given the sample data.
+    - Ensure that the number of samples is greater than the number of 
+      groups to avoid invalid degrees of freedom.
+    
+    References
+    ----------
+    For more information on Cpk confidence intervals, visit:
+    https://www.qimacros.com/process-capability-analysis/cpk-confidence-intervals/
+    """
+    alpha = confidence_to_alpha(level, two_sided=False, n_groups=n_groups)
+    dof = n_samples - n_groups
+    ci_low = cp * float(chi2.ppf(alpha, dof) / (dof))**0.5
+    ci_upp = cp * float(chi2.ppf(1 - alpha, dof) / (dof))**0.5
+    return cp, ci_low, ci_upp
+
+def cpk_ci(
+        cpk: float,
+        n_samples: int,
+        level: float = 0.95,
+        n_groups: int = 1
+        ) -> Tuple[float, float, float]:
+    """Calculate the confidence interval for the Cpk estimator of 
+    process capability.
+
+    This function computes the confidence interval for the Cpk value, 
+    which assesses the capability of a process to meet both upper and 
+    lower specification limits. The confidence interval is influenced by 
+    the number of samples, the specified confidence level, and the 
+    number of groups for Bonferroni correction. The calculation 
+    incorporates the normal distribution.
+
+    Parameters
+    ----------
+    cpk : float
+        The Cpk value representing the process capability, accounting 
+        for both process mean and variability.
+    n_samples : int
+        The total number of samples used in the estimation.
+    level : float, optional
+        The desired confidence level for the interval, expressed as a 
+        decimal. Default is 0.95 (95% confidence).
+    n_groups : int, optional
+        The number of groups for Bonferroni correction to adjust for 
+        multiple comparisons. Default is 1, indicating no correction.
+
+    Returns
+    -------
+    cpk : float
+        For coherence with the other functions, the Cpk value is 
+        returned unchanged.
+    ci_low, ci_upp : float
+        The lower and upper bounds of the confidence interval for the 
+        Cpk value.
+
+    Notes
+    -----
+    - The confidence interval provides a range within which the true 
+      process capability is expected to lie, given the sample data.
+    - Ensure that the number of samples is greater than the number of 
+      groups to avoid invalid degrees of freedom.
+    - The whisker term in the calculation accounts for variability in 
+    the Cpk estimator based on sample size and distribution.
+    
+    References
+    ----------
+    For more information on Cpk confidence intervals, visit:
+    https://www.qimacros.com/process-capability-analysis/cpk-confidence-intervals/
+    """
+    alpha = confidence_to_alpha(level, two_sided=False, n_groups=n_groups)
+    dof = n_samples - n_groups
+    crit = norm.ppf(1-alpha)
+    confidence = cpk * crit * np.sqrt(1/(9*n_samples*cpk) + 1/(2*dof))
+    ci_low = cpk - confidence
+    ci_upp = cpk + confidence
+    return cpk, ci_low, ci_upp
 
 def bonferroni_ci(
         data: DataFrame, target: str, feature: str | List[str],
@@ -303,8 +433,9 @@ def delta_mean_ci(
     dof = n1 + n2 - 2
     t_crit = t.ppf(1 - alpha, dof)
     delta = float(np.mean(sample1) - np.mean(sample2))
-    ci_low = delta - s*t_crit*np.sqrt(1/len(sample1) + 1/len(sample2))
-    ci_upp = delta + s*t_crit*np.sqrt(1/len(sample1) + 1/len(sample2))
+    confidence = s*t_crit*np.sqrt(1/len(sample1) + 1/len(sample2))
+    ci_low = delta - confidence
+    ci_upp = delta + confidence
     return delta, ci_low, ci_upp
 
 def delta_variance_ci(
@@ -577,6 +708,8 @@ __all__ = [
     'variance_ci',
     'stdev_ci',
     'proportion_ci',
+    'cp_ci',
+    'cpk_ci',
     'bonferroni_ci',
     'delta_mean_ci',
     'delta_variance_ci',
