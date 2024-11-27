@@ -140,7 +140,10 @@ from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
 from .._typing import LineStyle
+from .._typing import SpecLimits
+
 from ..strings import STR
+
 from ..constants import KW
 from ..constants import LINE
 from ..constants import DIST
@@ -148,6 +151,7 @@ from ..constants import COLOR
 from ..constants import DEFAULT
 from ..constants import PLOTTER
 from ..constants import CATEGORY
+
 from ..statistics import fit_ci
 from ..statistics import mean_ci
 from ..statistics import stdev_ci
@@ -158,6 +162,7 @@ from ..statistics import proportion_ci
 from ..statistics import ensure_generic
 from ..statistics import estimate_kernel_density
 from ..statistics import estimate_kernel_density_2d
+from ..statistics import estimate_capability_confidence
 
 
 class Plotter(ABC):
@@ -228,7 +233,7 @@ class Plotter(ABC):
         self.source = source
         if not feature:
             feature = PLOTTER.FEATURE
-            self.source[feature] = np.arange(len(source[target]))
+            self.source[feature] = np.arange(len(source[target])) + 1
         self.feature = feature
         self.target = target
         
@@ -659,6 +664,7 @@ class Probability(LinearRegression):
     kind : Literal['qq', 'pp', 'sq', 'sp']:
         The type of probability plot to create. The first letter
         corresponds to the target, the second to the feature.
+        Defaults to 'sq'.
         - qq: target = sample quantile; feature = theoretical
             quantile
         - pp: target = sample percentile; feature = theoretical 
@@ -1922,10 +1928,10 @@ class GaussianKDE(TransformPlotter):
         self.show_density_axis = show_density_axis
         self.fill = fill
         feature = PLOTTER.TRANSFORMED_FEATURE
-        f_base = DEFAULT.FEATURE_BASE
-        if not ignore_feature and 'feature' in kwds:
-            feature = kwds.pop('feature')
-            f_base = kwds.pop('f_base', f_base)
+        _feature = kwds.pop('feature')
+        if not ignore_feature and _feature:
+            feature = _feature
+        f_base = kwds.pop('f_base', DEFAULT.FEATURE_BASE)
         super().__init__(
             source=source,
             target=target,
@@ -2692,6 +2698,12 @@ class ConfidenceInterval(Errorbar):
         plot.
     target : str
         Column name of the target variable for the plot.
+    n_groups : int
+        Number of variables to use for the Bonferroni fit. A good way to 
+        do this is to pass `df.groupby(list_of_variates).ngroups`, where 
+        `list_of_variates` is a list containing all the categorical 
+        columns in the source that will be used for the chart to split 
+        the data into groups (hue, categorical features, etc.).
     feature : str, optional
         Column name of the feature variable for the plot,
         by default ''.
@@ -2751,6 +2763,7 @@ class ConfidenceInterval(Errorbar):
             self,
             source: DataFrame,
             target: str,
+            n_groups: int,
             feature: str = '',
             show_center: bool = True,
             bars_same_color: bool = False,
@@ -2762,12 +2775,11 @@ class ConfidenceInterval(Errorbar):
             marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
+        assert n_groups >= 1 and isinstance(n_groups, int), (
+            f'The given n_groups must be an integer and >= 1 got {n_groups}')
         self.confidence_level = confidence_level
         self.ci_func = ci_func
-        # FIXME: This is a workaround for the fact that the number of groups is not known at this point
-        #  and should be passed as argument. 
-        # A good way to do this is to pass the following df.groupby(list_of_variates).ngroups
-        self.n_groups = pd.Series(source[feature]).nunique() if feature else 1
+        self.n_groups = n_groups
         
         super().__init__(
             source=source,
@@ -2830,6 +2842,12 @@ class MeanTest(ConfidenceInterval):
         plot.
     target : str
         Column name of the target variable for the plot.
+    n_groups : int
+        Number of variables to use for the Bonferroni fit. A good way to 
+        do this is to pass `df.groupby(list_of_variates).ngroups`, where 
+        `list_of_variates` is a list containing all the categorical 
+        columns in the source that will be used for the chart to split 
+        the data into groups (hue, categorical features, etc.).
     feature : str, optional
         Column name of the feature variable for the plot,
         by default ''.
@@ -2867,6 +2885,7 @@ class MeanTest(ConfidenceInterval):
             self,
             source: DataFrame,
             target: str,
+            n_groups: int,
             feature: str = '',
             show_center: bool = True,
             bars_same_color: bool = False,
@@ -2879,6 +2898,7 @@ class MeanTest(ConfidenceInterval):
         super().__init__(
             source=source,
             target=target,
+            n_groups=n_groups,
             feature=feature,
             show_center=show_center,
             bars_same_color=bars_same_color,
@@ -2908,6 +2928,12 @@ class VariationTest(ConfidenceInterval):
         plot.
     target : str
         Column name of the target variable for the plot.
+    n_groups : int
+        Number of variables to use for the Bonferroni fit. A good way to 
+        do this is to pass `df.groupby(list_of_variates).ngroups`, where 
+        `list_of_variates` is a list containing all the categorical 
+        columns in the source that will be used for the chart to split 
+        the data into groups (hue, categorical features, etc.).
     feature : str, optional
         Column name of the feature variable for the plot,
         by default ''.
@@ -2947,6 +2973,7 @@ class VariationTest(ConfidenceInterval):
             self,
             source: DataFrame,
             target: str,
+            n_groups: int,
             feature: str = '',
             show_center: bool = True,
             bars_same_color: bool = False,
@@ -2961,6 +2988,7 @@ class VariationTest(ConfidenceInterval):
         super().__init__(
             source=source,
             target=target,
+            n_groups=n_groups,
             feature=feature,
             show_center=show_center,
             bars_same_color=bars_same_color,
@@ -2991,6 +3019,12 @@ class ProportionTest(ConfidenceInterval):
         Column name to use for the target variable. If falsy, the name
         will be formed from the specified `events` and `observations` 
         with a "/" character in between.
+    n_groups : int
+        Number of variables to use for the Bonferroni fit. A good way to 
+        do this is to pass `df.groupby(list_of_variates).ngroups`, where 
+        `list_of_variates` is a list containing all the categorical 
+        columns in the source that will be used for the chart to split 
+        the data into groups (hue, categorical features, etc.).
     events : str
         Column name containing the values of counted events for each
         feature.
@@ -3055,6 +3089,7 @@ class ProportionTest(ConfidenceInterval):
             target: str,
             events: str,
             observations: str,
+            n_groups: int,
             feature: str = '',
             method: Literal['sum', 'mean', 'median'] = 'sum',
             show_center: bool = True,
@@ -3075,6 +3110,7 @@ class ProportionTest(ConfidenceInterval):
         super().__init__(
             source=data,
             target=target,
+            n_groups=n_groups,
             feature=feature,
             show_center=show_center,
             bars_same_color=bars_same_color,
@@ -3120,6 +3156,172 @@ class ProportionTest(ConfidenceInterval):
             self.lower: lower,
             self.upper: upper})
         return data
+
+class CapabilityConfidenceInterval(ConfidenceInterval):
+    """Class for creating plotters with error bars as confidence interval
+    for the process capability values Cp or Cpk.
+    
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
+    target : str
+        Column name of the target variable for the plot.
+    n_groups : int
+        Number of variables to use for the Bonferroni fit. A good way to 
+        do this is to pass `df.groupby(list_of_variates).ngroups`, where 
+        `list_of_variates` is a list containing all the categorical 
+        columns in the source that will be used for the chart to split 
+        the data into groups (hue, categorical features, etc.).
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''.
+    show_center : bool, optional
+        Flag indicating whether to show the center points,
+        by default True.
+    bars_same_color : bool, optional
+        Flag indicating whether to use same color for error bars as 
+        markers for center. If False, the error bars are black,
+        by default False
+    skip_na : Literal['none', 'all', 'any'], optional
+        Flag indicating whether to skip missing values in the feature 
+        grouped data, by default None
+        - None, no missing values are skipped
+        - all', grouped data is skipped if all values are missing
+        - any', grouped data is skipped if any value is missing
+
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on
+        the y-axis, by default True.
+    confidence_level : float, optional
+        Confidence level for the confidence intervals,
+        by default 0.95.
+    ci_func : Callable, optional
+        Function for calculating the confidence intervals. The following
+        two arguments are passed to the function: The sample data and 
+        the confidence level. The returned values must be three floats
+        in order: center value, lower confidence limit and upper 
+        confidence limit, by default `mean_ci`.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first
+        color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the center points. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
+    ax : Axes | None, optional
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
+    **kwds:
+        Additional keyword arguments that have no effect and are
+        only used to catch further arguments that have no use here
+        (occurs when this class is used within chart objects).
+    """
+
+    __slots__ = ('spec_limits', 'kind', 'show_feature_axis')
+
+    spec_limits: SpecLimits
+    """Spec limits used for calculating the capability values."""
+    kind: Literal['cp', 'cpk']
+    """whether to calculate the confidence interval for Cp or Cpk 
+    ('cp' or 'cpk').."""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            spec_limits: SpecLimits,
+            n_groups: int,
+            kind: Literal['cp', 'cpk'],
+            feature: str = '',
+            show_center: bool = True,
+            bars_same_color: bool = False,
+            target_on_y: bool = True,
+            confidence_level: float = 0.95,
+            show_feature_axis: bool | None = None,
+            color: str | None = None,
+            marker: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+
+        self.spec_limits = spec_limits
+        self.kind = kind
+        if show_feature_axis is None:
+            show_feature_axis = bool(feature)
+        self.show_feature_axis = show_feature_axis
+        
+        super().__init__(
+            source=source,
+            target=target,
+            n_groups=n_groups,
+            feature=feature,
+            show_center=show_center,
+            bars_same_color=bars_same_color,
+            target_on_y=target_on_y,
+            confidence_level=confidence_level,
+            ci_func=estimate_capability_confidence,
+            color=color,
+            marker=marker,
+            ax=ax)
+    
+    def hide_feature_axis(self) -> None:
+        """Hide the density axis (spine, ticks and labels)."""
+        axis = 'xaxis' if self.target_on_y else 'yaxis'
+        spine = 'bottom' if self.target_on_y else 'left'
+        getattr(self.ax, axis).set_visible(False)
+        self.ax.spines[spine].set_visible(False)
+    
+    def transform(
+            self, feature_data: float | int, target_data: Series
+            ) -> pd.DataFrame:
+        """Perform the transformation on the target data by using the
+        given function `ci_func' and return the transformed data.
+
+        Parameters
+        ----------
+        feature_data : float | int
+            Base location (offset) of feature axis coming from
+            `feature_grouped` generator.
+        target_data : pandas Series
+            Feature grouped target data used for transformation, coming
+            from `feature_grouped` generator.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            The transformed data source for the plot.
+        """
+        center, lower, upper = self.ci_func(
+            samples=target_data,
+            lsl=self.spec_limits[0],
+            usl=self.spec_limits[1],
+            kind=self.kind,
+            level=self.confidence_level,
+            n_groups=self.n_groups)
+        data = pd.DataFrame({
+            self.target: [center],
+            self.feature: [feature_data],
+            self.lower: [lower],
+            self.upper: [upper]})
+        return data 
+    
+    def __call__(self, kw_points: dict = {}, **kwds) -> None:
+        """Perform the plotting operation.
+
+        Parameters
+        ----------
+        kw_points : dict, optional
+            Additional keyword arguments for the axes `scatter` method,
+            by default {}.
+        **kwds :
+            Additional keyword arguments for the axes `errorbar` method.
+        """
+        super().__call__(kw_points, **kwds)
+        if not self.show_feature_axis:
+            self.hide_feature_axis()
 
 
 class HideSubplot(Plotter):
@@ -3839,6 +4041,7 @@ __all__ = [
     'MeanTest',
     'VariationTest',
     'ProportionTest',
+    'CapabilityConfidenceInterval',
     'HideSubplot',
     'SkipSubplot',
     'Stripe',
