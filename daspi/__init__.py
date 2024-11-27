@@ -149,6 +149,7 @@ from .plotlib.plotter import GaussianKDEContour
 from .plotlib.plotter import CapabilityConfidenceInterval
 
 from .plotlib.facets import AxesFacets
+from .plotlib.facets import flat_unique
 from .plotlib.facets import LabelFacets
 from .plotlib.facets import StripesFacets
 

@@ -33,8 +33,8 @@ class TestSingleChart:
 
     def test_initialization_with_kwds(self, sample_data: pd.DataFrame) -> None:
         chart = SingleChart(sample_data, 'target', 'feature', sharex='col', sharey='row')
-        assert chart.axes_facets.sharex == 'col'
-        assert chart.axes_facets.sharey == 'row'
+        assert chart.axes.sharex == 'col'
+        assert chart.axes.sharey == 'row'
 
 
 class TestJointChart:
@@ -83,10 +83,10 @@ class TestJointChart:
         chart = JointChart(
             sample_data, feature='x', target='y', hue='category',
             ncols=2, nrows=3)
-        axes = chart.axes.flatten()
+        axes = chart.axes.flat
         for i, _chart in enumerate(chart.itercharts()):
             assert _chart == chart.charts[i]
-            assert chart.axes_facets.ax == axes[i]
+            assert chart.axes.ax == axes[i]
     
     def test_specification_limits_iterator(self, sample_data: pd.DataFrame) -> None:
         chart = JointChart(
@@ -114,17 +114,17 @@ class TestJointChart:
             sample_data, feature='x', target='y', hue='category',
             ncols=2, nrows=3, target_on_y=True, sharex=True, sharey='all')
         assert chart.axes_share_feature == True
-        assert chart.axes_share_feature == chart.axes_facets.sharex
+        assert chart.axes_share_feature == chart.axes.sharex
         assert chart.axes_share_target == 'all'
-        assert chart.axes_share_target == chart.axes_facets.sharey
+        assert chart.axes_share_target == chart.axes.sharey
 
         chart = JointChart(
             sample_data, feature='x', target='y', hue='category',
             ncols=2, nrows=3, target_on_y=False, sharex='row', sharey='none')
         assert chart.axes_share_feature == 'none'
-        assert chart.axes_share_feature == chart.axes_facets.sharey
+        assert chart.axes_share_feature == chart.axes.sharey
         assert chart.axes_share_target == 'row'
-        assert chart.axes_share_target == chart.axes_facets.sharex
+        assert chart.axes_share_target == chart.axes.sharex
 
         with pytest.warns(UserWarning):
             chart = JointChart(

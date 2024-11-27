@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import math
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -6,9 +9,10 @@ from typing import Any
 from typing import Self
 from typing import List
 from typing import Dict
+from typing import Type
 from typing import Tuple
 from typing import Literal
-from typing import Callable
+from typing import overload
 from typing import Sequence
 from typing import Generator
 from numpy.typing import NDArray
@@ -17,23 +21,35 @@ from matplotlib.lines import Line2D
 from matplotlib.figure import Figure
 from matplotlib.legend import Legend
 from matplotlib.artist import Artist
+from matplotlib.typing import HashableList
 from matplotlib.patches import Patch
 
 from .plotter import StripeLine
 from .plotter import StripeSpan
 
 from .._typing import SpecLimit
-from .._typing import ShareAxisProperty
 from .._typing import NumericSample1D
+from .._typing import ShareAxisProperty
 from .._typing import LegendHandlesLabels
+
 from ..strings import STR
+
 from ..constants import KW
 from ..constants import LABEL
 from ..constants import DEFAULT
+
 from ..statistics.estimation import ProcessEstimator
 
 
-class LabelFacets:
+def flat_unique(nested: NDArray | List[List]) -> List:
+    """Flatten the given array and return unique elements while
+    preserving the order."""
+    if isinstance(nested, list):
+        nested = np.array(nested)
+    return list(pd.Series(nested.flatten()).unique())
+
+
+class LabelFacets: # TODO: add docstring description how flat, axes and iteration works then give som examples
     """
     A class for adding labels and titles to facets of a figure.
 
@@ -78,7 +94,8 @@ class LabelFacets:
     figure: Figure
     """The figure instance to label."""
     axes: NDArray
-    """A 2D array containing the Axes instances of the figure."""
+    """A 2D array containing the Axes instances of the figure or an 
+    existing AxesFacets instance."""
     fig_title: str
     """The title to display at the top of the chart."""
     sub_title: str
@@ -233,36 +250,38 @@ class LabelFacets:
         """Add x-axis label(s) to the figure."""
         if not self.xlabel:
             return
+        
         if isinstance(self.xlabel, str):
             kw = KW.XLABEL
             kw['y'] = kw['y'] - LABEL.AXES_PADDING * self.shift_text_y
             self.figure.text(s=self.xlabel, **kw)
         else:
             for ax, xlabel in zip(self.axes.flat, self.xlabel):
-                if (len(ax.xaxis._get_shared_axis()) == 1
-                    or ax in self.axes[-1]): 
+                if (len(ax.xaxis._get_shared_axis()) == 1 # type: ignore
+                        or ax in self.axes[-1, :]): 
                     ax.set(xlabel=xlabel)
 
     def add_ylabel(self) -> None:
         """Add y-axis label(s) to the figure."""
         if not self.ylabel:
             return
+        
         if isinstance(self.ylabel, str):
             kw = KW.YLABEL
             kw['x'] = kw['x'] - LABEL.AXES_PADDING * self.shift_text_x
             self.figure.text(s=self.ylabel, **kw)
         else:
             for ax, ylabel in zip(self.axes.flat, self.ylabel):
-                if (len(ax.yaxis._get_shared_axis()) == 1
-                    or ax in self.axes.T[0]): 
+                if (len(ax.yaxis._get_shared_axis()) == 1 # type: ignore
+                        or ax in self.axes[:, 0]): 
                     ax.set(ylabel=ylabel)
 
     def add_row_labels(self) -> None:
         """Add row labels and row title to the figure."""
         if not self.rows:
             return
-        for axs, label in zip(self.axes, self.rows):
-            ax = axs[-1]
+        
+        for ax, label in zip(self.axes[:, -1], self.rows):
             kwds = KW.ROW_LABEL | {'transform': ax.transAxes}
             ax.text(s=label, **kwds)
         self.figure.text(s=self.row_title, **KW.ROW_TITLE)
@@ -271,7 +290,7 @@ class LabelFacets:
         """Add column labels and column title to the figure."""
         if not self.cols:
             return
-        for ax, label in zip(self.axes[0], self.cols):
+        for ax, label in zip(self.axes[0, :], self.cols):
             kwds = KW.COL_LABEL | {'transform': ax.transAxes}
             ax.text(s=label, **kwds)
         self.figure.text(s=self.col_title, **KW.COL_TITLE)
@@ -293,6 +312,7 @@ class LabelFacets:
         """Add the provided axes titles."""
         if not self.axes_titles:
             return
+        
         for ax, title in zip(self.axes.flat, self.axes_titles):
             ax.set_title(title)
     
@@ -303,6 +323,7 @@ class LabelFacets:
         info text separated by a comma."""
         if not self.info:
             return
+        
         info_text = f'{STR.TODAY} {STR.USERNAME}'
         if isinstance(self.info, str):
             info_text = f'{info_text}, {self.info}'
@@ -367,13 +388,18 @@ class AxesFacets:
     """Controls sharing of properties along the y-axis."""
     _ax: Axes | None
     """The current axes being worked on"""
-    index: int
-    """The axes flatten array index of current axes being worked on. """
+    _default_ax: Axes | None
+    """The default Axes instance after iterating over this class. It is 
+    the first Axes object in the grid if there is only one, otherwise 
+    None."""
+    mosaic: List[HashableList] | None
+    """A visual layout of how the Axes are arranged labeled as strings."""
 
     def __init__(
             self,
-            nrows: int = 1,
-            ncols: int = 1, 
+            nrows: int | None = None,
+            ncols: int | None = None,
+            mosaic: List[HashableList] | str | None = None,
             sharex: ShareAxisProperty = 'none', 
             sharey: ShareAxisProperty = 'none', 
             width_ratios: Sequence[float] | None = None,
@@ -381,22 +407,57 @@ class AxesFacets:
             stretch_figsize: bool = False,
             **kwds
             ) -> None:
+        assert not all(arg is not None for arg in (nrows, ncols, mosaic)), (
+            'Either nrows and ncols or mosaic must be provided, but not both.')
+        
+        if isinstance(mosaic, str):
+            mosaic = [list(r.strip()) for r in mosaic.strip('\n').split('\n')]
+        self.mosaic = mosaic
+        
+        if self.mosaic is not None:
+            self._nrows = len(self.mosaic)
+            self._ncols = len(self.mosaic[0])
+        else:
+            self._nrows = nrows if isinstance(nrows, int) else 1
+            self._ncols = ncols if isinstance(ncols, int) else 1
 
         figsize = kwds.pop('figsize', plt.rcParams['figure.figsize'])
         if stretch_figsize:
-            figsize = ((1 + math.log(ncols, math.e)) * figsize[0],
-                       (1 + math.log(nrows, math.e)) * figsize[1])
+            figsize = (
+                (1 + math.log(self._ncols, math.e)) * figsize[0],
+                (1 + math.log(self._nrows, math.e)) * figsize[1])
         self.figsize = figsize
-        self.figure, self.axes = plt.subplots(
-            nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey, 
-            squeeze=False, figsize=self.figsize, width_ratios=width_ratios,
-            height_ratios=height_ratios, **kwds,)
-        self._nrows = nrows
-        self._ncols = ncols
+
+        if self.mosaic is not None:
+            assert all(self._ncols == len(row) for row in self.mosaic), (
+                'Mosaic must be a rectangular grid of strings or hashes.')
+            self.figure, axes = plt.subplot_mosaic(
+                mosaic=self.mosaic,
+                sharex=True if sharex in (True, 'all') else False,
+                sharey=True if sharey in (True, 'all') else False,
+                height_ratios=width_ratios,
+                width_ratios=width_ratios,
+                **kwds)
+            self.axes = np.array(
+                [[axes[key] for key in row] for row in self.mosaic])
+        else:
+            self.figure, self.axes = plt.subplots(
+                nrows=self._nrows,
+                ncols=self._ncols,
+                sharex=sharex,
+                sharey=sharey, 
+                squeeze=False,
+                figsize=self.figsize,
+                width_ratios=width_ratios,
+                height_ratios=height_ratios, **kwds,)
+
         self._sharex = sharex
         self._sharey = sharey
-        self._ax = self.axes[0, 0] if self.nrows == self.ncols == 1 else None
-        self.index = 0
+        if self.nrows == self.ncols == 1:
+            self._default_ax = self.axes[0, 0] 
+        else:
+            self._default_ax = None
+        self._ax = self._default_ax
 
     @property
     def ax(self) -> Axes | None:
@@ -414,6 +475,11 @@ class AxesFacets:
     def ncols(self) -> int:
         """Get the number of Axes columns in the grid (read-only)."""
         return self._ncols
+    
+    @property
+    def shape(self) -> Tuple[int, ...]:
+        """Get the shape of the axes array (read-only)."""
+        return self.axes.shape
 
     @property
     def sharex(self) -> ShareAxisProperty:
@@ -425,6 +491,10 @@ class AxesFacets:
         """Get the sharing of properties along the y-axis (read-only)."""
         return self._sharey
     
+    @property
+    def flat(self) -> List[Axes]:
+        return flat_unique(self.axes)
+    
     def __iter__(self) -> Generator[Axes, Self, None]:
         """Iterate over the axes in the grid.
 
@@ -434,12 +504,10 @@ class AxesFacets:
             The generator object that yields the axes in the grid.
         """
         def ax_gen(self) -> Generator[Axes, Self, None]:
-            for index, ax in enumerate(self.axes.flat):
+            for ax in self.flat:
                 self._ax = ax
-                self.index = index
                 yield ax
-            self._ax = None
-            self.index = 0
+            self._ax = self._default_ax
         return ax_gen(self)
     
     def __next__(self) -> Axes:
@@ -451,12 +519,29 @@ class AxesFacets:
             The next axes in the grid."""
         return next(self)
     
-    def __getitem__(self, index: int) -> Axes:
-        """Get the axes at the given index in the grid.
+    @overload
+    def __getitem__(self, index: Tuple[slice, slice]) -> NDArray:...
+
+    @overload
+    def __getitem__(self, index: Tuple[int, slice]) -> NDArray:...
+
+    @overload
+    def __getitem__(self, index: Tuple[slice, int]) -> NDArray:...
+    
+    @overload
+    def __getitem__(self, index: int | Tuple[int, int]) -> Axes:...
+    
+    def __getitem__(self, index: int | Tuple[int | slice, int | slice]) -> Any:
+        """Get the axes at the specified index in the grid. If the index
+        is a number, the axes are fetched from left to right and from 
+        top to bottom. If two numbers are specified, the axis is fetched 
+        directly in the grid and it is then also possible to fetch an 
+        axis across multiple indices if the axis is spanned across 
+        multiple columns or rows.
 
         Parameters
         ----------
-        index : int
+        index : int | Tuple[int, int]
             The index of the axes in the grid.
 
         Returns
@@ -464,7 +549,9 @@ class AxesFacets:
         Axes
             The axes at the given index in the grid.
         """
-        return self.axes.flat[index]
+        if isinstance(index, tuple):
+            return self.axes[index]
+        return self.flat[index]
 
     def __len__(self) -> int:
         """Get the total number of axes in the grid.
@@ -474,7 +561,7 @@ class AxesFacets:
         int
             The total number of axes in the grid.
         """
-        return len(self.axes.flat)
+        return len(self.flat)
 
 
 class StripesFacets:
@@ -786,6 +873,7 @@ class StripesFacets:
 
 
 __all__ = [
+    "flat_unique",
     "LabelFacets",
     "AxesFacets",
     "StripesFacets",

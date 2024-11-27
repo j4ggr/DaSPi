@@ -16,7 +16,6 @@ from .plotter import Plotter
 from .plotter import Scatter
 from .plotter import Violine
 from .plotter import MeanTest
-from .plotter import StripeLine
 from .plotter import SkipSubplot
 from .plotter import HideSubplot
 from .plotter import Probability
@@ -112,7 +111,7 @@ class ParameterRelevanceCharts(JointChart):
         super().plot(
             Pareto, highlight=ANOVA.RESIDUAL, skip_na='all')
         
-        self.axes[0][0].axvline(
+        self.axes[0, 0].axvline(
             self.lm.effect_threshold, **KW.SPECIFICATION_LINE)
         return self
 
@@ -426,24 +425,24 @@ class BivariateUnivariateCharts(JointChart):
     @property
     def hidden_ax(self) -> Axes:
         """Get the top right axis (read-only)."""
-        return self.axes.flatten()[1]
+        return self.axes[0, 1]
     
     @property
     def univariate_axs(self) -> List[Axes]:
         """Get the univariate axes (read-only)."""
-        axes = self.axes.flatten()
-        return [axes[0], axes[-1]]
+        return [self.axes[0], self.axes[-1]]
     
     @property
     def bivariate_ax(self) -> Axes:
         """Get the bivariate axis (read-only)."""
-        return self.axes.flatten()[2]
+        return self.axes[1, 0]
     
     def hide_top_right_ax(self) -> None:
         """Hides the top right axis if it is not already hidden."""
         if self._top_right_hidden:
             return
-        HideSubplot(self.axes.flatten()[1])()
+
+        HideSubplot(self.hidden_ax)()
         self._top_right_hidden = True
     
     def plot(
@@ -490,7 +489,7 @@ class BivariateUnivariateCharts(JointChart):
             chaining.
         """
         self.hide_top_right_ax()
-        for ax in self.axes.flat:
+        for ax in self.axes:
             if ax in self.univariate_axs:
                 super().plot(
                     plotter,
@@ -530,7 +529,7 @@ class BivariateUnivariateCharts(JointChart):
             chaining.
         """
         self.hide_top_right_ax()
-        for ax in self.axes.flat:
+        for ax in self.axes:
             if ax == self.bivariate_ax:
                 super().plot(
                     plotter,

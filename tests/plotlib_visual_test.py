@@ -802,6 +802,7 @@ class TestSingleChart:
         assert self.info_msg in info_msg
         
         self.kind = 'mean-test'
+        n_groups = df_aspirin.groupby(self.cat1).ngroups
         chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
@@ -809,7 +810,7 @@ class TestSingleChart:
                 categorical_feature = True,
                 target_on_y = False
             ).plot(
-                MeanTest
+                MeanTest, n_groups=n_groups
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,
@@ -827,6 +828,7 @@ class TestSingleChart:
         assert self.info_msg in info_msg
         
         self.kind = 'var-test'
+        n_groups = df_aspirin.groupby(self.cat1).ngroups
         chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
@@ -835,7 +837,8 @@ class TestSingleChart:
                 target_on_y = False
             ).plot(
                 VariationTest,
-                kind = 'variance'
+                kind = 'variance',
+                n_groups = n_groups
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,
@@ -853,6 +856,7 @@ class TestSingleChart:
         assert self.info_msg in info_msg
         
         self.kind = 'std-test'
+        n_groups = df_aspirin.groupby(self.cat1).ngroups
         chart = SingleChart(
                 source = df_aspirin,
                 target = self.target,
@@ -862,7 +866,8 @@ class TestSingleChart:
             ).plot(
                 VariationTest,
                 kind = 'stdev',
-                show_center = False
+                show_center = False,
+                n_groups=n_groups
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,
@@ -1024,6 +1029,7 @@ class TestJointChart:
         self.base = f'{self.fig_title}_kdes'
         
         self.kind = 'kde-mean'
+        n_groups = df_aspirin.groupby([self.cat1, self.cat2]).ngroups
         chart = JointChart(
                 source = df_aspirin,
                 target = self.target,
@@ -1036,7 +1042,7 @@ class TestJointChart:
                 target_on_y = False,
                 height_ratios=[5, 1],
             ).plot(GaussianKDE, show_density_axis=True
-            ).plot(MeanTest
+            ).plot(MeanTest, n_groups=n_groups
             ).label(
             #     feature_label = (True, True),
             #     target_label = (True, True)
@@ -1067,18 +1073,18 @@ class TestJointChart:
             ).close()
         texts = get_texts(chart)
         legend_artists = chart.label_facets.legend_artists
-        yticklabels1 = [t.get_text() for t in chart.axes[1][0].get_yticklabels()]
-        xticklabels0 = [t.get_text() for t in chart.axes[0][0].get_xticklabels()]
-        xticklabels1 = [t.get_text() for t in chart.axes[1][0].get_xticklabels()]
+        yticklabels1 = [t.get_text() for t in chart.axes[1, 0].get_yticklabels()]
+        xticklabels0 = [t.get_text() for t in chart.axes[0, 0].get_xticklabels()]
+        xticklabels1 = [t.get_text() for t in chart.axes[1, 0].get_xticklabels()]
         assert self.file_name.is_file()
         assert len(texts) == 0 # No text added to figure only to axes
         assert legend_artists[0].get_children()[0].get_text() == self.cat2 # type: ignore
         assert yticklabels1 == sorted(df_aspirin[self.cat1].unique())
         assert bool(xticklabels0) == False
         assert bool(xticklabels1) == True
-        assert chart.axes[0][0].get_xlabel() == ''
-        assert chart.axes[1][0].get_xlabel() == self.target
-        assert chart.axes[1][0].get_ylabel() == self.cat1
+        assert chart.axes[0, 0].get_xlabel() == ''
+        assert chart.axes[1, 0].get_xlabel() == self.target
+        assert chart.axes[1, 0].get_ylabel() == self.cat1
     
     def test_probabilities(self) -> None:
         self.base = f'{self.fig_title}_probability'
@@ -1111,29 +1117,29 @@ class TestJointChart:
         assert len(texts) == 2
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == 'QQ, PP, samples-Q and samples-P'
-        assert chart.axes[0][0].get_ylabel() == 'theoretical quantiles'
-        assert chart.axes[0][1].get_ylabel() == 'theoretical percentiles'
-        assert chart.axes[1][0].get_ylabel() == 'theoretical quantiles'
-        assert chart.axes[1][1].get_ylabel() == 'theoretical percentiles'
-        assert chart.axes[0][0].get_xlabel() == 'norm quantiles'
-        assert chart.axes[0][1].get_xlabel() == 'norm percentiles'
-        assert chart.axes[1][0].get_xlabel() == 'norm samples'
-        assert chart.axes[1][1].get_xlabel() == 'norm samples'
-        for l in [t.get_text() for t in chart.axes[0][0].get_yticklabels()]:
+        assert chart.axes[0, 0].get_ylabel() == 'theoretical quantiles'
+        assert chart.axes[0, 1].get_ylabel() == 'theoretical percentiles'
+        assert chart.axes[1, 0].get_ylabel() == 'theoretical quantiles'
+        assert chart.axes[1, 1].get_ylabel() == 'theoretical percentiles'
+        assert chart.axes[0, 0].get_xlabel() == 'norm quantiles'
+        assert chart.axes[0, 1].get_xlabel() == 'norm percentiles'
+        assert chart.axes[1, 0].get_xlabel() == 'norm samples'
+        assert chart.axes[1, 1].get_xlabel() == 'norm samples'
+        for l in [t.get_text() for t in chart.axes[0, 0].get_yticklabels()]:
             assert '%' not in l
-        for l in [t.get_text() for t in chart.axes[0][1].get_yticklabels()]:
+        for l in [t.get_text() for t in chart.axes[0, 1].get_yticklabels()]:
             assert '%' in l
-        for l in [t.get_text() for t in chart.axes[1][0].get_yticklabels()]:
+        for l in [t.get_text() for t in chart.axes[1, 0].get_yticklabels()]:
             assert '%' not in l
-        for l in [t.get_text() for t in chart.axes[1][1].get_yticklabels()]:
+        for l in [t.get_text() for t in chart.axes[1, 1].get_yticklabels()]:
             assert '%' in l
-        for l in [t.get_text() for t in chart.axes[0][0].get_xticklabels()]:
+        for l in [t.get_text() for t in chart.axes[0, 0].get_xticklabels()]:
             assert '%' not in l
-        for l in [t.get_text() for t in chart.axes[0][1].get_xticklabels()]:
+        for l in [t.get_text() for t in chart.axes[0, 1].get_xticklabels()]:
             assert '%' in l
-        for l in [t.get_text() for t in chart.axes[1][0].get_xticklabels()]:
+        for l in [t.get_text() for t in chart.axes[1, 0].get_xticklabels()]:
             assert '%' not in l
-        for l in [t.get_text() for t in chart.axes[1][1].get_xticklabels()]:
+        for l in [t.get_text() for t in chart.axes[1, 1].get_xticklabels()]:
             assert '%' not in l
 
         self.kind = 'dists-prob'
@@ -1335,6 +1341,7 @@ class TestMultipleVariateChart:
                 shape = 'educ',
                 col = 'religious',
                 row = 'children',
+                stretch_figsize = True
             ).plot(Scatter
             ).label(
                 fig_title = 'Multiple Variate Chart',
@@ -1344,6 +1351,7 @@ class TestMultipleVariateChart:
                 row_title = 'Amount of children',
                 col_title = 'How religious',
                 info = 'pytest figure')
+        chart.axes[0].set(ylim=(-5, 60))
         chart.save(self.file_name).close()
         assert self.file_name.is_file()
 
@@ -1358,6 +1366,7 @@ class TestMultipleVariateChart:
                 shape = 'educ',
                 col = 'religious',
                 row = 'children',
+                stretch_figsize = True
             ).plot(Scatter
             ).stripes(
                 mean = True,
@@ -1371,6 +1380,7 @@ class TestMultipleVariateChart:
                 row_title = 'Amount of children',
                 col_title = 'How religious',
                 info = 'pytest figure')
+        chart.axes[0].set(ylim=(-5, 60))
         chart.save(self.file_name).close()
         assert self.file_name.is_file()
 
@@ -1439,6 +1449,7 @@ class TestTemplates:
         
         self.kind = 'mean-test'
         _title = '95 % confidence interval of mean'
+        n_groups = df_aspirin.groupby(self.cat2).ngroups
         chart = BivariateUnivariateCharts(
                 source = df_aspirin,
                 target = self.target,
@@ -1447,7 +1458,7 @@ class TestTemplates:
                 dodge_univariates=True,
                 stretch_figsize=False,
             ).plot_univariates(
-                MeanTest
+                MeanTest, n_groups=n_groups
             ).plot_bivariate(
                 LinearRegression, show_fit_ci=True
             ).label(
@@ -1475,6 +1486,7 @@ class TestTemplates:
 
         self.kind = 'contour-mean-test'
         _title = '95 % confidence interval of mean'
+        n_groups = df_aspirin.groupby(self.cat2).ngroups
         chart = BivariateUnivariateCharts(
                 source = df_aspirin,
                 target = self.target,
@@ -1483,7 +1495,7 @@ class TestTemplates:
                 dodge_univariates=True,
                 stretch_figsize=False,
             ).plot_univariates(
-                MeanTest
+                MeanTest, n_groups=n_groups
             ).plot_bivariate(
                 GaussianKDEContour
             ).label(
@@ -1511,6 +1523,7 @@ class TestTemplates:
 
         self.kind = 'user'
         _title = '95 % confidence interval of mean'
+        n_groups = df_aspirin.groupby(self.cat2).ngroups
         chart = BivariateUnivariateCharts(
                 source = df_aspirin,
                 target = self.target,
@@ -1519,7 +1532,7 @@ class TestTemplates:
                 dodge_univariates=True,
                 stretch_figsize=False,
             ).plot_univariates(
-                MeanTest
+                MeanTest, n_groups=n_groups
             ).plot_bivariate(
                 GaussianKDEContour, fill=False, fade_outers=False
             ).plot_bivariate(

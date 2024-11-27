@@ -100,7 +100,7 @@ class Chart(ABC):
         Column name for the feature variable to be visualized.
     target_on_y : bool
         If True, the target variable is plotted on the y-axis.
-    axes_facets : AxesFacets
+    axes : AxesFacets
         An instance containing the subplots' Axes and their arrangement.
     colors: Tuple[str, ...], optional
         Tuple of unique colors used for hue categories as hex or str,
@@ -113,11 +113,11 @@ class Chart(ABC):
         `CATEGORY.N_SIZE_BINS`.
     **kwds
         Additional key word arguments to instantiate the `AxesFacets`
-        object. Only taken into account if `axes_facets` is not
+        object. Only taken into account if `axes` is not
         provided.
     """
     __slots__ = (
-        'source', 'target', 'feature', 'target_on_y', 'axes_facets',
+        'source', 'target', 'feature', 'target_on_y', 'axes',
         'label_facets', 'stripes_facets', 'nrows', 'ncols', '_data',
         '_plots', '_colors', '_markers', '_n_size_bins', '_kw_where')
     
@@ -134,7 +134,7 @@ class Chart(ABC):
     """StripesFacets instance for creating location and spread width
     lines, specification limits and/or confidence interval areas as
     stripes on each Axes."""
-    axes_facets: AxesFacets
+    axes: AxesFacets
     """AcesFacets instance for creating a grid of subplots with
     customizable sharing and sizing options."""
     label_facets: LabelFacets
@@ -166,7 +166,7 @@ class Chart(ABC):
             target: str,
             feature: str = '',
             target_on_y: bool = True,
-            axes_facets: AxesFacets | None = None,
+            axes: AxesFacets | None = None,
             colors: Tuple[str, ...] | None = None,
             markers: Tuple[str, ...] | None = None,
             n_size_bins: int = CATEGORY.N_SIZE_BINS,
@@ -183,29 +183,24 @@ class Chart(ABC):
         self._plots = []
         self._kw_where = {}
 
-        if axes_facets is None:
-            self.axes_facets = AxesFacets(self.nrows, self.ncols, **kwds)
+        if axes is None:
+            self.axes = AxesFacets(self.nrows, self.ncols, **kwds)
         else:
-            self.axes_facets = axes_facets
+            self.axes = axes
         self.target_on_y = target_on_y
-        for ax in self.axes.flat:
+        for ax in self.axes:
             getattr(ax, f'set_{"x" if self.target_on_y else "y"}margin')(0)
 
     @property
     def figure(self) -> Figure:
         """Get the top level container for all the plot elements
         (read-only)."""
-        return self.axes_facets.figure
-    
-    @property
-    def axes(self) -> NDArray:
-        """Get the created axes"""
-        return self.axes_facets.axes
+        return self.axes.figure
     
     @property
     def n_axes(self) -> int:
         """Get amount of axes"""
-        return self.ncols * self.nrows
+        return len(self.axes)
     
     @property
     def plots(self) -> List[Plotter]:
@@ -536,10 +531,11 @@ class SingleChart(Chart):
     @property
     def ax(self) -> Axes:
         """Get the axes instance (read-only)."""
-        if self.axes_facets.ax is None:
+        if self.axes.ax is None:
             raise AttributeError(
-                'Chart has no Axes.')
-        return self.axes_facets.ax
+                'The current Axes instance is not set. Iterate over the '
+                'AxesFacets instance and the sub charts simultaneously')
+        return self.axes.ax
     
     @property
     def variate_names(self) -> List[str]:
@@ -689,7 +685,7 @@ class SingleChart(Chart):
     def _categorical_feature_grid_(self) -> None:
         """Hide major grid and set one minor grid for feature axis."""
         xy = 'x' if self.target_on_y else 'y'
-        axis: XAxis | YAxis = getattr(self.axes_facets.ax, f'{xy}axis')
+        axis: XAxis | YAxis = getattr(self.axes.ax, f'{xy}axis')
         axis.set_minor_locator(AutoMinorLocator(2))
         axis.grid(True, which='minor')
         axis.grid(False, which='major')
@@ -700,7 +696,7 @@ class SingleChart(Chart):
         Raises
         ------
         AttributeError :
-            If axes_facets has no axes"""
+            If axes has no axes"""
         xy = 'x' if self.target_on_y else 'y'
         settings = {
             f'{xy}ticks': self.dodging.ticks,
@@ -783,7 +779,7 @@ class SingleChart(Chart):
                 feature=self.feature,
                 target_on_y=self.target_on_y,
                 color=self.color, 
-                ax=self.axes_facets.ax,
+                ax=self.axes.ax,
                 marker=marker,
                 size=self.sizes,
                 width=self.dodging.width,
@@ -842,7 +838,7 @@ class SingleChart(Chart):
         parameters and keyword arguments.
         """
         target = kwds.pop('target', self.source[self.target]) # TODO: consider target of bar and pareto
-        single_axes = kwds.pop('single_axes', len(self.axes_facets) == 1)
+        single_axes = kwds.pop('single_axes', len(self.axes) == 1)
         self.stripes_facets = StripesFacets(
             target=target,
             single_axes=single_axes,
@@ -909,7 +905,7 @@ class SingleChart(Chart):
 
         self.label_facets = LabelFacets(
             figure=self.figure,
-            axes=self.axes,
+            axes=self.axes.axes,
             fig_title=fig_title,
             sub_title=sub_title,
             xlabel=xlabel,
@@ -1075,7 +1071,7 @@ class JointChart(Chart):
             warnings.warn(
                 'Shares axes along chart with mixed target_on_y!', UserWarning)
 
-        for i in [self.axes_facets.index for _ in self.axes_facets]:
+        for i, _ in enumerate(self.axes):
             self.charts.append(SingleChart(
                 source=self.source,
                 target=self.targets[i],
@@ -1086,7 +1082,7 @@ class JointChart(Chart):
                 size=self.sizes[i],
                 categorical_feature=self.categorical_features[i],
                 target_on_y=self.target_on_ys[i],
-                axes_facets=self.axes_facets,
+                axes=self.axes,
                 colors=self._colors,
                 markers=self._markers,
                 n_size_bins = self._n_size_bins))
@@ -1126,9 +1122,9 @@ class JointChart(Chart):
         """Get the sharing of properties along the feature-axis
         (read-only)."""
         if self.target_on_y:
-            share = self.axes_facets.sharex
+            share = self.axes.sharex
         else:
-            share = self.axes_facets.sharey
+            share = self.axes.sharey
         return share
 
     @property
@@ -1136,9 +1132,9 @@ class JointChart(Chart):
         """Get the sharing of properties along the target-axis
         (read-only)."""
         if self.target_on_y:
-            share = self.axes_facets.sharey
+            share = self.axes.sharey
         else:
-            share = self.axes_facets.sharex
+            share = self.axes.sharex
         return share
     
     def single_label_allowed(self, is_target: bool) -> bool:
@@ -1184,9 +1180,9 @@ class JointChart(Chart):
     
     def itercharts(self) -> Generator[SingleChart, Self, None]:
         """Iter over charts simultaneosly iters over axes of 
-        `axes_facets`. That ensures that the current Axes to which the 
+        `axes`. That ensures that the current Axes to which the 
         current chart belongs is set. The"""
-        for _, chart in zip(self.axes_facets, self.charts):
+        for _, chart in zip(self.axes, self.charts):
             self.target_on_y = chart.target_on_y
             yield chart
     
@@ -1472,7 +1468,7 @@ class JointChart(Chart):
 
         self.label_facets = LabelFacets(
             figure=self.figure,
-            axes=self.axes,
+            axes=self.axes.axes,
             fig_title=fig_title,
             sub_title=sub_title,
             xlabel=xlabel,
@@ -1604,13 +1600,13 @@ class MultipleVariateChart(SingleChart):
     def _categorical_feature_axis_(self) -> None:
         """Set one major tick for each category and label it. Hide 
         major grid and set one minor grid for feature axis."""
-        for ax in self.axes_facets:
+        for _ in self.axes:
             super()._categorical_feature_axis_()
     
     def _axes_data(self) -> Generator[Series, Self, None]:
         """Generate all target data of each axes in one Series there are
         multiple axes, otherwise yield the entire target column. This
-        function ensures also the current axes of `axes_facets`.
+        function ensures also the current axes of `axes`.
 
         This method serves as a generator function that yields grouped 
         data based on the `row` and `col` attribute if they are set. 
@@ -1624,7 +1620,7 @@ class MultipleVariateChart(SingleChart):
         """
         names = [c for c in (self.row, self.col) if c]
         grouper = self.source.groupby(names) if names else [('', self.source)]
-        for _, (_, data) in zip(self.axes_facets, grouper):
+        for _, (_, data) in zip(self.axes, grouper):
             axes_data = data[self.target]
             yield axes_data
 
@@ -1659,7 +1655,7 @@ class MultipleVariateChart(SingleChart):
             raise ValueError(
                 'Keyword argument "kw_where" is not allowed in this instance.')
         ax = None
-        _ax = iter(self.axes_facets)
+        _ax = iter(self.axes)
         for data in self:
             if self.row_or_col_changed or ax is None:
                 ax = next(_ax)
@@ -1800,7 +1796,7 @@ class MultipleVariateChart(SingleChart):
 
         self.label_facets = LabelFacets(
             figure=self.figure,
-            axes=self.axes,
+            axes=self.axes.axes, # TODO: pass self.axes
             fig_title=fig_title,
             sub_title=sub_title,
             xlabel=xlabel,

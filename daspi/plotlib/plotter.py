@@ -2699,11 +2699,13 @@ class ConfidenceInterval(Errorbar):
     target : str
         Column name of the target variable for the plot.
     n_groups : int
-        Number of variables to use for the Bonferroni fit. A good way to 
-        do this is to pass `df.groupby(list_of_variates).ngroups`, where 
-        `list_of_variates` is a list containing all the categorical 
-        columns in the source that will be used for the chart to split 
-        the data into groups (hue, categorical features, etc.).
+        Number of groups (variable combinations) for the Bonferroni 
+        adjustment. A good way to do this is to pass 
+        `df.groupby(list_of_variates).ngroups`, where `list_of_variates` 
+        is a list containing all the categorical columns in the source 
+        that will be used for the chart to split the data into groups 
+        (hue, categorical features, etc.). Specify 1 to not do a 
+        Bonferroni adjustment.
     feature : str, optional
         Column name of the feature variable for the plot,
         by default ''.
@@ -2843,11 +2845,13 @@ class MeanTest(ConfidenceInterval):
     target : str
         Column name of the target variable for the plot.
     n_groups : int
-        Number of variables to use for the Bonferroni fit. A good way to 
-        do this is to pass `df.groupby(list_of_variates).ngroups`, where 
-        `list_of_variates` is a list containing all the categorical 
-        columns in the source that will be used for the chart to split 
-        the data into groups (hue, categorical features, etc.).
+        Number of groups (variable combinations) for the Bonferroni 
+        adjustment. A good way to do this is to pass 
+        `df.groupby(list_of_variates).ngroups`, where `list_of_variates` 
+        is a list containing all the categorical columns in the source 
+        that will be used for the chart to split the data into groups 
+        (hue, categorical features, etc.). Specify 1 to not do a 
+        Bonferroni adjustment.
     feature : str, optional
         Column name of the feature variable for the plot,
         by default ''.
@@ -2929,11 +2933,13 @@ class VariationTest(ConfidenceInterval):
     target : str
         Column name of the target variable for the plot.
     n_groups : int
-        Number of variables to use for the Bonferroni fit. A good way to 
-        do this is to pass `df.groupby(list_of_variates).ngroups`, where 
-        `list_of_variates` is a list containing all the categorical 
-        columns in the source that will be used for the chart to split 
-        the data into groups (hue, categorical features, etc.).
+        Number of groups (variable combinations) for the Bonferroni 
+        adjustment. A good way to do this is to pass 
+        `df.groupby(list_of_variates).ngroups`, where `list_of_variates` 
+        is a list containing all the categorical columns in the source 
+        that will be used for the chart to split the data into groups 
+        (hue, categorical features, etc.). Specify 1 to not do a 
+        Bonferroni adjustment.
     feature : str, optional
         Column name of the feature variable for the plot,
         by default ''.
@@ -3020,11 +3026,13 @@ class ProportionTest(ConfidenceInterval):
         will be formed from the specified `events` and `observations` 
         with a "/" character in between.
     n_groups : int
-        Number of variables to use for the Bonferroni fit. A good way to 
-        do this is to pass `df.groupby(list_of_variates).ngroups`, where 
-        `list_of_variates` is a list containing all the categorical 
-        columns in the source that will be used for the chart to split 
-        the data into groups (hue, categorical features, etc.).
+        Number of groups (variable combinations) for the Bonferroni 
+        adjustment. A good way to do this is to pass 
+        `df.groupby(list_of_variates).ngroups`, where `list_of_variates` 
+        is a list containing all the categorical columns in the source 
+        that will be used for the chart to split the data into groups 
+        (hue, categorical features, etc.). Specify 1 to not do a 
+        Bonferroni adjustment.
     events : str
         Column name containing the values of counted events for each
         feature.
@@ -3169,11 +3177,13 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
     target : str
         Column name of the target variable for the plot.
     n_groups : int
-        Number of variables to use for the Bonferroni fit. A good way to 
-        do this is to pass `df.groupby(list_of_variates).ngroups`, where 
-        `list_of_variates` is a list containing all the categorical 
-        columns in the source that will be used for the chart to split 
-        the data into groups (hue, categorical features, etc.).
+        Number of groups (variable combinations) for the Bonferroni 
+        adjustment. A good way to do this is to pass 
+        `df.groupby(list_of_variates).ngroups`, where `list_of_variates` 
+        is a list containing all the categorical columns in the source 
+        that will be used for the chart to split the data into groups 
+        (hue, categorical features, etc.). Specify 1 to not do a 
+        Bonferroni adjustment.
     feature : str, optional
         Column name of the feature variable for the plot,
         by default ''.
