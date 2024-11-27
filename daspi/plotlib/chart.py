@@ -53,7 +53,7 @@ from typing import Self
 from typing import Dict
 from typing import List
 from typing import Tuple
-from typing import Literal
+from typing import Iterable
 from typing import Generator
 from pathlib import Path
 from numpy.typing import NDArray
@@ -1104,7 +1104,16 @@ class JointChart(Chart):
             - values: handles and labels as tuple of tuples"""
         legend_data = {}
         for chart in self.charts:
-            legend_data = legend_data | chart.legend_data
+            for key, handles_labels in chart.legend_data.items():
+                if key not in legend_data:
+                    legend_data[key] = handles_labels
+                else:
+                    for handle, label in zip(*handles_labels):
+                        if label in legend_data[key][1]:
+                            continue
+                        legend_data[key] = (
+                            legend_data[key][0] + (handle,),
+                            legend_data[key][1] + (label,))
         return legend_data
     
     @property
@@ -1182,7 +1191,9 @@ class JointChart(Chart):
             yield chart
     
     def ensure_tuple(
-            self, attribute: str | bool | Tuple | List) -> Tuple:
+            self,
+            attribute: str | bool | Tuple[Any, ...] | List[Any]
+            ) -> Tuple[Any, ...]:
         """Ensures that the specified attribute is a tuple with the same
         length as the axes. If only one value is specified, it will be
         copied accordingly."""
@@ -1331,9 +1342,9 @@ class JointChart(Chart):
 
     def stripes(
             self,
-            mean: bool = False,
-            median: bool = False,
-            control_limits: bool = False, 
+            mean: bool | Tuple[bool, ...] = False,
+            median: bool | Tuple[bool, ...] = False,
+            control_limits: bool | Tuple[bool, ...] = False, 
             spec_limits: SpecLimits | Tuple[SpecLimits, ...] = (None, None),
             confidence: float | None = None,
             **kwds) -> Self:
@@ -1381,13 +1392,19 @@ class JointChart(Chart):
         the appearance and behavior of the stripes using various 
         parameters and keyword arguments.
         """
-        _spec_limits = self.specification_limits_iterator(spec_limits)
-        for chart, _spec_limit in zip(self.itercharts(), _spec_limits):
+        chart_stripe_data: Iterable[
+            Tuple[SingleChart, bool, bool, bool, SpecLimits]] = zip(
+            self.itercharts(),
+            self.ensure_tuple(mean),
+            self.ensure_tuple(median),
+            self.ensure_tuple(control_limits),
+            self.specification_limits_iterator(spec_limits))
+        for chart, _mean, _median, _c_limits, _s_limits in chart_stripe_data:
             chart.stripes(
-                mean=mean,
-                median=median,
-                control_limits=control_limits,
-                spec_limits=_spec_limit,
+                mean=_mean,
+                median=_median,
+                control_limits=_c_limits,
+                spec_limits=_s_limits,
                 confidence=confidence,
                 **kwds)
         return self
