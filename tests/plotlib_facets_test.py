@@ -46,7 +46,7 @@ class TestAxesFacets:
     @pytest.fixture
     def rc(self) -> AxesFacets:
         axes = AxesFacets(
-            2, 2, sharex='col', sharey='row', 
+            nrows=2, ncols=2, sharex='col', sharey='row', 
             width_ratios=[4, 1], height_ratios=[1, 4])
         return axes
     

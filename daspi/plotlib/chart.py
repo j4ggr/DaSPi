@@ -54,9 +54,15 @@ from typing import Dict
 from typing import List
 from typing import Tuple
 from typing import Iterable
+from typing import Sequence
 from typing import Generator
 from pathlib import Path
 from numpy.typing import NDArray
+from matplotlib.axes import Axes
+from matplotlib.axis import XAxis
+from matplotlib.axis import YAxis
+from matplotlib.figure import Figure
+from matplotlib.ticker import AutoMinorLocator
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
@@ -68,15 +74,12 @@ from .facets import AxesFacets
 from .facets import LabelFacets
 from .facets import StripesFacets
 from .plotter import Plotter
-from matplotlib.axes import Axes
-from matplotlib.axis import XAxis
-from matplotlib.axis import YAxis
-from matplotlib.figure import Figure
-from matplotlib.ticker import AutoMinorLocator
 
 from ..strings import STR
+
 from .._typing import SpecLimit
 from .._typing import SpecLimits
+from .._typing import MosaicLayout
 from .._typing import ShareAxisProperty
 from .._typing import LegendHandlesLabels
 
@@ -98,10 +101,8 @@ class Chart(ABC):
         Column name for the target variable to be visualized.
     feature : str or Tuple[str]
         Column name for the feature variable to be visualized.
-    target_on_y : bool
+    target_on_y : bool, optional
         If True, the target variable is plotted on the y-axis.
-    axes : AxesFacets
-        An instance containing the subplots' Axes and their arrangement.
     colors: Tuple[str, ...], optional
         Tuple of unique colors used for hue categories as hex or str,
         by default `CATEGORY.PALETTE`.
@@ -111,14 +112,34 @@ class Chart(ABC):
     n_size_bins : int, optional
         Number of bins for the size range, by default 
         `CATEGORY.N_SIZE_BINS`.
+    axes : AxesFacets, optional
+        An instance containing the subplots' Axes and their arrangement.
+        All further keyword arguments from here on will only be 
+        considered if this one is not provided, by default None
+    nrows : int, optional
+        Number of rows of subplots in the grid, by default 1.
+    ncols : int, optional
+        Number of columns of subplots in the grid, by default 1.
+    sharex : bool or {'none', 'all', 'row', 'col'}, optional
+        Controls sharing of properties along the x-axis,
+        by default 'none'.
+    sharey : bool or {'none', 'all', 'row', 'col'}, optional
+        Controls sharing of properties along the y-axis,
+        by default 'none'.
+    width_ratios : array-like of length ncols, optional
+        Relative widths of the columns, by default None.
+    height_ratios : array-like of length nrows, optional
+        Relative heights of the rows, by default None.
+    stretch_figsize : bool, optional
+        If True, stretch the figure height and width based on the number 
+        of rows and columns, by default False
     **kwds
         Additional key word arguments to instantiate the `AxesFacets`
-        object. Only taken into account if `axes` is not
-        provided.
+        object.
     """
     __slots__ = (
         'source', 'target', 'feature', 'target_on_y', 'axes',
-        'label_facets', 'stripes_facets', 'nrows', 'ncols', '_data',
+        'label_facets', 'stripes_facets', '_data',
         '_plots', '_colors', '_markers', '_n_size_bins', '_kw_where')
     
     source: DataFrame
@@ -140,10 +161,6 @@ class Chart(ABC):
     label_facets: LabelFacets
     """LabelFacets instance for adding labels and titles to facets of a
     figure."""
-    nrows: int
-    """Number of rows of subplots in the grid."""
-    ncols: int
-    """Number of columns of subplots in the grid."""
     _data: DataFrame
     """Current source data subset used for current Axes."""
     _colors: Tuple[str, ...]
@@ -165,18 +182,25 @@ class Chart(ABC):
             source: DataFrame,
             target: str,
             feature: str = '',
+            *,
             target_on_y: bool = True,
-            axes: AxesFacets | None = None,
             colors: Tuple[str, ...] | None = None,
             markers: Tuple[str, ...] | None = None,
             n_size_bins: int = CATEGORY.N_SIZE_BINS,
-            **kwds
+            axes: AxesFacets | None = None,
+            nrows: int | None = None,
+            ncols: int | None = None,
+            mosaic: MosaicLayout| None = None,
+            sharex: ShareAxisProperty = 'none', 
+            sharey: ShareAxisProperty = 'none', 
+            width_ratios: Sequence[float] | None = None,
+            height_ratios: Sequence[float] | None = None, 
+            stretch_figsize: bool = False,
+            **kwds,
             ) -> None:
         self.source = source.copy()
         self.target = target
         self.feature = feature
-        self.nrows = kwds.pop('nrows', 1)
-        self.ncols = kwds.pop('ncols', 1)
         self._colors = colors if colors is not None else CATEGORY.PALETTE
         self._markers = markers if markers is not None else CATEGORY.MARKERS
         self._n_size_bins = n_size_bins
@@ -184,7 +208,16 @@ class Chart(ABC):
         self._kw_where = {}
 
         if axes is None:
-            self.axes = AxesFacets(self.nrows, self.ncols, **kwds)
+            self.axes = AxesFacets(
+                nrows=nrows,
+                ncols=ncols,
+                mosaic=mosaic,
+                sharex=sharex,
+                sharey=sharey,
+                width_ratios=width_ratios,
+                height_ratios=height_ratios,
+                stretch_figsize=stretch_figsize,
+                **kwds,)
         else:
             self.axes = axes
         self.target_on_y = target_on_y
@@ -206,7 +239,7 @@ class Chart(ABC):
     def plots(self) -> List[Plotter]:
         """Get plotter objects used in `plot` method"""
         return self._plots
-    
+
     @abstractmethod
     def _axis_label_(
             self, label: Any, is_target: bool) -> str | Tuple[str, ...]:
@@ -441,9 +474,14 @@ class SingleChart(Chart):
     n_size_bins : int, optional
         Number of bins for the size range, by default 
         `CATEGORY.N_SIZE_BINS`.
+    axes : AxesFacets, optional
+        An instance containing the subplots' Axes and their arrangement.
+        All further keyword arguments from here on will only be 
+        considered if this one is not provided, by default None
     **kwds
         Additional key word arguments to instantiate the `AxesFacets`
         object.
+
     """
 
     __slots__ = (
@@ -480,6 +518,7 @@ class SingleChart(Chart):
             source: DataFrame,
             target: str,
             feature: str = '',
+            *,
             hue: str = '',
             dodge: bool = False,
             shape: str = '',
@@ -489,7 +528,9 @@ class SingleChart(Chart):
             colors: Tuple[str, ...] | None = None,
             markers: Tuple[str, ...] | None = None,
             n_size_bins: int = CATEGORY.N_SIZE_BINS,
-            **kwds) -> None:
+            axes: AxesFacets | None = None,
+            **kwds
+            ) -> None:
         self.categorical_feature = categorical_feature or dodge
         if feature == '' and self.categorical_feature:
             feature = PLOTTER.FEATURE
@@ -505,6 +546,7 @@ class SingleChart(Chart):
             colors=colors,
             markers=markers,
             n_size_bins=n_size_bins,
+            axes = axes,
             **kwds)
         assert self.feature in source or not self.categorical_feature, (
             'categorical_feature is True, but features is not present')
@@ -905,7 +947,7 @@ class SingleChart(Chart):
 
         self.label_facets = LabelFacets(
             figure=self.figure,
-            axes=self.axes.axes,
+            axes=self.axes,
             fig_title=fig_title,
             sub_title=sub_title,
             xlabel=xlabel,
@@ -1016,8 +1058,10 @@ class JointChart(Chart):
             source: DataFrame,
             target: str | Tuple[str, ...],
             feature: str | Tuple[str, ...],
-            nrows: int,
-            ncols: int,
+            *,
+            nrows: int | None = None,
+            ncols: int | None = None,
+            mosaic: MosaicLayout | None = None,
             hue: str | Tuple[str, ...] = '',
             shape: str | Tuple[str, ...] = '',
             size: str | Tuple[str, ...] = '',
@@ -1036,8 +1080,6 @@ class JointChart(Chart):
 
         self.charts = []
         self._last_chart = None
-        self.ncols = ncols
-        self.nrows = nrows
 
         super().__init__(
             source=source,
@@ -1053,6 +1095,7 @@ class JointChart(Chart):
             colors=colors,
             markers=markers,
             n_size_bins=n_size_bins,
+            mosaic=mosaic,
             **kwds)
         self.targets = self.ensure_tuple(target)
         self.features = self.ensure_tuple(feature)
@@ -1072,20 +1115,21 @@ class JointChart(Chart):
                 'Shares axes along chart with mixed target_on_y!', UserWarning)
 
         for i, _ in enumerate(self.axes):
-            self.charts.append(SingleChart(
-                source=self.source,
-                target=self.targets[i],
-                feature=self.features[i],
-                hue=self.hues[i],
-                dodge=self.dodges[i],
-                shape=self.shapes[i],
-                size=self.sizes[i],
-                categorical_feature=self.categorical_features[i],
-                target_on_y=self.target_on_ys[i],
-                axes=self.axes,
-                colors=self._colors,
-                markers=self._markers,
-                n_size_bins = self._n_size_bins))
+            self.charts.append(
+                SingleChart(
+                    source=self.source,
+                    target=self.targets[i],
+                    feature=self.features[i],
+                    hue=self.hues[i],
+                    dodge=self.dodges[i],
+                    shape=self.shapes[i],
+                    size=self.sizes[i],
+                    categorical_feature=self.categorical_features[i],
+                    target_on_y=self.target_on_ys[i],
+                    colors=self._colors,
+                    markers=self._markers,
+                    n_size_bins = self._n_size_bins,
+                    axes=self.axes))
 
     @property
     def same_target_on_y(self) -> bool:
@@ -1468,7 +1512,7 @@ class JointChart(Chart):
 
         self.label_facets = LabelFacets(
             figure=self.figure,
-            axes=self.axes.axes,
+            axes=self.axes,
             fig_title=fig_title,
             sub_title=sub_title,
             xlabel=xlabel,
@@ -1796,7 +1840,7 @@ class MultipleVariateChart(SingleChart):
 
         self.label_facets = LabelFacets(
             figure=self.figure,
-            axes=self.axes.axes, # TODO: pass self.axes
+            axes=self.axes,
             fig_title=fig_title,
             sub_title=sub_title,
             xlabel=xlabel,

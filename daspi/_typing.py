@@ -1,9 +1,10 @@
 import numpy as np
 
-from typing import Any
+from typing import List
 from typing import Tuple
 from typing import Literal
 from typing import Sequence
+from typing import Hashable
 from typing import TypeAlias
 from datetime import date
 from datetime import datetime
@@ -49,6 +50,21 @@ Alternatively, a dash tuple of the following form can be provided:
 empty tuple (the same as continuous), once (containing 2 numbers On and
 Off), or multiple times with different On and Off numbers."""
 
+MosaicLayout: TypeAlias = (
+    List[Sequence[Hashable]]
+    | Tuple[Sequence[Hashable], ...]
+    | List[List[str]]
+    | str | None)
+"""Type alias for mosaic layout. From the author's point of view, the 
+best option is a tuple of strings. Dor example:
+    ``` python
+    layout: MosaicLayout = (
+        'AA.',
+        '°°D',
+        '°°D')
+    ```
+"""
+
 __all__ = [
     'Sample1D',
     'NumericSample1D',
@@ -56,5 +72,6 @@ __all__ = [
     'SpecLimits',
     'ShareAxisProperty',
     'LegendHandlesLabels',
-    'LineStyle'
+    'LineStyle',
+    'MosaicLayout',
 ]

@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+import re
 import math
 import numpy as np
 import pandas as pd
@@ -9,10 +8,10 @@ from typing import Any
 from typing import Self
 from typing import List
 from typing import Dict
-from typing import Type
 from typing import Tuple
 from typing import Literal
 from typing import overload
+from typing import Hashable
 from typing import Sequence
 from typing import Generator
 from numpy.typing import NDArray
@@ -28,6 +27,7 @@ from .plotter import StripeLine
 from .plotter import StripeSpan
 
 from .._typing import SpecLimit
+from .._typing import MosaicLayout
 from .._typing import NumericSample1D
 from .._typing import ShareAxisProperty
 from .._typing import LegendHandlesLabels
@@ -49,305 +49,22 @@ def flat_unique(nested: NDArray | List[List]) -> List:
     return list(pd.Series(nested.flatten()).unique())
 
 
-class LabelFacets: # TODO: add docstring description how flat, axes and iteration works then give som examples
-    """
-    A class for adding labels and titles to facets of a figure.
-
-    Parameters
-    ----------
-    figure : Figure
-        The figure to label.
-    axes : 2DArray
-        A 2D array of Axes instances. Setting squeeze=False when using 
-        the `plt.subplots` method ensures that it is always a 2D array.
-    fig_title : str, optional
-        Main title that should be displayed at the top of the chart,
-        by default ''.
-    sub_title : str, optional
-        Subtitle, which should appear directly below the main title and
-        slightly smaller than it, by default ''.
-    xlabel, ylabel: str or Tuple[str, ...], optional
-        The axis label(s) of the figure. To label multiple axes with 
-        different names, provide a tuple; otherwise, provide a string,
-        by default ''.
-    info : bool or str, optional
-        Indicates whether to include an info text at the lower left 
-        corner in the figure. The date and user are automatically added,
-        by default False.
-    rows: Tuple[str, ...], optional
-        The row labels of the figure, by default ().
-    cols: Tuple[str, ...], optional
-        The column labels of the figure, by default ().
-    row_title : str, optional
-        The title of the rows, by default ''.
-    col_title : str, optional
-        The title of the columns, by default ''.
-    axes_titles : Tuple[str, ...]
-        Title for each Axes, usefull for JointCharts, by default ()
-    legend_data : Dict[str, LegendHandlesLabels], optional
-        The legends to be added to the figure. The key is used as the 
-        legend title, and the values must be a tuple of tuples, where
-        the inner tuple contains a handle as a Patch or Line2D artist
-        and a label as a string, by default {}.
-    """
-
-    figure: Figure
-    """The figure instance to label."""
-    axes: NDArray
-    """A 2D array containing the Axes instances of the figure or an 
-    existing AxesFacets instance."""
-    fig_title: str
-    """The title to display at the top of the chart."""
-    sub_title: str
-    """The subtitle to display directly below the title of the chart."""
-    xlabel: str | Tuple[str, ...]
-    """The x-axis label(s) of the figure."""
-    ylabel: str | Tuple[str, ...]
-    """The y-axis label(s) of the figure."""
-    info: bool | str
-    """Indicates whether to include an info text in the figure."""
-    rows: Tuple[str, ...]
-    """The row labels of the figure."""
-    cols: Tuple[str, ...]
-    """The column labels of the figure."""
-    row_title: str
-    """The title of the rows."""
-    col_title: str
-    """The title of the columns."""
-    axes_titles: Tuple[str, ...]
-    """The titles of each axes."""
-    legend_data: Dict[str, LegendHandlesLabels]
-    """The legend_data to be added to the figure."""
-    _legend: Legend | None
-    """Figure legend if one is added"""
-
-    def __init__(
-            self,
-            figure: Figure,
-            axes: NDArray,
-            fig_title: str = '', 
-            sub_title: str = '',
-            xlabel: str | Tuple[str, ...] = '',
-            ylabel: str | Tuple[str, ...] = '',
-            info: bool | str = False,
-            rows: Tuple[str, ...] = (),
-            cols: Tuple[str, ...] = (),
-            row_title: str = '',
-            col_title: str = '',
-            axes_titles: Tuple[str, ...] = (),
-            legend_data: Dict[str, LegendHandlesLabels] = {}
-            ) -> None:
-        self.figure = figure
-        self.axes = axes
-        self.fig_title = fig_title
-        self.sub_title = sub_title
-        self.xlabel = xlabel
-        self.ylabel = ylabel
-        self.rows = rows
-        self.cols = cols
-        self.row_title = row_title
-        self.col_title = col_title
-        self.axes_titles = axes_titles
-        self.info = info
-        self.legend_data = legend_data
-        self._legend = None
-    
-    @staticmethod
-    def get_legend_artists(legend: Legend) -> List[Artist]:
-        """Get the inner children of a legend.
-
-        Parameters
-        ----------
-        legend : Legend
-            The legend object.
-
-        Returns
-        -------
-        List[Artist]:
-            The artists representing the inner children of the legend.
-        """
-        return legend.get_children()[0].get_children()
-
-    @property
-    def shift_text_y(self) -> float:
-        """Get offset to move text based on the fig height (read-only)."""
-        return LABEL.SHIFT_BASE / self.figure.get_figheight()
-
-    @property
-    def shift_text_x(self) -> float:
-        """Get offset to move text based on the fig width (read-only)."""
-        return LABEL.SHIFT_BASE / self.figure.get_figwidth()
-
-    @property
-    def shift_fig_title(self) -> float:
-        """Get offset in y direction for fig title (read-only)."""
-        labels = (self.axes_titles, self.col_title, self.sub_title)
-        n = (LABEL.AXES_PADDING
-             + sum(map(bool, labels)))
-        return n * self.shift_text_y
-
-    @property
-    def shift_sub_title(self) -> float:
-        """Get offset in y direction for sub title (read-only)."""
-        labels = (self.col_title, self.axes_titles)
-        n = (LABEL.AXES_PADDING
-             + LABEL.LABEL_PADDING * int(any(map(bool, labels)))
-             + sum(map(bool, labels)))
-        return n * self.shift_text_y
-
-    @property
-    def shift_legend(self) -> float:
-        """Get offset in x direction for legend (read-only)."""
-        labels = (self.row_title, self.rows)
-        n = (LABEL.AXES_PADDING 
-             + LABEL.LABEL_PADDING * sum(map(bool, labels))
-             + sum(map(bool, labels)))
-        return n * self.shift_text_x
-
-    @property
-    def legend(self) -> Legend | None:
-        """Get legend added to figure (read-only)."""
-        return self._legend
-    
-    @property
-    def legend_artists(self) -> List[Artist]:
-        """Get legend artists (read-only)."""
-        if self.legend is None:
-            return []
-        return self.get_legend_artists(self.legend)
-
-    def add_legend(
-            self, handles: Tuple[Patch |Line2D, ...], labels: Tuple[str, ...],
-            title: str) -> None:
-        """Adds a legend at the right side of the figure. If there is 
-        already one, the existing one is extended with the new one
-        
-        Parameters
-        ----------
-        handles: Tuple[Patch | Line2D, ...]
-            A list of Artists (lines, patches) to be added to the
-            legend.
-        labels : Tuple[str, ...]
-            The labels must be in the same order as the corresponding 
-            plots were drawn. If no labels are given, the handles and 
-            labels of the first axes are used.
-        title : str
-            Title for the given handles and labels. 
-        """
-        kw = KW.LEGEND
-        bbox = kw['bbox_to_anchor']
-        kw['bbox_to_anchor'] = (bbox[0] + self.shift_legend, bbox[1])
-        legend = Legend(
-            self.axes[0, -1], handles, labels, title=title, **kw)
-        if not self.legend:
-            self.figure.legends.append(legend) # type: ignore
-            self._legend = legend
-        else:
-            new_artists = self.get_legend_artists(legend)
-            self.legend_artists.extend(new_artists)
-
-    def add_xlabel(self) -> None:
-        """Add x-axis label(s) to the figure."""
-        if not self.xlabel:
-            return
-        
-        if isinstance(self.xlabel, str):
-            kw = KW.XLABEL
-            kw['y'] = kw['y'] - LABEL.AXES_PADDING * self.shift_text_y
-            self.figure.text(s=self.xlabel, **kw)
-        else:
-            for ax, xlabel in zip(self.axes.flat, self.xlabel):
-                if (len(ax.xaxis._get_shared_axis()) == 1 # type: ignore
-                        or ax in self.axes[-1, :]): 
-                    ax.set(xlabel=xlabel)
-
-    def add_ylabel(self) -> None:
-        """Add y-axis label(s) to the figure."""
-        if not self.ylabel:
-            return
-        
-        if isinstance(self.ylabel, str):
-            kw = KW.YLABEL
-            kw['x'] = kw['x'] - LABEL.AXES_PADDING * self.shift_text_x
-            self.figure.text(s=self.ylabel, **kw)
-        else:
-            for ax, ylabel in zip(self.axes.flat, self.ylabel):
-                if (len(ax.yaxis._get_shared_axis()) == 1 # type: ignore
-                        or ax in self.axes[:, 0]): 
-                    ax.set(ylabel=ylabel)
-
-    def add_row_labels(self) -> None:
-        """Add row labels and row title to the figure."""
-        if not self.rows:
-            return
-        
-        for ax, label in zip(self.axes[:, -1], self.rows):
-            kwds = KW.ROW_LABEL | {'transform': ax.transAxes}
-            ax.text(s=label, **kwds)
-        self.figure.text(s=self.row_title, **KW.ROW_TITLE)
-    
-    def add_col_labels(self) -> None:
-        """Add column labels and column title to the figure."""
-        if not self.cols:
-            return
-        for ax, label in zip(self.axes[0, :], self.cols):
-            kwds = KW.COL_LABEL | {'transform': ax.transAxes}
-            ax.text(s=label, **kwds)
-        self.figure.text(s=self.col_title, **KW.COL_TITLE)
-
-    def add_titles(self) -> None:
-        """Add the figure and sub-title at the top of the chart."""
-        if not self.fig_title and not self.sub_title:
-            return
-        kw_fig = KW.FIG_TITLE
-        kw_sub = KW.SUB_TITLE
-        kw_sub['y'] = kw_sub['y'] + self.shift_sub_title
-        kw_fig['y'] = kw_fig['y'] + self.shift_fig_title
-        if self.sub_title:
-            self.figure.text(s=self.sub_title, **kw_sub)
-        if self.fig_title:
-            self.figure.text(s=self.fig_title, **kw_fig)
-    
-    def add_axes_titles(self) -> None:
-        """Add the provided axes titles."""
-        if not self.axes_titles:
-            return
-        
-        for ax, title in zip(self.axes.flat, self.axes_titles):
-            ax.set_title(title)
-    
-    def add_info(self) -> None:
-        """Insert an info text in the bottom left-hand corner of the 
-        figure. By default, the info text contains today's date and the 
-        user name. If attribute `info` is a string, it is added to the 
-        info text separated by a comma."""
-        if not self.info:
-            return
-        
-        info_text = f'{STR.TODAY} {STR.USERNAME}'
-        if isinstance(self.info, str):
-            info_text = f'{info_text}, {self.info}'
-        kwds = KW.INFO
-        if self.xlabel:
-            kwds['y'] = kwds['y'] - self.shift_text_y
-        self.figure.text(s=info_text, **kwds)
-    
-    def draw(self) -> None:
-        """Draw all the label facets to the figure."""
-        self.add_xlabel()
-        self.add_ylabel()
-        self.add_axes_titles()
-        self.add_row_labels()
-        self.add_col_labels()
-        for title, (handles, labels) in self.legend_data.items():
-            self.add_legend(handles, labels, title)
-        self.add_info()
-        self.add_titles()
-
-
 class AxesFacets:
     """A class for creating a grid of subplots with customizable sharing
-    and sizing options.
+    and sizing options.    
+    
+    The class provides flexible handling the created Axes instances 
+    through its flat property and iteration capabilities:
+
+    - **Flat property:** 
+      Accesses Axes in a flattened view from left-to-right, 
+      top-to-bottom
+    - **Axes property:** 
+      Maintains the 2D structure for grid-based operations
+    - **Iteration:** 
+      Yields each axis instance coming from the Flat property 
+      sequentially to simplify plotting
+    The class supports two different ways to create subplot layouts:
 
     Parameters
     ----------
@@ -366,10 +83,58 @@ class AxesFacets:
     height_ratios : array-like of length nrows, optional
         Relative heights of the rows, by default None.
     stretch_figsize : bool, optional
-        If True, stretch the figure height and width based on the number of
-        rows and columns, by default False.
+        f True, the height and width of the figure are stretched based 
+        on the number of subplots in the rows and columns, 
+        by default False.
     **kwds : dict, optional
-        Additional keyword arguments to pass to the `plt.subplots` function.
+        Additional keyword arguments to pass to the function 
+        `plt.subplots` or to the function `plt.subplot_mosaic` if a 
+        mosaic was specified.
+
+    Examples
+    --------
+    1. Using nrows and ncols:
+    Creates a regular grid of subplots with specified dimensions
+    ```python
+    # Creates a 2x3 grid of regular subplots
+    facets = AxesFacets(nrows=2, ncols=3)
+    ```
+
+    2. Using mosaic:
+    Creates a layout with custom subplot arrangements and spanning
+    ```python
+    import daspi as dsp
+    # Creates a layout with spanning cells
+    layout = (
+        'AAB',
+        'CDB')
+    facets = dsp.AxesFacets(mosaic=layout)
+    ```
+    
+    3. Create a seaborn-style jointplot layout with custom size ratios:
+    ```python
+    import daspi as dsp
+    # Creates a layout with main scatter plot and marginal distributions
+    layout = [
+        ['hist_x', '.'],      # '.' creates an empty/blank Axes
+        ['scatter', 'hist_y']]
+    facets = AxesFacets(
+        mosaic=layout,
+        width_ratios=[4, 1],   # Make the marginal y-hist narrower
+        height_ratios=[1, 4]   # Make the marginal x-hist shorter
+        )
+    ```
+
+    This creates a figure with:
+    - A main scatter plot in the bottom-left
+    - A marginal histogram on top for x-distribution
+    - A marginal histogram on right for y-distribution
+    - Top-right cell is automatically empty using the '.' notation
+    - Proportional spacing using width and height ratios
+
+    The '.' character is a special notation in matplotlib's mosaic layout 
+    that automatically creates an empty/invisible Axes, which is more 
+    efficient than creating a visible Axes and then hiding it.
     """
 
     figsize: Tuple[float, float]
@@ -388,18 +153,20 @@ class AxesFacets:
     """Controls sharing of properties along the y-axis."""
     _ax: Axes | None
     """The current axes being worked on"""
-    _default_ax: Axes | None
+    _default: Axes | None
     """The default Axes instance after iterating over this class. It is 
     the first Axes object in the grid if there is only one, otherwise 
     None."""
-    mosaic: List[HashableList] | None
+    mosaic: HashableList | None
     """A visual layout of how the Axes are arranged labeled as strings."""
+    mosaic_pattern = re.compile(r'[\s+]?(\S+)[\s+]?')
 
     def __init__(
             self,
+            *,
             nrows: int | None = None,
             ncols: int | None = None,
-            mosaic: List[HashableList] | str | None = None,
+            mosaic: MosaicLayout | None = None,
             sharex: ShareAxisProperty = 'none', 
             sharey: ShareAxisProperty = 'none', 
             width_ratios: Sequence[float] | None = None,
@@ -411,13 +178,19 @@ class AxesFacets:
             'Either nrows and ncols or mosaic must be provided, but not both.')
         
         if isinstance(mosaic, str):
-            mosaic = [list(r.strip()) for r in mosaic.strip('\n').split('\n')]
-        self.mosaic = mosaic
-        
-        if self.mosaic is not None:
+            mosaic = self.mosaic_pattern.findall(mosaic)
+        if isinstance(mosaic, (list, tuple)):
+            self.mosaic = [[c for c in r] for r in mosaic]
             self._nrows = len(self.mosaic)
             self._ncols = len(self.mosaic[0])
+            assert all(self._ncols == len(row) for row in self.mosaic), (
+                f'Received a non-rectangular grid for the {mosaic=}.')
+            self._sharex = True if sharex in (True, 'all') else False
+            self._sharey = True if sharey in (True, 'all') else False
         else:
+            self.mosaic = None
+            self._sharex = sharex
+            self._sharey = sharey
             self._nrows = nrows if isinstance(nrows, int) else 1
             self._ncols = ncols if isinstance(ncols, int) else 1
 
@@ -428,36 +201,23 @@ class AxesFacets:
                 (1 + math.log(self._nrows, math.e)) * figsize[1])
         self.figsize = figsize
 
-        if self.mosaic is not None:
-            assert all(self._ncols == len(row) for row in self.mosaic), (
-                'Mosaic must be a rectangular grid of strings or hashes.')
-            self.figure, axes = plt.subplot_mosaic(
-                mosaic=self.mosaic,
-                sharex=True if sharex in (True, 'all') else False,
-                sharey=True if sharey in (True, 'all') else False,
-                height_ratios=width_ratios,
-                width_ratios=width_ratios,
-                **kwds)
+        _kwds: Dict[str, Any] = dict(
+            sharex=self._sharex,
+            sharey=self._sharey, 
+            figsize=self.figsize,
+            width_ratios=width_ratios,
+            height_ratios=height_ratios,
+            ) | kwds
+        if self.mosaic:
+            self.figure, axes = plt.subplot_mosaic(mosaic=self.mosaic, **_kwds)
             self.axes = np.array(
                 [[axes[key] for key in row] for row in self.mosaic])
         else:
             self.figure, self.axes = plt.subplots(
-                nrows=self._nrows,
-                ncols=self._ncols,
-                sharex=sharex,
-                sharey=sharey, 
-                squeeze=False,
-                figsize=self.figsize,
-                width_ratios=width_ratios,
-                height_ratios=height_ratios, **kwds,)
+                nrows=self._nrows, ncols=self._ncols, squeeze=False, **_kwds)
 
-        self._sharex = sharex
-        self._sharey = sharey
-        if self.nrows == self.ncols == 1:
-            self._default_ax = self.axes[0, 0] 
-        else:
-            self._default_ax = None
-        self._ax = self._default_ax
+        self._default = self.axes[0, 0] if self.shape == (1, 1) else None
+        self._ax = self._default
 
     @property
     def ax(self) -> Axes | None:
@@ -507,7 +267,7 @@ class AxesFacets:
             for ax in self.flat:
                 self._ax = ax
                 yield ax
-            self._ax = self._default_ax
+            self._ax = self._default
         return ax_gen(self)
     
     def __next__(self) -> Axes:
@@ -642,6 +402,7 @@ class StripesFacets:
     def __init__(
         self,
         target: NumericSample1D,
+        *,
         target_on_y: bool,
         single_axes: bool,
         stripes: List[StripeLine | StripeSpan] = [], 
@@ -870,6 +631,303 @@ class StripesFacets:
         """
         for stripe in self.stripes.values():
             stripe(ax)
+
+
+class LabelFacets:
+    """
+    A class for adding labels and titles to facets of a figure.
+
+    Parameters
+    ----------
+    figure : Figure
+        The figure to label.
+    axes : AxesFacets
+        A AxesFacets instance containing the subplots' Axes and their 
+        arrangement.
+    fig_title : str, optional
+        Main title that should be displayed at the top of the chart,
+        by default ''.
+    sub_title : str, optional
+        Subtitle, which should appear directly below the main title and
+        slightly smaller than it, by default ''.
+    xlabel, ylabel: str or Tuple[str, ...], optional
+        The axis label(s) of the figure. To label multiple axes with 
+        different names, provide a tuple; otherwise, provide a string,
+        by default ''.
+    info : bool or str, optional
+        Indicates whether to include an info text at the lower left 
+        corner in the figure. The date and user are automatically added,
+        by default False.
+    rows: Tuple[str, ...], optional
+        The row labels of the figure, by default ().
+    cols: Tuple[str, ...], optional
+        The column labels of the figure, by default ().
+    row_title : str, optional
+        The title of the rows, by default ''.
+    col_title : str, optional
+        The title of the columns, by default ''.
+    axes_titles : Tuple[str, ...]
+        Title for each Axes, usefull for JointCharts, by default ()
+    legend_data : Dict[str, LegendHandlesLabels], optional
+        The legends to be added to the figure. The key is used as the 
+        legend title, and the values must be a tuple of tuples, where
+        the inner tuple contains a handle as a Patch or Line2D artist
+        and a label as a string, by default {}.
+    """
+
+    figure: Figure
+    """The figure instance to label."""
+    axes: AxesFacets
+    """A AxesFacets instance containing the subplots' Axes and their 
+    arrangement."""
+    fig_title: str
+    """The title to display at the top of the chart."""
+    sub_title: str
+    """The subtitle to display directly below the title of the chart."""
+    xlabel: str | Tuple[str, ...]
+    """The x-axis label(s) of the figure."""
+    ylabel: str | Tuple[str, ...]
+    """The y-axis label(s) of the figure."""
+    info: bool | str
+    """Indicates whether to include an info text in the figure."""
+    rows: Tuple[str, ...]
+    """The row labels of the figure."""
+    cols: Tuple[str, ...]
+    """The column labels of the figure."""
+    row_title: str
+    """The title of the rows."""
+    col_title: str
+    """The title of the columns."""
+    axes_titles: Tuple[str, ...]
+    """The titles of each axes."""
+    legend_data: Dict[str, LegendHandlesLabels]
+    """The legend_data to be added to the figure."""
+    _legend: Legend | None
+    """Figure legend if one is added"""
+
+    def __init__(
+            self,
+            figure: Figure,
+            axes: AxesFacets,
+            *,
+            fig_title: str = '', 
+            sub_title: str = '',
+            xlabel: str | Tuple[str, ...] = '',
+            ylabel: str | Tuple[str, ...] = '',
+            info: bool | str = False,
+            rows: Tuple[str, ...] = (),
+            cols: Tuple[str, ...] = (),
+            row_title: str = '',
+            col_title: str = '',
+            axes_titles: Tuple[str, ...] = (),
+            legend_data: Dict[str, LegendHandlesLabels] = {}
+            ) -> None:
+        self.figure = figure
+        self.axes = axes
+        self.fig_title = fig_title
+        self.sub_title = sub_title
+        self.xlabel = xlabel
+        self.ylabel = ylabel
+        self.rows = rows
+        self.cols = cols
+        self.row_title = row_title
+        self.col_title = col_title
+        self.axes_titles = axes_titles
+        self.info = info
+        self.legend_data = legend_data
+        self._legend = None
+    
+    @staticmethod
+    def get_legend_artists(legend: Legend) -> List[Artist]:
+        """Get the inner children of a legend.
+
+        Parameters
+        ----------
+        legend : Legend
+            The legend object.
+
+        Returns
+        -------
+        List[Artist]:
+            The artists representing the inner children of the legend.
+        """
+        return legend.get_children()[0].get_children()
+
+    @property
+    def shift_text_y(self) -> float:
+        """Get offset to move text based on the fig height (read-only)."""
+        return LABEL.SHIFT_BASE / self.figure.get_figheight()
+
+    @property
+    def shift_text_x(self) -> float:
+        """Get offset to move text based on the fig width (read-only)."""
+        return LABEL.SHIFT_BASE / self.figure.get_figwidth()
+
+    @property
+    def shift_fig_title(self) -> float:
+        """Get offset in y direction for fig title (read-only)."""
+        labels = (self.axes_titles, self.col_title, self.sub_title)
+        n = (LABEL.AXES_PADDING
+             + sum(map(bool, labels)))
+        return n * self.shift_text_y
+
+    @property
+    def shift_sub_title(self) -> float:
+        """Get offset in y direction for sub title (read-only)."""
+        labels = (self.col_title, self.axes_titles)
+        n = (LABEL.AXES_PADDING
+             + LABEL.LABEL_PADDING * int(any(map(bool, labels)))
+             + sum(map(bool, labels)))
+        return n * self.shift_text_y
+
+    @property
+    def shift_legend(self) -> float:
+        """Get offset in x direction for legend (read-only)."""
+        labels = (self.row_title, self.rows)
+        n = (LABEL.AXES_PADDING 
+             + LABEL.LABEL_PADDING * sum(map(bool, labels))
+             + sum(map(bool, labels)))
+        return n * self.shift_text_x
+
+    @property
+    def legend(self) -> Legend | None:
+        """Get legend added to figure (read-only)."""
+        return self._legend
+    
+    @property
+    def legend_artists(self) -> List[Artist]:
+        """Get legend artists (read-only)."""
+        if self.legend is None:
+            return []
+        return self.get_legend_artists(self.legend)
+
+    def add_legend(
+            self, handles: Tuple[Patch |Line2D, ...], labels: Tuple[str, ...],
+            title: str) -> None:
+        """Adds a legend at the right side of the figure. If there is 
+        already one, the existing one is extended with the new one
+        
+        Parameters
+        ----------
+        handles: Tuple[Patch | Line2D, ...]
+            A list of Artists (lines, patches) to be added to the
+            legend.
+        labels : Tuple[str, ...]
+            The labels must be in the same order as the corresponding 
+            plots were drawn. If no labels are given, the handles and 
+            labels of the first axes are used.
+        title : str
+            Title for the given handles and labels. 
+        """
+        kw = KW.LEGEND
+        bbox = kw['bbox_to_anchor']
+        kw['bbox_to_anchor'] = (bbox[0] + self.shift_legend, bbox[1])
+        legend = Legend(
+            self.axes[0, -1], handles, labels, title=title, **kw)
+        if not self.legend:
+            self.figure.legends.append(legend) # type: ignore
+            self._legend = legend
+        else:
+            new_artists = self.get_legend_artists(legend)
+            self.legend_artists.extend(new_artists)
+
+    def add_xlabel(self) -> None:
+        """Add x-axis label(s) to the figure."""
+        if not self.xlabel:
+            return
+        
+        if isinstance(self.xlabel, str):
+            kw = KW.XLABEL
+            kw['y'] = kw['y'] - LABEL.AXES_PADDING * self.shift_text_y
+            self.figure.text(s=self.xlabel, **kw)
+        else:
+            for ax, xlabel in zip(self.axes.flat, self.xlabel):
+                if (len(ax.xaxis._get_shared_axis()) == 1 # type: ignore
+                        or ax in self.axes[-1, :]): 
+                    ax.set(xlabel=xlabel)
+
+    def add_ylabel(self) -> None:
+        """Add y-axis label(s) to the figure."""
+        if not self.ylabel:
+            return
+        
+        if isinstance(self.ylabel, str):
+            kw = KW.YLABEL
+            kw['x'] = kw['x'] - LABEL.AXES_PADDING * self.shift_text_x
+            self.figure.text(s=self.ylabel, **kw)
+        else:
+            for ax, ylabel in zip(self.axes.flat, self.ylabel):
+                if (len(ax.yaxis._get_shared_axis()) == 1 # type: ignore
+                        or ax in self.axes[:, 0]): 
+                    ax.set(ylabel=ylabel)
+
+    def add_row_labels(self) -> None:
+        """Add row labels and row title to the figure."""
+        if not self.rows:
+            return
+        
+        for ax, label in zip(self.axes[:, -1], self.rows):
+            kwds = KW.ROW_LABEL | {'transform': ax.transAxes}
+            ax.text(s=label, **kwds)
+        self.figure.text(s=self.row_title, **KW.ROW_TITLE)
+    
+    def add_col_labels(self) -> None:
+        """Add column labels and column title to the figure."""
+        if not self.cols:
+            return
+        for ax, label in zip(self.axes[0, :], self.cols):
+            kwds = KW.COL_LABEL | {'transform': ax.transAxes}
+            ax.text(s=label, **kwds)
+        self.figure.text(s=self.col_title, **KW.COL_TITLE)
+
+    def add_titles(self) -> None:
+        """Add the figure and sub-title at the top of the chart."""
+        if not self.fig_title and not self.sub_title:
+            return
+        kw_fig = KW.FIG_TITLE
+        kw_sub = KW.SUB_TITLE
+        kw_sub['y'] = kw_sub['y'] + self.shift_sub_title
+        kw_fig['y'] = kw_fig['y'] + self.shift_fig_title
+        if self.sub_title:
+            self.figure.text(s=self.sub_title, **kw_sub)
+        if self.fig_title:
+            self.figure.text(s=self.fig_title, **kw_fig)
+    
+    def add_axes_titles(self) -> None:
+        """Add the provided axes titles."""
+        if not self.axes_titles:
+            return
+        
+        for ax, title in zip(self.axes.flat, self.axes_titles):
+            ax.set_title(title)
+    
+    def add_info(self) -> None:
+        """Insert an info text in the bottom left-hand corner of the 
+        figure. By default, the info text contains today's date and the 
+        user name. If attribute `info` is a string, it is added to the 
+        info text separated by a comma."""
+        if not self.info:
+            return
+        
+        info_text = f'{STR.TODAY} {STR.USERNAME}'
+        if isinstance(self.info, str):
+            info_text = f'{info_text}, {self.info}'
+        kwds = KW.INFO
+        if self.xlabel:
+            kwds['y'] = kwds['y'] - self.shift_text_y
+        self.figure.text(s=info_text, **kwds)
+    
+    def draw(self) -> None:
+        """Draw all the label facets to the figure."""
+        self.add_xlabel()
+        self.add_ylabel()
+        self.add_axes_titles()
+        self.add_row_labels()
+        self.add_col_labels()
+        for title, (handles, labels) in self.legend_data.items():
+            self.add_legend(handles, labels, title)
+        self.add_info()
+        self.add_titles()
 
 
 __all__ = [
