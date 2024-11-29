@@ -53,6 +53,7 @@ from typing import Self
 from typing import Dict
 from typing import List
 from typing import Tuple
+from typing import Literal
 from typing import Iterable
 from typing import Sequence
 from typing import Generator
@@ -87,6 +88,117 @@ from ..constants import KW
 from ..constants import COLOR
 from ..constants import PLOTTER
 from ..constants import CATEGORY
+
+
+def get_opposite_axis(
+        axis: Literal['x', 'y', 'both']
+        ) -> Literal['x', 'y', 'both']:
+    """Gets the opposite axis of the given axis.
+
+    Parameters
+    ----------
+    axis : Literal['x', 'y', 'both']
+        The axis to get the opposite of.
+
+    Returns
+    -------
+    Literal['x', 'y', 'both']
+        The opposite axis of the given axis. If 'both' is given, 'both' 
+        is returned."""
+    opposites : Dict[str, Literal['x'] | Literal['y']] = {'x': 'y', 'y': 'x'}
+    return opposites.get(axis, 'both')
+
+def tick_labelcolor(tick: Literal['xtick', 'ytick']) -> str:
+    """Gets the label color for the given tick. If 'inherit' is given,
+    inherit from xtick.color (or ytick.color)
+    
+    Parameters
+    ----------
+    tick : Literal['xtick', 'ytick']
+        The tick to get the label color for.
+    
+    Returns
+    -------
+    str
+        The label color for the given tick.
+    """
+    labelcolor = plt.rcParams[f'{tick}.labelcolor']
+    if labelcolor == 'inherit':
+        labelcolor = plt.rcParams[f'{tick}.color']
+    return labelcolor
+
+
+def swap_xy_axes_params(
+        ax: Axes,
+        grid: bool = True,
+        margin: bool = True,
+        spines: bool = True,
+        ticks: bool = True,) -> None:
+    """Swaps the x and y axis parameters of the given Axes object, 
+    including grid, margins, spines, and ticks.
+
+    This function is useful for quickly inverting the x and y axes of 
+    a plot, preserving the overall layout and appearance.
+
+    Parameters
+    ----------
+    ax : Axes
+        The Axes object to swap the x and y axis parameters for.
+    grid : bool, optional
+        Whether to swap the grid axis. Defaults to True.
+    margin : bool, optional
+        Whether to swap the axis margins. Defaults to True.
+    spines : bool, optional
+        Whether to swap the axis spines. Defaults to True.
+    ticks : bool, optional
+        Whether to swap the axis ticks and labels. Defaults to True.
+    """
+    if grid:
+        ax.grid(
+            visible=plt.rcParams['axes.grid'],
+            which=plt.rcParams['axes.grid.which'],
+            axis=get_opposite_axis(plt.rcParams['axes.grid.axis']),)
+    if margin:
+        ax.set(
+            ymargin=plt.rcParams['axes.xmargin'],
+            xmargin=plt.rcParams['axes.ymargin'],)
+    if spines:
+        ax.spines['left'].set_visible(plt.rcParams['axes.spines.bottom'])
+        ax.spines['bottom'].set_visible(plt.rcParams['axes.spines.left'])
+        ax.spines['top'].set_visible(plt.rcParams['axes.spines.right'])
+        ax.spines['right'].set_visible(plt.rcParams['axes.spines.top'])
+    
+    if ticks:
+        ax.tick_params(
+            axis='x',
+            top=plt.rcParams['ytick.right'],
+            bottom=plt.rcParams['ytick.left'],
+            labeltop=plt.rcParams['ytick.labelleft'],
+            labelbottom=plt.rcParams['ytick.labelright'],)
+        ax.tick_params(
+            axis='y',
+            left=plt.rcParams['xtick.bottom'],
+            right=plt.rcParams['xtick.top'],
+            labelleft=plt.rcParams['xtick.labeltop'],
+            labelright=plt.rcParams['xtick.labelbottom'],)
+        for axis in ('x', 'y'):
+            tick = 'xtick' if axis == 'y' else 'ytick'
+            ax.tick_params(
+                axis=axis,
+                which='major',
+                length=plt.rcParams[f'{tick}.major.size'],
+                width=plt.rcParams[f'{tick}.major.width'],
+                pad=plt.rcParams[f'{tick}.major.pad'],
+                color=plt.rcParams[f'{tick}.color'],
+                labelcolor=tick_labelcolor(tick),
+                labelsize=plt.rcParams[f'{tick}.labelsize'],
+                direction=plt.rcParams[f'{tick}.direction'])
+            ax.tick_params(
+                axis=axis,
+                which='minor',
+                length=plt.rcParams[f'{tick}.minor.size'],
+                width=plt.rcParams[f'{tick}.minor.width'],
+                pad=plt.rcParams[f'{tick}.minor.pad'],)
 
 
 class Chart(ABC):
@@ -138,9 +250,9 @@ class Chart(ABC):
         object.
     """
     __slots__ = (
-        'source', 'target', 'feature', 'target_on_y', 'axes',
-        'label_facets', 'stripes_facets', '_data',
-        '_plots', '_colors', '_markers', '_n_size_bins', '_kw_where')
+        'source', 'target', 'feature', 'target_on_y', 'axes', '_ax',
+        'label_facets', 'stripes_facets', '_data', '_plots', '_colors', 
+        '_markers', '_n_size_bins', '_kw_where')
     
     source: DataFrame
     """Pandas DataFrame containing the source data in long-format."""
@@ -176,6 +288,10 @@ class Chart(ABC):
     argument is passed in the `kw_where` argument of the `plot` method.
     It must then be applied to `source` within `_data_generator_`
     method."""
+    _ax: Axes | None
+    """Axes object to which this chart belongs. This attribute is None 
+    for parent charts such as JointChart and MultipleVariateChart. For 
+    SingleChart this cannot be None."""
 
     def __init__(
             self,
@@ -221,8 +337,7 @@ class Chart(ABC):
         else:
             self.axes = axes
         self.target_on_y = target_on_y
-        for ax in self.axes:
-            getattr(ax, f'set_{"x" if self.target_on_y else "y"}margin')(0)
+        self._ax = self.axes.ax
 
     @property
     def figure(self) -> Figure:
@@ -239,21 +354,19 @@ class Chart(ABC):
     def plots(self) -> List[Plotter]:
         """Get plotter objects used in `plot` method"""
         return self._plots
-
+    
     @abstractmethod
     def _axis_label_(
             self, label: Any, is_target: bool) -> str | Tuple[str, ...]:
         """Helper method to get the axis label based on the provided 
-        label and is_target flag.
-        """
+        label and is_target flag."""
         
     @abstractmethod
     def axis_labels(
             self, feature_label: Any, target_label: Any
             ) -> Tuple[str | Tuple[str, ...], str | Tuple[str, ...]]:
         """Get the x and y axis labels based on the provided 
-        `feature_label` and `target_label`.
-        """
+        `feature_label` and `target_label`."""
         
     @abstractmethod
     def _data_generator_(self) -> Generator[DataFrame, Self, None]:
@@ -569,15 +682,16 @@ class SingleChart(Chart):
         self._current_variate = {}
         self._last_variate = {}
         self._reset_variate_()
+        self._swap_xy_axes_params_()
     
     @property
     def ax(self) -> Axes:
         """Get the axes instance (read-only)."""
-        if self.axes.ax is None:
+        if self._ax is None:
             raise AttributeError(
                 'The current Axes instance is not set. Iterate over the '
                 'AxesFacets instance and the sub charts simultaneously')
-        return self.axes.ax
+        return self._ax
     
     @property
     def variate_names(self) -> List[str]:
@@ -617,6 +731,14 @@ class SingleChart(Chart):
         if hasattr(self, 'stripes_facets'):
             handle_label[STR['stripes']] = self.stripes_facets.handles_labels()
         return handle_label
+    
+    def _swap_xy_axes_params_(self) -> None:
+        """if target_on_y is false, all X- or Y-axis related rcParams 
+        are swapped in pairs. If the plot is transposed, the set 
+        parameters should also be swapped"""
+        if self.target_on_y:
+            return
+        swap_xy_axes_params(self.ax)
     
     def _axis_label_(
             self, label: str | bool | None, is_target: bool) -> str:
@@ -1664,9 +1786,11 @@ class MultipleVariateChart(SingleChart):
         """
         names = [c for c in (self.row, self.col) if c]
         grouper = self.source.groupby(names) if names else [('', self.source)]
-        for _, (_, data) in zip(self.axes, grouper):
+        for ax, (_, data) in zip(self.axes, grouper):
+            self._ax = ax
             axes_data = data[self.target]
             yield axes_data
+        self._ax = self.axes._default
 
     def plot(
             self,

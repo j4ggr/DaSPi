@@ -359,7 +359,7 @@ axes.prop_cycle: cycler('color', ['0091DC', '00D8AD', 'DB00DB', 'DB7800', 'ADD80
                                             # e.g. '1f77b4', instead of 1f77b4.
                                             # See also https://matplotlib.org/tutorials/intermediate/color_cycle.html
                                             # for more details on prop_cycle usage.
-axes.xmargin:   0.05                        # x margin.  See `axes.Axes.margins`
+axes.xmargin:   0.00                        # x margin.  See `axes.Axes.margins`
 axes.ymargin:   0.05                        # y margin.  See `axes.Axes.margins`
 axes.zmargin:   0.05                        # z margin.  See `axes.Axes.margins`
 axes.autolimit_mode: round_numbers          # If "data", use axes.xmargin and axes.ymargin as is.
@@ -392,9 +392,9 @@ yaxis.labellocation: center                 # alignment of the yaxis label: {bot
 # See https://matplotlib.org/examples/ticks_and_spines/date_precision_and_epochs.py
 
 date.autoformatter.year:        %Y
-date.autoformatter.month:       %m.%Y
-date.autoformatter.day:         %d.%m.%Y
-date.autoformatter.hour:        %d.%m %H
+date.autoformatter.month:       %Y-%m
+date.autoformatter.day:         %Y-%m-%d
+date.autoformatter.hour:        %m-%d %H
 date.autoformatter.minute:      %d %H:%M
 date.autoformatter.second:      %H:%M:%S
 date.autoformatter.microsecond: %M:%S.%f
