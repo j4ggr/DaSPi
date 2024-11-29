@@ -12,5 +12,6 @@
             - delta_proportions_ci
             - fit_ci
             - prediction_ci
-            - dist_prob_fit_ci
             - confidence_to_alpha
+            - loess_smooth
+            - loess_smooth_ci

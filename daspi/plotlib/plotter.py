@@ -591,8 +591,8 @@ class LinearRegression(Plotter):
         """Get confidence interval for prediction and fitted line as 
         DataFrame."""
         data = (
-            *fit_ci(self.model),
-            *prediction_ci(self.model))
+            *fit_ci(self.model)[-2:],
+            *prediction_ci(self.model)[-2:])
         ci_data = pd.DataFrame(
             data = np.array(data, dtype=float).T, 
             columns = PLOTTER.REGRESSION_CI_NAMES)

@@ -17,6 +17,7 @@ drop_card,Experiment in which an attempt is made to drop a Jass card with an out
 eeprom_full-factorial,Full factorial DOE of a process improvement project for eeproms,anova,Six Sigma TC GmbH
 eeprom_partial-factorial,Partial factorial DOE of a process improvement project for eeproms,anova,Six Sigma TC GmbH
 iris,This is one of the earliest datasets used in the literature on classification methods and widely used in statistics and machine learning. Here it's in a long format., BivariateUnivariate Chart,https://archive.ics.uci.edu/ml/datasets/iris
+mpg,This dataset contains a subset of the fuel economy data that the EPA makes available on https://fueleconomy.gov/. It contains only models which had a new release every year between 1999 and 2008 - this was used as a proxy for the popularity of the car,anova,ggplot2 data https://ggplot2.tidyverse.org/reference/mpg.html
 partial-factorial,Partial factorial DOE of a process improvement project,anova,Six Sigma TC GmbH
 salt_sticks,Experiment in which a salt stick is broken into thirds by hand as accurately as possible. The measurements were taken with a ruler,process capability,Green Belt Training Experiment at Six Sigma TC GmbH
 shoe-sole,Hypothetical data of an agreement between two shoe sole materials (old and new).,BlandAltman Plotter,Bland J. M. & Altman D. (1986)

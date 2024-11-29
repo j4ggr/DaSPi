@@ -2,9 +2,9 @@
 import scipy
 import numpy as np
 import pandas as pd
+import statsmodels.api as sm
 
 from math import sqrt
-from numpy import ndarray
 from typing import List
 from typing import Tuple
 from typing import Iterable
@@ -69,8 +69,10 @@ def mean_ci(
     -------
     x_bar : float
         expected value
-    ci_low, ci_upp : float
-        lower and upper confidence level
+    lower : float
+        Lower confidence level
+    upper : float
+        Upper confidence levell
     
     Notes
     -----
@@ -83,8 +85,8 @@ def mean_ci(
     se = sem(sample)
     dof = len(sample)-1
     x_bar = float(np.mean(sample))
-    ci_low, ci_upp = t.interval(level, dof, loc=x_bar, scale=se)
-    return x_bar, ci_low, ci_upp
+    lower, upper = t.interval(level, dof, loc=x_bar, scale=se)
+    return x_bar, lower, upper
 
 def median_ci(
         sample: NumericSample1D,
@@ -108,8 +110,10 @@ def median_ci(
     -------
     median : float
         median of data
-    ci_low, ci_upp : float
-        lower and upper confidence level
+    lower : float
+        Lower confidence level
+    upper : float
+        Upper confidence levell
     
     Notes
     -----
@@ -122,8 +126,8 @@ def median_ci(
     se = sem(sample)
     dof = len(sample) - 1
     median = float(np.median(sample))
-    ci_low, ci_upp = t.interval(level, dof, loc=median, scale=se)
-    return median, ci_low, ci_upp
+    lower, upper = t.interval(level, dof, loc=median, scale=se)
+    return median, lower, upper
 
 def variance_ci(
         sample: NumericSample1D,
@@ -147,15 +151,17 @@ def variance_ci(
     -------
     s2 : float
         variance of data
-    ci_low, ci_upp : float
-        lower and upper confidence level
+    lower : float
+        Lower confidence level
+    upper : float
+        Upper confidence levell
     """
     alpha = confidence_to_alpha(level, two_sided=True, n_groups=n_groups)
     dof = len(sample) - 1
     s2 = float(np.var(sample, ddof=1)) # do not remove ddof=1, default is 0!
-    ci_upp = float(dof * s2 / chi2.ppf(alpha, dof))
-    ci_low = float(dof * s2 / chi2.ppf(1 - alpha, dof))
-    return s2, ci_low, ci_upp
+    upper = float(dof * s2 / chi2.ppf(alpha, dof))
+    lower = float(dof * s2 / chi2.ppf(1 - alpha, dof))
+    return s2, lower, upper
 
 def stdev_ci(
         sample: NumericSample1D,
@@ -179,11 +185,13 @@ def stdev_ci(
     -------
     s : float
         variance of data
-    ci_low, ci_upp : float
-        lower and upper confidence level
+    lower : float
+        Lower confidence level
+    upper : float
+        Upper confidence levell
     """
-    s, ci_low, ci_upp = tuple(map(sqrt, variance_ci(sample, level, n_groups)))
-    return s, ci_low, ci_upp
+    s, lower, upper = tuple(map(sqrt, variance_ci(sample, level, n_groups)))
+    return s, lower, upper
 
 def proportion_ci(
         events: int,
@@ -211,14 +219,14 @@ def proportion_ci(
     -------
     portion : float
         Portion as ratio events/observations.
-    ci_low, ci_upp : float
+    lower, upper : float
         The lower and upper confidence level with coverage approximately 
         ci. 
     """
     alpha = confidence_to_alpha(level, two_sided=False, n_groups=n_groups)
-    ci_low, ci_upp = proportion_confint(events, observations, alpha, 'normal')
+    lower, upper = proportion_confint(events, observations, alpha, 'normal')
     portion = events/observations
-    return portion, ci_low, ci_upp # type: ignore
+    return portion, lower, upper # type: ignore
 
 def cp_ci(
         cp: float,
@@ -253,7 +261,7 @@ def cp_ci(
     cp : float
         For coherence with the other functions, the Cp value is 
         returned unchanged.
-    ci_low, ci_upp : float
+    lower, upper : float
         The lower and upper bounds of the confidence interval for the Cp 
         value.
 
@@ -271,9 +279,9 @@ def cp_ci(
     """
     alpha = confidence_to_alpha(level, two_sided=False, n_groups=n_groups)
     dof = n_samples - n_groups
-    ci_low = cp * float(chi2.ppf(alpha, dof) / (dof))**0.5
-    ci_upp = cp * float(chi2.ppf(1 - alpha, dof) / (dof))**0.5
-    return cp, ci_low, ci_upp
+    lower = cp * float(chi2.ppf(alpha, dof) / (dof))**0.5
+    upper = cp * float(chi2.ppf(1 - alpha, dof) / (dof))**0.5
+    return cp, lower, upper
 
 def cpk_ci(
         cpk: float,
@@ -310,7 +318,7 @@ def cpk_ci(
     cpk : float
         For coherence with the other functions, the Cpk value is 
         returned unchanged.
-    ci_low, ci_upp : float
+    lower, upper : float
         The lower and upper bounds of the confidence interval for the 
         Cpk value.
 
@@ -332,14 +340,19 @@ def cpk_ci(
     dof = n_samples - n_groups
     crit = norm.ppf(1-alpha)
     confidence = cpk * crit * np.sqrt(1/(9*n_samples*cpk) + 1/(2*dof))
-    ci_low = cpk - confidence
-    ci_upp = cpk + confidence
-    return cpk, ci_low, ci_upp
+    lower = cpk - confidence
+    upper = cpk + confidence
+    return cpk, lower, upper
 
 def bonferroni_ci(
-        data: DataFrame, target: str, feature: str | List[str],
-        level: float = 0.95, ci_func: Callable = stdev_ci,
-        n_groups: int | None = None, name: str='midpoint') -> DataFrame:
+        data: DataFrame,
+        target: str,
+        feature: str | List[str],
+        level: float = 0.95,
+        ci_func: Callable = stdev_ci,
+        n_groups: int | None = None,
+        name: str='midpoint'
+        ) -> DataFrame:
     """Calculate confidence interval after bonferroni correction.
     The Bonferroni correction is a method to adjust the significance 
     level alpha.
@@ -382,7 +395,7 @@ def bonferroni_ci(
     all, is significantly increased with multiple tests. This is also
     referred to as alpha error accumulation or alpha inflation.
     """
-    columns = [name, 'ci_low', 'ci_upp']
+    columns = [name, 'lower', 'upper']
     if isinstance(feature, str):
         feature = [feature]
     groups = data.groupby(feature)[target]
@@ -400,8 +413,10 @@ def bonferroni_ci(
     return data
 
 def delta_mean_ci(
-        sample1: NumericSample1D, sample2: NumericSample1D,
-        level: float = 0.95) -> Tuple[float, float, float]:
+        sample1: NumericSample1D,
+        sample2: NumericSample1D,
+        level: float = 0.95
+        ) -> Tuple[float, float, float]:
     """Two sided confidence interval for mean difference of two
     independent variables.
 
@@ -419,9 +434,11 @@ def delta_mean_ci(
     Returns
     -------
     delta : float
-        difference of means of data
-    ci_low, ci_upp : float
-        lower and upper confidence level
+        Difference of means of data
+    lower : float
+        Lower confidence level
+    upper : float
+        Upper confidence levell
     """
     alpha = confidence_to_alpha(level, two_sided=True)
     n1 = len(sample1)
@@ -434,13 +451,15 @@ def delta_mean_ci(
     t_crit = t.ppf(1 - alpha, dof)
     delta = float(np.mean(sample1) - np.mean(sample2))
     confidence = s*t_crit*np.sqrt(1/len(sample1) + 1/len(sample2))
-    ci_low = delta - confidence
-    ci_upp = delta + confidence
-    return delta, ci_low, ci_upp
+    lower = delta - confidence
+    upper = delta + confidence
+    return delta, lower, upper
 
 def delta_variance_ci(
-        sample1: NumericSample1D, sample2: NumericSample1D,
-        level: float = 0.95) -> Tuple[float, float, float]:
+        sample1: NumericSample1D,
+        sample2: NumericSample1D,
+        level: float = 0.95
+        ) -> Tuple[float, float, float]:
     """two sided confidence interval for variance difference of two
     independent variables.
 
@@ -457,8 +476,10 @@ def delta_variance_ci(
     -------
     delta : float
         difference of variance of data
-    ci_low, ci_upp : float
-        lower and upper confidence level
+    lower : float
+        Lower confidence level
+    upper : float
+        Upper confidence levell
     
     Notes
     -----
@@ -472,13 +493,15 @@ def delta_variance_ci(
     delta = s2_1 - s2_2
     F_upp = float(f.ppf(alpha, dof1, dof2))
     F_low = float(f.ppf(1 - alpha, dof1, dof2))
-    ci_low = (s2_1 / s2_2) * F_low
-    ci_upp = (s2_1 / s2_2) * F_upp
-    return delta, ci_low, ci_upp
+    lower = (s2_1 / s2_2) * F_low
+    upper = (s2_1 / s2_2) * F_upp
+    return delta, lower, upper
 
 def delta_stdev_ci(
-        sample1: NumericSample1D, sample2: NumericSample1D,
-        level: float = 0.95) -> Tuple[float, float, float]:
+        sample1: NumericSample1D,
+        sample2: NumericSample1D,
+        level: float = 0.95
+        ) -> Tuple[float, float, float]:
     """two sided confidence interval for standard deviation difference 
     of two independent variables.
 
@@ -495,21 +518,27 @@ def delta_stdev_ci(
     -------
     delta : float
         difference of standard deviation of data
-    ci_low, ci_upp : float
-        lower and upper confidence level
+    lower : float
+        Lower confidence level
+    upper : float
+        Upper confidence levell
     
     Notes
     -----
     This function is a ChatGPT solution and therefore does not guarantee
     that this solution is correct.
     """
-    delta, ci_low, ci_upp = tuple(map(
+    delta, lower, upper = tuple(map(
         sqrt, delta_variance_ci(sample1, sample2, level)))
-    return delta, ci_low, ci_upp
+    return delta, lower, upper
 
 def delta_proportions_ci(
-        events1: int, observations1: int, events2: int, observations2: int,
-        level: float = 0.95) -> Tuple[float, float, float]:
+        events1: int,
+        observations1: int,
+        events2: int,
+        observations2: int,
+        level: float = 0.95
+        ) -> Tuple[float, float, float]:
     """Confidence intervals for comparing two independent proportions
     This assumes that we have two independent binomial sample.
 
@@ -524,25 +553,30 @@ def delta_proportions_ci(
     observations2 : int
         Total number of observations of sample 2.
     level : float in (0, 1), optional
-        confidence level, by default 0.95
+        Confidence level, by default 0.95
 
     Returns
     -------
     delta : float
-        difference of variance of data
-    ci_low, ci_upp : float
-        lower and upper confidence level
+        Difference of variance of data
+    lower : float
+        Lower confidence level
+    upper : float
+        Upper confidence levell
     """
     alpha = confidence_to_alpha(level, two_sided=False)
     delta = events1/observations1 - events2/observations2
-    ci_low, ci_upp = confint_proportions_2indep(
+    lower, upper = confint_proportions_2indep(
         events1, observations1, events2, observations2, 
         method='wald', compare='diff', alpha=alpha)
-    return delta, ci_low, ci_upp # type: ignore
+    lower = float(lower) # type: ignore
+    upper = float(upper) # type: ignore
+    return delta, lower, upper
 
 def fit_ci(
-        model: RegressionResults, level: float = 0.95
-        ) -> Tuple[ndarray, ndarray]:
+        model: RegressionResults,
+        level: float = 0.95
+        ) -> Tuple[NDArray, NDArray, NDArray]:
     """calculate confidence interval fitted line. Applies to fitted WLS 
     and OLS models, not to general GLS
     
@@ -555,8 +589,15 @@ def fit_ci(
     
     Returns
     -------
-    fit_ci_low, fit_ci_upp : numpy ndarray
-        lower and upper confidence limits of fitted line
+    fitted : NDArray
+        For coherence with the other functions, the fitted target 
+        samples are returned as one-dimensional numpy array,
+    lower : NDArray
+        Lower confidence limits of fitting line as one-dimensional numpy 
+        array.
+    upper : NDArray
+        Upper confidence limits of fitting line as one-dimensional numpy 
+        array.
     
     Notes
     -----
@@ -570,13 +611,15 @@ def fit_ci(
     alpha = confidence_to_alpha(level)
     tppf = t.isf(alpha, model.df_resid)
     fit_se = np.sqrt(influence.hat_matrix_diag * model.mse_resid)
-    fit_ci_low = model.fittedvalues - tppf * fit_se
-    fit_ci_upp = model.fittedvalues + tppf * fit_se
-    return fit_ci_low, fit_ci_upp
+    fitted = np.asarray(model.fittedvalues)
+    lower = fitted - tppf * fit_se
+    upper = fitted + tppf * fit_se
+    return fitted, lower, upper
 
 def prediction_ci(
-        model: RegressionResults, level: float = 0.95
-        ) -> Tuple[ndarray, ndarray]:
+        model: RegressionResults,
+        level: float = 0.95
+        ) -> Tuple[NDArray, NDArray, NDArray]:
     """calculate confidence interval for prediction and to observe 
     outliers. Applies to fitted WLS and OLS models, not to general GLS.
     
@@ -589,62 +632,27 @@ def prediction_ci(
     
     Returns
     -------
-    pred_ci_low, pred_ci_upp : numpy ndarray
-        lower and upper confidence limits of prediction
+    fitted : NDArray
+        For coherence with the other functions, the fitted target 
+        samples are returned as one-dimensional numpy array,
+    lower : NDArray
+        Lower confidence limits of prediction as one-dimensional numpy 
+        array.
+    upper : NDArray
+        Upper confidence limits of prediction as one-dimensional numpy 
+        array.
     """
+    fitted = np.asarray(model.fittedvalues)
     alpha = confidence_to_alpha(level)
-    pred_ci_low, pred_ci_upp = wls_prediction_std(model, alpha=alpha)[1:]     # standard error for predicted observation
-    return pred_ci_low, pred_ci_upp
-
-def dist_prob_fit_ci(
-        sample: Iterable, fit: Iterable, dist: str, level: float = 0.95
-        ) -> Tuple[float, float]:
-    """Calculate confidence interval for a fitting line when examining a
-    distribution probability
-    
-    Parameters
-    ----------
-    sample : array like
-        sample data
-    fit : array like
-        data points of fitting line
-    dist : str or distribution generator of scipy package
-        distribution being examined
-    level : float in (0, 1), optional
-        confidence level, by default 0.95
-    
-    Returns
-    -------
-    lower, upper : numpy ndarray
-        lower and upper confidence limits of fitted line
-    
-    Notes
-    -----
-    Based on qqplot function of pinguin package:
-    https://pingouin-stats.org/index.html
-    """
-    _dist = getattr(scipy.stats, dist)
-    alpha = confidence_to_alpha(level)
-    sample = np.asarray(sample)
-    fit = np.asarray(fit)
-    sample.sort()
-    fit.sort()
-    n = len(sample)
-    
-    fit_params = _dist.fit(sample)
-    shape = fit_params[:-2] if len(fit_params) > 2 else None
-    slope = (fit[-1] - fit[0]) / (sample[-1] - sample[0])
-    
-    P = prob_points(n)
-    crit = norm.ppf(1 - alpha)
-    pdf = _dist.pdf(sample) if shape is None else _dist.pdf(sample, *shape)
-    se = (slope / pdf) * np.sqrt(P * (1 - P) / n)
-    upper = fit + crit * se
-    lower = fit - crit * se
-    return lower, upper
+    lower, upper = wls_prediction_std(model, alpha=alpha)[1:]     # standard error for predicted observation
+    lower = np.asarray(lower)
+    upper = np.asarray(upper)
+    return fitted, lower, upper
 
 def confidence_to_alpha(
-        confidence_level: float, two_sided: bool = True, n_groups: int = 1
+        confidence_level: float,
+        two_sided: bool = True,
+        n_groups: int = 1
         ) -> float:
     """Calculate significance level as alpha risk by given confidence 
     level
@@ -674,17 +682,23 @@ def confidence_to_alpha(
     alpha = (1 - confidence_level)/(sides * n_groups)
     return alpha
 
-def prob_points(n: int, a: float | None = None) -> NDArray:
-    """
-    Ordinates For Probability Plotting.
-    Numpy analogue of `R`'s `ppoints` function.
+def prob_points(
+        n_points: int,
+        fraction: float | None = None
+        ) -> NDArray:
+    """Ordinates For Probability Plotting. Numpy analogue of `R`'s 
+    `ppoints` function.
+
+    The prob_points function generates a sequence of points based on the 
+    empirical distribution of the data.
 
     Parameters
     ----------
     n : int
         Number of points generated
-    a : float | None, optional
-        Offset fraction (typically between 0 and 1), by default None
+    fraction : float | None, optional
+        Offset fraction (typically between 0 and 1). If None, the offset
+        is set to 3/8 if n <= 10 and 2/3 otherwise, by default None
 
     Returns
     -------
@@ -697,9 +711,89 @@ def prob_points(n: int, a: float | None = None) -> NDArray:
     Based on _ppoints function of pinguin package:
     https://pingouin-stats.org/index.html
     """
-    if a is None:
-        a = 3/8 if n <= 10 else 0.5
-    return (np.arange(n) + 1 - a) / (n + 1 - 2*a)
+    assert isinstance(n_points, int) and n_points > 0, (
+        f'Number of points must be a positive integer, got {n_points=}')
+    if fraction is None:
+        fraction = 3/8 if n_points <= 10 else 2/3
+    assert fraction < n_points/2, (
+        f'Offset {fraction=} must be less than half the number of points')
+    ppoints = (np.arange(n_points) + 1 - fraction) / (n_points + 1 - 2*fraction)
+    return ppoints
+
+def loess_smooth(
+        target: NumericSample1D,
+        feature: NumericSample1D,
+        fraction: float | None = None) -> NDArray:
+    """Smooth the data using LOESS
+    (Locally Estimated Scatterplot Smoothing).
+    
+    The lowess function from statsmodels is used to perform LOESS 
+    smoothing. The smoothed values are extracted from the result.
+    
+    Parameters
+    ----------
+    target : NumericSample1D
+        A one-dimensional array-like object containing the endogenous 
+        samples.
+    feature : NumericSample1D
+        A one-dimensional array-like object containing the exogenous
+        samples.
+    fraction : float
+        The fraction of the data used for each local regression. If None,
+        the offset is set to 3/8 if n <= 10 and 2/3 otherwise, 
+        by default None
+    
+    Returns
+    -------
+    - smoothed_y: numpy array, the smoothed y values
+    """
+    if fraction is None:
+        fraction = 3/8 if len(target) <= 10 else 2/3
+    lowess = sm.nonparametric.lowess(target, feature, frac=fraction)
+    smoothed_target = np.asarray(lowess[:, 1])
+    return smoothed_target
+
+def loess_smooth_ci(
+        target: NumericSample1D,
+        smoothed_target: NumericSample1D
+        ) -> Tuple[NDArray, NDArray, NDArray]:
+    """This function calculates the confidence bands for the LOESS 
+    smoothed data.
+    
+    The quantiles of the residuals are calculated using the empirical 
+    probabilities generated by `prob_points`. This gives us a way to 
+    define the confidence intervals based on the distribution of the 
+    residuals.
+    
+    Parameters
+    ----------
+    target : NumericSample1D
+        A one-dimensional array-like object containing the endogenous 
+        samples.
+    smoothed_target : NumericSample1D
+        A one-dimensional array-like object containing the LOESS
+        smoothed target samples.
+    
+    Returns
+    -------
+    smoothed_target : NDArray
+        For coherence with the other functions, the smoothed_target 
+        samples are returned as one-dimensional numpy array,
+    lower : NDArray
+        The lower confidence band as one-dimensional numpy array.
+    upper : NDArray
+        The upper confidence band as one-dimensional numpy array.
+    """
+    target = np.asarray(target)
+    smoothed_target = np.asarray(smoothed_target)
+    residuals = target - smoothed_target
+    ppoints = prob_points(len(target))
+    quantiles = np.percentile(residuals, 100 * ppoints)
+
+    lower = smoothed_target + quantiles[0]
+    upper = smoothed_target + quantiles[-1]
+    
+    return smoothed_target, lower, upper
 
 __all__ = [
     'sem',
@@ -716,6 +810,7 @@ __all__ = [
     'delta_proportions_ci',
     'fit_ci',
     'prediction_ci',
-    'dist_prob_fit_ci',
     'confidence_to_alpha',
-    'prob_points']
+    'prob_points',
+    'loess_smooth',
+    'loess_smooth_ci']

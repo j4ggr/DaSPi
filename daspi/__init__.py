@@ -85,11 +85,12 @@ from .statistics.confidence import stdev_ci
 from .statistics.confidence import median_ci
 from .statistics.confidence import variance_ci
 from .statistics.confidence import prob_points
+from .statistics.confidence import loess_smooth
 from .statistics.confidence import proportion_ci
 from .statistics.confidence import bonferroni_ci
 from .statistics.confidence import delta_mean_ci
 from .statistics.confidence import prediction_ci
-from .statistics.confidence import dist_prob_fit_ci
+from .statistics.confidence import loess_smooth_ci
 from .statistics.confidence import delta_variance_ci
 from .statistics.confidence import confidence_to_alpha
 from .statistics.confidence import delta_proportions_ci
