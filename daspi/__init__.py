@@ -85,12 +85,12 @@ from .statistics.confidence import stdev_ci
 from .statistics.confidence import median_ci
 from .statistics.confidence import variance_ci
 from .statistics.confidence import prob_points
-from .statistics.confidence import loess_smooth
+from .statistics.confidence import loess
 from .statistics.confidence import proportion_ci
 from .statistics.confidence import bonferroni_ci
 from .statistics.confidence import delta_mean_ci
 from .statistics.confidence import prediction_ci
-from .statistics.confidence import loess_smooth_ci
+from .statistics.confidence import loess_ci
 from .statistics.confidence import delta_variance_ci
 from .statistics.confidence import confidence_to_alpha
 from .statistics.confidence import delta_proportions_ci
@@ -141,12 +141,12 @@ from .plotlib.plotter import GaussianKDE
 from .plotlib.plotter import VariationTest
 from .plotlib.plotter import ProportionTest
 from .plotlib.plotter import CenterLocation
-from .plotlib.plotter import LinearRegression
 from .plotlib.plotter import TransformPlotter
 from .plotlib.plotter import StandardErrorMean
 from .plotlib.plotter import ConfidenceInterval
 from .plotlib.plotter import ParallelCoordinate
 from .plotlib.plotter import GaussianKDEContour
+from .plotlib.plotter import LinearRegressionLine
 from .plotlib.plotter import CapabilityConfidenceInterval
 
 from .plotlib.facets import AxesFacets

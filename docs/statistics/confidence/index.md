@@ -13,5 +13,5 @@
             - fit_ci
             - prediction_ci
             - confidence_to_alpha
-            - loess_smooth
-            - loess_smooth_ci
+            - loess
+            - loess_ci

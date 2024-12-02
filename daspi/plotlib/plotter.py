@@ -24,7 +24,7 @@ Scatter:
     A scatter plotter that extends the `Plotter` base class.
 Line:
     A line plotter that extends the `Plotter` base class.
-LinearRegression:
+LinearRegressionLine:
     A linear regression plotter that extends the `Plotter` base class.
 Probability:
     A probability plotter that extends the `LinearRegression` class.
@@ -66,7 +66,7 @@ Create a scatter plot
 ```python
 from plotter import Plotter
 from plotter import Scatter
-from plotter import LinearRegression
+from plotter import LinearRegressionLine
 from plotter import Probability
 from plotter import TransformPlotter
 from plotter import CenterLocation
@@ -79,7 +79,8 @@ scatter_plot()
 Create a linear regression plot
 ```python
 data = {...}  # Data source for the plot
-linear_regression_plot = LinearRegression(data, 'target_variable', 'feature_variable')
+linear_regression_plot = LinearRegressionLine(
+    data, 'target_variable', 'feature_variable')
 linear_regression_plot()
 ```
 
@@ -152,9 +153,11 @@ from ..constants import DEFAULT
 from ..constants import PLOTTER
 from ..constants import CATEGORY
 
+from ..statistics import loess
 from ..statistics import fit_ci
 from ..statistics import mean_ci
 from ..statistics import stdev_ci
+from ..statistics import loess_ci
 from ..statistics import Estimator
 from ..statistics import variance_ci
 from ..statistics import prediction_ci
@@ -477,7 +480,7 @@ class Line(Plotter):
         self.ax.plot(self.x, self.y, **_kwds)
             
 
-class LinearRegression(Plotter):
+class LinearRegressionLine(Plotter):
     """A linear regression plotter that extends the Plotter base class.
     
     Parameters
@@ -505,9 +508,9 @@ class LinearRegression(Plotter):
         the current one using `plt.gca`. If none is available, one is 
         created. The same applies to the Figure object. Defaults to 
         None.
-    show_points : bool, optional
+    show_scatter : bool, optional
         Flag indicating whether to show the individual points, 
-        by default True.
+        by default False.
     show_fit_ci : bool, optional
         Flag indicating whether to show the confidence interval for
         the fitted line as filled area, by default False.
@@ -520,14 +523,14 @@ class LinearRegression(Plotter):
         used within chart objects).
     """
     __slots__ = (
-        'model', 'target_fit', 'show_points', 'show_fit_ci', 'show_pred_ci')
+        'model', 'fit', 'show_scatter', 'show_fit_ci', 'show_pred_ci')
     
     model: OLSResults
     """The fitted results of the linear regression model."""
-    target_fit: Literal['_fitted_values_']
+    fit: Literal['_fitted_values_']
     """The name of the column containing the fitted values as defined 
     in the PLOTTER.FITTED_VALUES_NAME."""
-    show_points: bool
+    show_scatter: bool
     """Whether to show the individual points in the plot."""
     show_fit_ci: bool
     """Whether to show the confidence interval for the fitted line."""
@@ -543,12 +546,12 @@ class LinearRegression(Plotter):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
-            show_points: bool = True,
+            show_scatter: bool = True,
             show_fit_ci: bool = False,
             show_pred_ci: bool = False,
             **kwds) -> None:
-        self.target_fit = PLOTTER.FITTED_VALUES_NAME
-        self.show_points = show_points
+        self.fit = PLOTTER.FITTED_VALUES_NAME
+        self.show_scatter = show_scatter
         self.show_fit_ci = show_fit_ci
         self.show_pred_ci = show_pred_ci
         df = source if isinstance(source, DataFrame) else pd.DataFrame(source)
@@ -558,7 +561,7 @@ class LinearRegression(Plotter):
             .dropna(axis=0, how='any')
             .reset_index(drop=True))
         self.model = sm.OLS(df[target], sm.add_constant(df[feature])).fit() # type: ignore
-        df[self.target_fit] = self.model.fittedvalues
+        df[self.fit] = self.model.fittedvalues
         df = pd.concat([df, self.ci_data()], axis=1)
         super().__init__(
             source=df,
@@ -578,13 +581,13 @@ class LinearRegression(Plotter):
     @property
     def x_fit(self) -> ArrayLike:
         """Get values used for x-axis for fitted line (read-only)."""
-        name = self.feature if self.target_on_y else self.target_fit
+        name = self.feature if self.target_on_y else self.fit
         return self.source[name]
     
     @property
     def y_fit(self) -> ArrayLike:
         """Get values used for y-axis for fitted line (read-only)"""
-        name = self.target_fit if self.target_on_y else self.feature
+        name = self.fit if self.target_on_y else self.feature
         return self.source[name]
     
     def ci_data(self) -> pd.DataFrame:
@@ -626,7 +629,7 @@ class LinearRegression(Plotter):
         _kwds = self.kw_default | kwds
         self.ax.plot(self.x_fit, self.y_fit, **_kwds)
         
-        if self.show_points:
+        if self.show_scatter:
             kw_scatter = color | dict(marker=self.marker) | kw_scatter
             self.ax.scatter(self.x, self.y, **kw_scatter)
         if self.show_fit_ci:
@@ -645,11 +648,153 @@ class LinearRegression(Plotter):
                 self.ax.plot(self.x, lower, self.x, upper, **kw_pred_ci)
             else:
                 self.ax.plot(lower, self.y, upper, self.y, **kw_pred_ci)
+            
+
+class LoessLine(Plotter):
+    """
+    
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot,
+        by default ''
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on the
+        y-axis, by default True
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the scatter plot. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
+    ax : Axes | None, optional
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
+    show_scatter : bool, optional
+        Flag indicating whether to show the individual points, 
+        by default True.
+    show_ci : bool, optional
+        Flag indicating whether to show the confidence interval for
+        the loess line as filled area, by default False.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
+    """
+    __slots__ = (
+        'loess', 'show_scatter', 'show_ci')
+    
+    model: OLSResults
+    """The fitted results of the linear regression model."""
+    loess: Literal['_loess_values_']
+    """The name of the column containing the loess values as defined 
+    in the PLOTTER.LOESS_VALUES_NAME."""
+    show_scatter: bool
+    """Whether to show the individual points in the plot."""
+    show_ci: bool
+    """Whether to show the confidence interval for the loess line."""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str,
+            target_on_y: bool = True,
+            color: str | None = None,
+            marker: str | None = None,
+            ax: Axes | None = None,
+            show_scatter: bool = True,
+            show_ci: bool = False,
+            **kwds) -> None:
+        self.loess = PLOTTER.LOESS_VALUES_NAME
+        self.show_scatter = show_scatter
+        self.show_ci = show_ci
+        df = source if isinstance(source, DataFrame) else pd.DataFrame(source)
+        df = (df
+            .copy()
+            .sort_values(feature)
+            [[feature, target]]
+            .dropna(axis=0, how='any')
+            .reset_index(drop=True))
+        df[self.loess] = loess(df[feature], df[target])
+        _, lower, upper = loess_ci(df[target], df[self.loess])
+        df[PLOTTER.LOESS_LOW] = lower
+        df[PLOTTER.LOESS_UPP] = upper
+        super().__init__(
+            source=df,
+            target=target,
+            feature=feature,
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax)
+    
+    @property
+    def kw_default(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = KW.FIT_LINE | dict(color=self.color)
+        return kwds
+    
+    @property
+    def x_loess(self) -> ArrayLike:
+        """Get values used for x-axis for fitted line (read-only)."""
+        name = self.feature if self.target_on_y else self.loess
+        return self.source[name]
+    
+    @property
+    def y_loess(self) -> ArrayLike:
+        """Get values used for y-axis for fitted line (read-only)"""
+        name = self.loess if self.target_on_y else self.feature
+        return self.source[name]
+    
+    def __call__(
+            self,
+            kw_scatter: dict = {},
+            kw_ci: dict = {},
+            **kwds) -> None:
+        """
+        Perform the linear regression plot operation.
+
+        Parameters
+        ----------
+        kw_scatter : dict, optional
+            Additional keyword arguments for the Axes `scatter` method,
+            by default {}.
+        kw_ci : dict, optional
+            Additional keyword arguments for the confidence interval of 
+            the loess line (Axes `fill_between` method), by default {}.
+        **kwds:
+            Additional keyword arguments to be passed to the fit line
+            plot (Axes `plot` method).
+        """
+        color = dict(color=self.color)
+        _kwds = self.kw_default | kwds
+        self.ax.plot(self.x_loess, self.y_loess, **_kwds)
+        
+        if self.show_scatter:
+            kw_scatter = color | dict(marker=self.marker) | kw_scatter
+            self.ax.scatter(self.x, self.y, **kw_scatter)
+        if self.show_ci:
+            kw_fit_ci = KW.FIT_CI | color | kw_ci
+            lower = self.source[PLOTTER.FIT_CI_LOW]
+            upper = self.source[PLOTTER.FIT_CI_UPP]
+            if self.target_on_y:
+                self.ax.fill_between(self.x, lower, upper, **kw_fit_ci)
+            else:
+                self.ax.fill_betweenx(self.y, lower, upper, **kw_fit_ci)
 
 
-class Probability(LinearRegression):
+class Probability(LinearRegressionLine):
     """A Q-Q and P-P probability plotter that extends the 
-    LinearRegression class.
+    LinearRegressionLine class.
     
     Parameters
     ----------
@@ -687,7 +832,7 @@ class Probability(LinearRegression):
         the current one using `plt.gca`. If none is available, one is 
         created. The same applies to the Figure object. Defaults to 
         None.
-    show_points : bool, optional
+    show_scatter : bool, optional
         Flag indicating whether to show the individual points, 
         by default True.
     show_fit_ci : bool, optional
@@ -725,7 +870,7 @@ class Probability(LinearRegression):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
-            show_points: bool = True,
+            show_scatter: bool = True,
             show_fit_ci: bool = True,
             show_pred_ci: bool = True,
             **kwds) -> None:
@@ -750,7 +895,7 @@ class Probability(LinearRegression):
             color=color,
             marker=marker,
             ax=ax, 
-            show_points=show_points, show_fit_ci=show_fit_ci,
+            show_scatter=show_scatter, show_fit_ci=show_fit_ci,
             show_pred_ci=show_pred_ci)
     
     def _xy_scale_(self) -> Tuple[str, str]:
@@ -845,7 +990,7 @@ class ParallelCoordinate(Plotter):
     identity : str
         Column name containing identities of each sample, must occur 
         once for each coordinate.
-    show_points : bool, optional
+    show_scatter : bool, optional
         Flag indicating whether to show the individual points, 
         by default True.
     target_on_y : bool, optional
@@ -869,11 +1014,11 @@ class ParallelCoordinate(Plotter):
         used within chart objects).
     """
 
-    __slots__ = ('identity', 'show_points')
+    __slots__ = ('identity', 'show_scatter')
 
     identity: str
     """Column name containing identities of each sample.""" 
-    show_points: bool
+    show_scatter: bool
     """Whether to show the individual points or not."""
 
     def __init__(
@@ -882,14 +1027,14 @@ class ParallelCoordinate(Plotter):
             target: str,
             feature: str,
             identity: str,
-            show_points: bool = True,
+            show_scatter: bool = True,
             target_on_y: bool = True,
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
             **kwds) -> None:
         self.identity = identity
-        self.show_points = show_points
+        self.show_scatter = show_scatter
         super().__init__(
             source=source,
             target=target,
@@ -914,7 +1059,7 @@ class ParallelCoordinate(Plotter):
             Additional keyword arguments to be passed to the fit line
             plot (Axes `plot` method)."""
         marker = kwds.pop('marker', self.marker) or DEFAULT.MARKER
-        if not self.show_points:
+        if not self.show_scatter:
             marker = None
         _kwds = self.kw_default | dict(marker=marker) | kwds
         for i, group in self.source.groupby(self.identity):
@@ -4033,7 +4178,7 @@ __all__ = [
     'Plotter',
     'Scatter',
     'Line',
-    'LinearRegression',
+    'LinearRegressionLine',
     'Probability',
     'ParallelCoordinate',
     'TransformPlotter',

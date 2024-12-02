@@ -720,15 +720,17 @@ def prob_points(
     ppoints = (np.arange(n_points) + 1 - fraction) / (n_points + 1 - 2*fraction)
     return ppoints
 
-def loess_smooth(
+def loess(
         target: NumericSample1D,
         feature: NumericSample1D,
-        fraction: float | None = None) -> NDArray:
-    """Smooth the data using LOESS
-    (Locally Estimated Scatterplot Smoothing).
+        fraction: float | None = None
+        ) -> Tuple[NDArray, NDArray]:
+    """Smooth the data using Locally Estimated Scatterplot Smoothing 
+    (LOESS).
     
-    The lowess function from statsmodels is used to perform LOESS 
-    smoothing. The smoothed values are extracted from the result.
+    The lowess function from statsmodels is used to perform the LOESS. 
+    The "w" in lowess stands for weighted. The smoothed values are 
+    extracted from the result.
     
     Parameters
     ----------
@@ -745,15 +747,21 @@ def loess_smooth(
     
     Returns
     -------
-    - smoothed_y: numpy array, the smoothed y values
+    feature_sorted: NDArray
+        The sorted feature as one-dimensional numpy array
+    target_smoothed : NDArray
+        The locally estimated smoothed and sorted target as 
+        one-dimensional numpy array,
     """
     if fraction is None:
         fraction = 3/8 if len(target) <= 10 else 2/3
-    lowess = sm.nonparametric.lowess(target, feature, frac=fraction)
-    smoothed_target = np.asarray(lowess[:, 1])
-    return smoothed_target
+    lowess = sm.nonparametric.lowess(
+        target, feature, frac=fraction, is_sorted=True)
+    feature_sorted = np.asarray(lowess[:, 0])
+    target_smoothed = np.asarray(lowess[:, 1])
+    return feature_sorted, target_smoothed
 
-def loess_smooth_ci(
+def loess_ci(
         target: NumericSample1D,
         smoothed_target: NumericSample1D
         ) -> Tuple[NDArray, NDArray, NDArray]:
@@ -812,5 +820,5 @@ __all__ = [
     'prediction_ci',
     'confidence_to_alpha',
     'prob_points',
-    'loess_smooth',
-    'loess_smooth_ci']
+    'loess',
+    'loess_ci']

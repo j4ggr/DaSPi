@@ -60,6 +60,7 @@ from typing import Generator
 from pathlib import Path
 from numpy.typing import NDArray
 from matplotlib.axes import Axes
+from matplotlib.axis import Axis
 from matplotlib.axis import XAxis
 from matplotlib.axis import YAxis
 from matplotlib.figure import Figure
@@ -89,51 +90,62 @@ from ..constants import COLOR
 from ..constants import PLOTTER
 from ..constants import CATEGORY
 
+# TODO: Remove iter over self and add option for removing variates at _generate_data_
 
-def get_opposite_axis(
-        axis: Literal['x', 'y', 'both']
-        ) -> Literal['x', 'y', 'both']:
-    """Gets the opposite axis of the given axis.
-
-    Parameters
-    ----------
-    axis : Literal['x', 'y', 'both']
-        The axis to get the opposite of.
-
-    Returns
-    -------
-    Literal['x', 'y', 'both']
-        The opposite axis of the given axis. If 'both' is given, 'both' 
-        is returned."""
-    opposites : Dict[str, Literal['x'] | Literal['y']] = {'x': 'y', 'y': 'x'}
-    return opposites.get(axis, 'both')
-
-def tick_labelcolor(tick: Literal['xtick', 'ytick']) -> str:
-    """Gets the label color for the given tick. If 'inherit' is given,
-    inherit from xtick.color (or ytick.color)
-    
-    Parameters
-    ----------
-    tick : Literal['xtick', 'ytick']
-        The tick to get the label color for.
-    
-    Returns
-    -------
-    str
-        The label color for the given tick.
-    """
-    labelcolor = plt.rcParams[f'{tick}.labelcolor']
-    if labelcolor == 'inherit':
-        labelcolor = plt.rcParams[f'{tick}.color']
-    return labelcolor
-
-
-def swap_xy_axes_params(
+def get_shared_axes(
         ax: Axes,
-        grid: bool = True,
+        axis: Literal['x', 'y']
+        ) -> List[Axes]:
+    """Gets the shared Axes object of the given axis.
+    
+    Parameters
+    ----------
+    ax : Axes
+        The Axes object to get the shared Axes object of.
+    axis : Literal['x', 'y']
+        The axis to get the shared Axes object of.
+    
+    Returns
+    -------
+    List[Axes]
+        The shared Axes object of the given axis.
+    """
+    xy_axis: Axis = getattr(ax, f'{axis}axis')
+    shared_axis: List[Axis] = xy_axis._get_shared_axis() # type: ignore
+    return [a.axes for a in shared_axis]
+
+def positions_of_shared_axes(
+        ax: Axes,
+        axis: Literal['x', 'y']
+        ) -> List[int]:
+    """Gets the positions in the flat axis grid of the shared axes.
+
+    First get the shared Axes object of the given axis. Then get the
+    positions of the shared axes in the flat axis.
+
+    Parameters
+    ----------
+    ax : Axes
+        The Axes object to get the shared axes of.
+    axis : Literal['x', 'y']
+        The axis to get the shared axes of.
+
+    Returns
+    -------
+    List[int]
+        The positions of the shared axes of the given axis.
+    """
+    if ax.figure is None:
+        return []
+    shared = get_shared_axes(ax, axis)
+    return sorted(ax.figure.axes.index(x) for x in shared)
+
+def transpose_xy_axes_params(
+        ax: Axes,
         margin: bool = True,
         spines: bool = True,
-        ticks: bool = True,) -> None:
+        ticks: bool | Literal['x', 'y', 'both'] | None = True
+        ) -> None:
     """Swaps the x and y axis parameters of the given Axes object, 
     including grid, margins, spines, and ticks.
 
@@ -144,8 +156,6 @@ def swap_xy_axes_params(
     ----------
     ax : Axes
         The Axes object to swap the x and y axis parameters for.
-    grid : bool, optional
-        Whether to swap the grid axis. Defaults to True.
     margin : bool, optional
         Whether to swap the axis margins. Defaults to True.
     spines : bool, optional
@@ -153,11 +163,6 @@ def swap_xy_axes_params(
     ticks : bool, optional
         Whether to swap the axis ticks and labels. Defaults to True.
     """
-    if grid:
-        ax.grid(
-            visible=plt.rcParams['axes.grid'],
-            which=plt.rcParams['axes.grid.which'],
-            axis=get_opposite_axis(plt.rcParams['axes.grid.axis']),)
     if margin:
         ax.set(
             ymargin=plt.rcParams['axes.xmargin'],
@@ -169,36 +174,40 @@ def swap_xy_axes_params(
         ax.spines['right'].set_visible(plt.rcParams['axes.spines.top'])
     
     if ticks:
-        ax.tick_params(
-            axis='x',
-            top=plt.rcParams['ytick.right'],
-            bottom=plt.rcParams['ytick.left'],
-            labeltop=plt.rcParams['ytick.labelleft'],
-            labelbottom=plt.rcParams['ytick.labelright'],)
-        ax.tick_params(
-            axis='y',
-            left=plt.rcParams['xtick.bottom'],
-            right=plt.rcParams['xtick.top'],
-            labelleft=plt.rcParams['xtick.labeltop'],
-            labelright=plt.rcParams['xtick.labelbottom'],)
-        for axis in ('x', 'y'):
-            tick = 'xtick' if axis == 'y' else 'ytick'
-            ax.tick_params(
-                axis=axis,
-                which='major',
-                length=plt.rcParams[f'{tick}.major.size'],
-                width=plt.rcParams[f'{tick}.major.width'],
-                pad=plt.rcParams[f'{tick}.major.pad'],
-                color=plt.rcParams[f'{tick}.color'],
-                labelcolor=tick_labelcolor(tick),
-                labelsize=plt.rcParams[f'{tick}.labelsize'],
-                direction=plt.rcParams[f'{tick}.direction'])
-            ax.tick_params(
-                axis=axis,
-                which='minor',
-                length=plt.rcParams[f'{tick}.minor.size'],
-                width=plt.rcParams[f'{tick}.minor.width'],
-                pad=plt.rcParams[f'{tick}.minor.pad'],)
+        ax_position = getattr(ax.figure, 'axes', []).index(ax)
+        sharex_positions = positions_of_shared_axes(ax, axis='x')
+        sharey_positions = positions_of_shared_axes(ax, axis='y')
+        first_sharex = ax_position == min(sharex_positions)
+        first_sharey = ax_position == min(sharey_positions)
+        last_sharex = ax_position == max(sharex_positions)
+        last_sharey = ax_position == max(sharey_positions)
+        if not any((first_sharex, first_sharey, last_sharex, last_sharey)):
+            return
+
+        x_major = ax.xaxis.get_tick_params(which='major').copy()
+        x_minor = ax.xaxis.get_tick_params(which='minor').copy()
+        y_major = ax.yaxis.get_tick_params(which='major').copy()
+        y_minor = ax.yaxis.get_tick_params(which='minor').copy()
+
+        if first_sharex and (y_major['right'] or y_major['labelright']):
+            ax.xaxis.set_tick_params(which='major', reset=False, **y_major)
+        if first_sharex and (y_minor['right'] or y_minor['labelright']):
+            ax.xaxis.set_tick_params(which='minor', reset=False, **y_minor)
+
+        if last_sharex and (y_major['left'] or y_major['labelleft']):
+            ax.xaxis.set_tick_params(which='major', reset=False, **y_major)
+        if last_sharex and (y_minor['left'] or y_minor['labelleft']):
+            ax.xaxis.set_tick_params(which='minor', reset=False, **y_minor)
+        
+        if first_sharey and (x_major['left'] or x_major['labelleft']):
+            ax.yaxis.set_tick_params(which='major', reset=False, **x_major)
+        if first_sharey and (x_minor['left'] or x_minor['labelleft']):
+            ax.yaxis.set_tick_params(which='minor', reset=False, **x_minor)
+        
+        if last_sharey and (x_major['right'] or x_major['labelright']):
+            ax.yaxis.set_tick_params(which='major', reset=False, **x_major)
+        if last_sharey and (x_minor['right'] or x_minor['labelright']):
+            ax.yaxis.set_tick_params(which='minor', reset=False, **x_minor)
 
 
 class Chart(ABC):
@@ -682,7 +691,7 @@ class SingleChart(Chart):
         self._current_variate = {}
         self._last_variate = {}
         self._reset_variate_()
-        self._swap_xy_axes_params_()
+        self._transpose_xy_axes_params_()
     
     @property
     def ax(self) -> Axes:
@@ -732,13 +741,13 @@ class SingleChart(Chart):
             handle_label[STR['stripes']] = self.stripes_facets.handles_labels()
         return handle_label
     
-    def _swap_xy_axes_params_(self) -> None:
+    def _transpose_xy_axes_params_(self) -> None:
         """if target_on_y is false, all X- or Y-axis related rcParams 
         are swapped in pairs. If the plot is transposed, the set 
         parameters should also be swapped"""
         if self.target_on_y:
             return
-        swap_xy_axes_params(self.ax)
+        transpose_xy_axes_params(self.ax)
     
     def _axis_label_(
             self, label: str | bool | None, is_target: bool) -> str:

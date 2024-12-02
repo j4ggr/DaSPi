@@ -1,1 +1,1 @@
-::: daspi.plotlib.plotter.LinearRegression
+::: daspi.plotlib.plotter.LinearRegressionLine

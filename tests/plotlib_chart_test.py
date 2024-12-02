@@ -1,7 +1,15 @@
 import sys
 import pytest
 
+import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+
+from numpy.typing import NDArray
+from matplotlib.axis import YAxis
+from matplotlib.figure import Figure
+
+from typing import Any
 from typing import Generator
 from pathlib import Path
 
@@ -9,6 +17,69 @@ sys.path.append(Path(__file__).parent.resolve()) # type: ignore
 
 from daspi import JointChart
 from daspi import SingleChart
+from daspi.plotlib.chart import get_shared_axes
+from daspi.plotlib.chart import positions_of_shared_axes
+
+class TestSharingAxesFunctions:
+    """tests for get_shared_axes and positions_of_shared_axes functions"""
+    @pytest.fixture
+    def shared_axes(self) -> Generator[NDArray, Any, None]:
+        fig, axs = plt.subplots(2, 2, sharex='col', sharey='row')
+        yield axs
+        plt.close(fig)
+    
+    def test_position_types(self, shared_axes: NDArray) -> None:
+        ax = shared_axes[0, 0]
+        positions = positions_of_shared_axes(ax, 'x')
+        assert isinstance(positions, list)
+        assert all(isinstance(p, int) for p in positions)
+
+        positions = positions_of_shared_axes(ax, 'y')
+        assert isinstance(positions, list)
+        assert all(isinstance(p, int) for p in positions)
+    
+    def test_axes_order(self, shared_axes: NDArray) -> None:
+        figure_axes = shared_axes[0, 0].figure.axes
+        assert figure_axes[0] == shared_axes[0, 0]
+        assert figure_axes[1] == shared_axes[0, 1]
+        assert figure_axes[2] == shared_axes[1, 0]
+        assert figure_axes[3] == shared_axes[1, 1]
+
+    def test_positions_shared_x_axis(self, shared_axes: NDArray) -> None:
+        positions = positions_of_shared_axes(shared_axes[0, 0], 'x')
+        assert positions == [0, 2]
+        positions = positions_of_shared_axes(shared_axes[0, 1], 'x')
+        assert positions == [1, 3]
+        positions = positions_of_shared_axes(shared_axes[1, 0], 'x')
+        assert positions == [0, 2]
+        positions = positions_of_shared_axes(shared_axes[1, 1], 'x')
+        assert positions == [1, 3]
+
+    def test_positions_shared_y_axis(self, shared_axes: NDArray) -> None:
+        positions = positions_of_shared_axes(shared_axes[0, 0], 'y')
+        assert positions == [0, 1]
+        positions = positions_of_shared_axes(shared_axes[0, 0], 'y')
+        assert positions == [0, 1]
+        positions = positions_of_shared_axes(shared_axes[0, 0], 'y')
+        assert positions == [2, 3]
+        positions = positions_of_shared_axes(shared_axes[0, 0], 'y')
+        assert positions == [2, 3]
+
+    def test_positions_no_shared_axes(self) -> None:
+        fig, ax = plt.subplots(1, 1)
+        positions = positions_of_shared_axes(ax, 'x')
+        assert isinstance(positions, list)
+        assert len(positions) == 1
+        assert positions == [0]
+        plt.close(fig)
+
+    def test_positions_empty_figure(self) -> None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        positions = positions_of_shared_axes(ax, 'x')
+        assert isinstance(positions, list)
+        assert len(positions) == 1
+        plt.close(fig)
 
 
 class TestSingleChart:

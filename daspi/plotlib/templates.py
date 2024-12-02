@@ -341,8 +341,8 @@ class BivariateUnivariateCharts(JointChart):
     This class prepares a grid for drawing a bivariate plot with 
     marginal univariate plots:
     - Bottom left there is a large square axis for the bivariate
-      diagram. For example, use a `LinearRegression` plotter to show the 
-      dependence of the target variable on the feature variable.
+      diagram. For example, use a `LinearRegressionLine` plotter to show 
+      the dependence of the target variable on the feature variable.
     - Top left there is a small square axis for the univariate
       plot of the feature variable.
     - Bottom right there is a small square axis for the univariate

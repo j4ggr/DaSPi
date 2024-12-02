@@ -96,11 +96,11 @@ def test_bonferroni_ci() -> None:
     })
     # Test case 1: Check if the output DataFrame has the expected columns
     result = bonferroni_ci(data, 'target', 'feature')
-    assert all(col in result.columns for col in ['midpoint', 'ci_low', 'ci_upp', 'feature'])
+    assert all([c in result.columns for c in ['midpoint', 'lower', 'upper', 'feature']])
 
     # Test case 2: Check if the confidence intervals are within the correct range
-    assert (result['ci_low'] <= result['midpoint']).all()
-    assert (result['midpoint'] <= result['ci_upp']).all()
+    assert (result['lower'] <= result['midpoint']).all()
+    assert (result['midpoint'] <= result['upper']).all()
 
     # Test case 3: Check if the number of groups matches the expected value
     assert len(result) == len(data['feature'].unique())
@@ -114,11 +114,11 @@ def test_bonferroni_ci_multiple_features() -> None:
 
     # Test case 1: Check if the output DataFrame has the expected columns
     result = bonferroni_ci(data, 'target', ['feature1', 'feature2'])
-    assert all(col in result.columns for col in ['midpoint', 'ci_low', 'ci_upp', 'feature1', 'feature2'])
+    assert all(col in result.columns for col in ['midpoint', 'lower', 'upper', 'feature1', 'feature2'])
 
     # Test case 2: Check if the confidence intervals are within the correct range
-    assert (result['ci_low'] <= result['midpoint']).all()
-    assert (result['midpoint'] <= result['ci_upp']).all()
+    assert (result['lower'] <= result['midpoint']).all()
+    assert (result['midpoint'] <= result['upper']).all()
 
     # Test case 3: Check if the number of groups matches the expected value
     assert len(result) == len(data['feature1'].unique()) * len(data['feature2'].unique())

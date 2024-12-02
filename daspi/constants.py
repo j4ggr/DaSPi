@@ -317,6 +317,12 @@ class _Plotter_:
     """Column name for lower confidence of fitted line."""
     PRED_CI_UPP: Literal['_pred_ci_upp_'] = '_pred_ci_upp_'
     """Column name for upper confidence of fitted line."""
+    LOESS_VALUES_NAME: Literal['_loess_values_'] = '_loess_values_'
+    """Column name for loess values."""
+    LOESS_LOW: Literal['_loess_low_'] = '_loess_low_'
+    """Column name for lower confidence of fitted values."""
+    LOESS_UPP: Literal['_loess_upp_'] = '_loess_upp_'
+    """Column name for upper confidence of fitted values."""
     KD_SEQUENCE_LEN: Literal[300] = 300
     """Amount of points for kernel density sequence."""
     PARETO_N_TICKS: Literal[11] = 11
@@ -330,7 +336,7 @@ class _Plotter_:
 
     @property
     def REGRESSION_CI_NAMES(self) -> Tuple[str, str, str, str]:
-        """Get names for regression confidences in order
+        """Get names for regression confidences in order:
         
             - lower confidence level of fitted values
             - upper confidence level of fitted values

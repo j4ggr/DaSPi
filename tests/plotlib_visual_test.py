@@ -33,11 +33,11 @@ from daspi import Probability
 from daspi import GaussianKDE
 from daspi import VariationTest
 from daspi import ResiduesCharts
-from daspi import LinearRegression
 from daspi import StandardErrorMean
 from daspi import GaussianKDEContour
 from daspi import MultipleVariateChart
 from daspi import PairComparisonCharts
+from daspi import LinearRegressionLine
 from daspi import ParameterRelevanceCharts
 from daspi import BivariateUnivariateCharts
 
@@ -1041,7 +1041,7 @@ class TestJointChart:
                 dodge = (False, True),
                 target_on_y = False,
                 height_ratios=[5, 1],
-            ).plot(GaussianKDE, show_density_axis=True
+            ).plot(GaussianKDE, show_density_axis=False
             ).plot(MeanTest, n_groups=n_groups
             ).label(
             #     feature_label = (True, True),
@@ -1067,7 +1067,7 @@ class TestJointChart:
             ).plot(GaussianKDE, show_density_axis=True
             ).plot(Violine
             ).label(
-                feature_label = (True, True),
+                feature_label = (False, True),
                 target_label = (True, True),
             ).save(self.file_name
             ).close()
@@ -1198,7 +1198,7 @@ class TestJointChart:
                 stretch_figsize = False
         ).plot(GaussianKDE, show_density_axis=False
         ).plot(HideSubplot
-        ).plot(LinearRegression, show_points=True, show_fit_ci=True
+        ).plot(LinearRegressionLine, show_points=True, show_fit_ci=True
         ).plot(GaussianKDE, show_density_axis=False
         ).label(
             feature_label = feature_labels,
@@ -1424,7 +1424,7 @@ class TestTemplates:
             ).plot_univariates(
                 GaussianKDE
             ).plot_bivariate(
-                LinearRegression
+                LinearRegressionLine
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,
@@ -1460,7 +1460,7 @@ class TestTemplates:
             ).plot_univariates(
                 MeanTest, n_groups=n_groups
             ).plot_bivariate(
-                LinearRegression, show_fit_ci=True
+                LinearRegressionLine, show_fit_ci=True
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,
