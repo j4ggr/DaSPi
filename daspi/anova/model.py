@@ -999,7 +999,7 @@ class LinearModel:
         >>> features = [c for c in df.columns if c != target]
         >>> lm = LinearModel(df, target, features).fit()
         >>> print(lm.residual_data())
-            Observation      Residues  Prediction
+            Observation      Residuals  Prediction
         0             0  9.250000e+00       46.75
         1             1  2.000000e+00       51.00
         2             2 -1.050000e+01       73.50

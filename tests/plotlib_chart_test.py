@@ -58,11 +58,11 @@ class TestSharingAxesFunctions:
     def test_positions_shared_y_axis(self, shared_axes: NDArray) -> None:
         positions = positions_of_shared_axes(shared_axes[0, 0], 'y')
         assert positions == [0, 1]
-        positions = positions_of_shared_axes(shared_axes[0, 0], 'y')
+        positions = positions_of_shared_axes(shared_axes[0, 1], 'y')
         assert positions == [0, 1]
-        positions = positions_of_shared_axes(shared_axes[0, 0], 'y')
+        positions = positions_of_shared_axes(shared_axes[1, 0], 'y')
         assert positions == [2, 3]
-        positions = positions_of_shared_axes(shared_axes[0, 0], 'y')
+        positions = positions_of_shared_axes(shared_axes[1, 1], 'y')
         assert positions == [2, 3]
 
     def test_positions_no_shared_axes(self) -> None:

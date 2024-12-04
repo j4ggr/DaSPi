@@ -145,12 +145,12 @@ class ParameterRelevanceCharts(JointChart):
         return self
 
 
-class ResiduesCharts(JointChart):
+class ResidualsCharts(JointChart):
     """
     Provides a set of charts for visualizing the residuals of a linear 
     regression model.
 
-    The `ResiduesCharts` class takes a `LinearModel` instance and 
+    The `ResidualsCharts` class takes a `LinearModel` instance and 
     generates a set of four charts:
     - Probability plot of the residuals
     - Gaussian kernel density estimate of the residuals
@@ -199,7 +199,7 @@ class ResiduesCharts(JointChart):
         Returns
         -------
         Self: 
-            The `ResiduesCharts` instance, for method chaining.
+            The `ResidualsCharts` instance, for method chaining.
         """
         super().plot(Probability, show_fit_ci=True)
         super().plot(GaussianKDE)
@@ -225,7 +225,7 @@ class ResiduesCharts(JointChart):
         Returns
         -------
         Self
-            The `ResiduesCharts` instance, for method chaining.
+            The `ResidualsCharts` instance, for method chaining.
         """
         sub_title = f'{self.lm.target} ~ {" + ".join(self.lm.effects().index)}'
         feature_label = list(STR["residcharts_feature_label"])
@@ -613,7 +613,7 @@ class BivariateUnivariateCharts(JointChart):
 
 
 __all__ = [
-    'ResiduesCharts',
+    'ResidualsCharts',
     'ParameterRelevanceCharts',
     'PairComparisonCharts',
     'BivariateUnivariateCharts',

@@ -11,7 +11,6 @@ from typing import Dict
 from typing import Tuple
 from typing import Literal
 from typing import overload
-from typing import Hashable
 from typing import Sequence
 from typing import Generator
 from numpy.typing import NDArray

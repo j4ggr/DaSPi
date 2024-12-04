@@ -2,14 +2,17 @@
 
 import numpy as np
 import pandas as pd
+import statsmodels.api as sm
 
+from typing import Any
+from typing import Dict
+from typing import Self
 from typing import Tuple
 from typing import Literal
-from typing import Sequence
-from typing import Optional
 from typing import Callable
 from numpy.typing import NDArray
-from numpy.typing import ArrayLike
+from scipy.interpolate import interp1d
+from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 from scipy.stats._distn_infrastructure import rv_continuous
 
@@ -23,6 +26,7 @@ from .._typing import SpecLimits
 from .._typing import NumericSample1D
 
 from ..constants import DIST
+from ..constants import DEFAULT
 from ..constants import PLOTTER
 from ..constants import SIGMA_DIFFERENCE
 
@@ -31,6 +35,7 @@ from .confidence import cpk_ci
 from .confidence import mean_ci
 from .confidence import stdev_ci
 from .confidence import median_ci
+from .confidence import confidence_to_alpha
 
 from .hypothesis import skew_test
 from .hypothesis import kurtosis_test
@@ -708,7 +713,6 @@ class ProcessEstimator(Estimator):
         attribute (actually Property) is called, the value is calculated
         and stored so that the calculation is only performed once
 
-
         Parameters
         ----------
         samples : NumericSample1D
@@ -991,7 +995,7 @@ def estimate_kernel_density(
         stretch: float = 1,
         height: float | None = None, 
         base: float = 0,
-        n_points: int = PLOTTER.KD_SEQUENCE_LEN
+        n_points: int = DEFAULT.KD_SEQUENCE_LEN
         ) -> Tuple[NDArray, NDArray]:
     """Estimates the kernel density of data and returns values that are 
     useful for a plot. If those values are plotted in combination with 
@@ -1044,7 +1048,7 @@ def estimate_kernel_density(
 def estimate_kernel_density_2d(
         feature: NumericSample1D,
         target: NumericSample1D,
-        n_points: int = PLOTTER.KD_SEQUENCE_LEN,
+        n_points: int = DEFAULT.KD_SEQUENCE_LEN,
         margin: float = 0.5,
         ) -> Tuple[NDArray, NDArray, NDArray]:
     """Estimates the kernel density of 2 dimensional data and returns 
@@ -1060,8 +1064,12 @@ def estimate_kernel_density_2d(
     
     Parameters
     ----------
-    target, feature : array_like
-        1-D array of datapoints to estimate from.
+    feature : NumericSample1D
+        A one-dimensional array-like object containing the exogenous
+        samples.
+    target : NumericSample1D
+        A one-dimensional array-like object containing the endogenous 
+        samples.
     n_points : int, optional
         Number of points the estimation and sequence should have,
         by default KD_SEQUENCE_LEN (defined in constants.py)
@@ -1179,10 +1187,291 @@ def estimate_capability_confidence(
 
     return ci_values
 
+
+class Lowess:
+    """Smooth the data using Locally Estimated Weighted Scatterplot 
+    Smoothing (LOWESS).
+    
+    LOWESS is not necessarily suitable for all regression models due to 
+    its non-parametric approach and high computational intensity. 
+    Nonetheless, it serves as an effective method for modeling the 
+    relationship between two variables that do not adhere to a 
+    predefined distribution and exhibit a non-linear relationship.
+
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''
+    
+    
+    Notes
+    -----
+    This class was created using the following Medium platform article:
+
+    Soul Dobilas (2020), LOWESS Regression in Python: How to Discover
+    Clear Patterns in Your Data?, 
+    [Towards Data Science](https://towardsdatascience.com/lowess-regression-in-python-how-to-discover-clear-patterns-in-your-data-f26e523d7a35)
+    """
+    __slots__ = (
+        'source', 'target', 'feature', '_lowess_output',
+        )
+    
+    source: DataFrame
+    """The data source for the plot"""
+    target: str
+    """The column name of the target variable."""
+    feature: str
+    """The column name of the feature variable."""
+    _lowess_output: NDArray
+    """Smoothed raw data coming from `statsmodels.nonparametric.lowess`
+    function"""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str,
+            ) -> None:
+        source = (source
+            .copy()
+            [[feature, target]]
+            .dropna(axis=0, how='any')
+            .sort_values(feature)
+            .reset_index(drop=True))
+        assert not source.empty, (
+            'No data after removing missing values.')
+        self.source = source
+        self.target = target
+        self.feature = feature
+    
+    @property
+    def fitted(self) -> bool:
+        """True if the data has been fitted (read-only)."""
+        return hasattr(self, '_lowess_output')
+
+    @property
+    def n_samples(self) -> int:
+        """Amount of samples in source after removing missing values
+        (read-only)."""
+        return len(self.source)
+    
+    @property
+    def lowess_target(self) -> NDArray:
+        """Lowess output target values (read-only)."""
+        self._check_fitted_('lowess_target')
+        return self._lowess_output[:, 1]
+    
+    @property
+    def lowess_feature(self) -> NDArray:
+        """Lowess output feature values (read-only)."""
+        self._check_fitted_('lowess_feature')
+        return self._lowess_output[:, 0]
+    
+    @property
+    def residuals(self) -> NDArray:
+        """Residuals as difference between target and lowess (read-only)."""
+        self._check_fitted_('residuals')
+        return self.source[self.target].to_numpy() - self.lowess_target
+    
+    @staticmethod
+    def prob_points(
+            n_points: int,
+            fraction: float | None = None
+            ) -> NDArray:
+        """Ordinates For Probability Plotting. Numpy analogue of `R`'s 
+        `ppoints` function.
+
+        The prob_points function generates a sequence of points based on 
+        the empirical distribution of the data.
+
+        Parameters
+        ----------
+        n : int
+            Number of points generated
+        fraction : float | None, optional
+            Offset fraction (typically between 0 and 1). If None, the 
+            offset is set to 3/8 if n <= 10 and 2/3 otherwise,
+            by default None
+
+        Returns
+        -------
+        ppoints : ndarray
+            Sequence of probabilities at which to evaluate the inverse
+            distribution.
+        
+        Notes
+        -----
+        Based on _ppoints function of pinguin package:
+        https://pingouin-stats.org/index.html
+        """
+        assert isinstance(n_points, int) and n_points > 0, (
+            f'Number of points must be a positive integer, got {n_points=}')
+        if fraction is None:
+            fraction = 3/8 if n_points <= 10 else 2/3
+        assert fraction < n_points/2, (
+            f'Offset {fraction=} must be less than half the number of points')
+        ppoints = (np.arange(n_points) + 1 - fraction) / (n_points + 1 - 2*fraction)
+        return ppoints
+    
+    def _check_fitted_(self, method_name: str) -> None:
+        """Check if the model has been fitted.
+        
+        Raises
+        ------
+        AssertionError
+            If the model has not been fitted yet using the fit method.
+        """
+        assert self.fitted, (
+            f'The data must be fitted before {method_name} can be performed.')
+
+    def fit(self, fraction: float) -> Self:
+        """Fits the model using the `statsmodels.nonparametric.lowess` 
+        method.
+        
+        Parameters
+        ----------
+        fraction : float
+            The fraction of the data used for each local regression. A 
+            good value to start with is 2/3 (default value of 
+            statsmodels). Reduce the value to avoid underfitting. 
+            A value below 0.2 usually leads to overfitting.
+        
+        Returns
+        -------
+        Lowess:
+            The instance of the Lowess with the fitted values.
+        """
+        
+        self._lowess_output = sm.nonparametric.lowess(
+            endog=self.source[self.target],
+            exog=self.source[self.feature],
+            frac=fraction,
+            is_sorted=True,
+            return_sorted=True)
+        return self
+
+    def _interpolate_(self, **kwds) -> Callable:
+        """Get a function using the `interp1d` method from 
+        `scipy.interpolate` by passing the feature and target values 
+        from the LOWESS output. This function can be used to take new 
+        feature values and generate target values them.
+        
+        Returns
+        -------
+        Callable:
+            A callable function that can be used to interpolate new
+            target values from feature values.
+        """
+        self._check_fitted_('interpolate')
+        _kwds: Dict[str, Any] = dict(
+            x=self.lowess_feature,
+            y=self.lowess_target,
+            kind='linear',
+            bounds_error=False,
+            fill_value='extrapolate',
+            assume_sorted=True
+            ) | kwds
+        return interp1d(**_kwds)
+    
+    def predict(
+        self,
+        feature: int | float | NumericSample1D,
+        kind: str | int = 'linear') -> NDArray:
+        """Predict the target value(s) for the given feature value(s).
+
+        Parameters
+        ----------
+        feature : int | float | NumericSample1D
+            The feature value(s) for which to predict the target 
+            value(s).
+        kind : str or int, optional
+            Specifies the kind of interpolation as a string or as an 
+            integer specifying the order of the spline interpolator to 
+            use. The string has to be one of 'linear', 'nearest', 
+            'nearest-up', 'zero', 'slinear', 'quadratic', 'cubic', 
+            'previous', or 'next'.
+            - **'zero', 'slinear', 'quadratic' and 'cubic':** refer to a 
+              spline interpolation of zeroth, first, second or third 
+              order.
+            - **'previous' and 'next':** simply return the previous or 
+              next value of the point
+            - **'nearest-up' and 'nearest':** differ when interpolating 
+            half-integers (e.g. 0.5, 1.5) in that 'nearest-up' rounds up 
+            and 'nearest' rounds down. Default is 'linear'.
+        
+        Returns
+        -------
+        NDArray
+            The predicted target value(s) for the given feature value(s)
+            as one-dimensonal numpy array.
+        """
+        self._check_fitted_('predict')
+        if isinstance(feature, (int, float)):
+            feature = [feature]
+        return self._interpolate_(kind=kind)(feature)
+        
+    def smoothed_ci(
+            self,
+            n_points: int = DEFAULT.LOWESS_SEQUENCE_LEN,
+            level: float = 0.95
+            ) -> DataFrame:
+        """Calculates the LOWESS smoothed line and its confidence bands.
+
+        The function generates a sequence of feature values, predicts 
+        the corresponding target values using the LOWESS model, and 
+        then calculates the lower and upper confidence bands based on 
+        the distribution of the residuals.
+    
+        Parameters
+        ----------
+        n_points : int, optional
+            Number of points the smoothed line and its sequence should 
+            have, by default LOWESS_SEQUENCE_LEN 
+            (defined in constants.py)
+        level : float in (0, 1), optional
+            confidence level, by default 0.95
+
+        Returns
+        -------
+        DataFrame:
+            A pandas DataFrame containing the following columns:
+            - `PLOTTER.LOWESS_FEATURE`: The sequence of feature values.
+            - `PLOTTER.LOWESS_TARGET`: The predicted target values.
+            - `PLOTTER.LOWESS_LOW`: The lower confidence band.
+            - `PLOTTER.LOWESS_UPP`: The upper confidence band.
+        """
+        self._check_fitted_('smoothed_ci')
+        alpha = confidence_to_alpha(level, two_sided=True)
+        
+        sequence = np.linspace(
+            min(self.lowess_feature), max(self.lowess_feature), n_points)
+        prediction = self.predict(sequence, kind='linear')
+        
+        smooth_residuals = self._interpolate_(
+                x=self.lowess_feature, y=self.residuals)
+        residuals = smooth_residuals(sequence)
+        ppoints = self.prob_points(n_points)
+        quantile = np.quantile(residuals, alpha * ppoints)
+
+        data = DataFrame({
+            PLOTTER.LOWESS_FEATURE: sequence,
+            PLOTTER.LOWESS_TARGET: prediction,
+            PLOTTER.LOWESS_LOW: prediction - quantile,
+            PLOTTER.LOWESS_UPP: prediction + quantile})
+        return data
+
+
 __all__ = [
     'Estimator',
     'ProcessEstimator',
     'estimate_distribution',
     'estimate_kernel_density',
     'estimate_kernel_density_2d',
-    'estimate_capability_confidence']
+    'estimate_capability_confidence',
+    'Lowess']

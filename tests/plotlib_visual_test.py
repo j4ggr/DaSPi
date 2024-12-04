@@ -25,6 +25,7 @@ from daspi import Jitter
 from daspi import Scatter
 from daspi import Violine
 from daspi import MeanTest
+from daspi import LowessLine
 from daspi import JointChart
 from daspi import SingleChart
 from daspi import HideSubplot
@@ -32,7 +33,7 @@ from daspi import BlandAltman
 from daspi import Probability
 from daspi import GaussianKDE
 from daspi import VariationTest
-from daspi import ResiduesCharts
+from daspi import ResidualsCharts
 from daspi import StandardErrorMean
 from daspi import GaussianKDEContour
 from daspi import MultipleVariateChart
@@ -1198,7 +1199,7 @@ class TestJointChart:
                 stretch_figsize = False
         ).plot(GaussianKDE, show_density_axis=False
         ).plot(HideSubplot
-        ).plot(LinearRegressionLine, show_points=True, show_fit_ci=True
+        ).plot(LinearRegressionLine, show_scatter=True, show_fit_ci=True
         ).plot(GaussianKDE, show_density_axis=False
         ).label(
             feature_label = feature_labels,
@@ -1425,6 +1426,39 @@ class TestTemplates:
                 GaussianKDE
             ).plot_bivariate(
                 LinearRegressionLine
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = True,
+                info = self.info_msg
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        xlabels = tuple(ax.get_xlabel() for ax in chart.axes.flat)
+        ylabels = tuple(ax.get_ylabel() for ax in chart.axes.flat)
+        assert self.file_name.is_file()
+        assert len(texts) == 3
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == self.sub_title
+        assert xlabels == ('', '', self.feature, '')
+        assert ylabels == ('', '', self.target, '')
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+        
+        self.base = f'{self.fig_title}_bivariate-univariate-charts'
+        self.kind = 'smoothed'
+        chart = BivariateUnivariateCharts(
+                source = df_aspirin,
+                target = self.target,
+                feature = self.feature,
+                hue = self.cat1
+            ).plot_univariates(
+                GaussianKDE
+            ).plot_bivariate(
+                LowessLine, show_scatter=True
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,

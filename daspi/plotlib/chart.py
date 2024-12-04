@@ -695,7 +695,11 @@ class SingleChart(Chart):
     
     @property
     def ax(self) -> Axes:
-        """Get the axes instance (read-only)."""
+        """Gets the current Axes instance that is currently being worked 
+        on. This property raises an AttributeError if the current axis 
+        is not set. To access the current axis without errors but with 
+        the possibility of returning None, use the `ax` property of the 
+        `AxesFacets` instance (e.g. `chart.axes.ax`) (read-only)."""
         if self._ax is None:
             raise AttributeError(
                 'The current Axes instance is not set. Iterate over the '
@@ -855,15 +859,18 @@ class SingleChart(Chart):
         self._data.loc[:, self.feature] = self.dodging(
             self._data[self.feature], hue_variate)
         
-    def _categorical_feature_grid_(self) -> None:
-        """Hide major grid and set one minor grid for feature axis."""
+    def _categorical_feature_grid_(self, ax: Axes) -> None:
+        """Hide the major grid and set the subgrid between each category 
+        for the feature axis. This feature is skipped if the main grid is not enabled.."""
         xy = 'x' if self.target_on_y else 'y'
-        axis: XAxis | YAxis = getattr(self.axes.ax, f'{xy}axis')
+        axis: XAxis | YAxis = getattr(ax, f'{xy}axis')
+        if not axis.get_tick_params(which='major')['gridOn']:
+            return
         axis.set_minor_locator(AutoMinorLocator(2))
         axis.grid(True, which='minor')
         axis.grid(False, which='major')
     
-    def _categorical_feature_ticks_(self) -> None:
+    def _categorical_feature_ticks_(self, ax: Axes) -> None:
         """Set one major tick for each category and label it.
         
         Raises
@@ -875,14 +882,14 @@ class SingleChart(Chart):
             f'{xy}ticks': self.dodging.ticks,
             f'{xy}ticklabels': self.dodging.tick_lables,
             f'{xy}lim': self.dodging.lim}
-        self.ax.set(**settings)
-        self.ax.tick_params(which='minor', color=COLOR.TRANSPARENT)
+        ax.set(**settings)
+        ax.tick_params(which='minor', color=COLOR.TRANSPARENT)
         
     def _categorical_feature_axis_(self) -> None:
         """Set one major tick for each category and label it. Hide 
         major grid and set one minor grid for feature axis."""
-        self._categorical_feature_grid_()
-        self._categorical_feature_ticks_()
+        self._categorical_feature_grid_(self.ax)
+        self._categorical_feature_ticks_(self.ax)
 
     def _data_generator_(self) -> Generator[DataFrame, Self, None]:
         """Generate grouped data if `variate_names` are set, otherwise 
@@ -1357,9 +1364,11 @@ class JointChart(Chart):
         """Iter over charts simultaneosly iters over axes of 
         `axes`. That ensures that the current Axes to which the 
         current chart belongs is set. The"""
-        for _, chart in zip(self.axes, self.charts):
+        for ax, chart in zip(self.axes, self.charts):
+            self._ax = ax
             self.target_on_y = chart.target_on_y
             yield chart
+        self._ax = self.axes.ax
     
     def ensure_tuple(
             self,
@@ -1775,7 +1784,8 @@ class MultipleVariateChart(SingleChart):
     def _categorical_feature_axis_(self) -> None:
         """Set one major tick for each category and label it. Hide 
         major grid and set one minor grid for feature axis."""
-        for _ in self.axes:
+        for ax in self.axes:
+            self._ax = ax
             super()._categorical_feature_axis_()
     
     def _axes_data(self) -> Generator[Series, Self, None]:

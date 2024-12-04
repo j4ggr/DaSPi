@@ -170,10 +170,10 @@ Before we can use our mathematical model, we must check whether the statistical 
 We can check these four points graphically using the following command. Each subplot corresponds to one of these four points in order from top left to bottom right. [[4]](#4)
 
 ``` py
-chart = dsp.ResiduesCharts(model).plot().label()
+chart = dsp.ResidualsCharts(model).plot().label()
 ```
 
-![Anova Residues Pain-Color](../img/anova_residues_pain-color.png)
+![Anova Residuals Pain-Color](../img/anova_residuals_pain-color.png)
 
 ## References
 

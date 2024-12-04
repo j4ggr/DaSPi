@@ -84,13 +84,10 @@ from .statistics.confidence import mean_ci
 from .statistics.confidence import stdev_ci
 from .statistics.confidence import median_ci
 from .statistics.confidence import variance_ci
-from .statistics.confidence import prob_points
-from .statistics.confidence import loess
 from .statistics.confidence import proportion_ci
 from .statistics.confidence import bonferroni_ci
 from .statistics.confidence import delta_mean_ci
 from .statistics.confidence import prediction_ci
-from .statistics.confidence import loess_ci
 from .statistics.confidence import delta_variance_ci
 from .statistics.confidence import confidence_to_alpha
 from .statistics.confidence import delta_proportions_ci
@@ -108,6 +105,7 @@ from .statistics.hypothesis import anderson_darling_test
 from .statistics.hypothesis import kolmogorov_smirnov_test
 from .statistics.hypothesis import variance_stability_test
 
+from .statistics.estimation import Lowess
 from .statistics.estimation import Estimator
 from .statistics.estimation import ProcessEstimator
 from .statistics.estimation import estimate_distribution
@@ -130,6 +128,7 @@ from .plotlib.plotter import Scatter
 from .plotlib.plotter import Violine
 from .plotlib.plotter import Errorbar
 from .plotlib.plotter import MeanTest
+from .plotlib.plotter import LowessLine
 from .plotlib.plotter import StripeLine
 from .plotlib.plotter import StripeSpan
 from .plotlib.plotter import HideSubplot
@@ -159,7 +158,7 @@ from .plotlib.chart import JointChart
 from .plotlib.chart import SingleChart
 from .plotlib.chart import MultipleVariateChart
 
-from .plotlib.templates import ResiduesCharts
+from .plotlib.templates import ResidualsCharts
 from .plotlib.templates import PairComparisonCharts
 from .plotlib.templates import ParameterRelevanceCharts
 from .plotlib.templates import BivariateUnivariateCharts

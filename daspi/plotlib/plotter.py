@@ -153,11 +153,10 @@ from ..constants import DEFAULT
 from ..constants import PLOTTER
 from ..constants import CATEGORY
 
-from ..statistics import loess
+from ..statistics import Lowess
 from ..statistics import fit_ci
 from ..statistics import mean_ci
 from ..statistics import stdev_ci
-from ..statistics import loess_ci
 from ..statistics import Estimator
 from ..statistics import variance_ci
 from ..statistics import prediction_ci
@@ -529,7 +528,7 @@ class LinearRegressionLine(Plotter):
     """The fitted results of the linear regression model."""
     fit: Literal['_fitted_values_']
     """The name of the column containing the fitted values as defined 
-    in the PLOTTER.FITTED_VALUES_NAME."""
+    in the PLOTTER.FITTED_VALUES."""
     show_scatter: bool
     """Whether to show the individual points in the plot."""
     show_fit_ci: bool
@@ -550,7 +549,7 @@ class LinearRegressionLine(Plotter):
             show_fit_ci: bool = False,
             show_pred_ci: bool = False,
             **kwds) -> None:
-        self.fit = PLOTTER.FITTED_VALUES_NAME
+        self.fit = PLOTTER.FITTED_VALUES
         self.show_scatter = show_scatter
         self.show_fit_ci = show_fit_ci
         self.show_pred_ci = show_pred_ci
@@ -650,7 +649,7 @@ class LinearRegressionLine(Plotter):
                 self.ax.plot(lower, self.y, upper, self.y, **kw_pred_ci)
             
 
-class LoessLine(Plotter):
+class LowessLine(Plotter):
     """
     
     Parameters
@@ -683,24 +682,28 @@ class LoessLine(Plotter):
         by default True.
     show_ci : bool, optional
         Flag indicating whether to show the confidence interval for
-        the loess line as filled area, by default False.
+        the lowess line as filled area, by default False.
+    fraction : float | None, optional
+        The fraction of the data used for each local regression. A good 
+        value to start with is 2/3 (default value of statsmodels). 
+        Reduce the value to avoid underfitting. A value below 0.2 
+        usually leads to overfitting. Defaults to 2/3
+    n_points : int, optional
+        Number of points the smoothed line and its sequence 
+        should have, by default LOWESS_SEQUENCE_LEN 
+        (defined in constants.py).
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
         used within chart objects).
     """
     __slots__ = (
-        'loess', 'show_scatter', 'show_ci')
+        'model', 'show_ci')
     
-    model: OLSResults
+    model: Lowess
     """The fitted results of the linear regression model."""
-    loess: Literal['_loess_values_']
-    """The name of the column containing the loess values as defined 
-    in the PLOTTER.LOESS_VALUES_NAME."""
-    show_scatter: bool
-    """Whether to show the individual points in the plot."""
     show_ci: bool
-    """Whether to show the confidence interval for the loess line."""
+    """Whether to show the confidence interval for the lowess line."""
 
     def __init__(
             self,
@@ -711,27 +714,19 @@ class LoessLine(Plotter):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
-            show_scatter: bool = True,
             show_ci: bool = False,
+            fraction: float = 2/3,
+            n_points: int = DEFAULT.LOWESS_SEQUENCE_LEN,
             **kwds) -> None:
-        self.loess = PLOTTER.LOESS_VALUES_NAME
-        self.show_scatter = show_scatter
         self.show_ci = show_ci
-        df = source if isinstance(source, DataFrame) else pd.DataFrame(source)
-        df = (df
-            .copy()
-            .sort_values(feature)
-            [[feature, target]]
-            .dropna(axis=0, how='any')
-            .reset_index(drop=True))
-        df[self.loess] = loess(df[feature], df[target])
-        _, lower, upper = loess_ci(df[target], df[self.loess])
-        df[PLOTTER.LOESS_LOW] = lower
-        df[PLOTTER.LOESS_UPP] = upper
+        source = source[[target, feature]].copy()
+        self.model = Lowess(source=source, target=target, feature=feature)
+        self.model.fit(fraction=fraction)
+        df = self.model.smoothed_ci(n_points=n_points)
         super().__init__(
             source=df,
-            target=target,
-            feature=feature,
+            target=PLOTTER.LOWESS_TARGET,
+            feature=PLOTTER.LOWESS_FEATURE,
             target_on_y=target_on_y,
             color=color,
             marker=marker,
@@ -744,20 +739,23 @@ class LoessLine(Plotter):
         return kwds
     
     @property
-    def x_loess(self) -> ArrayLike:
-        """Get values used for x-axis for fitted line (read-only)."""
-        name = self.feature if self.target_on_y else self.loess
-        return self.source[name]
+    def x_lowess(self) -> ArrayLike:
+        """Get values used for x-axis for lowess line (read-only)."""
+        if self.target_on_y:
+            return self.model.lowess_feature
+        else:
+            return self.model.lowess_target
     
     @property
-    def y_loess(self) -> ArrayLike:
+    def y_lowess(self) -> ArrayLike:
         """Get values used for y-axis for fitted line (read-only)"""
-        name = self.loess if self.target_on_y else self.feature
-        return self.source[name]
+        if self.target_on_y:
+            return self.model.lowess_target
+        else:
+            return self.model.lowess_feature
     
     def __call__(
             self,
-            kw_scatter: dict = {},
             kw_ci: dict = {},
             **kwds) -> None:
         """
@@ -765,27 +763,21 @@ class LoessLine(Plotter):
 
         Parameters
         ----------
-        kw_scatter : dict, optional
-            Additional keyword arguments for the Axes `scatter` method,
-            by default {}.
         kw_ci : dict, optional
             Additional keyword arguments for the confidence interval of 
-            the loess line (Axes `fill_between` method), by default {}.
+            the lowess line (Axes `fill_between` method), by default {}.
         **kwds:
             Additional keyword arguments to be passed to the fit line
             plot (Axes `plot` method).
         """
         color = dict(color=self.color)
         _kwds = self.kw_default | kwds
-        self.ax.plot(self.x_loess, self.y_loess, **_kwds)
+        self.ax.plot(self.x, self.y, **_kwds)
         
-        if self.show_scatter:
-            kw_scatter = color | dict(marker=self.marker) | kw_scatter
-            self.ax.scatter(self.x, self.y, **kw_scatter)
         if self.show_ci:
             kw_fit_ci = KW.FIT_CI | color | kw_ci
-            lower = self.source[PLOTTER.FIT_CI_LOW]
-            upper = self.source[PLOTTER.FIT_CI_UPP]
+            lower = self.source[PLOTTER.LOWESS_LOW]
+            upper = self.source[PLOTTER.LOWESS_UPP]
             if self.target_on_y:
                 self.ax.fill_between(self.x, lower, upper, **kw_fit_ci)
             else:
@@ -2037,12 +2029,17 @@ class GaussianKDE(TransformPlotter):
     show_density_axis : bool, optional
         Flag indicating whether to show the density axis,
         by default True.
+    n_points : int, optional
+        Number of points the kernel density estimation and sequence 
+        should have, by default KD_SEQUENCE_LEN 
+        (defined in constants.py).
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
     """
-    __slots__ = ('_height', '_stretch', 'show_density_axis', 'fill')
+    __slots__ = (
+        '_height', '_stretch', 'show_density_axis', 'fill', 'n_points')
 
     _height: float | None
     """Height of kde curve at its maximum."""
@@ -2053,6 +2050,8 @@ class GaussianKDE(TransformPlotter):
     labels."""
     fill: bool
     """Flag whether to fill in the curves"""
+    n_points: int
+    """Number of points that have the kde and its sequence."""
 
     def __init__(
             self,
@@ -2067,10 +2066,12 @@ class GaussianKDE(TransformPlotter):
             color: str | None = None,
             ax: Axes | None = None,
             show_density_axis: bool = True,
+            n_points: int = DEFAULT.KD_SEQUENCE_LEN,
             **kwds) -> None:
         self._height = height
         self._stretch = stretch
         self.show_density_axis = show_density_axis
+        self.n_points = n_points
         self.fill = fill
         feature = PLOTTER.TRANSFORMED_FEATURE
         _feature = kwds.pop('feature')
@@ -2136,8 +2137,11 @@ class GaussianKDE(TransformPlotter):
             sequence = [first_value]
         else:
             sequence, estimation = estimate_kernel_density(
-                data=target_data, stretch=self.stretch, height=self.height,
-                base=feature_data)
+                data=target_data,
+                stretch=self.stretch,
+                height=self.height,
+                base=feature_data,
+                n_points=self.n_points)
         data = pd.DataFrame({
             self.target: sequence,
             self.feature: estimation,
@@ -2227,7 +2231,7 @@ class GaussianKDEContour(Plotter):
         arguments that have no use here (occurs when this class is 
         used within chart objects).
     """
-    __slots__ = ('cmap', 'shape', 'fill')
+    __slots__ = ('cmap', 'shape', 'fill', 'n_points')
 
     cmap : LinearSegmentedColormap
     """The colormap to be used for the contour plot."""
@@ -2243,7 +2247,7 @@ class GaussianKDEContour(Plotter):
             feature: str,
             fill: bool = True,
             fade_outers: bool = True,
-            n_points: int = PLOTTER.KD_SEQUENCE_LEN,
+            n_points: int = DEFAULT.KD_SEQUENCE_LEN,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,

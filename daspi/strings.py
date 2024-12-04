@@ -74,7 +74,7 @@ class _String_:
         'de': ('Parameter', '')}
     
     residcharts_fig_title: Dict[str, str] = {
-        'en': 'Residues Analysis',
+        'en': 'Residuals Analysis',
         'de': 'Residuen Analyse'}
     
     residcharts_axes_titles: Dict[str, Tuple[str, ...]] = {
@@ -90,7 +90,7 @@ class _String_:
             'Residuen nach Reihenfolge')}
     
     resid_name: Dict[str, str] = {
-        'en': 'Residues',
+        'en': 'Residuals',
         'de': 'Residuen'}
     
     residcharts_feature_label: Dict[str, Tuple[str, ...]] = {

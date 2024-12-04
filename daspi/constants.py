@@ -146,12 +146,17 @@ class _Kw_:
     @property
     def FIT_LINE(self) -> Dict[str, Any]:
         """Keyword arguments for confidence interval area for fit."""
-        return dict(zorder=2.3, alpha=0.8)
+        return dict(zorder=2.2, alpha=0.8, marker='')
 
     @property
     def FIT_CI(self) -> Dict[str, Any]:
         """Keyword arguments for confidence interval area for fit."""
-        return dict(zorder=2.2, alpha=COLOR.FILL_ALPHA, lw=0)
+        return dict(zorder=2.3, alpha=COLOR.FILL_ALPHA, lw=0)
+
+    @property
+    def LOWESS_CI(self) -> Dict[str, Any]:
+        """Keyword arguments for confidence interval area for fit."""
+        return self.FIT_CI
 
     @property
     def PRED_CI(self) -> Dict[str, Any]:
@@ -307,7 +312,7 @@ class _Plotter_:
     """Column name for errorbar lower points."""
     ERR_UPP: Literal['_error_upper_'] = '_error_upper_'
     """Column name for errorbar upper points."""
-    FITTED_VALUES_NAME: Literal['_fitted_values_'] = '_fitted_values_'
+    FITTED_VALUES: Literal['_fitted_values_'] = '_fitted_values_'
     """Column name for fitted values."""
     FIT_CI_LOW: Literal['_fit_ci_low_'] = '_fit_ci_low_'
     """Column name for lower confidence of fitted values."""
@@ -317,14 +322,14 @@ class _Plotter_:
     """Column name for lower confidence of fitted line."""
     PRED_CI_UPP: Literal['_pred_ci_upp_'] = '_pred_ci_upp_'
     """Column name for upper confidence of fitted line."""
-    LOESS_VALUES_NAME: Literal['_loess_values_'] = '_loess_values_'
-    """Column name for loess values."""
-    LOESS_LOW: Literal['_loess_low_'] = '_loess_low_'
+    LOWESS_TARGET: Literal['lowess_target'] = 'lowess_target'
+    """Column name for lowess target values."""
+    LOWESS_FEATURE: Literal['lowess_feature'] = 'lowess_feature'
+    """Column name for lowess feature values."""
+    LOWESS_LOW: Literal['lowess_low'] = 'lowess_low'
     """Column name for lower confidence of fitted values."""
-    LOESS_UPP: Literal['_loess_upp_'] = '_loess_upp_'
+    LOWESS_UPP: Literal['lowess_upp'] = 'lowess_upp'
     """Column name for upper confidence of fitted values."""
-    KD_SEQUENCE_LEN: Literal[300] = 300
-    """Amount of points for kernel density sequence."""
     PARETO_N_TICKS: Literal[11] = 11
     """Number of ticks to represent percentage values in Pareto charts."""
     PARETO_AXLIM_FACTOR: float = 1.05
@@ -413,6 +418,10 @@ class _Default_:
     frequently in practice."""
     FEATURE_BASE: Literal[0] = 0
     """Default feature base position for e.g. Jitter or KDE."""
+    KD_SEQUENCE_LEN: Literal[300] = 300
+    """Amount of points for kernel density sequence."""
+    LOWESS_SEQUENCE_LEN: Literal[300] = 300
+    """Amount of points for LOWESS curve."""
 
     @property
     def MARKER(self) -> str:
