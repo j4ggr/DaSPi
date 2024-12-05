@@ -1210,17 +1210,19 @@ class Lowess:
         by default ''
     
     
-    Notes
-    -----
-    This class was created using the following Medium platform article:
+    Sources
+    -------
+    
+    [1] James Brennan (2020), Confidence intervals for LOWESS models in 
+    python [https://james-brennan.github.io](https://james-brennan.github.io/posts/lowess_conf/)
 
-    Soul Dobilas (2020), LOWESS Regression in Python: How to Discover
-    Clear Patterns in Your Data?, 
+    [2] Soul Dobilas (2020), LOWESS Regression in Python: How to 
+    Discover Clear Patterns in Your Data?, 
     [Towards Data Science](https://towardsdatascience.com/lowess-regression-in-python-how-to-discover-clear-patterns-in-your-data-f26e523d7a35)
     """
     __slots__ = (
-        'source', 'target', 'feature', '_lowess_output',
-        )
+        'source', 'target', 'feature', 'smoothed', 'std_errors', '_bandwidth', 
+        '_weights')
     
     source: DataFrame
     """The data source for the plot"""
@@ -1228,9 +1230,14 @@ class Lowess:
     """The column name of the target variable."""
     feature: str
     """The column name of the feature variable."""
-    _lowess_output: NDArray
-    """Smoothed raw data coming from `statsmodels.nonparametric.lowess`
-    function"""
+    smoothed: Series
+    """Smoothed target data as a pandas Series."""
+    std_errors: Series
+    """Standard errors of the smoothed target data as a pandas Series."""
+    _bandwidth: float
+    """The bandwidth of the LOWESS smoothing."""
+    _weights: Callable
+    """The weights function used in the LOWESS smoothing."""
 
     def __init__(
             self,
@@ -1251,34 +1258,185 @@ class Lowess:
         self.feature = feature
     
     @property
+    def x(self) -> Series:
+        """The feature variable as exogenous variable (read-only)."""
+        return self.source[self.feature]
+    
+    @property
+    def y(self) -> Series:
+        """The target variable as endogenous variable (read-only)."""
+        return self.source[self.target]
+    
+    @property
     def fitted(self) -> bool:
         """True if the data has been fitted (read-only)."""
-        return hasattr(self, '_lowess_output')
+        return hasattr(self, 'smoothed')
 
     @property
     def n_samples(self) -> int:
         """Amount of samples in source after removing missing values
         (read-only)."""
-        return len(self.source)
+        return len(self.y)
     
     @property
-    def lowess_target(self) -> NDArray:
-        """Lowess output target values (read-only)."""
-        self._check_fitted_('lowess_target')
-        return self._lowess_output[:, 1]
-    
-    @property
-    def lowess_feature(self) -> NDArray:
-        """Lowess output feature values (read-only)."""
-        self._check_fitted_('lowess_feature')
-        return self._lowess_output[:, 0]
-    
-    @property
-    def residuals(self) -> NDArray:
+    def residuals(self) -> Series:
         """Residuals as difference between target and lowess (read-only)."""
         self._check_fitted_('residuals')
-        return self.source[self.target].to_numpy() - self.lowess_target
+        return self.y - self.smoothed
     
+    @property
+    def available_kernels(self) -> Tuple[str, ...]:
+        """Get names of the available kernels for calculating the 
+        weights in `fit` method (read-only)."""
+        suffix = '_weights'
+        kernels = tuple(
+            d.split(suffix)[0] for d in dir(Lowess) if d.endswith(suffix))
+        return kernels
+    
+    @staticmethod
+    def tricube_weights(
+            xi: float,
+            x: NumericSample1D,
+            bandwidth: float
+            ) -> NDArray:
+        """Calculate weights using the tricube kernel.
+
+        The tricube kernel is used to assign weights to data points 
+        based on their distance from a target point. The weights 
+        decrease as the distance increases, and points further away than
+        the specified bandwidth receive zero weight.
+
+        Parameters
+        ----------
+        xi : float
+            The target point for which the weights are being calculated.
+        x : NumericSample1D
+            The input data points. This can be a 1-dimensional array or 
+            list of values.
+        bandwidth : float
+            The bandwidth parameter that determines the locality of the 
+            smoothing. It controls how far from the target point `xi` 
+            the weights will be considered.
+
+        Returns
+        -------
+        weights : NDArray
+            An array of weights corresponding to the input data points. 
+            The weights are computed using the tricube kernel, where 
+            points closer to `xi` receive higher weights and points 
+            further away receive lower weights, tapering to zero beyond 
+            the specified bandwidth.
+
+        Notes
+        -----
+        The tricube weight function gives points closer to zero higher 
+        weights and smoothly decreases to zero at x = ±1. This creates a 
+        smooth weighting scheme for local regression.
+        The tricube kernel is defined as:
+
+            w(u) = (1 - u^3)^3 for |u| <= 1
+            w(u) = 0 for |u| > 1
+
+        where u is the normalized distance calculated as:
+
+            u = |(x - xi) / bandwidth|
+        """
+        u = np.abs((np.asarray(x) - xi) / bandwidth)
+        weights = np.where(u <= 1, (1 - u**3)**3, 0)
+        return weights
+
+    @staticmethod
+    def epanechnikov_weights(
+            xi: float,
+            x: NumericSample1D,
+            bandwidth: float
+            ) -> NDArray:
+        """Calculate weights using the Epanechnikov kernel.
+
+        The Epanechnikov kernel is used to assign weights to data points 
+        based on their distance from a target point. It is a parabolic 
+        kernel that gives maximum weight to points at the center and 
+        decreases towards the edges.
+
+        Parameters
+        ----------
+        xi : float
+            The target point for which the weights are being calculated.
+        x : array_like
+            The input data points. This can be a 1-dimensional array or 
+            list of values.
+        bandwidth : float
+            The bandwidth parameter that determines the locality of the 
+            smoothing. It controls how far from the target point `xi` 
+            the weights will be considered.
+
+        Returns
+        -------
+        weights : ndarray
+            An array of weights corresponding to the input data points. 
+            The weights are computed using the Epanechnikov kernel, 
+            where points closer to `xi` receive higher weights, tapering 
+            to zero beyond the specified bandwidth.
+
+        Notes
+        -----
+        The Epanechnikov kernel is defined as:
+
+            w(u) = 0.75 * (1 - u^2) for |u| <= 1
+            w(u) = 0 for |u| > 1
+
+        where u is the normalized distance calculated as:
+
+            u = |(x - xi) / bandwidth|
+        """
+        u = np.abs((np.asarray(x) - xi) / bandwidth)
+        weights = np.where(u <= 1, 0.75 * (1 - u**2), 0)
+        return weights
+    
+    @staticmethod
+    def gaussian_weights(
+            xi: float,
+            x: NumericSample1D,
+            bandwidth: float
+            ) -> NDArray:
+        """
+        Calculate weights using the Gaussian kernel.
+
+        The Gaussian kernel is used to assign weights to data points based on their 
+        distance from a target point. It is a smooth kernel that gives non-zero weights 
+        to all points, with the weights decreasing exponentially as the distance increases.
+
+        Parameters
+        ----------
+        xi : float
+            The target point for which the weights are being calculated.
+        x : NumericSample1D
+            The input data points. This can be a 1-dimensional array or list of values.
+        bandwidth : float
+            The bandwidth parameter that determines the locality of the smoothing. 
+            It controls how far from the target point `xi` the weights will be considered.
+
+        Returns
+        -------
+        weights : ndarray
+            An array of weights corresponding to the input data points. The weights are 
+            computed using the Gaussian kernel, where all points receive a non-zero weight 
+            that decreases with distance from `xi`.
+
+        Notes
+        -----
+        The Gaussian kernel is defined as:
+
+            w(u) = (1 / sqrt(2 * pi)) * exp(-0.5 * u^2)
+
+        where u is the normalized distance calculated as:
+
+            u = (x - xi) / bandwidth
+        """
+        u = (np.asarray(x) - xi) / bandwidth
+        weights = (1 / np.sqrt(2 * np.pi)) * np.exp(-0.5 * u**2)
+        return weights
+
     @staticmethod
     def prob_points(
             n_points: int,
@@ -1330,32 +1488,6 @@ class Lowess:
         assert self.fitted, (
             f'The data must be fitted before {method_name} can be performed.')
 
-    def fit(self, fraction: float) -> Self:
-        """Fits the model using the `statsmodels.nonparametric.lowess` 
-        method.
-        
-        Parameters
-        ----------
-        fraction : float
-            The fraction of the data used for each local regression. A 
-            good value to start with is 2/3 (default value of 
-            statsmodels). Reduce the value to avoid underfitting. 
-            A value below 0.2 usually leads to overfitting.
-        
-        Returns
-        -------
-        Lowess:
-            The instance of the Lowess with the fitted values.
-        """
-        
-        self._lowess_output = sm.nonparametric.lowess(
-            endog=self.source[self.target],
-            exog=self.source[self.feature],
-            frac=fraction,
-            is_sorted=True,
-            return_sorted=True)
-        return self
-
     def _interpolate_(self, **kwds) -> Callable:
         """Get a function using the `interp1d` method from 
         `scipy.interpolate` by passing the feature and target values 
@@ -1370,14 +1502,74 @@ class Lowess:
         """
         self._check_fitted_('interpolate')
         _kwds: Dict[str, Any] = dict(
-            x=self.lowess_feature,
-            y=self.lowess_target,
+            x=self.x,
+            y=self.smoothed,
             kind='linear',
             bounds_error=False,
             fill_value='extrapolate',
             assume_sorted=True
             ) | kwds
         return interp1d(**_kwds)
+
+    def _smoothed_value_(self, row: Series) -> float:
+        """Get the smoothed value of the target variable at a given
+        feature value."""
+        xi = row[self.feature]
+        index = int(row.name) # type: ignore
+        weights = self._weights(xi, self.x, self._bandwidth)
+        
+        # Perform weighted linear regression
+        W = np.diag(weights)
+        X = np.vstack((np.ones(self.n_samples), self.x)).T  # Design matrix
+        beta = np.linalg.inv(X.T @ W @ X) @ (X.T @ W @ self.y)
+        smoothed = beta[0] + beta[1] * xi
+
+        # Calculate the standard error for LOWESS
+        dof = self.n_samples - 2
+        sigma2 = (np.sum((W @ X @ beta - self.y)**2)/(dof))
+        xi_w = (W @ X)[index]
+        self.std_errors[index] = np.sqrt(
+            (xi_w.T @ np.linalg.inv(X.T @ W @ X) @ xi_w) * sigma2)
+        return smoothed
+
+    def fit(
+            self,
+            fraction: float,
+            kernel: Literal['tricube', 'gaussian', 'epanechnikov'] = 'tricube'
+            ) -> Self:
+        """Fits the model using the `statsmodels.nonparametric.lowess` 
+        method.
+
+        Parameters
+        ----------
+        fraction : float
+            The fraction of the data used for each local regression. A 
+            good value to start with is 2/3 (default value of 
+            statsmodels). Reduce the value to avoid underfitting. 
+            A value below 0.2 usually leads to overfitting exept for 
+            gaussian weights.
+        kernel : Literal['tricube', 'gaussian', 'epanechnikov'], optional
+            The kernel function used to calculate the weights. 
+            Available kernels are:
+            - 'tricube': Tricube kernel function
+            - 'gaussian': Gaussian kernel function
+            - 'epanechnikov': Epanechnikov kernel function
+            Default is 'tricube'.
+        
+        Returns
+        -------
+        Lowess:
+            The instance of the Lowess with the fitted values.
+        """
+        assert kernel in self.available_kernels, (
+            f'The specified kernel "{kernel}" is not recognized. '
+            f'Available kernels are: {", ".join(self.available_kernels)}.')
+        
+        self._weights = getattr(self, f'{kernel}_weights')
+        self._bandwidth = fraction * (self.x.max() - self.x.min())
+        self.std_errors = pd.Series(np.zeros(self.n_samples))
+        self.smoothed  = self.source.apply(self._smoothed_value_, axis=1)
+        return self
     
     def predict(
         self,
@@ -1415,56 +1607,39 @@ class Lowess:
         if isinstance(feature, (int, float)):
             feature = [feature]
         return self._interpolate_(kind=kind)(feature)
-        
-    def smoothed_ci(
+    
+    def fitted_line(
             self,
             n_points: int = DEFAULT.LOWESS_SEQUENCE_LEN,
-            level: float = 0.95
-            ) -> DataFrame:
-        """Calculates the LOWESS smoothed line and its confidence bands.
+            ) -> Tuple[NDArray, NDArray]:
+        """Generates a sequence of feature values and predicts the 
+        corresponding target values using the LOWESS model.
+        
+        These values are ideal for plotting a smooth fitted line through 
+        the data.
 
-        The function generates a sequence of feature values, predicts 
-        the corresponding target values using the LOWESS model, and 
-        then calculates the lower and upper confidence bands based on 
-        the distribution of the residuals.
-    
         Parameters
         ----------
         n_points : int, optional
-            Number of points the smoothed line and its sequence should 
-            have, by default LOWESS_SEQUENCE_LEN 
+            Number of points the interpolated line and its sequence 
+            should have, by default LOWESS_SEQUENCE_LEN 
             (defined in constants.py)
-        level : float in (0, 1), optional
-            confidence level, by default 0.95
-
+        
         Returns
         -------
-        DataFrame:
-            A pandas DataFrame containing the following columns:
-            - `PLOTTER.LOWESS_FEATURE`: The sequence of feature values.
-            - `PLOTTER.LOWESS_TARGET`: The predicted target values.
-            - `PLOTTER.LOWESS_LOW`: The lower confidence band.
-            - `PLOTTER.LOWESS_UPP`: The upper confidence band.
+        sequence : NDArray
+            The sequence of feature values.
+        prediction : NDArray
+            The predicted target values.
+            
+        Notes
+        -----
+        The returned values can be used directly to plot a smooth fitted 
+        line representing the LOWESS regression.
         """
-        self._check_fitted_('smoothed_ci')
-        alpha = confidence_to_alpha(level, two_sided=True)
-        
-        sequence = np.linspace(
-            min(self.lowess_feature), max(self.lowess_feature), n_points)
+        sequence = np.linspace(self.x.min(), self.x.max(), n_points)
         prediction = self.predict(sequence, kind='linear')
-        
-        smooth_residuals = self._interpolate_(
-                x=self.lowess_feature, y=self.residuals)
-        residuals = smooth_residuals(sequence)
-        ppoints = self.prob_points(n_points)
-        quantile = np.quantile(residuals, alpha * ppoints)
-
-        data = DataFrame({
-            PLOTTER.LOWESS_FEATURE: sequence,
-            PLOTTER.LOWESS_TARGET: prediction,
-            PLOTTER.LOWESS_LOW: prediction - quantile,
-            PLOTTER.LOWESS_UPP: prediction + quantile})
-        return data
+        return sequence, prediction
 
 
 __all__ = [

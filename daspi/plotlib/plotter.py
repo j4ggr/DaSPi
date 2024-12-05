@@ -715,14 +715,19 @@ class LowessLine(Plotter):
             marker: str | None = None,
             ax: Axes | None = None,
             show_ci: bool = False,
-            fraction: float = 2/3,
+            fraction: float = 0.2,
+            kernel: Literal['tricube', 'gaussian', 'epanechnikov'] = 'tricube',
             n_points: int = DEFAULT.LOWESS_SEQUENCE_LEN,
             **kwds) -> None:
         self.show_ci = show_ci
         source = source[[target, feature]].copy()
         self.model = Lowess(source=source, target=target, feature=feature)
-        self.model.fit(fraction=fraction)
-        df = self.model.smoothed_ci(n_points=n_points)
+        self.model.fit(fraction=fraction, kernel=kernel)
+        df = pd.DataFrame({
+            PLOTTER.LOWESS_TARGET: self.model.smoothed,
+            PLOTTER.LOWESS_FEATURE: self.model.x,
+            PLOTTER.LOWESS_LOW: self.model.smoothed - 2*self.model.std_errors**0.5,
+            PLOTTER.LOWESS_UPP: self.model.smoothed + 2*self.model.std_errors**0.5,})
         super().__init__(
             source=df,
             target=PLOTTER.LOWESS_TARGET,
@@ -737,22 +742,6 @@ class LowessLine(Plotter):
         """Default keyword arguments for plotting (read-only)"""
         kwds = KW.FIT_LINE | dict(color=self.color)
         return kwds
-    
-    @property
-    def x_lowess(self) -> ArrayLike:
-        """Get values used for x-axis for lowess line (read-only)."""
-        if self.target_on_y:
-            return self.model.lowess_feature
-        else:
-            return self.model.lowess_target
-    
-    @property
-    def y_lowess(self) -> ArrayLike:
-        """Get values used for y-axis for fitted line (read-only)"""
-        if self.target_on_y:
-            return self.model.lowess_target
-        else:
-            return self.model.lowess_feature
     
     def __call__(
             self,
