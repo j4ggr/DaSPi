@@ -688,6 +688,11 @@ class LowessLine(Plotter):
         value to start with is 2/3 (default value of statsmodels). 
         Reduce the value to avoid underfitting. A value below 0.2 
         usually leads to overfitting. Defaults to 2/3
+    kernel : Literal['tricube', 'gaussian', 'epanechnikov'], optional
+        The kernel function used to calculate the weights. Available kernels are:
+        'tricube': Tricube kernel function
+        'gaussian': Gaussian kernel function
+        'epanechnikov': Epanechnikov kernel function Default is 'tricube'.
     n_points : int, optional
         Number of points the smoothed line and its sequence 
         should have, by default LOWESS_SEQUENCE_LEN 

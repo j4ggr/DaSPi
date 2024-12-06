@@ -9,6 +9,7 @@ from typing import Dict
 from typing import Self
 from typing import Tuple
 from typing import Literal
+from typing import overload
 from typing import Callable
 from numpy.typing import NDArray
 from scipy.interpolate import interp1d
@@ -1521,16 +1522,22 @@ class Lowess:
         # Perform weighted linear regression
         W = np.diag(weights)
         X = np.vstack((np.ones(self.n_samples), self.x)).T  # Design matrix
-        beta = np.linalg.inv(X.T @ W @ X) @ (X.T @ W @ self.y)
-        smoothed = beta[0] + beta[1] * xi
+        XtW = X.T @ W                       # (2 x n) @ (n x n) = (2 x n)
+        XtWX = XtW @ X                      # (2 x n) @ (n x 2) = (2 x 2)
+        XtWy = XtW @ self.y                 # (2 x n) @ (n x 1) = (2 x 1)
+        beta = np.linalg.inv(XtWX) @ (XtWy) # (2 x 2) @ (2 x 1) = (2 x 1)
+        fitted_line = X @ beta
 
-        # Calculate the standard error for LOWESS
-        dof = self.n_samples - 2
-        sigma2 = (np.sum((W @ X @ beta - self.y)**2)/(dof))
-        xi_w = (W @ X)[index]
-        self.std_errors[index] = np.sqrt(
-            (xi_w.T @ np.linalg.inv(X.T @ W @ X) @ xi_w) * sigma2)
-        return smoothed
+        # Calculate leverage for current point
+        H = X @ np.linalg.inv(XtWX) @ XtW # (2 x n) @ (2 x 2) @ (2 x n) = (n x n)
+        leverage = H[index, index]
+        
+        # Calculate standard error incorporating leverage
+        residuals = self.y - fitted_line
+        sigma2 = np.sum(weights * residuals**2) / (np.sum(weights) - 2)
+        self.std_errors[index] = np.sqrt(sigma2 * leverage)
+
+        return fitted_line[index]
 
     def fit(
             self,
@@ -1608,38 +1615,70 @@ class Lowess:
             feature = [feature]
         return self._interpolate_(kind=kind)(feature)
     
-    def fitted_line(
-            self,
-            n_points: int = DEFAULT.LOWESS_SEQUENCE_LEN,
-            ) -> Tuple[NDArray, NDArray]:
-        """Generates a sequence of feature values and predicts the 
-        corresponding target values using the LOWESS model.
-        
-        These values are ideal for plotting a smooth fitted line through 
-        the data.
+    @overload
+    def predict_sequence(
+            self, confidence_level: None, n_points: int = ...
+            ) -> Tuple[NDArray, NDArray]: ...
+    @overload
+    def predict_sequence(
+            self, confidence_level: float, n_points: int = ...
+            ) -> Tuple[NDArray, NDArray, NDArray, NDArray]: ...
 
+    def predict_sequence(
+            self,
+            confidence_level: float | None = None,
+            n_points: int = DEFAULT.LOWESS_SEQUENCE_LEN
+            ) -> Any:
+        """Generate a smooth sequence of predictions from the fitted 
+        LOWESS model.
+        
+        This method creates an evenly spaced sequence of feature values 
+        and predicts their corresponding target values using linear 
+        interpolation. It's particularly useful for:
+        1. Plotting smooth trend lines
+        2. Visualizing the LOWESS fit
+        3. Generating continuous predictions across the feature range
+        
         Parameters
         ----------
+        confidence_level : float | None, optional
+            If provided, calculate confidence bands at this level 
+            (0 to 1).
+            Example: 0.95 for 95% confidence bands. If None, no 
+            confidence bands are calculated. Default is None.
         n_points : int, optional
-            Number of points the interpolated line and its sequence 
-            should have, by default LOWESS_SEQUENCE_LEN 
-            (defined in constants.py)
+            Number of points to generate in the sequence. More points 
+            create a smoother visualization but increase computation 
+            time. Default is defined in DEFAULT.LOWESS_SEQUENCE_LEN.
         
         Returns
         -------
         sequence : NDArray
-            The sequence of feature values.
+            Evenly spaced feature values
         prediction : NDArray
-            The predicted target values.
-            
-        Notes
-        -----
-        The returned values can be used directly to plot a smooth fitted 
-        line representing the LOWESS regression.
+            Predicted target values
+        lower_band : NDArray, optional
+            Lower confidence band. Only returned if confidence_level is 
+            provided
+        upper_band : NDArray, optional
+            Upper confidence band. Only returned if confidence_level is 
+            provided
         """
+        # Generate sequence and predictions
         sequence = np.linspace(self.x.min(), self.x.max(), n_points)
         prediction = self.predict(sequence, kind='linear')
-        return sequence, prediction
+        
+        if confidence_level is None:
+            return sequence, prediction
+        else:
+            alpha = confidence_to_alpha(confidence_level, two_sided=True)
+            z_score = stats.norm.ppf(1 - alpha)
+            std_errors_interpolated = self._interpolate_(y=self.std_errors)(sequence)
+            margin = z_score * std_errors_interpolated
+            lower_band = prediction - margin
+            upper_band = prediction + margin
+            
+            return sequence, prediction, lower_band, upper_band
 
 
 __all__ = [

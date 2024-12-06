@@ -6,6 +6,7 @@ import pandas as pd
 
 from typing import Any
 from typing import Dict
+from typing import Literal
 from pytest import approx
 from pathlib import Path
 from pandas.core.frame import DataFrame
@@ -134,3 +135,90 @@ class TestEstimator:
         estimate.distribution()
         assert estimate.p_dist > 0.005
         assert estimate.dist.name != 'expon'
+
+
+class TestLowess:
+    @pytest.fixture
+    def sample_data(self) -> DataFrame:
+        np.random.seed(42)
+        x = np.linspace(0, 10, 100)
+        y = 2 * x + np.random.normal(0, 1, 100)
+        df = pd.DataFrame({'x': x, 'y': y})
+        return df
+
+    def test_init(self, sample_data: DataFrame) -> None:
+        lowess = Lowess(sample_data, target='y', feature='x')
+        assert isinstance(lowess.source, pd.DataFrame)
+        assert lowess.target == 'y'
+        assert lowess.feature == 'x'
+        assert len(lowess.x) == len(sample_data)
+
+    def test_empty_data(self):
+        empty_df = pd.DataFrame({'x': [], 'y': []})
+        with pytest.raises(AssertionError, match='No data after removing missing values'):
+            Lowess(empty_df, target='y', feature='x')
+
+    def test_available_kernels(self) -> None:
+        lowess = Lowess(pd.DataFrame({'x': [1], 'y': [1]}), 'y', 'x')
+        kernels = lowess.available_kernels
+        assert 'tricube' in kernels
+        assert 'gaussian' in kernels
+        assert 'epanechnikov' in kernels
+
+    @pytest.mark.parametrize("kernel", ['tricube', 'gaussian', 'epanechnikov'])
+    def test_kernel_weights(self, kernel) -> None:
+        x = np.array([1, 2, 3, 4, 5])
+        xi = 3
+        bandwidth = 2
+        lowess = Lowess(pd.DataFrame({'x': x, 'y': x}), 'y', 'x')
+        weights_func = getattr(lowess, f'{kernel}_weights')
+        weights = weights_func(xi, x, bandwidth)
+        assert len(weights) == len(x)
+        assert all(weights >= 0)
+        assert weights[2] > weights[0]  # Center point should have higher weight
+
+    def test_fit_predict(self, sample_data: DataFrame) -> None:
+        lowess = Lowess(sample_data, target='y', feature='x')
+        fitted = lowess.fit(fraction=0.3)
+        assert fitted is lowess
+        assert hasattr(lowess, 'smoothed')
+        assert len(lowess.smoothed) == len(sample_data)
+        
+        # Test prediction
+        pred = lowess.predict(5.0)
+        assert isinstance(pred, np.ndarray)
+        assert len(pred) == 1
+
+    def test_predict_sequence(self, sample_data: DataFrame) -> None:
+        lowess = Lowess(sample_data, target='y', feature='x')
+        lowess.fit(fraction=0.3)
+        
+        # Without confidence intervals
+        seq, pred = lowess.predict_sequence(confidence_level=None, n_points=50)
+        assert len(seq) == 50
+        assert len(pred) == 50
+        
+        # With confidence intervals
+        seq, pred, lower, upper = lowess.predict_sequence(confidence_level=0.95, n_points=50)
+        assert len(seq) == 50
+        assert len(pred) == 50
+        assert len(lower) == 50
+        assert len(upper) == 50
+        assert all(lower <= upper)
+
+    def test_invalid_kernel(self) -> None:
+        lowess = Lowess(pd.DataFrame({'x': [1], 'y': [1]}), 'y', 'x')
+        with pytest.raises(AssertionError):
+            lowess.fit(fraction=0.3, kernel='invalid_kernel') # type: ignore
+
+    def test_predict_before_fit(self, sample_data: DataFrame) -> None:
+        lowess = Lowess(sample_data, target='y', feature='x')
+        with pytest.raises(AssertionError):
+            lowess.predict(5.0)
+
+    def test_residuals(self, sample_data: DataFrame) -> None:
+        lowess = Lowess(sample_data, target='y', feature='x')
+        lowess.fit(fraction=0.3)
+        residuals = lowess.residuals
+        assert len(residuals) == len(sample_data)
+        assert isinstance(residuals, pd.Series)
