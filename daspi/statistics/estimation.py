@@ -12,6 +12,7 @@ from typing import Literal
 from typing import overload
 from typing import Callable
 from numpy.typing import NDArray
+from numpy.linalg import LinAlgError
 from scipy.interpolate import interp1d
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
@@ -1525,7 +1526,14 @@ class Lowess:
         XtW = X.T @ W                       # (2 x n) @ (n x n) = (2 x n)
         XtWX = XtW @ X                      # (2 x n) @ (n x 2) = (2 x 2)
         XtWy = XtW @ self.y                 # (2 x n) @ (n x 1) = (2 x 1)
-        beta = np.linalg.inv(XtWX) @ (XtWy) # (2 x 2) @ (2 x 1) = (2 x 1)
+        try:
+            beta = np.linalg.inv(XtWX) @ (XtWy) # (2 x 2) @ (2 x 1) = (2 x 1)
+        except LinAlgError:
+            raise LinAlgError(
+                'Matrix is singular or close to singular, cannot compute '
+                'inverse. To avoid this error, try increasing the fraction or '
+                'changing the kernel to Gaussian. For more information, see '
+                'the Notes section in the Fit method docstring.')
         fitted_line = X @ beta
 
         # Calculate leverage for current point
@@ -1567,6 +1575,23 @@ class Lowess:
         -------
         Lowess:
             The instance of the Lowess with the fitted values.
+        
+        Notes
+        -----
+        If using this method it's possible to run in a LinAlgError.
+        This error usually happens in two main scenarios:
+
+        1. Singular Matrix: 
+            When the input data creates a singular matrix 
+            (determinant = 0). This often occurs when:
+            - You have perfectly correlated features
+            - You have duplicate data points
+            - There's not enough variation in your data
+
+        2. Ill-Conditioned Matrix:
+            When the matrix is nearly singular. Common causes:
+            - Features with very different scales
+            - Multicollinearity between features
         """
         assert kernel in self.available_kernels, (
             f'The specified kernel "{kernel}" is not recognized. '

@@ -677,22 +677,25 @@ class LowessLine(Plotter):
         the current one using `plt.gca`. If none is available, one is 
         created. The same applies to the Figure object. Defaults to 
         None.
-    show_scatter : bool, optional
-        Flag indicating whether to show the individual points, 
-        by default True.
     show_ci : bool, optional
         Flag indicating whether to show the confidence interval for
         the lowess line as filled area, by default False.
+    confidence_level: float, optional
+        Calculate confidence bands for the lowess line at this level 
+        (0 to 1). Defaults to 0.95.
     fraction : float | None, optional
         The fraction of the data used for each local regression. A good 
         value to start with is 2/3 (default value of statsmodels). 
         Reduce the value to avoid underfitting. A value below 0.2 
-        usually leads to overfitting. Defaults to 2/3
+        usually leads to overfitting, except for gaussian weights. 
+        Defaults to 0.2 because of default gaussian kernel.
     kernel : Literal['tricube', 'gaussian', 'epanechnikov'], optional
         The kernel function used to calculate the weights. Available kernels are:
         'tricube': Tricube kernel function
         'gaussian': Gaussian kernel function
-        'epanechnikov': Epanechnikov kernel function Default is 'tricube'.
+        'epanechnikov': Epanechnikov kernel function.
+        Default is 'gaussian', because it will not run in a Singular
+        Matrix Error.
     n_points : int, optional
         Number of points the smoothed line and its sequence 
         should have, by default LOWESS_SEQUENCE_LEN 
@@ -720,19 +723,23 @@ class LowessLine(Plotter):
             marker: str | None = None,
             ax: Axes | None = None,
             show_ci: bool = False,
+            confidence_level: float = 0.95,
             fraction: float = 0.2,
-            kernel: Literal['tricube', 'gaussian', 'epanechnikov'] = 'tricube',
+            kernel: Literal['tricube', 'gaussian', 'epanechnikov'] = 'gaussian',
             n_points: int = DEFAULT.LOWESS_SEQUENCE_LEN,
             **kwds) -> None:
         self.show_ci = show_ci
         source = source[[target, feature]].copy()
         self.model = Lowess(source=source, target=target, feature=feature)
         self.model.fit(fraction=fraction, kernel=kernel)
+        sequence, prediction, lower, upper = self.model.predict_sequence(
+            confidence_level=confidence_level,
+            n_points=n_points)
         df = pd.DataFrame({
-            PLOTTER.LOWESS_TARGET: self.model.smoothed,
-            PLOTTER.LOWESS_FEATURE: self.model.x,
-            PLOTTER.LOWESS_LOW: self.model.smoothed - 2*self.model.std_errors**0.5,
-            PLOTTER.LOWESS_UPP: self.model.smoothed + 2*self.model.std_errors**0.5,})
+            PLOTTER.LOWESS_TARGET: prediction,
+            PLOTTER.LOWESS_FEATURE: sequence,
+            PLOTTER.LOWESS_LOW: lower,
+            PLOTTER.LOWESS_UPP: upper,})
         super().__init__(
             source=df,
             target=PLOTTER.LOWESS_TARGET,

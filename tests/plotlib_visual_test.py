@@ -1454,11 +1454,11 @@ class TestTemplates:
                 source = df_aspirin,
                 target = self.target,
                 feature = self.feature,
-                hue = self.cat1
+                hue = self.cat2
             ).plot_univariates(
                 GaussianKDE
             ).plot_bivariate(
-                LowessLine, show_scatter=True
+                LowessLine, show_ci=True
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,
