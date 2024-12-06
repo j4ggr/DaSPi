@@ -555,7 +555,7 @@ class LinearModel:
         X = self.model.model.data.exog
         y = self.model.model.data.endog
         try:
-            P = np.dot(X, np.dot(np.linalg.inv(np.dot(X.T, X)), X.T))
+            P = X @ np.linalg.inv(X.T @ X) @ X.T
         except LinAlgError:
             return None
         
