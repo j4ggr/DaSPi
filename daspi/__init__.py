@@ -114,6 +114,9 @@ from .statistics.estimation import estimate_kernel_density_2d
 from .statistics.estimation import estimate_capability_confidence
 
 
+from .plotlib import STYLES
+from .plotlib import use_style
+
 from .plotlib.classify import Dodger
 from .plotlib.classify import HueLabel
 from .plotlib.classify import SizeLabel

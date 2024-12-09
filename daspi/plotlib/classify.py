@@ -167,19 +167,29 @@ class HueLabel(_CategoryLabel):
         Tuple of available hue categories as hex or str colors,
         by default `CATEGORY.PALETTE`.
     """
+    __slots__ = ('follow_order')
+
+    follow_order: bool
 
     def __init__(
             self,
             labels: Sequence[Scalar],
-            colors: Tuple[str, ...]) -> None:
+            colors: Tuple[str, ...],
+            follow_order: bool = False
+            ) -> None:
+        self.follow_order = follow_order
         super().__init__(labels, colors)
     
     @property
     def categories(self) -> Tuple[str, ...]:
         """Tuple containing the available hue categories as the current
-        color palette as defined in constants `CATEGORY.MARKERS` or
+        color palette as defined in constants `CATEGORY.PALETTE` or
         the given colors during initialization (read-only)."""
-        return super().categories
+        if self.follow_order or self.n_used in (0, 1):
+            return super().categories
+        
+        step = self.n_allowed // self.n_used
+        return self._categories[::step][:self.n_used]
 
     @property
     def colors(self) -> Tuple[str, ...]:
@@ -377,9 +387,9 @@ class Dodger:
     def __init__(
             self,
             categories: Tuple[str, ...],
-            tick_labels: Tuple[str, ...]) -> None:
+            tick_labels: Tuple[Any, ...]) -> None:
         self.categories = categories
-        self.tick_lables = tick_labels
+        self.tick_lables = tuple(map(str, tick_labels))
         self.ticks = np.arange(len(tick_labels)) + DEFAULT.FEATURE_BASE
         self.amount = max(len(self.categories), 1)
         space = CATEGORY.FEATURE_SPACE/self.amount

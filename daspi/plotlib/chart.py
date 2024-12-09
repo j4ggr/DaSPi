@@ -656,7 +656,6 @@ class SingleChart(Chart):
         self.categorical_feature = categorical_feature or dodge
         if feature == '' and self.categorical_feature:
             feature = PLOTTER.FEATURE
-            source[feature] = ''
         self.hue = hue
         self.shape = shape
         self.size = size
@@ -670,8 +669,10 @@ class SingleChart(Chart):
             n_size_bins=n_size_bins,
             axes = axes,
             **kwds)
-        assert self.feature in source or not self.categorical_feature, (
-            'categorical_feature is True, but features is not present')
+        if self.categorical_feature:
+            if self.feature not in self.source:
+                self.source[self.feature] = ''
+            self.source[self.feature].astype('category', copy=False)
         self.hueing = HueLabel(self.unique_labels(self.hue), self._colors)
         dodge_labels = ()
         dodge_categories = ()
@@ -856,8 +857,8 @@ class SingleChart(Chart):
             return
         
         hue_variate = self._current_variate.get(self.hue, None)
-        self._data.loc[:, self.feature] = self.dodging(
-            self._data[self.feature], hue_variate)
+        dodged_features = self.dodging(self._data[self.feature], hue_variate)
+        self._data.loc[:, self.feature] = dodged_features
         
     def _categorical_feature_grid_(self, ax: Axes) -> None:
         """Hide the major grid and set the subgrid between each category 
@@ -1711,8 +1712,27 @@ class MultipleVariateChart(SingleChart):
 
     Examples
     --------
-    >>> chart = MultipleVariateChart(source=data, target='sales', col='region', hue='product')
-    >>> chart.plot(MyPlotter, param1=42, param2='abc')
+    
+    ``` python
+    import daspi as dsp
+    df = dsp.load_dataset('iris')
+
+    chart = dsp.MultipleVariateChart(
+            source=df,
+            target='length',
+            feature='width',
+            hue='species',
+            col='leaf',
+            markers=('x',)
+        ).plot(
+            dsp.GaussianKDEContour
+        ).plot(
+            dsp.Scatter
+        ).label(
+            feature_label='leaf width (cm)',
+            target_label='leaf length (cm)',
+        )
+    ```
     """
 
     __slots__ = ('col', 'row', 'row_labels', 'col_labels')

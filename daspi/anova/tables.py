@@ -39,10 +39,14 @@ def uniques(seq: Iterable) -> list[Any]:
 
     Examples
     --------
+    ``` python
     >>> sequence = [1, 2, 3, 2, 1, 4, 5, 4]
     >>> unique_elements = uniques(sequence)
     >>> print(unique_elements)
+    ```
+    ``` console
     [1, 2, 3, 4, 5]
+    ```
     """
     seen = set()
     return [x for x in seq if not (x in seen or seen.add(x))]

@@ -30,10 +30,16 @@ def get_term_name(name: str) -> str:
 
     Examples
     --------
-    >>> encoded_name = 'Category[T.Value]:OtherCategory[T.OtherValue]'
-    >>> term_name = get_term_name(encoded_name)
-    >>> print(term_name)
+    
+    ``` python
+    encoded_name = 'Category[T.Value]:OtherCategory[T.OtherValue]'
+    term_name = get_term_name(encoded_name)
+    print(term_name)
+    ```
+    
+    ``` console
     'Category:OtherCategory'
+    ```
     """
     if not isinstance(name, str):
         return name

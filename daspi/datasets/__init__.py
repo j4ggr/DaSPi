@@ -47,9 +47,12 @@ def load_dataset(dataset_name: str) -> DataFrame:
     Load the `Iris <https://archive.ics.uci.edu/dataset/53/iris>`_
     dataset:
 
-    >>> import daspi
-    >>> df = daspi.load_dataset('iris')
-    >>> df
+    ``` python
+    import daspi as dsp
+    df = dsp.load_dataset('iris')
+    df
+    ```
+    ``` console
         species   leaf  width  length
     0       setosa  sepal    3.5     5.1
     1       setosa  sepal    3.0     4.9
@@ -64,6 +67,7 @@ def load_dataset(dataset_name: str) -> DataFrame:
     299  virginica  petal    1.8     5.1
 
     [300 rows x 4 columns]
+    ```
     """
     assert dataset_name in DATASET_NAMES, (
         f'Dataset does not exist. Valid datasets names are {DATASET_NAMES}')
@@ -80,10 +84,12 @@ def list_dataset():
 
     Examples
     --------
-
+    ``` python
     >>> import daspi as pg
     >>> all_datasets = pg.list_dataset()
     >>> all_datasets.index.tolist()
+    ```
+    ``` console
     ['ancova',
      'anova',
      'anova2',
@@ -113,6 +119,7 @@ def list_dataset():
      'rm_corr',
      'rm_missing',
      'tips']
+    ```
     """
     return df_info.set_index("dataset")
 

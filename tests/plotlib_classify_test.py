@@ -19,6 +19,7 @@ from daspi import COLOR
 from daspi import CATEGORY
 from daspi import Dodger
 from daspi import HueLabel
+from daspi import use_style
 from daspi import SizeLabel
 from daspi import StripeLine
 from daspi import StripeSpan
@@ -27,7 +28,10 @@ from daspi.plotlib import Stripe
 
 
 class TestCategoryLabel:
-    colors = HueLabel(('alpha', 'beta', 'gamma', 'delta'), CATEGORY.PALETTE)
+    colors = HueLabel(
+        ('alpha', 'beta', 'gamma', 'delta'),
+        CATEGORY.PALETTE,
+        follow_order=True)
     markers = ShapeLabel(('foo', 'bar', 'bazz'), CATEGORY.MARKERS)
     sizes = SizeLabel(1.5, 3.5, CATEGORY.N_SIZE_BINS)
 
@@ -122,6 +126,47 @@ class TestDodger:
         assert dodge(old, 'g').values == approx(dodge.ticks - 0.1)
         assert dodge(old, 'b').values == approx(dodge.ticks + 0.1)
         assert dodge(old, 'y').values == approx(dodge.ticks + 0.3)
+
+
+class TestHueLabel:
+
+    def test_palette(self):
+        palette = CATEGORY.PALETTE
+        labels = [f'{i:02d}' for i in range(len(palette)//2)]
+        colors = HueLabel(labels, palette, follow_order=True)
+        assert len(colors.categories) == 25
+        assert colors.categories == palette[:25]
+        
+        labels = [f'{i:02d}' for i in range(len(palette)//2)]
+        colors = HueLabel(labels, palette, follow_order=False)
+        assert len(colors.categories) == 25
+        assert colors.categories != palette[:25]
+
+        use_style('ggplot2')
+        assert CATEGORY.PALETTE != palette
+        palette = CATEGORY.PALETTE
+
+        labels = [f'{i:02d}' for i in range(1)]
+        colors = HueLabel(labels, palette, follow_order=False)
+        assert len(colors.categories) == 1
+        assert colors.categories == ('#F8766D',)
+
+        labels = [f'{i:02d}' for i in range(2)]
+        colors = HueLabel(labels, palette, follow_order=False)
+        assert len(colors.categories) == 2
+        assert colors.categories == ('#F8766D', '#00BFC4')
+
+        labels = [f'{i:02d}' for i in range(3)]
+        colors = HueLabel(labels, palette, follow_order=False)
+        assert len(colors.categories) == 3
+        assert colors.categories == ('#F8766D', '#00B81F', '#00A5FF')
+
+
+        labels = [f'{i:02d}' for i in range(6)]
+        colors = HueLabel(labels, palette, follow_order=False)
+        assert len(colors.categories) == 6
+        assert colors.categories == (
+            '#F8766D', '#BB9D00', '#00B81F', '#00C0B8', '#00A5FF', '#E76BF3')
 
 
 
