@@ -54,7 +54,9 @@ class Style:
         'figure.constrained_layout.hspace': 0.05,   # Space between subplot groups. Float representing
         'figure.constrained_layout.wspace': 0.05}   # a fraction of the subplot widths being separated.
     """A dictionary of mandatory matplotlib parameters that are 
-    automatically included when saving a style."""
+    automatically included when saving a style and applied when loading
+    a style. These parameters are important so that all titles, the 
+    legend and the row and column labels are not outside the graphic."""
 
     current: str
     """Name of current style is being used."""
@@ -108,6 +110,7 @@ class Style:
                 (e.g. 'daspi', 'daspi-dark', 'ggplot2' or 'seaborn')
             - A built-in matplotlib style name
             - Path to a custom .mplstyle file
+            - 'default', loads the matplotlib default style
 
         Returns
         -------
@@ -137,7 +140,7 @@ class Style:
         if name in self.daspi_styles:
             plt.style.use(self.folder/f'{name}.mplstyle')
             self.current = name
-        elif name in self.mpl_styles:
+        elif name in self.mpl_styles + ('default', ):
             plt.style.use(name)
             self.current = name
         elif Path(name).is_file() and str(name).endswith('.mplstyle'):
@@ -147,6 +150,7 @@ class Style:
             raise ValueError(
                 f'{name} is not a valid matplotlib style. Available styles are:'
                 f' {self.available}')
+        self.apply_mandatory_params()
 
     def save(
             self,
@@ -176,7 +180,12 @@ class Style:
         --------
         ``` python
         import daspi as dsp
+        import seaborn as sns
         from pathlib import Path
+
+        dsp.style.use('default')
+        sns.set_theme(context='paper', style="darkgrid")
+        
         comment_lines = [
             "# Copyright (c) 2012-2023, Michael L. Waskom All rights reserved.",
             "# Created by writing loaded mpl.rcParams into the .mplstyle file",
@@ -210,6 +219,14 @@ class Style:
         lines = [line if line.endswith('\n') else f'{line}\n' for line in lines]
         with open(folder/style_name, 'w') as f:
             f.writelines(lines)
+    
+    def apply_mandatory_params(self) -> None:
+        """Apply the mandatory parameters to the current loaded 
+        rcParams. This method is automatically called within the `use` 
+        method to ensure that all titles, legends, and row and column 
+        labels are not outside the graph."""
+        for key, value in self._mandatory_params.items():
+            mpl.rcParams[key] = value
 
 style = Style()
 """A instance of the Style class for managing and applying matplotlib 

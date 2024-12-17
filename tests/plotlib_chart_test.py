@@ -17,8 +17,8 @@ sys.path.append(Path(__file__).parent.resolve()) # type: ignore
 
 from daspi import JointChart
 from daspi import SingleChart
-from daspi.plotlib.chart import get_shared_axes
-from daspi.plotlib.chart import positions_of_shared_axes
+from daspi.plotlib.appearance import get_shared_axes
+from daspi.plotlib.appearance import positions_of_shared_axes
 
 class TestSharingAxesFunctions:
     """tests for get_shared_axes and positions_of_shared_axes functions"""

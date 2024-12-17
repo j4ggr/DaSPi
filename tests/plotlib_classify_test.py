@@ -138,37 +138,45 @@ class TestHueLabel:
         assert colors.categories == palette[:25]
         
         labels = [f'{i:02d}' for i in range(len(palette)//2)]
-        colors = HueLabel(labels, palette, follow_order=False)
+        colors = HueLabel(labels, palette, style.follow_palette_order)
         assert len(colors.categories) == 25
         assert colors.categories != palette[:25]
 
         style.use('ggplot2')
         assert CATEGORY.PALETTE != palette
+        assert not style.follow_palette_order
         palette = CATEGORY.PALETTE
 
         labels = [f'{i:02d}' for i in range(1)]
-        colors = HueLabel(labels, palette, follow_order=False)
+        colors = HueLabel(labels, palette, style.follow_palette_order)
         assert len(colors.categories) == 1
         assert colors.categories == ('#F8766D',)
 
         labels = [f'{i:02d}' for i in range(2)]
-        colors = HueLabel(labels, palette, follow_order=False)
+        colors = HueLabel(labels, palette, style.follow_palette_order)
         assert len(colors.categories) == 2
         assert colors.categories == ('#F8766D', '#00BFC4')
 
         labels = [f'{i:02d}' for i in range(3)]
-        colors = HueLabel(labels, palette, follow_order=False)
+        colors = HueLabel(labels, palette, style.follow_palette_order)
         assert len(colors.categories) == 3
         assert colors.categories == ('#F8766D', '#00B81F', '#00A5FF')
 
 
         labels = [f'{i:02d}' for i in range(6)]
-        colors = HueLabel(labels, palette, follow_order=False)
+        colors = HueLabel(labels, palette, style.follow_palette_order)
         assert len(colors.categories) == 6
         assert colors.categories == (
             '#F8766D', '#BB9D00', '#00B81F', '#00C0B8', '#00A5FF', '#E76BF3')
 
-
+        style.use('seaborn')
+        assert CATEGORY.PALETTE != palette
+        assert style.follow_palette_order
+        palette = CATEGORY.PALETTE
+        labels = [f'{i:02d}' for i in range(len(palette))]
+        colors = HueLabel(labels, palette, style.follow_palette_order)
+        for hue, color in zip(colors.categories, palette):
+            assert hue == color
 
 class TestStripe:
     
