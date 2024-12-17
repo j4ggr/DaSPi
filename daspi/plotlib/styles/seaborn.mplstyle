@@ -1,12 +1,8 @@
-# 
 # Copyright (c) 2012-2023, Michael L. Waskom All rights reserved.
-# 
-# Crated by writing loaded mpl.rcParams into the .mplstyle file
+# Created by writing loaded mpl.rcParams into the .mplstyle file
 # Used rcParams of seaborn by running:
-# 
 # >>> import seaborn as sns
 # >>> sns.set_theme(context='paper')
-# 
 agg.path.chunksize:	0
 animation.bitrate:	-1
 animation.codec:	h264
@@ -18,7 +14,7 @@ animation.ffmpeg_path:	ffmpeg
 animation.frame_format:	png
 animation.html:	none
 animation.writer:	ffmpeg
-axes.autolimit_mode:	round_numbers
+axes.autolimit_mode:	data
 axes.axisbelow:	True
 axes.edgecolor:	white
 axes.facecolor:	EAEAF2
@@ -27,14 +23,14 @@ axes.formatter.min_exponent:	0
 axes.formatter.offset_threshold:	4
 axes.formatter.use_locale:	False
 axes.formatter.use_mathtext:	False
-axes.formatter.useoffset:	False
+axes.formatter.useoffset:	True
 axes.grid:	True
 axes.grid.axis:	both
 axes.grid.which:	major
 axes.labelcolor:	.15
-axes.labelpad:	5.0
+axes.labelpad:	4.0
 axes.labelsize:	9.600000000000001
-axes.labelweight:	100
+axes.labelweight:	normal
 axes.linewidth:	1.0
 axes.prop_cycle:	cycler('color', [(0.2980392156862745, 0.4470588235294118, 0.6901960784313725), (0.8666666666666667, 0.5176470588235295, 0.3215686274509804), (0.3333333333333333, 0.6588235294117647, 0.40784313725490196), (0.7686274509803922, 0.3058823529411765, 0.3215686274509804), (0.5058823529411764, 0.4470588235294118, 0.7019607843137254), (0.5764705882352941, 0.47058823529411764, 0.3764705882352941), (0.8549019607843137, 0.5450980392156862, 0.7647058823529411), (0.5490196078431373, 0.5490196078431373, 0.5490196078431373), (0.8, 0.7254901960784313, 0.4549019607843137), (0.39215686274509803, 0.7098039215686275, 0.803921568627451)])
 axes.spines.bottom:	True
@@ -42,14 +38,14 @@ axes.spines.left:	True
 axes.spines.right:	True
 axes.spines.top:	True
 axes.titlecolor:	auto
-axes.titlelocation:	left
-axes.titlepad:	10.0
+axes.titlelocation:	center
+axes.titlepad:	6.0
 axes.titlesize:	9.600000000000001
-axes.titleweight:	100
+axes.titleweight:	normal
 axes.titley:	None
 axes.unicode_minus:	True
-axes.xmargin:	0.0
-axes.ymargin:	0.01
+axes.xmargin:	0.05
+axes.ymargin:	0.05
 axes.zmargin:	0.05
 axes3d.automargin:	False
 axes3d.grid:	True
@@ -66,11 +62,11 @@ boxplot.capprops.linewidth:	1.0
 boxplot.flierprops.color:	black
 boxplot.flierprops.linestyle:	none
 boxplot.flierprops.linewidth:	1.0
-boxplot.flierprops.marker:	*
+boxplot.flierprops.marker:	o
 boxplot.flierprops.markeredgecolor:	black
 boxplot.flierprops.markeredgewidth:	1.0
 boxplot.flierprops.markerfacecolor:	none
-boxplot.flierprops.markersize:	5.0
+boxplot.flierprops.markersize:	6.0
 boxplot.meanline:	False
 boxplot.meanprops.color:	C2
 boxplot.meanprops.linestyle:	--
@@ -78,7 +74,7 @@ boxplot.meanprops.linewidth:	1.0
 boxplot.meanprops.marker:	^
 boxplot.meanprops.markeredgecolor:	C2
 boxplot.meanprops.markerfacecolor:	C2
-boxplot.meanprops.markersize:	5.0
+boxplot.meanprops.markersize:	6.0
 boxplot.medianprops.color:	C1
 boxplot.medianprops.linestyle:	-
 boxplot.medianprops.linewidth:	1.0
@@ -87,7 +83,7 @@ boxplot.patchartist:	False
 boxplot.showbox:	True
 boxplot.showcaps:	True
 boxplot.showfliers:	True
-boxplot.showmeans:	True
+boxplot.showmeans:	False
 boxplot.vertical:	True
 boxplot.whiskerprops.color:	black
 boxplot.whiskerprops.linestyle:	-
@@ -106,29 +102,29 @@ date.autoformatter.second:	%H:%M:%S
 date.autoformatter.year:	%Y
 date.converter:	auto
 date.interval_multiples:	True
-errorbar.capsize:	3.0
+errorbar.capsize:	0.0
 figure.autolayout:	False
 figure.constrained_layout.h_pad:	0.02
 figure.constrained_layout.hspace:	0.05
 figure.constrained_layout.use:	True
 figure.constrained_layout.w_pad:	0.02
 figure.constrained_layout.wspace:	0.05
-figure.dpi:	120.0
+figure.dpi:	100.0
 figure.edgecolor:	white
 figure.facecolor:	white
-figure.figsize:	5.9, 3.5
-figure.frameon:	False
+figure.figsize:	6.4, 4.8
+figure.frameon:	True
 figure.hooks:	
 figure.labelsize:	large
 figure.labelweight:	normal
-figure.subplot.bottom:	0.04
+figure.subplot.bottom:	0.11
 figure.subplot.hspace:	0.2
-figure.subplot.left:	0.04
-figure.subplot.right:	0.95
-figure.subplot.top:	0.83
+figure.subplot.left:	0.125
+figure.subplot.right:	0.9
+figure.subplot.top:	0.88
 figure.subplot.wspace:	0.2
-figure.titlesize:	11.0
-figure.titleweight:	100
+figure.titlesize:	large
+figure.titleweight:	normal
 font.cursive:	Apple Chancery, Textile, Zapf Chancery, Sand, Script MT, Felipa, Comic Neue, Comic Sans MS, cursive
 font.family:	sans-serif
 font.fantasy:	Chicago, Charcoal, Impact, Western, xkcd script, fantasy
@@ -136,10 +132,10 @@ font.monospace:	DejaVu Sans Mono, Bitstream Vera Sans Mono, Computer Modern Type
 font.sans-serif:	Arial, DejaVu Sans, Liberation Sans, Bitstream Vera Sans, sans-serif
 font.serif:	DejaVu Serif, Bitstream Vera Serif, Computer Modern Roman, New Century Schoolbook, Century Schoolbook L, Utopia, ITC Bookman, Bookman, Nimbus Roman No9 L, Times New Roman, Times, Palatino, Charter, serif
 font.size:	9.600000000000001
-font.stretch:	semi-condensed
+font.stretch:	normal
 font.style:	normal
 font.variant:	normal
-font.weight:	100
+font.weight:	normal
 grid.alpha:	1.0
 grid.color:	white
 grid.linestyle:	-
@@ -171,20 +167,20 @@ keymap.xscale:	k, L
 keymap.yscale:	l
 keymap.zoom:	o
 legend.borderaxespad:	0.5
-legend.borderpad:	0.7
+legend.borderpad:	0.4
 legend.columnspacing:	2.0
-legend.edgecolor:	0.0
-legend.facecolor:	white
+legend.edgecolor:	0.8
+legend.facecolor:	inherit
 legend.fancybox:	True
 legend.fontsize:	8.8
-legend.framealpha:	0.2
-legend.frameon:	False
-legend.handleheight:	1.0
+legend.framealpha:	0.8
+legend.frameon:	True
+legend.handleheight:	0.7
 legend.handlelength:	2.0
-legend.handletextpad:	1.2
-legend.labelcolor:	404040
-legend.labelspacing:	0.7
-legend.loc:	upper left
+legend.handletextpad:	0.8
+legend.labelcolor:	None
+legend.labelspacing:	0.5
+legend.loc:	best
 legend.markerscale:	1.0
 legend.numpoints:	1
 legend.scatterpoints:	1
@@ -221,7 +217,7 @@ mathtext.sf:	sans
 mathtext.tt:	monospace
 patch.antialiased:	True
 patch.edgecolor:	w
-patch.facecolor:	white
+patch.facecolor:	C0
 patch.force_edgecolor:	True
 patch.linewidth:	0.8
 path.effects:	
@@ -245,9 +241,9 @@ ps.papersize:	letter
 ps.useafm:	False
 ps.usedistiller:	None
 savefig.bbox:	tight
-savefig.dpi:	400.0
-savefig.edgecolor:	white
-savefig.facecolor:	white
+savefig.dpi:	figure
+savefig.edgecolor:	auto
+savefig.facecolor:	auto
 savefig.format:	png
 savefig.orientation:	portrait
 savefig.pad_inches:	0.1
@@ -275,13 +271,13 @@ xtick.labelcolor:	inherit
 xtick.labelsize:	8.8
 xtick.labeltop:	False
 xtick.major.bottom:	True
-xtick.major.pad:	1.5
+xtick.major.pad:	3.5
 xtick.major.size:	4.800000000000001
 xtick.major.top:	True
 xtick.major.width:	1.0
 xtick.minor.bottom:	True
 xtick.minor.ndivs:	auto
-xtick.minor.pad:	1.0
+xtick.minor.pad:	3.4
 xtick.minor.size:	3.2
 xtick.minor.top:	True
 xtick.minor.visible:	False
@@ -297,13 +293,13 @@ ytick.labelright:	False
 ytick.labelsize:	8.8
 ytick.left:	False
 ytick.major.left:	True
-ytick.major.pad:	1.5
+ytick.major.pad:	3.5
 ytick.major.right:	True
 ytick.major.size:	4.800000000000001
 ytick.major.width:	1.0
 ytick.minor.left:	True
 ytick.minor.ndivs:	auto
-ytick.minor.pad:	1.0
+ytick.minor.pad:	3.4
 ytick.minor.right:	True
 ytick.minor.size:	3.2
 ytick.minor.visible:	False
