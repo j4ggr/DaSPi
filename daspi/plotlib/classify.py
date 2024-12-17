@@ -51,13 +51,25 @@ from ..constants import CATEGORY
 
 
 class _CategoryLabel(ABC):
-    """Abstract base class representing a category label handler for
-    plotted categorical values.
+    """Abstract base class representing a handler for category labels 
+    in plotted categorical values.
+
+    This abstract base class is intended to be subclassed for managing 
+    and manipulating category labels in various types of visualizations. 
+    It provides a common interface for handling labels associated with 
+    categorical data.
 
     Parameters
     ----------
     labels : Sequence[Scalar]
-        Labels corresponding to the categories.
+        A sequence of labels corresponding to the categories. These 
+        labels will be used to identify and differentiate the various
+        categories in the plot. The type of labels can vary, including 
+        strings, integers, or other scalar types.
+    categories : Sequence[Scalar]
+        A sequence of categories that the labels correspond to. This 
+        parameter provides context for the labels, indicating which 
+        categorical data they represent.
     """
 
     __slots__ = ('_default', '_categories', '_labels', '_n')
@@ -159,17 +171,44 @@ class _CategoryLabel(ABC):
 class HueLabel(_CategoryLabel):
     """A class representing category labels for hue values in plots.
 
+    This class is used to manage and display hue labels in 
+    visualizations, allowing for customization of color representation 
+    based on categorical data.
+
     Parameters
     ----------
     labels : Sequence[Scalar]
-        Labels corresponding to the hue categories.
+        Labels corresponding to the hue categories. These labels will be 
+        used to identify different categories in the plot.
     colors : Tuple[str, ...], optional
-        Tuple of available hue categories as hex or str colors,
-        by default `CATEGORY.PALETTE`.
+        A tuple of available hue categories represented as hex codes or
+        named colors. By default, this is set to `CATEGORY.PALETTE`, 
+        which provides a predefined set of colors for the categories.
+    follow_order : bool, optional
+        Determines how colors are assigned to hue categories. If set to 
+        `True`, the colors will follow the order specified in the
+        `colors` parameter. If set to `False`, the colors will be 
+        distributed evenly across the entire palette, inspired by 
+        ggplot's approach. The default value is `False`, which promotes 
+        an even distribution of colors across categories for better 
+        visual clarity.
+
+    Examples
+    --------
+    ``` python
+    hue_labels = HueLabel(
+        labels=['A', 'B', 'C'],
+        colors=('red', 'green', 'blue'),
+        follow_order=True)
+    ```
     """
     __slots__ = ('follow_order')
 
     follow_order: bool
+    """Determines how colors are assigned to hue categories. If set to 
+    `True`, the colors will follow the order specified in the `colors` 
+    parameter. If set to `False`, the colors will be distributed evenly 
+    across the entire palette"""
 
     def __init__(
             self,
@@ -211,13 +250,31 @@ class HueLabel(_CategoryLabel):
 class ShapeLabel(_CategoryLabel):
     """A class representing category labels for shape markers in plots.
 
+    This class is designed to manage and display shape markers 
+    associated with different categories in visualizations. It allows 
+    for the customization of markers to enhance the clarity and 
+    effectiveness of data representation.
+
     Parameters
     ----------
     labels : Sequence[Scalar]
-        Labels corresponding to the shape marker categories.
+        A sequence of labels corresponding to the shape marker 
+        categories. These labels will be used to identify and 
+        differentiate the shapes in the plot.
     markers : Tuple[str, ...], optional
-        Tuple of available shape marker categories as strings,
-        by default `CATEGORY.MARKERS`.
+        A tuple of available shape marker categories represented as 
+        strings. This defines the shapes that can be used for the 
+        corresponding categories. By default, this is set to 
+        `CATEGORY.MARKERS`, which provides a predefined set of markers 
+        for various categories.
+
+    Examples
+    --------
+    ``` python
+    shape_labels = ShapeLabel(
+        labels=['A', 'B', 'C'], 
+        markers=('o', 's', '^'))
+    ```
     """
 
     def __init__(
@@ -254,15 +311,30 @@ class ShapeLabel(_CategoryLabel):
 class SizeLabel(_CategoryLabel):
     """A class representing category labels for marker sizes in plots.
 
+    This class is designed to manage and display marker sizes associated 
+    with different categories in visualizations. It allows for the 
+    customization of sizes to effectively represent data magnitudes.
+
     Parameters
     ----------
-    min_value : int | float
-        Minimum value for the size range.
-    max_value : int | float
-        Maximum value for the size range.
+    min_value : int or float
+        The minimum value for the size range. This defines the smallest 
+        marker size that can be used in the plot.
+    max_value : int or float
+        The maximum value for the size range. This defines the largest 
+        marker size that can be used in the plot.
     n_bins : int, optional
-        Number of bins for the size range, by default 
-        `CATEGORY.N_SIZE_BINS`.
+        The number of bins to divide the size range into. This 
+        determines how many distinct size categories will be created for
+        the markers. By default, this is set to `CATEGORY.N_SIZE_BINS`, 
+        which provides a predefined number of bins for size 
+        categorization.
+
+    Examples
+    --------
+    ``` python
+    size_labels = SizeLabel(min_value=5, max_value=100, n_bins=5)
+    ```
     """
 
     __slots__ = ('_min', '_max')
@@ -355,14 +427,31 @@ class SizeLabel(_CategoryLabel):
 
 
 class Dodger:
-    """A class for handling dodging of categorical features in plots.
+    """A class for handling the dodging of categorical features in plots.
+
+    This class is designed to facilitate the visual separation of 
+    overlapping categorical features in plots by adjusting their 
+    positions. Dodging helps improve clarity and readability of 
+    categorical data representations.
 
     Parameters
     ----------
     categories : Tuple[str, ...]
-        Categories corresponding to the features.
+        A tuple of categories corresponding to the features being 
+        plotted. These categories will be used to determine the 
+        positions of the dodged elements in the visualization.
     tick_labels : Tuple[str, ...]
-        Labels for the ticks on the axis.
+        A tuple of labels for the ticks on the axis. These labels will 
+        correspond to the categories and will be displayed along the 
+        axis to enhance the interpretability of the plot.
+
+    Examples
+    --------
+    ``` python
+    dodger = Dodger(
+        categories=('A', 'B', 'C'),
+        tick_labels=('Category A', 'Category B', 'Category C'))
+    ```
     """
 
     __slots__ = (

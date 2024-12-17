@@ -19,7 +19,7 @@ from daspi import COLOR
 from daspi import CATEGORY
 from daspi import Dodger
 from daspi import HueLabel
-from daspi import use_style
+from daspi import style
 from daspi import SizeLabel
 from daspi import StripeLine
 from daspi import StripeSpan
@@ -142,7 +142,7 @@ class TestHueLabel:
         assert len(colors.categories) == 25
         assert colors.categories != palette[:25]
 
-        use_style('ggplot2')
+        style.use('ggplot2')
         assert CATEGORY.PALETTE != palette
         palette = CATEGORY.PALETTE
 

@@ -85,9 +85,9 @@ def list_dataset():
     Examples
     --------
     ``` python
-    >>> import daspi as pg
-    >>> all_datasets = pg.list_dataset()
-    >>> all_datasets.index.tolist()
+    import daspi as pg
+    all_datasets = pg.list_dataset()
+    all_datasets.index.tolist()
     ```
     ``` console
     ['ancova',

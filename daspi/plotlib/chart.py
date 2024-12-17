@@ -60,7 +60,6 @@ from typing import Generator
 from pathlib import Path
 from numpy.typing import NDArray
 from matplotlib.axes import Axes
-from matplotlib.axis import Axis
 from matplotlib.axis import XAxis
 from matplotlib.axis import YAxis
 from matplotlib.figure import Figure
@@ -68,13 +67,18 @@ from matplotlib.ticker import AutoMinorLocator
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
+from .appearance import style
+from .appearance import transpose_xy_axes_params
+
 from .classify import Dodger
 from .classify import HueLabel
 from .classify import SizeLabel
 from .classify import ShapeLabel
+
 from .facets import AxesFacets
 from .facets import LabelFacets
 from .facets import StripesFacets
+
 from .plotter import Plotter
 
 from ..strings import STR
@@ -91,124 +95,6 @@ from ..constants import PLOTTER
 from ..constants import CATEGORY
 
 # TODO: Remove iter over self and add option for removing variates at _generate_data_
-
-def get_shared_axes(
-        ax: Axes,
-        axis: Literal['x', 'y']
-        ) -> List[Axes]:
-    """Gets the shared Axes object of the given axis.
-    
-    Parameters
-    ----------
-    ax : Axes
-        The Axes object to get the shared Axes object of.
-    axis : Literal['x', 'y']
-        The axis to get the shared Axes object of.
-    
-    Returns
-    -------
-    List[Axes]
-        The shared Axes object of the given axis.
-    """
-    xy_axis: Axis = getattr(ax, f'{axis}axis')
-    shared_axis: List[Axis] = xy_axis._get_shared_axis() # type: ignore
-    return [a.axes for a in shared_axis]
-
-def positions_of_shared_axes(
-        ax: Axes,
-        axis: Literal['x', 'y']
-        ) -> List[int]:
-    """Gets the positions in the flat axis grid of the shared axes.
-
-    First get the shared Axes object of the given axis. Then get the
-    positions of the shared axes in the flat axis.
-
-    Parameters
-    ----------
-    ax : Axes
-        The Axes object to get the shared axes of.
-    axis : Literal['x', 'y']
-        The axis to get the shared axes of.
-
-    Returns
-    -------
-    List[int]
-        The positions of the shared axes of the given axis.
-    """
-    if ax.figure is None:
-        return []
-    shared = get_shared_axes(ax, axis)
-    return sorted(ax.figure.axes.index(x) for x in shared)
-
-def transpose_xy_axes_params(
-        ax: Axes,
-        margin: bool = True,
-        spines: bool = True,
-        ticks: bool | Literal['x', 'y', 'both'] | None = True
-        ) -> None:
-    """Swaps the x and y axis parameters of the given Axes object, 
-    including grid, margins, spines, and ticks.
-
-    This function is useful for quickly inverting the x and y axes of 
-    a plot, preserving the overall layout and appearance.
-
-    Parameters
-    ----------
-    ax : Axes
-        The Axes object to swap the x and y axis parameters for.
-    margin : bool, optional
-        Whether to swap the axis margins. Defaults to True.
-    spines : bool, optional
-        Whether to swap the axis spines. Defaults to True.
-    ticks : bool, optional
-        Whether to swap the axis ticks and labels. Defaults to True.
-    """
-    if margin:
-        ax.set(
-            ymargin=plt.rcParams['axes.xmargin'],
-            xmargin=plt.rcParams['axes.ymargin'],)
-    if spines:
-        ax.spines['left'].set_visible(plt.rcParams['axes.spines.bottom'])
-        ax.spines['bottom'].set_visible(plt.rcParams['axes.spines.left'])
-        ax.spines['top'].set_visible(plt.rcParams['axes.spines.right'])
-        ax.spines['right'].set_visible(plt.rcParams['axes.spines.top'])
-    
-    if ticks:
-        ax_position = getattr(ax.figure, 'axes', []).index(ax)
-        sharex_positions = positions_of_shared_axes(ax, axis='x')
-        sharey_positions = positions_of_shared_axes(ax, axis='y')
-        first_sharex = ax_position == min(sharex_positions)
-        first_sharey = ax_position == min(sharey_positions)
-        last_sharex = ax_position == max(sharex_positions)
-        last_sharey = ax_position == max(sharey_positions)
-        if not any((first_sharex, first_sharey, last_sharex, last_sharey)):
-            return
-
-        x_major = ax.xaxis.get_tick_params(which='major').copy()
-        x_minor = ax.xaxis.get_tick_params(which='minor').copy()
-        y_major = ax.yaxis.get_tick_params(which='major').copy()
-        y_minor = ax.yaxis.get_tick_params(which='minor').copy()
-
-        if first_sharex and (y_major['right'] or y_major['labelright']):
-            ax.xaxis.set_tick_params(which='major', reset=False, **y_major)
-        if first_sharex and (y_minor['right'] or y_minor['labelright']):
-            ax.xaxis.set_tick_params(which='minor', reset=False, **y_minor)
-
-        if last_sharex and (y_major['left'] or y_major['labelleft']):
-            ax.xaxis.set_tick_params(which='major', reset=False, **y_major)
-        if last_sharex and (y_minor['left'] or y_minor['labelleft']):
-            ax.xaxis.set_tick_params(which='minor', reset=False, **y_minor)
-        
-        if first_sharey and (x_major['left'] or x_major['labelleft']):
-            ax.yaxis.set_tick_params(which='major', reset=False, **x_major)
-        if first_sharey and (x_minor['left'] or x_minor['labelleft']):
-            ax.yaxis.set_tick_params(which='minor', reset=False, **x_minor)
-        
-        if last_sharey and (x_major['right'] or x_major['labelright']):
-            ax.yaxis.set_tick_params(which='major', reset=False, **x_major)
-        if last_sharey and (x_minor['right'] or x_minor['labelright']):
-            ax.yaxis.set_tick_params(which='minor', reset=False, **x_minor)
-
 
 class Chart(ABC):
     """
@@ -261,7 +147,7 @@ class Chart(ABC):
     __slots__ = (
         'source', 'target', 'feature', 'target_on_y', 'axes', '_ax',
         'label_facets', 'stripes_facets', '_data', '_plots', '_colors', 
-        '_markers', '_n_size_bins', '_kw_where')
+        '_markers', '_n_size_bins', '_kw_where', '_follow_palette_order')
     
     source: DataFrame
     """Pandas DataFrame containing the source data in long-format."""
@@ -673,7 +559,10 @@ class SingleChart(Chart):
             if self.feature not in self.source:
                 self.source[self.feature] = ''
             self.source[self.feature].astype('category', copy=False)
-        self.hueing = HueLabel(self.unique_labels(self.hue), self._colors)
+        self.hueing = HueLabel(
+            labels=self.unique_labels(self.hue),
+            colors=self._colors,
+            follow_order=style.follow_palette_order)
         dodge_labels = ()
         dodge_categories = ()
         if self.categorical_feature:
