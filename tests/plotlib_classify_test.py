@@ -486,7 +486,7 @@ class TestStripeSpan:
         handle = stripe.handle
         assert isinstance(handle, Patch)
         assert handle.get_alpha() == 0.123
-        assert to_hex(handle.get_facecolor()) == COLOR.PALETTE[0].lower()
+        assert to_hex(handle.get_facecolor()) == to_hex(COLOR.PALETTE[0]).lower()
 
     def test_call_horizontal(self, ax: Axes) -> None:
         stripe = StripeSpan(

@@ -641,7 +641,7 @@ def prediction_ci(
         array.
     """
     fitted = np.asarray(model.fittedvalues)
-    alpha = confidence_to_alpha(level)
+    alpha = confidence_to_alpha(level, two_sided=False) # Set two_sided to False here, because the function wls_prediction_std already makes the correction
     lower, upper = wls_prediction_std(model, alpha=alpha)[1:]     # standard error for predicted observation
     lower = np.asarray(lower)
     upper = np.asarray(upper)

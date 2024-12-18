@@ -105,6 +105,7 @@ from .statistics.hypothesis import anderson_darling_test
 from .statistics.hypothesis import kolmogorov_smirnov_test
 from .statistics.hypothesis import variance_stability_test
 
+from .statistics.estimation import Loess
 from .statistics.estimation import Lowess
 from .statistics.estimation import Estimator
 from .statistics.estimation import ProcessEstimator

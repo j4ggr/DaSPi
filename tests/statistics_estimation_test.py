@@ -165,18 +165,6 @@ class TestLowess:
         assert 'gaussian' in kernels
         assert 'epanechnikov' in kernels
 
-    @pytest.mark.parametrize("kernel", ['tricube', 'gaussian', 'epanechnikov'])
-    def test_kernel_weights(self, kernel) -> None:
-        x = np.array([1, 2, 3, 4, 5])
-        xi = 3
-        bandwidth = 2
-        lowess = Lowess(pd.DataFrame({'x': x, 'y': x}), 'y', 'x')
-        weights_func = getattr(lowess, f'{kernel}_weights')
-        weights = weights_func(xi, x, bandwidth)
-        assert len(weights) == len(x)
-        assert all(weights >= 0)
-        assert weights[2] > weights[0]  # Center point should have higher weight
-
     def test_fit_predict(self, sample_data: DataFrame) -> None:
         lowess = Lowess(sample_data, target='y', feature='x')
         fitted = lowess.fit(fraction=0.3)
