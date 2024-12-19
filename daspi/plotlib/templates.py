@@ -16,6 +16,7 @@ from .plotter import Plotter
 from .plotter import Scatter
 from .plotter import Violine
 from .plotter import MeanTest
+from .plotter import StripeLine
 from .plotter import SkipSubplot
 from .plotter import HideSubplot
 from .plotter import Probability
@@ -26,6 +27,7 @@ from .plotter import ParallelCoordinate
 from ..anova import LinearModel
 from ..strings import STR
 from ..constants import KW
+from ..constants import COLOR
 from ..constants import ANOVA
 from ..constants import CATEGORY
 
@@ -204,8 +206,21 @@ class ResidualsCharts(JointChart):
         super().plot(Probability, show_fit_ci=True)
         super().plot(GaussianKDE)
         super().plot(Scatter)
-        super().plot(Line, {'marker': 'o'})
-        # TODO : super().plot(StripeLine, label='fit', value=0, color='red') 
+        super().plot(Line, kw_call={'marker': 'o'})
+        return self
+    
+    def stripes(self) -> Self: # type: ignore
+        """Adds a line at position 0 for each subplot except for the 
+        probability plot. This line represents the fit of the model."""
+        fit = StripeLine(
+            label=str(STR['fit']),
+            position=0,
+            orientation='horizontal',
+            color=COLOR.PALETTE[0])
+        for chart in self.itercharts():
+            if chart == self.charts[0]:
+                continue
+            chart.stripes([fit])
         return self
 
     def label(self, info: bool | str = False, **kwds) -> Self: # type: ignore
@@ -543,6 +558,7 @@ class BivariateUnivariateCharts(JointChart):
     
     def label(
             self,
+            *,
             fig_title: str = '',
             sub_title: str = '',
             feature_label: str | bool | Tuple = '', 

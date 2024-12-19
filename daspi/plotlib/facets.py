@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 from typing import Any
 from typing import Self
+from typing import Type
 from typing import List
 from typing import Dict
 from typing import Tuple
@@ -22,6 +23,7 @@ from matplotlib.artist import Artist
 from matplotlib.typing import HashableList
 from matplotlib.patches import Patch
 
+from .plotter import Stripe
 from .plotter import StripeLine
 from .plotter import StripeSpan
 
@@ -338,7 +340,7 @@ class StripesFacets:
         stripes are used on multiple axes. This affects how the 
         predefined legend labels are handled. If True, the corresponding
         position values are added to the label.
-    stripes : List[StripeLine | StripeSpan], optional
+    stripes : List[Type[Stripe]], optional
         Additional non-predefined stripes to be added to the chart, 
         by default [].
     mean : bool, optional
@@ -393,7 +395,7 @@ class StripesFacets:
     stripes are used on multiple axes. This affects how the predefined
     legend labels are handled. If True, the corresponding position
     values are added to the label."""
-    stripes: Dict[str, StripeLine | StripeSpan]
+    stripes: Dict[str, Stripe]
     """The stripes to plot on the chart."""
     target_on_y: bool
     """Whether the target is on the y-axis or the x-axis."""
@@ -404,7 +406,7 @@ class StripesFacets:
         *,
         target_on_y: bool,
         single_axes: bool,
-        stripes: List[StripeLine | StripeSpan] = [], 
+        stripes: List[Stripe] = [], 
         mean: bool = False,
         median: bool = False,
         control_limits: bool = False,

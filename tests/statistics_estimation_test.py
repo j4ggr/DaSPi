@@ -137,7 +137,7 @@ class TestEstimator:
         assert estimate.dist.name != 'expon'
 
 
-class TestLowess:
+class TestLoess:
     @pytest.fixture
     def sample_data(self) -> DataFrame:
         np.random.seed(42)
@@ -147,47 +147,47 @@ class TestLowess:
         return df
 
     def test_init(self, sample_data: DataFrame) -> None:
-        lowess = Lowess(sample_data, target='y', feature='x')
-        assert isinstance(lowess.source, pd.DataFrame)
-        assert lowess.target == 'y'
-        assert lowess.feature == 'x'
-        assert len(lowess.x) == len(sample_data)
+        loess = Loess(sample_data, target='y', feature='x')
+        assert isinstance(loess.source, pd.DataFrame)
+        assert loess.target == 'y'
+        assert loess.feature == 'x'
+        assert len(loess.x) == len(sample_data)
 
     def test_empty_data(self):
         empty_df = pd.DataFrame({'x': [], 'y': []})
         with pytest.raises(AssertionError, match='No data after removing missing values'):
-            Lowess(empty_df, target='y', feature='x')
+            Loess(empty_df, target='y', feature='x')
 
     def test_available_kernels(self) -> None:
-        lowess = Lowess(pd.DataFrame({'x': [1], 'y': [1]}), 'y', 'x')
-        kernels = lowess.available_kernels
+        loess = Loess(pd.DataFrame({'x': [1], 'y': [1]}), 'y', 'x')
+        kernels = loess.available_kernels
         assert 'tricube' in kernels
         assert 'gaussian' in kernels
         assert 'epanechnikov' in kernels
 
     def test_fit_predict(self, sample_data: DataFrame) -> None:
-        lowess = Lowess(sample_data, target='y', feature='x')
-        fitted = lowess.fit(fraction=0.3)
-        assert fitted is lowess
-        assert hasattr(lowess, 'smoothed')
-        assert len(lowess.smoothed) == len(sample_data)
+        loess = Loess(sample_data, target='y', feature='x')
+        fitted = loess.fit()
+        assert fitted is loess
+        assert hasattr(loess, 'smoothed')
+        assert len(loess.smoothed) == len(sample_data)
         
         # Test prediction
-        pred = lowess.predict(5.0)
+        pred = loess.predict(5.0)
         assert isinstance(pred, np.ndarray)
         assert len(pred) == 1
 
-    def test_predict_sequence(self, sample_data: DataFrame) -> None:
-        lowess = Lowess(sample_data, target='y', feature='x')
-        lowess.fit(fraction=0.3)
+    def test_fitted_line(self, sample_data: DataFrame) -> None:
+        loess = Loess(sample_data, target='y', feature='x')
+        loess.fit()
         
         # Without confidence intervals
-        seq, pred = lowess.predict_sequence(confidence_level=None, n_points=50)
+        seq, pred = loess.fitted_line(confidence_level=None, n_points=50)
         assert len(seq) == 50
         assert len(pred) == 50
         
         # With confidence intervals
-        seq, pred, lower, upper = lowess.predict_sequence(confidence_level=0.95, n_points=50)
+        seq, pred, lower, upper = loess.fitted_line(confidence_level=0.95, n_points=50)
         assert len(seq) == 50
         assert len(pred) == 50
         assert len(lower) == 50
@@ -195,18 +195,18 @@ class TestLowess:
         assert all(lower <= upper)
 
     def test_invalid_kernel(self) -> None:
-        lowess = Lowess(pd.DataFrame({'x': [1], 'y': [1]}), 'y', 'x')
+        loess = Loess(pd.DataFrame({'x': [1], 'y': [1]}), 'y', 'x')
         with pytest.raises(AssertionError):
-            lowess.fit(fraction=0.3, kernel='invalid_kernel') # type: ignore
+            loess.fit(fraction=0.3, kernel='invalid_kernel') # type: ignore
 
     def test_predict_before_fit(self, sample_data: DataFrame) -> None:
-        lowess = Lowess(sample_data, target='y', feature='x')
+        loess = Loess(sample_data, target='y', feature='x')
         with pytest.raises(AssertionError):
-            lowess.predict(5.0)
+            loess.predict(5.0)
 
     def test_residuals(self, sample_data: DataFrame) -> None:
-        lowess = Lowess(sample_data, target='y', feature='x')
-        lowess.fit(fraction=0.3)
-        residuals = lowess.residuals
+        loess = Loess(sample_data, target='y', feature='x')
+        loess.fit(fraction=0.3)
+        residuals = loess.residuals
         assert len(residuals) == len(sample_data)
         assert isinstance(residuals, pd.Series)

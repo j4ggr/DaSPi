@@ -6,7 +6,8 @@ from typing import Tuple
 from typing import Literal
 from datetime import date
 
-
+# TODO: change __getitem__ returns str only
+# TODO: if upper is done check if str(STR[<item>]) is present ant change to STR[<item>]
 class _String_:
 
     anderson_darling: Dict[str, str] = {
@@ -38,11 +39,11 @@ class _String_:
         'de': 'Schiefe'}
     
     kde_ax_label: Dict[str, str] = {
-        'en': 'estimated kernel density',
-        'de': 'geschätzte Kerndichte'}
+        'en': 'Estimated kernel density',
+        'de': 'Geschätzte Kerndichte'}
 
     stripes: Dict[str, str] = {
-        'en': 'lines',
+        'en': 'Lines',
         'de': 'Linien'}
 
     ci: Dict[str, str] = {
@@ -92,6 +93,10 @@ class _String_:
     resid_name: Dict[str, str] = {
         'en': 'Residuals',
         'de': 'Residuen'}
+    
+    fit: Dict[str, str] = {
+        'en': 'Fit',
+        'de': 'Anpassung'}
     
     residcharts_feature_label: Dict[str, Tuple[str, ...]] = {
         'en': (
@@ -151,7 +156,7 @@ class _String_:
     def USERNAME(self, username: str) -> None:
         self._username_ = username
     
-    def __getitem__(self, item:str) -> str | Tuple[str, ...] | Literal['']:
+    def __getitem__(self, item: str) -> str | Tuple[str, ...] | Literal['']:
         empty = ''
         try:
             strings = getattr(self, item)

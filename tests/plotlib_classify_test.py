@@ -177,6 +177,8 @@ class TestHueLabel:
         colors = HueLabel(labels, palette, style.follow_palette_order)
         for hue, color in zip(colors.categories, palette):
             assert hue == color
+        
+        style.use('daspi')
 
 class TestStripe:
     

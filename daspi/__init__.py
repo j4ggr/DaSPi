@@ -131,7 +131,7 @@ from .plotlib.plotter import Scatter
 from .plotlib.plotter import Violine
 from .plotlib.plotter import Errorbar
 from .plotlib.plotter import MeanTest
-from .plotlib.plotter import LowessLine
+from .plotlib.plotter import LoessLine
 from .plotlib.plotter import StripeLine
 from .plotlib.plotter import StripeSpan
 from .plotlib.plotter import HideSubplot

@@ -153,6 +153,7 @@ from ..constants import DEFAULT
 from ..constants import PLOTTER
 from ..constants import CATEGORY
 
+from ..statistics import Loess
 from ..statistics import Lowess
 from ..statistics import fit_ci
 from ..statistics import mean_ci
@@ -649,7 +650,7 @@ class LinearRegressionLine(Plotter):
                 self.ax.plot(lower, self.y, upper, self.y, **kw_pred_ci)
             
 
-class LowessLine(Plotter):
+class LoessLine(Plotter):
     """
     
     Parameters
@@ -689,6 +690,15 @@ class LowessLine(Plotter):
         Reduce the value to avoid underfitting. A value below 0.2 
         usually leads to overfitting, except for gaussian weights. 
         Defaults to 0.2 because of default gaussian kernel.
+    order : Literal[0, 1, 2, 3], optional
+        The order of the local regression to be fitted. This determines 
+        the degree of the polynomial used in the local regression:
+
+        0: No smoothing (interpolation)
+        1: Linear regression
+        2: Quadratic regression
+        3: Cubic regression Default is 3.
+
     kernel : Literal['tricube', 'gaussian', 'epanechnikov'], optional
         The kernel function used to calculate the weights. Available kernels are:
         'tricube': Tricube kernel function
@@ -700,6 +710,12 @@ class LowessLine(Plotter):
         Number of points the smoothed line and its sequence 
         should have, by default LOWESS_SEQUENCE_LEN 
         (defined in constants.py).
+    kind : Literal['LOESS', 'LOWESS'], optional
+        The type of lowess line to be plotted. Available options are:
+        'LOESS': Lowess line using the LOESS algorithm
+        'LOWESS': Lowess line using the LOWESS algorithm
+        Default is 'LOESS' because it needs less computational
+        power.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -708,7 +724,7 @@ class LowessLine(Plotter):
     __slots__ = (
         'model', 'show_ci')
     
-    model: Lowess
+    model: Loess | Lowess
     """The fitted results of the linear regression model."""
     show_ci: bool
     """Whether to show the confidence interval for the lowess line."""
@@ -725,14 +741,17 @@ class LowessLine(Plotter):
             show_ci: bool = False,
             confidence_level: float = 0.95,
             fraction: float = 0.2,
+            order: Literal[0, 1, 2, 3] = 3,
             kernel: Literal['tricube', 'gaussian', 'epanechnikov'] = 'gaussian',
             n_points: int = DEFAULT.LOWESS_SEQUENCE_LEN,
+            kind: Literal['LOESS', 'LOWESS'] = 'LOESS',
             **kwds) -> None:
         self.show_ci = show_ci
         source = source[[target, feature]].copy()
-        self.model = Lowess(source=source, target=target, feature=feature)
-        self.model.fit(fraction=fraction, kernel=kernel)
-        sequence, prediction, lower, upper = self.model.predict_sequence(
+        Model_ = Loess if kind.upper() == 'LOESS' else Lowess
+        self.model = Model_(source=source, target=target, feature=feature)
+        self.model.fit(fraction=fraction, order=order, kernel=kernel)
+        sequence, prediction, lower, upper = self.model.fitted_line(
             confidence_level=confidence_level,
             n_points=n_points)
         df = pd.DataFrame({
@@ -2667,14 +2686,43 @@ class SpreadWidth(Errorbar):
     feature : str, optional
         Column name of the feature variable for the plot,
         by default ''.
-    strategy : Literal['eval', 'fit', 'norm', 'data'], optional
-        Strategy for estimating the spread width, by default 'norm'.
-    agreement : float | int, optional
-        Agreement value for the spread width estimation,
-        by default 6.
-    possible_dists : Tuple[str | rv_continuous], optional
-        Tuple of possible distributions for the spread width
-        estimation, by default DIST.COMMON.
+    strategy : {'eval', 'fit', 'norm', 'data'}, optional
+        Which strategy should be used to determine the control 
+        limits (process spread):
+        - `eval`: The strategy is determined according to the given 
+          evaluate function. If none is given, the internal `evaluate`
+          method is used.
+        - `fit`: First, the distribution that best represents the 
+          process data is searched for and then the agreed process 
+          spread is calculated
+        - `norm`: it is assumed that the data is subject to normal 
+          distribution. The variation tolerance is then calculated as 
+          agreement * standard deviation
+        - `data`: The quantiles for the process variation tolerance 
+          are read directly from the data.
+        
+        Default is 'norm'.
+    agreement : int or float, optional
+        Specify the tolerated process variation for which the 
+        control limits are to be calculated. 
+        - If int, the spread is determined using the normal 
+          distribution agreement*sigma, 
+          e.g. agreement = 6 -> 6*sigma ~ covers 99.75 % of the data. 
+          The upper and lower permissible quantiles are then 
+          calculated from this.
+        - If float, the value must be between 0 and 1.This value is
+          then interpreted as the acceptable proportion for the 
+          spread, e.g. 0.9973 (which corresponds to ~ 6 sigma)
+        
+        Default is 6 because SixSigma ;-)
+    possible_dists : tuple of strings or rv_continous, optional
+        Distributions to which the data may be subject. Only 
+        continuous distributions of scipy.stats are allowed,
+        by default `DIST.COMMON`
+    evaluate : callable or None, optional
+        Function that takes this instance as argument and returns
+        one of the allowed strategy {'eval', 'fit', 'norm', 'data'},
+        by default None   
     show_center : bool, optional
         Flag indicating whether to show the center points,
         by default True.
@@ -2711,8 +2759,9 @@ class SpreadWidth(Errorbar):
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
-    """#TODO copy docstring from Estimator
-    __slots__ = ('strategy', 'agreement', 'possible_dists', '_kind')
+    """
+    __slots__ = (
+        'strategy', 'agreement', 'possible_dists', '_kind', 'estimation')
 
     strategy: Literal['eval', 'fit', 'norm', 'data']
     """Strategy for estimating the spread width."""
@@ -2723,6 +2772,8 @@ class SpreadWidth(Errorbar):
     estimation."""
     _kind: Literal['mean', 'median']
     """The type of center to plot ('mean' or'median')."""
+    estimation: Estimator
+    """Estimator instance used for spread width and center estimation."""
 
     def __init__(
             self,
@@ -2805,14 +2856,14 @@ class SpreadWidth(Errorbar):
         data : pandas DataFrame
             The transformed data source for the plot.
         """
-        estimation = Estimator(
+        self.estimation = Estimator(
             samples=target_data, strategy=self.strategy, agreement=self.agreement,
             possible_dists=self.possible_dists)
         data = pd.DataFrame({
-            self.target: [getattr(estimation, self.kind)],
+            self.target: [getattr(self.estimation, self.kind)],
             self.feature: [feature_data],
-            self.lower: [estimation.lcl],
-            self.upper: [estimation.ucl]})
+            self.lower: [self.estimation.lcl],
+            self.upper: [self.estimation.ucl]})
         return data
     
     def __call__(self, kw_points: dict = {}, **kwds) -> None:
@@ -4057,7 +4108,7 @@ class BlandAltman(Plotter):
     agreements."""
     estimation: Estimator
     """Estimator instance to estimate the mean and limits of agreement."""
-    stripes: Dict[str, StripeLine | StripeSpan]
+    stripes: Dict[str, Stripe]
     """Dictionary of Stripe objects used for drawing lines and their
     confidence intervals."""
     lines_same_color: bool

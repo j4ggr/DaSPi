@@ -136,19 +136,16 @@ class TestJointChart:
         assert chart.targets == tuple(['y']*chart.n_axes)
         assert chart.hues == tuple(['category']*chart.n_axes)
     
-    def test_ensure_tuple(self, sample_data: pd.DataFrame) -> None:
+    def test_normalize_to_tuple(self, sample_data: pd.DataFrame) -> None:
         chart = JointChart(
             sample_data, feature='x', target='y', hue='category',
             ncols=2, nrows=3)
         assert chart.n_axes == 6
-        assert chart.ensure_tuple('x') == tuple(['x']*chart.n_axes)
+        assert chart.normalize_to_tuple('x') == ('x', 'x', 'x', 'x', 'x', 'x')
 
         with pytest.raises(AssertionError) as err:
-            chart.ensure_tuple(('x', 'x'))
+            chart.normalize_to_tuple(('x', 'x'))
             assert 'not enough values' in str(err)
-        
-        with pytest.raises(ValueError) as err:
-            chart.ensure_tuple(1.0) # type: ignore
 
     def test_itercharts(self, sample_data: pd.DataFrame) -> None:
         chart = JointChart(

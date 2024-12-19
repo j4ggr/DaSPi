@@ -79,6 +79,7 @@ from .facets import AxesFacets
 from .facets import LabelFacets
 from .facets import StripesFacets
 
+from .plotter import Stripe
 from .plotter import Plotter
 
 from ..strings import STR
@@ -302,7 +303,11 @@ class Chart(ABC):
     
     @abstractmethod
     def plot(
-            self, plotter: Type[Plotter], kw_call: Dict[str, Any] = {}, **kwds
+            self,
+            plotter: Type[Plotter],
+            *,
+            kw_call: Dict[str, Any] = {},
+            **kwds
             ) -> Self:
         """Plot the chart using the specified plotter.
 
@@ -322,7 +327,10 @@ class Chart(ABC):
         """
 
     @abstractmethod
-    def stripes(self, **kwds) -> Self:
+    def stripes(
+            self,
+            stripes: List[Stripe] = [],
+            **kwds) -> Self:
         """Add stripes to the chart.
 
         Parameters
@@ -339,6 +347,7 @@ class Chart(ABC):
     @abstractmethod
     def label(
             self,
+            *,
             fig_title: str = '',
             sub_title: str = '',
             feature_label: bool | str = '',
@@ -815,6 +824,7 @@ class SingleChart(Chart):
     def plot(
             self,
             plotter: Type[Plotter],
+            *,
             kw_call: Dict[str, Any] = {},
             kw_where: Dict[str, Any] = {},
             **kwds
@@ -861,12 +871,16 @@ class SingleChart(Chart):
     
     def stripes(
             self,
+            stripes: List[Stripe] = [],
+            *,
             mean: bool = False,
             median: bool = False,
             control_limits: bool = False, 
             spec_limits: Tuple[SpecLimit, SpecLimit] = (None, None), 
             confidence: float | None = None,
-            **kwds
+            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
+            agreement: float | int = 6,
+            **kwds,
             ) -> Self:
         """Plot location and spread width lines, specification limits 
         and/or confidence interval areas as stripes on each Axes. The
@@ -875,6 +889,9 @@ class SingleChart(Chart):
 
         Parameters
         ----------
+        stripes : List[Stripe], optional
+            Additional non-predefined stripes to be added to the chart,
+            by default [].
         mean : bool, optional
             Whether to plot the mean value of the plotted data on the 
             axes, by default False.
@@ -890,6 +907,35 @@ class SingleChart(Chart):
             limits. If a limit is not given, use None, by default ().
         confidence : float, optional
             The confidence level between 0 and 1, by default None.
+        strategy : {'eval', 'fit', 'norm', 'data'}, optional
+            Which strategy should be used to determine the control 
+            limits (process spread):
+            - `eval`: The strategy is determined according to the given 
+            evaluate function. If none is given, the internal `evaluate`
+            method is used.
+            - `fit`: First, the distribution that best represents the 
+            process data is searched for and then the agreed process 
+            spread is calculated
+            - `norm`: it is assumed that the data is subject to normal 
+            distribution. The variation tolerance is then calculated as 
+            agreement * standard deviation
+            - `data`: The quantiles for the process variation tolerance 
+            are read directly from the data.
+            
+            Default is 'norm'.
+        agreement : int or float, optional
+            Specify the tolerated process variation for which the 
+            control limits are to be calculated. 
+            - If int, the spread is determined using the normal 
+            distribution agreement*sigma, 
+            e.g. agreement = 6 -> 6*sigma ~ covers 99.75 % of the data. 
+            The upper and lower permissible quantiles are then 
+            calculated from this.
+            - If float, the value must be between 0 and 1.This value is
+            then interpreted as the acceptable proportion for the 
+            spread, e.g. 0.9973 (which corresponds to ~ 6 sigma)
+            
+            Default is 6 because SixSigma ;-)
         **kwds:
             Additional keyword arguments for configuring StripesFacets.
 
@@ -907,23 +953,27 @@ class SingleChart(Chart):
         the appearance and behavior of the stripes using various 
         parameters and keyword arguments.
         """
-        target = kwds.pop('target', self.source[self.target]) # TODO: consider target of bar and pareto
+        target = kwds.pop('target', self.source[self.target])
         single_axes = kwds.pop('single_axes', len(self.axes) == 1)
         self.stripes_facets = StripesFacets(
             target=target,
+            target_on_y=self.target_on_y,
             single_axes=single_axes,
+            stripes=stripes,
             mean=mean,
             median=median,
             control_limits=control_limits,
             spec_limits=spec_limits,
             confidence=confidence,
-            target_on_y=self.target_on_y,
+            strategy=strategy,
+            agreement=agreement,
             **kwds)
         self.stripes_facets.draw(ax=self.ax)
         return self
 
     def label(
             self,
+            *,
             fig_title: str = '',
             sub_title: str = '',
             feature_label: bool | str = '',
@@ -1125,16 +1175,16 @@ class JointChart(Chart):
             n_size_bins=n_size_bins,
             mosaic=mosaic,
             **kwds)
-        self.targets = self.ensure_tuple(target)
-        self.features = self.ensure_tuple(feature)
-        self.hues = self.ensure_tuple(hue)
-        self.shapes = self.ensure_tuple(shape)
-        self.sizes = self.ensure_tuple(size)
-        self.dodges = self.ensure_tuple(dodge)
+        self.targets = self.normalize_to_tuple(target)
+        self.features = self.normalize_to_tuple(feature)
+        self.hues = self.normalize_to_tuple(hue)
+        self.shapes = self.normalize_to_tuple(shape)
+        self.sizes = self.normalize_to_tuple(size)
+        self.dodges = self.normalize_to_tuple(dodge)
         self.categorical_features = tuple(
             dodge or categorical for dodge, categorical in 
-            zip(self.dodges, self.ensure_tuple(categorical_feature)))
-        self.target_on_ys = self.ensure_tuple(target_on_y)
+            zip(self.dodges, self.normalize_to_tuple(categorical_feature)))
+        self.target_on_ys = self.normalize_to_tuple(target_on_y)
         self.target_on_y = self.target_on_ys[0]
 
         if (not all(t == self.target_on_ys[0] for t in self.target_on_ys)
@@ -1260,30 +1310,55 @@ class JointChart(Chart):
             yield chart
         self._ax = self.axes.ax
     
-    def ensure_tuple(
+    def normalize_to_tuple(
             self,
-            attribute: str | bool | Tuple[Any, ...] | List[Any]
-            ) -> Tuple[Any, ...]:
-        """Ensures that the specified attribute is a tuple with the same
-        length as the axes. If only one value is specified, it will be
-        copied accordingly."""
-        if isinstance(attribute, (str, bool)):
-            _attribute = tuple(attribute for _ in range(self.n_axes))
+            attribute: str | float | int | bool | None | List[Any] | Tuple[Any, ...]
+            ) -> Tuple:
+        """Normalize the input attribute to ensure it is a tuple with a length
+        equal to the number of subplots (n_axes). If a single value is provided, 
+        it is replicated to create a tuple with the same length as n_axes.
+
+        Parameters
+        ----------
+        attribute : str, float, int, bool, list, tuple or None
+            A single value or a list/tuple of values.
+
+        Returns
+        -------
+        tuple
+            A tuple containing the normalized values.
+
+        Raises
+        ------
+        ValueError
+            If the input type is not supported
+        AssertionError
+            If the length of the attribute does not match n_axes after 
+            normalization.
+
+        Examples
+        --------
+        Suppose n_axes is 3:
+        - If attribute is 5, it will return (5, 5, 5).
+        - If attribute is [], it will return ([], [], []).
+        - If attribute is (1, 2, 3), it will return (1, 2, 3).
+        - If attribute is (1, 2), it will raise a ValueError.
+        """
+        if isinstance(attribute, (str, float, int, bool, list, type(None))):
+            normalized = (attribute,) * self.n_axes
         elif isinstance(attribute, tuple):
-            _attribute = attribute
-        elif isinstance(attribute, list):
-            _attribute = tuple(attribute)
+            normalized = attribute
         else:
             raise ValueError(f'Not supported type {type(attribute)}')
 
-        assert len(_attribute) == self.n_axes, (
+        assert len(normalized) == self.n_axes, (
             f'{attribute} does not have enough values, needed {self.n_axes}')
 
-        return _attribute
+        return normalized
     
     def _data_generator_(self) -> Generator[DataFrame, Self, None]:
          raise NotImplementedError(
-            'Iterate over the Chart object not implemented.')
+            'Generate individual data for each subplot not implemented.')
 
     def _axis_label_(
             self,
@@ -1368,6 +1443,7 @@ class JointChart(Chart):
     def plot(
             self,
             plotter: Type[Plotter],
+            *,
             kw_call: Dict[str, Any] = {},
             kw_where: Dict[str, Any] = {},
             on_last_axes: bool = False,
@@ -1412,11 +1488,15 @@ class JointChart(Chart):
 
     def stripes(
             self,
+            stripes: List[Stripe] | Tuple[List[Stripe], ...] = [],
+            *,
             mean: bool | Tuple[bool, ...] = False,
             median: bool | Tuple[bool, ...] = False,
             control_limits: bool | Tuple[bool, ...] = False, 
             spec_limits: SpecLimits | Tuple[SpecLimits, ...] = (None, None),
-            confidence: float | None = None,
+            confidence: float | None | Tuple[float | None, ...] = None,
+            strategy: Literal['eval', 'fit', 'norm', 'data'] | Tuple = 'norm',
+            agreement: float | int | Tuple[int | float, ...] = 6,
             **kwds) -> Self:
         """Plot location and spread width lines, specification limits 
         and/or confidence interval areas as stripes on each Axes. The
@@ -1425,21 +1505,53 @@ class JointChart(Chart):
 
         Parameters
         ----------
-        mean : bool, optional
+        stripes : List[Stripe] | Tuple[List[Stripe]], optional
+            Additional non-predefined stripes to be added to the chart.
+            Default is [].
+        mean : bool or Tuple[bool, ...], optional
             Whether to plot the mean value of the plotted data on the 
             axes, by default False.
-        median : bool, optional
+        median : bool or Tuple[bool, ...], optional
             Whether to plot the median value of the plotted data on the 
             axes, by default False.
-        control_limits : bool, optional
+        control_limits : bool or Tuple[bool, ...], optional
             Whether to plot control limits representing the process 
             spread, by default False.
         spec_limits : SpecLimits | Tuple[SpecLimits, ...], optional
             If provided, specifies the specification limits. 
             The tuple must contain two values for the lower and upper 
             limits. If a limit is not given, use None, by default ().
-        confidence : float, optional
+        confidence : float | None | Tuple[float | None, ...], optional
             The confidence level between 0 and 1, by default None.
+        strategy : {'eval', 'fit', 'norm', 'data'} | Tuple, optional
+            Which strategy should be used to determine the control 
+            limits (process spread):
+            - `eval`: The strategy is determined according to the given 
+            evaluate function. If none is given, the internal `evaluate`
+            method is used.
+            - `fit`: First, the distribution that best represents the 
+            process data is searched for and then the agreed process 
+            spread is calculated
+            - `norm`: it is assumed that the data is subject to normal 
+            distribution. The variation tolerance is then calculated as 
+            agreement * standard deviation
+            - `data`: The quantiles for the process variation tolerance 
+            are read directly from the data.
+            
+            Default is 'norm'.
+        agreement : int | float | Tuple[int | float, ...], optional
+            Specify the tolerated process variation for which the 
+            control limits are to be calculated. 
+            - If int, the spread is determined using the normal 
+            distribution agreement*sigma, 
+            e.g. agreement = 6 -> 6*sigma ~ covers 99.75 % of the data. 
+            The upper and lower permissible quantiles are then 
+            calculated from this.
+            - If float, the value must be between 0 and 1.This value is
+            then interpreted as the acceptable proportion for the 
+            spread, e.g. 0.9973 (which corresponds to ~ 6 sigma)
+            
+            Default is 6 because SixSigma ;-)
         **kwds:
             Additional keyword arguments for configuring StripesFacets.
 
@@ -1462,25 +1574,30 @@ class JointChart(Chart):
         the appearance and behavior of the stripes using various 
         parameters and keyword arguments.
         """
-        chart_stripe_data: Iterable[
-            Tuple[SingleChart, bool, bool, bool, SpecLimits]] = zip(
-            self.itercharts(),
-            self.ensure_tuple(mean),
-            self.ensure_tuple(median),
-            self.ensure_tuple(control_limits),
-            self.specification_limits_iterator(spec_limits))
-        for chart, _mean, _median, _c_limits, _s_limits in chart_stripe_data:
+        stripes = self.normalize_to_tuple(stripes)
+        mean = self.normalize_to_tuple(mean)
+        median = self.normalize_to_tuple(median)
+        control_limits = self.normalize_to_tuple(control_limits)
+        spec_limits = tuple(self.specification_limits_iterator(spec_limits))
+        confidence = self.normalize_to_tuple(confidence)
+        strategy = self.normalize_to_tuple(strategy)
+        agreement = self.normalize_to_tuple(agreement)
+        for i, chart in enumerate(self.itercharts()):
             chart.stripes(
-                mean=_mean,
-                median=_median,
-                control_limits=_c_limits,
-                spec_limits=_s_limits,
-                confidence=confidence,
+                stripes=stripes[i],
+                mean=mean[i],
+                median=median[i],
+                control_limits=control_limits[i],
+                spec_limits=spec_limits[i],
+                confidence=confidence[i],
+                strategy=strategy[i],
+                agreement=agreement[i],
                 **kwds)
         return self
     
     def label(
             self,
+            *,
             fig_title: str = '',
             sub_title: str = '',
             feature_label: str | bool | Tuple = '', 
@@ -1723,6 +1840,7 @@ class MultipleVariateChart(SingleChart):
     def plot(
             self,
             plotter: Type[Plotter],
+            *,
             kw_call: Dict[str, Any] = {},
             kw_where: dict = {},
             **kwds
@@ -1772,34 +1890,71 @@ class MultipleVariateChart(SingleChart):
     
     def stripes(
             self,
+            stripes: List[Stripe] = [],
+            *,
             mean: bool = False,
             median: bool = False,
-            control_limits: bool = False,
-            spec_limits: SpecLimits | Tuple[SpecLimits, ...] = (None, None),
+            control_limits: bool = False, 
+            spec_limits: Tuple[SpecLimit, SpecLimit] = (None, None), 
             confidence: float | None = None,
-            **kwds) -> Self:
-        """Plot location and spread width lines, specification limits, 
+            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
+            agreement: float | int = 6,
+            **kwds,
+            ) -> Self:
+        """Plot location and spread width lines, specification limits 
         and/or confidence interval areas as stripes on each Axes. The
-        location and spread (and their confidence bands) represent the
+        location and spread (and their confidence bands) represent the 
         data per axes.
 
         Parameters
         ----------
+        stripes : List[Stripe], optional
+            Additional non-predefined stripes to be added to the chart,
+            by default [].
         mean : bool, optional
-            Whether to plot the mean value of the plotted data on the
+            Whether to plot the mean value of the plotted data on the 
             axes, by default False.
         median : bool, optional
-            Whether to plot the median value of the plotted data on the
+            Whether to plot the median value of the plotted data on the 
             axes, by default False.
         control_limits : bool, optional
-            Whether to plot control limits representing the process
+            Whether to plot control limits representing the process 
             spread, by default False.
-        spec_limits : SpecLimits | Tuple[SpecLimits, ...], optional
-            If provided, specifies the specification limits. The tuple
-            must contain two values for the lower and upper limits. If a
-            limit is not given, use None, by default ().
+        spec_limits : Tuple[float], optional
+            If provided, specifies the specification limits. 
+            The tuple must contain two values for the lower and upper 
+            limits. If a limit is not given, use None, by default ().
         confidence : float, optional
             The confidence level between 0 and 1, by default None.
+        strategy : {'eval', 'fit', 'norm', 'data'}, optional
+            Which strategy should be used to determine the control 
+            limits (process spread):
+            - `eval`: The strategy is determined according to the given 
+            evaluate function. If none is given, the internal `evaluate`
+            method is used.
+            - `fit`: First, the distribution that best represents the 
+            process data is searched for and then the agreed process 
+            spread is calculated
+            - `norm`: it is assumed that the data is subject to normal 
+            distribution. The variation tolerance is then calculated as 
+            agreement * standard deviation
+            - `data`: The quantiles for the process variation tolerance 
+            are read directly from the data.
+            
+            Default is 'norm'.
+        agreement : int or float, optional
+            Specify the tolerated process variation for which the 
+            control limits are to be calculated. 
+            - If int, the spread is determined using the normal 
+            distribution agreement*sigma, 
+            e.g. agreement = 6 -> 6*sigma ~ covers 99.75 % of the data. 
+            The upper and lower permissible quantiles are then 
+            calculated from this.
+            - If float, the value must be between 0 and 1.This value is
+            then interpreted as the acceptable proportion for the 
+            spread, e.g. 0.9973 (which corresponds to ~ 6 sigma)
+            
+            Default is 6 because SixSigma ;-)
         **kwds:
             Additional keyword arguments for configuring StripesFacets.
 
@@ -1820,17 +1975,21 @@ class MultipleVariateChart(SingleChart):
         _spec_limits = self.specification_limits_iterator(spec_limits)
         for axes_data, axes_limits in zip(self._axes_data(), _spec_limits):
             super().stripes(
+                stripes=stripes,
                 target=axes_data,
                 mean=mean,
                 median=median, 
                 control_limits=control_limits,
                 spec_limits=axes_limits,
                 confidence=confidence,
+                strategy=strategy,
+                agreement=agreement,
                 **kwds)
         return self
 
     def label(
             self,
+            *,
             fig_title: str = '',
             sub_title: str = '',
             feature_label: str | bool | None = '',

@@ -51,12 +51,57 @@ from .hypothesis import kolmogorov_smirnov_test
 
 
 class Estimator:
-
+    """An object for various statistical estimators
+    
+    The attributes are calculated lazily. After the class is 
+    instantiated, all attributes are set to None. As soon as an 
+    attribute (actually Property) is called, the value is calculated
+    and stored so that the calculation is only performed once
+    
+    Parameters
+    ----------
+    samples : NumericSample1D
+        sample data
+    strategy : {'eval', 'fit', 'norm', 'data'}, optional
+        Which strategy should be used to determine the control 
+        limits (process spread):
+        - `eval`: The strategy is determined according to the given 
+          evaluate function. If none is given, the internal `evaluate`
+          method is used.
+        - `fit`: First, the distribution that best represents the 
+          process data is searched for and then the agreed process 
+          spread is calculated
+        - `norm`: it is assumed that the data is subject to normal 
+          distribution. The variation tolerance is then calculated as 
+          agreement * standard deviation
+        - `data`: The quantiles for the process variation tolerance 
+          are read directly from the data.
+        
+        Default is 'norm'.
+    agreement : int or float, optional
+        Specify the tolerated process variation for which the 
+        control limits are to be calculated. 
+        - If int, the spread is determined using the normal 
+          distribution agreement*sigma, 
+          e.g. agreement = 6 -> 6*sigma ~ covers 99.75 % of the data. 
+          The upper and lower permissible quantiles are then 
+          calculated from this.
+        - If float, the value must be between 0 and 1.This value is
+          then interpreted as the acceptable proportion for the 
+          spread, e.g. 0.9973 (which corresponds to ~ 6 sigma)
+        
+        Default is 6 because SixSigma ;-)
+    possible_dists : tuple of strings or rv_continous, optional
+        Distributions to which the data may be subject. Only 
+        continuous distributions of scipy.stats are allowed,
+        by default `DIST.COMMON`
+    """
     __slots__ = (
         '_samples', '_filtered', '_n_samples', '_n_missing', '_mean', '_median', 
         '_std', '_sem', '_lcl', '_ucl', '_strategy', '_agreement', '_excess', 
         '_p_excess', '_skew', '_p_skew', '_dist', '_p_dist', '_p_ad',
         '_dist_params', 'possible_dists', '_k', '_evaluate', '_q_low', '_q_upp')
+    
     _samples: Series
     _filtered: Series
     _n_samples: int
@@ -77,11 +122,13 @@ class Estimator:
     _dist_params: tuple | None
     _strategy: Literal['eval', 'fit', 'norm', 'data'] 
     _agreement: int | float
-    possible_dists: Tuple[str | rv_continuous, ...]
     _k: float
     _evaluate: Callable | None
     _q_low: float | None
     _q_upp: float | None
+    possible_dists: Tuple[str | rv_continuous, ...]
+    """Distributions given during initialization to which the data may 
+    be subject."""
 
     def __init__(
             self,
@@ -91,53 +138,7 @@ class Estimator:
             possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
             evaluate: Callable | None = None
             ) -> None:
-        """An object for various statistical estimators
-        
-        The attributes are calculated lazily. After the class is 
-        instantiated, all attributes are set to None. As soon as an 
-        attribute (actually Property) is called, the value is calculated
-        and stored so that the calculation is only performed once
-        
-        Parameters
-        ----------
-        samples : NumericSample1D
-            sample data
-        strategy : {'eval', 'fit', 'norm', 'data'}, optional
-            Which strategy should be used to determine the control 
-            limits (process spread):
-            - `eval`: The strategy is determined according to the given 
-            evaluate function. If none is given, the internal `evaluate`
-            method is used.
-            - `fit`: First, the distribution that best represents the 
-            process data is searched for and then the agreed process 
-            spread is calculated
-            - `norm`: it is assumed that the data is subject to normal 
-            distribution. The variation tolerance is then calculated as 
-            agreement * standard deviation
-            - `data`: The quantiles for the process variation tolerance 
-            are read directly from the data.
-            by default 'norm'
-        agreement : int or float, optional
-            Specify the tolerated process variation for which the 
-            control limits are to be calculated. 
-            - If int, the spread is determined using the normal 
-            distribution agreement*sigma, 
-            e.g. agreement = 6 -> 6*sigma ~ covers 99.75 % of the data. 
-            The upper and lower permissible quantiles are then 
-            calculated from this.
-            - If float, the value must be between 0 and 1.This value is
-            then interpreted as the acceptable proportion for the 
-            spread, e.g. 0.9973 (which corresponds to ~ 6 sigma)
-            by default 6
-        possible_dists : tuple of strings or rv_continous, optional
-            Distributions to which the data may be subject. Only 
-            continuous distributions of scipy.stats are allowed,
-            by default `DIST.COMMON`
-        evaluate : callable or None, optional
-            Function that takes this instance as argument and returns
-            one of the allowed strategy {'eval', 'fit', 'norm', 'data'},
-            by default None   
-        """
+
         self._mean = None
         self._median = None
         self._std = None

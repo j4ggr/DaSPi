@@ -25,7 +25,7 @@ from daspi import Jitter
 from daspi import Scatter
 from daspi import Violine
 from daspi import MeanTest
-from daspi import LowessLine
+from daspi import LoessLine
 from daspi import JointChart
 from daspi import SingleChart
 from daspi import HideSubplot
@@ -1458,7 +1458,7 @@ class TestTemplates:
             ).plot_univariates(
                 GaussianKDE
             ).plot_bivariate(
-                LowessLine, show_ci=True
+                LoessLine, show_ci=True
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,
