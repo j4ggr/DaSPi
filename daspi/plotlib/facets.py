@@ -498,6 +498,7 @@ class StripesFacets:
                 label=self._confidence_label,
                 lower_position=low,
                 upper_position=upp,
+                color=line.color,
                 **(self._kwds | KW.STRIPES_CONFIDENCE))
             self.stripes[f'{span.identity}_mean'] = span
 
@@ -526,6 +527,7 @@ class StripesFacets:
                 label=self._confidence_label,
                 lower_position=low,
                 upper_position=upp,
+                color=line.color,
                 **(self._kwds | KW.STRIPES_CONFIDENCE))
             self.stripes[f'{span.identity}_median'] = span
     
@@ -566,11 +568,13 @@ class StripesFacets:
                 label=self._confidence_label,
                 position=self.estimation.lcl,
                 width=upp - low,
+                color=line_low.color,
                 **kw_span)
             span_upp = StripeSpan(
                 label=self._confidence_label,
                 position=self.estimation.ucl,
                 width=upp - low,
+                color=line_upp.color,
                 **kw_span)
             self.stripes[f'{span_low.identity}_low'] = span_low
             self.stripes[f'{span_upp.identity}_upp'] = span_upp

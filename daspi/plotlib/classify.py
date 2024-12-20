@@ -218,6 +218,8 @@ class HueLabel(_CategoryLabel):
             ) -> None:
         self.follow_order = follow_order
         super().__init__(labels, colors)
+        if not follow_order:
+            self._default = DEFAULT.PLOTTING_COLOR
     
     @property
     def categories(self) -> Tuple[str, ...]:

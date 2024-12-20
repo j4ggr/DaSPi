@@ -196,8 +196,7 @@ class _Kw_:
     @property
     def STRIPES_CONFIDENCE(self) -> Dict[str, Any]:
         """Keyword arguments for confidence area for stripes."""
-        return dict(
-            alpha=COLOR.CI_ALPHA, lw=0, zorder=0.6, color=COLOR.CI_STRIPES)
+        return dict(alpha=COLOR.CI_ALPHA, lw=0, zorder=0.6)
 
     @property
     def PARETO_V(self) -> Dict[str, Any]:
@@ -240,15 +239,15 @@ class _Color_:
     """Color for things that should be represented as 'good'."""
     BAD: str = '#d627287f'
     """Color for things that should be represented as 'bad'."""
-    MEAN: str = '#101010'
+    MEAN: str = '#2F3333'
     """Color for mean line used for StripesFacets."""
-    MEDIAN: str = '#202020'
+    MEDIAN: str = '#626666'
     """Color for median line used for StripesFacets."""
-    PERCENTIL: str = '#303030'
+    PERCENTIL: str = '#979A9A'
     """Color for upper and lower percentil line used for StripesFacets."""
-    HANDLES: str = '#202020'
+    HANDLES: str = '#626666'
     """Color for size and shape legend handles."""
-    STRIPE: str = '#404040'
+    STRIPE: str = '#CACCCC'
     """Color for individual stripes."""
     TRANSPARENT: str = '#ffffff00'
     """Transparent 'color' to hide ticks or other stuff."""
@@ -262,7 +261,7 @@ class _Color_:
     """The covering capacity of filled areas."""
     CI_ALPHA: float = 0.2
     """The covering capacity of confidence intervals."""
-    CI_STRIPES: str = '#303030'
+    CI_STRIPES: str = '#D7DBDF'
     """Color for confidence interval stripes."""
 
     @property
@@ -422,6 +421,10 @@ class _Default_:
     """Amount of points for kernel density sequence."""
     LOWESS_SEQUENCE_LEN: Literal[300] = 300
     """Amount of points for LOWESS curve."""
+    PLOTTING_COLOR: str = '#2F3333'
+    """Default color in plots if there is no hueing only used for styles
+    they dont use the regular color palette order (e.g. daspi and 
+    ggplot2)."""
 
     @property
     def MARKER(self) -> str:
