@@ -2,12 +2,10 @@ import warnings
 
 from os import environ
 from typing import Dict
-from typing import Tuple
 from typing import Literal
 from datetime import date
 
-# TODO: change __getitem__ returns str only
-# TODO: if upper is done check if str(STR[<item>]) is present ant change to STR[<item>]
+
 class _String_:
 
     anderson_darling: Dict[str, str] = {
@@ -70,25 +68,13 @@ class _String_:
         'en': 'Relative importance of parameters',
         'de': 'Relative Wichtigkeit der Parameter'}
     
-    paramcharts_feature_label: Dict[str, Tuple[str, ...]] = {
-        'en': ('Parameter', ''),
-        'de': ('Parameter', '')}
+    paramcharts_feature_label: Dict[str, str] = {
+        'en': 'Parameter',
+        'de': 'Parameter'}
     
     residcharts_fig_title: Dict[str, str] = {
         'en': 'Residuals Analysis',
         'de': 'Residuen Analyse'}
-    
-    residcharts_axes_titles: Dict[str, Tuple[str, ...]] = {
-        'en': (
-            'Probability for normal distribution',
-            'Distribution of residuals',
-            'Residuals vs. fit',
-            'Residuals vs. observation'),
-        'de': (
-            'Wahrscheinlichkeitsnetz für Normalverteilung',
-            'Verteilung der Residuen',
-            'Residuen nach Anpassung',
-            'Residuen nach Reihenfolge')}
     
     resid_name: Dict[str, str] = {
         'en': 'Residuals',
@@ -98,17 +84,21 @@ class _String_:
         'en': 'Fit',
         'de': 'Anpassung'}
     
-    residcharts_feature_label: Dict[str, Tuple[str, ...]] = {
-        'en': (
-            'Quantiles of standard normal distribution',
-            'Estimated kernel density',
-            'Predicted values',
-            'Observation order'),
-        'de': (
-            'Quantile der Standardnormalverteilung',
-            'Geschätzte Kerndichte',
-            'Vorhersage',
-            'Beobachtungsreihenfolge')}
+    residcharts_flabel_quantiles: Dict[str, str]= {
+        'en': 'Quantiles of standard normal distribution',
+        'de': 'Quantile der Standardnormalverteilung'}
+    
+    residcharts_flabel_density: Dict[str, str] = {
+        'en': 'Estimated kernel density',
+        'de': 'Geschätzte Kerndichte'}
+    
+    residcharts_flabel_predicted: Dict[str, str] = {
+        'en': 'Predicted values',
+        'de': 'Vorhersage'}
+    
+    residcharts_flabel_observed: Dict[str, str] = {
+        'en': 'Observation order',
+        'de': 'Beobachtungsreihenfolge'}
     
     paircharts_fig_title: Dict[str, str] = {
         'en': 'Pairwise Analysis',
@@ -118,17 +108,21 @@ class _String_:
         'en': 'Bland-Altman 95 % CI and individual value comparison',
         'de': 'Bland-Altman 95 %-KI und Einzelwertvergleich'}
     
-    lm_repr_captions: Dict[str, Tuple[str, ...]] = {
-        'en': (
-            'Model summary',
-            'Parameter statistics',
-            'Analysis of variance',
-            'Variance inflation factor'),
-        'de': (
-            'Modellzusammenfassung',
-            'Parameterstatistik',
-            'Varianzanalyse',
-            'Varianzinflationfaktor')}
+    lm_table_caption_summary: Dict[str, str] = {
+        'en': 'Model summary',
+        'de': 'Modellzusammenfassung'}
+    
+    lm_table_caption_statistics: Dict[str, str] = {
+        'en': 'Parameter statistics',
+        'de':'Parameterstatistik'}
+    
+    lm_table_caption_anova: Dict[str, str] = {
+        'en': 'Analysis of variance',
+        'de': 'Varianzanalyse'}
+    
+    lm_table_caption_vif: Dict[str, str] = {
+        'en': 'Variance inflation factor',
+        'de': 'Varianzinflationfaktor'}
 
     _language_: Literal['en', 'de'] = 'en'
     _username_: str = environ['USERNAME']
@@ -156,7 +150,7 @@ class _String_:
     def USERNAME(self, username: str) -> None:
         self._username_ = username
     
-    def __getitem__(self, item: str) -> str | Tuple[str, ...] | Literal['']:
+    def __getitem__(self, item: str) -> str | Literal['']:
         empty = ''
         try:
             strings = getattr(self, item)

@@ -54,7 +54,6 @@ from typing import Dict
 from typing import List
 from typing import Tuple
 from typing import Literal
-from typing import Iterable
 from typing import Sequence
 from typing import Generator
 from pathlib import Path
@@ -95,7 +94,6 @@ from ..constants import COLOR
 from ..constants import PLOTTER
 from ..constants import CATEGORY
 
-# TODO: Remove iter over self and add option for removing variates at _generate_data_
 
 class Chart(ABC):
     """
@@ -182,7 +180,7 @@ class Chart(ABC):
     _kw_where: Dict[str, Any]
     """Key word arguments to filter data in the plot method. This 
     argument is passed in the `kw_where` argument of the `plot` method.
-    It must then be applied to `source` within `_data_generator_`
+    It must then be applied to `source` within `variate_data`
     method."""
     _ax: Axes | None
     """Axes object to which this chart belongs. This attribute is None 
@@ -265,11 +263,21 @@ class Chart(ABC):
         `feature_label` and `target_label`."""
         
     @abstractmethod
-    def _data_generator_(self) -> Generator[DataFrame, Self, None]:
+    def variate_data(
+            self,
+            skip_variate: List[str] = []
+            ) -> Generator[DataFrame, Self, None]:
         """Implement the data generator and add the currently yielded 
         data to self._data so that it can be used internally. Also 
         consider the `_kw_where` attribute to filter the data here for 
         the plots.
+
+        Parameters
+        ----------
+        skip_variate : List[str], optional
+            A list of variate names to skip during the grouping. If 
+            provided, these variates will not be included in the 
+            groupby operation. Default is [].
         
         Returns
         -------
@@ -278,28 +286,7 @@ class Chart(ABC):
             source data, used as plotting data for each Axes.
         """
         raise NotImplementedError(
-            'Iterate over the Chart object not implemented.')
-    
-    def __iter__(self) -> Generator[DataFrame, Self, None]:
-        """Iterate over the Chart object.
-
-        Returns
-        -------
-        Generator[DataFrame, Self, None]
-            A generator object yielding DataFrames as subsets of the 
-            source data, used as plotting data for each Axes.
-        """
-        return self._data_generator_()
-        
-    def __next__(self) -> DataFrame:
-        """Get the next subset of the source data.
-
-        Returns
-        -------
-        DataFrame
-            The next subset of the source data.
-        """
-        return next(self)
+            'Generating data for each variate not implemented.')
     
     @abstractmethod
     def plot(
@@ -790,7 +777,10 @@ class SingleChart(Chart):
         self._categorical_feature_grid_(self.ax)
         self._categorical_feature_ticks_(self.ax)
 
-    def _data_generator_(self) -> Generator[DataFrame, Self, None]:
+    def variate_data(
+            self,
+            skip_variate: List[str] = []
+            ) -> Generator[DataFrame, Self, None]:
         """Generate grouped data if `variate_names` are set, otherwise 
         yield the entire source DataFrame.
 
@@ -798,6 +788,13 @@ class SingleChart(Chart):
         data based on the `variate_names` attribute if it is set. 
         If no `variate_names` are specified, it yields the entire source 
         DataFrame.
+
+        Parameters
+        ----------
+        skip_variate : List[str], optional
+            A list of variate names to skip during the grouping. If 
+            provided, these variates will not be included in the groupby 
+            operation. Default is []
 
         Yields:
         -------
@@ -807,9 +804,10 @@ class SingleChart(Chart):
         source = self.source
         if self._kw_where:
             source = source.where(**self._kw_where)
-        
-        if self.variate_names:
-            for combination, data in source.groupby(self.variate_names):
+
+        variate_names = [v for v in self.variate_names if v not in skip_variate]
+        if variate_names:
+            for combination, data in source.groupby(variate_names):
                 self._data = data
                 self.update_variate(combination)
                 self.dodge()
@@ -825,6 +823,7 @@ class SingleChart(Chart):
             self,
             plotter: Type[Plotter],
             *,
+            skip_variate: List[str] = [],
             kw_call: Dict[str, Any] = {},
             kw_where: Dict[str, Any] = {},
             **kwds
@@ -835,6 +834,10 @@ class SingleChart(Chart):
         ----------
         plotter : Type[Plotter]
             The plotter object.
+        skip_variate : List[str], optional
+            A list of variate names to skip during the grouping. If 
+            provided, these variates will not be included in the groupby 
+            operation. Default is []
         kw_call : Dict[str, Any]
             Additional keyword arguments for the plotter call method.
         kw_where : Dict[str, Any]
@@ -851,8 +854,8 @@ class SingleChart(Chart):
         self.target_on_y = kwds.pop('target_on_y', self.target_on_y)
         _marker = kwds.pop('marker', None)
         self._kw_where = kw_where
-        for data in self:
-            marker = _marker if _marker is not None else self.marker
+        for data in self.variate_data(skip_variate):
+            marker = _marker or self.marker
             plot = plotter(
                 source=data,
                 target=self.target,
@@ -1356,9 +1359,12 @@ class JointChart(Chart):
 
         return normalized
     
-    def _data_generator_(self) -> Generator[DataFrame, Self, None]:
-         raise NotImplementedError(
-            'Generate individual data for each subplot not implemented.')
+    def variate_data(
+            self,
+            skip_variate: List[str] = []
+            ) -> Generator[DataFrame, Self, None]:
+        raise NotImplementedError(
+            'Generating data for each variate not implemented.')
 
     def _axis_label_(
             self,
@@ -1841,6 +1847,7 @@ class MultipleVariateChart(SingleChart):
             self,
             plotter: Type[Plotter],
             *,
+            skip_variate: List[str] = [],
             kw_call: Dict[str, Any] = {},
             kw_where: dict = {},
             **kwds
@@ -1854,6 +1861,10 @@ class MultipleVariateChart(SingleChart):
         ----------
         plotter : Type[Plotter]
             The type of plotter to use.
+        skip_variate : List[str], optional
+            A list of variate names to skip during the grouping. If 
+            provided, these variates will not be included in the groupby 
+            operation. Default is None
         kw_call : Dict[str, Any]
             Additional keyword arguments for the plotter call method.
         kw_where : dict
@@ -1870,7 +1881,7 @@ class MultipleVariateChart(SingleChart):
                 'Keyword argument "kw_where" is not allowed in this instance.')
         ax = None
         _ax = iter(self.axes)
-        for data in self:
+        for data in self.variate_data(skip_variate):
             if self.row_or_col_changed or ax is None:
                 ax = next(_ax)
             plot = plotter(

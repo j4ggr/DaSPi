@@ -137,10 +137,10 @@ class ParameterRelevanceCharts(JointChart):
             The `ParameterRelevanceCharts` instance, for method chaining.
         """      
         labels = dict(
-                fig_title=f'{STR["paramcharts_fig_title"]}',
-                sub_title=f'{STR["paramcharts_sub_title"]}',
-                target_label=(f'{STR["effects_label"]}', f'{STR["ss_label"]}'),
-                feature_label=STR["paramcharts_feature_label"],
+                fig_title=STR['paramcharts_fig_title'],
+                sub_title=STR['paramcharts_sub_title'],
+                target_label=(STR['effects_label'], STR['ss_label']),
+                feature_label=(STR['paramcharts_feature_label'], ''),
                 info = info
             ) | kwds
         super().label(**labels) # type: ignore
@@ -213,7 +213,7 @@ class ResidualsCharts(JointChart):
         """Adds a line at position 0 for each subplot except for the 
         probability plot. This line represents the fit of the model."""
         fit = StripeLine(
-            label=str(STR['fit']),
+            label=STR['fit'],
             position=0,
             orientation='horizontal',
             color=COLOR.PALETTE[0])
@@ -243,13 +243,15 @@ class ResidualsCharts(JointChart):
             The `ResidualsCharts` instance, for method chaining.
         """
         sub_title = f'{self.lm.target} ~ {" + ".join(self.lm.effects().index)}'
-        feature_label = list(STR["residcharts_feature_label"])
-        feature_label[2] = f'{feature_label[2]} {self.lm.target}'
         labels = dict(
-                fig_title=f'{STR["residcharts_fig_title"]}',
+                fig_title=STR['residcharts_fig_title'],
                 sub_title=sub_title,
-                target_label=f'{STR["resid_name"]}',
-                feature_label=tuple(feature_label),
+                target_label=STR['resid_name'],
+                feature_label=(
+                    STR['residcharts_flabel_quantiles'],
+                    STR['residcharts_flabel_density'],
+                     f'{STR["residcharts_flabel_predicted"]} {self.lm.target}',
+                    STR['residcharts_flabel_observed']),
                 info = info
             ) | kwds
         super().label(**labels) # type: ignore
@@ -339,8 +341,8 @@ class PairComparisonCharts(JointChart):
             The `PairComparisonCharts` instance, for method chaining.
         """
         labels = dict(
-                fig_title=f'{STR["paircharts_fig_title"]}',
-                sub_title=f'{STR["paircharts_sub_title"]}',
+                fig_title=STR['paircharts_fig_title'],
+                sub_title=STR['paircharts_sub_title'],
                 target_label=(True, True),
                 feature_label=(True, True),
                 info = info

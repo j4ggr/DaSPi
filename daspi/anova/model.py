@@ -1060,7 +1060,13 @@ class LinearModel:
             information.
         """
         html = f'<b>{STR["formula"]}:</b></br>{self}</br></br>'
-        html += frames_to_html(self._dfs_repr_(), STR['lm_repr_captions'])
+        html += frames_to_html(
+            self._dfs_repr_(),
+            captions=(
+                STR['lm_table_caption_summary'],
+                STR['lm_table_caption_statistics'],
+                STR['lm_table_caption_anova'],
+                STR['lm_table_caption_vif']))
         return html
 
     def __html__(self) -> str:

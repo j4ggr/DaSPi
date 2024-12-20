@@ -3662,7 +3662,7 @@ class Stripe(ABC):
             orientation: Literal['horizontal', 'vertical'] = 'horizontal',
             color: str = COLOR.STRIPE,
             alpha: float | None = None,
-            lower_limit: float = 0.0, # TODO: Add support for data limits not only relative axes limits
+            lower_limit: float = 0.0,
             upper_limit: float = 1.0,
             zorder: float = 0.7,
             show_position: bool = False,
@@ -4208,7 +4208,7 @@ class BlandAltman(Plotter):
                 upper_position=mean_ci[1],
                 **(KW.STRIPES_CONFIDENCE | kw_stripe)),
             StripeLine(
-                label=str(STR['lcl']),
+                label=STR['lcl'],
                 position=self.estimation.lcl,
                 **(KW.CONTROL_LINE | kw_stripe)),
             StripeSpan(
@@ -4217,7 +4217,7 @@ class BlandAltman(Plotter):
                 width=stdev_width,
                 **(KW.STRIPES_CONFIDENCE | kw_stripe)),
             StripeLine(
-                label=str(STR['lcl']),
+                label=STR['lcl'],
                 position=self.estimation.ucl,
                 **(KW.CONTROL_LINE | kw_stripe)),
             StripeSpan(

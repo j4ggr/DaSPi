@@ -139,13 +139,13 @@ class _CategoryLabel(ABC):
         Any
             The category item corresponding to the label.
         """
-        if label is not None:
-            _label = str(label)
-            assert _label in self.labels, (
-                f"Can't get category for label {_label}, got {self.labels}")
-            item = self.categories[self.labels.index(_label)]
-        else:
-            item = self.default
+        if label is None:
+            return self.default
+        
+        _label = str(label)
+        assert _label in self.labels, (
+            f"Can't get category for label {_label}, got {self.labels}")
+        item = self.categories[self.labels.index(_label)]
         return item
 
     def __str__(self) -> str:
