@@ -161,7 +161,7 @@ def all_normal(
     AssertionError
         If p_threshold is not within the range (0, 1).
     """
-    assert 0 < p_threshold < 1
+    assert 0 < p_threshold < 1, 'p_threshold must be within (0, 1)'
     return all([anderson_darling_test(x)[0] > p_threshold for x in samples])
 
 def kolmogorov_smirnov_test(
