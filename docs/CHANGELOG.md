@@ -14,6 +14,13 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+
+## [1.0.1] - 2025-01-09
+
+### Fixed
+
+- Calculating Z-score for ProcessEstimator failure when no specification limit is provided.
+
 ## [1.0.0] - 2025-01-09
 
 ### Added
