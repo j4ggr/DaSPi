@@ -210,3 +210,61 @@ class TestLoess:
         residuals = loess.residuals
         assert len(residuals) == len(sample_data)
         assert isinstance(residuals, pd.Series)
+
+
+# TODO: Add tests for cp and cpk
+class TestProcessEstimator:
+
+    @pytest.fixture
+    def sample_data(self) -> DataFrame:
+        np.random.seed(42)
+        data = np.random.normal(0, 1, 100)
+        return pd.DataFrame({'values': data})
+
+    def test_init_with_series(self, sample_data: DataFrame) -> None:
+        estimator = ProcessEstimator(sample_data['values'])
+        assert len(estimator.samples) == 100
+        assert estimator._filtered.empty
+        assert len(estimator.filtered) == 100
+
+    def test_init_with_nan_values(self) -> None:
+        data = pd.Series([1.0, np.nan, 3.0, np.nan, 5.0])
+        estimator = ProcessEstimator(data)
+        assert len(estimator.samples) == 5
+        assert len(estimator.filtered) == 3
+        assert list(estimator.filtered) == [1.0, 3.0, 5.0]
+
+    def test_inheritance_methods(self, sample_data: DataFrame) -> None:
+        estimator = ProcessEstimator(sample_data['values'])
+        assert hasattr(estimator, 'mean')
+        assert hasattr(estimator, 'median')
+        assert hasattr(estimator, 'std')
+        assert hasattr(estimator, 'skew')
+        assert hasattr(estimator, 'excess')
+
+    def test_process_specific_methods(self, sample_data: DataFrame) -> None:
+        estimator = ProcessEstimator(sample_data['values'])
+        assert hasattr(estimator, 'describe')
+        assert callable(estimator.describe)
+
+    def test_describe_output(self, sample_data: DataFrame) -> None:
+        estimator = ProcessEstimator(sample_data['values'])
+        description = estimator.describe()
+        expected_keys = (
+            'lsl', 'usl', 'n_ok', 'n_nok', 'n_errors', 'cp', 'cpk', 'Z', 'Z_lt')
+        assert all([key in description.index for key in expected_keys])
+
+    def test_with_all_identical_values(self) -> None:
+        data = pd.Series([1.0] * 10)
+        estimator = ProcessEstimator(data)
+        assert estimator.std == 0
+        assert np.isnan(estimator.skew)
+        assert np.isnan(estimator.excess)
+
+    def test_with_extreme_values(self) -> None:
+        data = pd.Series([1e10, 1e-10, 1e5, 1e-5])
+        estimator = ProcessEstimator(data)
+        assert not np.isnan(estimator.mean)
+        assert not np.isnan(estimator.std)
+        assert not np.isnan(estimator.skew)
+        assert not np.isnan(estimator.excess)

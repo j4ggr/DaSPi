@@ -929,8 +929,11 @@ class ProcessEstimator(Estimator):
         can be placed between the mean value and the nearest tolerance 
         limit of a process."""
         if self._Z is None:
-            limit: float = self.lsl if self.cpl < self.cpu else self.usl # type: ignore
-            self._Z = abs(self.z_transform(limit))
+            limit = self.lsl if self.cpl < self.cpu else self.usl
+            if limit is None:
+                self._Z = float('inf')
+            else:
+                self._Z = abs(self.z_transform(limit))
         return self._Z
     
     @property
