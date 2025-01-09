@@ -14,6 +14,50 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.0.0] - 2025-01-09
+
+### Added
+
+- ProcessEstimator z_transform method and tolerance_range property.
+- GaussianKDE ignore_feature option for plotting all at same axis base or not.
+- GaussianKDE fill option for filling in the curves.
+- SpreadWidth center calculation option kind.
+- ProcessEstimator Z_lt property for long-term sigma level.
+- ProcessEstimator Z property as sigma level process capability.
+- Confidence interval functions for Cp and Cpk in confidence module.
+- The function estimate_capability_confidence function in estimation module.
+- CapabilityConfidenceIntervall Plotter class.
+- Datasets drop_card.csv and salt_sticks.csv.
+- AxesFacets mosaic option for more flexability in axes arrangement.
+- AxesFacets properties flat and shape.
+- Loess class in estimation module used for plotting loess curves.
+- Plotting styles ggplot2, daspi-dark and seaborn.
+- The module appereance in plotlib used for managing loading and saving styles.
+- Colormaps used at seaborn to the module appereance.
+
+### Changed
+
+- Estimator agreement property gets allways the multiplier of sigma agreement.
+- Chart property name default_kwds changed to kw_default.
+- JointChart possability to add axes independend stripes for mean, median and control_limits
+- Errorbars requires now the amount of groups. This is necessary for bonferroni adjustment.
+- Chart property name axes_facets changed to Axes.
+- Most of the arguments is now only available as a keyword argument in Chart classes.
+- When target_on_y is set to False in SingleChart, the x and y axes params are swapped.
+- The default plotting color is now black and the palette behaves like ggplot2. That means that the colors changes with the number of groups (except for the first group).
+
+### Removed
+
+- The marker option for TransformPlotter.
+
+### Fixed
+
+- ErrorBarsPlotter and JitterPlotter now use the marker option.
+- GaussianKDEPlotter color option now has an effect.
+- JointChart handles and labels now get the stripes stuff from all axes and not only from the last one.
+- Categorical floating features are now plotted as categorical.
+
+
 ## [0.5.1] - 2024-11-19
 
 ### Added
@@ -99,7 +143,7 @@ Initial release.
 ### Added
 
 - Character strings in different languages ​​for charts and tables. The language can be set initially and the output adapts automatically. Available languages: German and English.
-- Constants that are available globally throughout the package
+- Constants that are available globally throughout the package.
 
 __Anova module:__
 
