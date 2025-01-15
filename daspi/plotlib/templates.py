@@ -567,6 +567,8 @@ class BivariateUnivariateCharts(JointChart):
             target_label: str | bool | Tuple = '', 
             info: bool | str = False,
             axes_titles: Tuple[str, ...] = (),
+            rows: Tuple[str, ...] = (),
+            cols: Tuple[str, ...] = (),
             row_title: str = '',
             col_title: str = '') -> Self:
         """Add labels and titles to the chart.
@@ -598,6 +600,10 @@ class BivariateUnivariateCharts(JointChart):
             is displayed.
         axes_titles : Tuple[str, ...]
             Title for each Axes, by default ()
+        rows: Tuple[str, ...], optional
+            The row labels of the figure, by default ().
+        cols: Tuple[str, ...], optional
+            The column labels of the figure, by default ().
         row_title : str, optional
             The title of the rows, by default ''.
         col_title : str, optional
@@ -625,6 +631,8 @@ class BivariateUnivariateCharts(JointChart):
                 target_label, ''),
             info=info,
             axes_titles=axes_titles,
+            rows=rows,
+            cols=cols,
             row_title=row_title,
             col_title=col_title)
         return self

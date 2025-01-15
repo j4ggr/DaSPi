@@ -38,7 +38,7 @@ To use DaSPi, you can import the package and start exploring your data. Here is 
 import daspi as dsp
 df = dsp.load_dataset('iris')
 
-chart = dsp.MultipleVariateChart(
+chart = dsp.MultivariateChart(
         source=df,
         target='length',
         feature='width',
@@ -159,7 +159,7 @@ from .plotlib.facets import StripesFacets
 from .plotlib.chart import Chart
 from .plotlib.chart import JointChart
 from .plotlib.chart import SingleChart
-from .plotlib.chart import MultipleVariateChart
+from .plotlib.chart import MultivariateChart
 
 from .plotlib.templates import ResidualsCharts
 from .plotlib.templates import PairComparisonCharts

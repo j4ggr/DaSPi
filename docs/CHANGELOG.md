@@ -168,7 +168,7 @@ __Statistics module:__
 __Plotlib module:__
 
 - SingleChart for plotting single Axes charts with different plotters.
-- MultipleVariateChart for plotting charts with multiple Axes, with the plots divided into the individual Axes depending on the categorical variates.
+- MultivariateChart for plotting charts with multiple Axes, with the plots divided into the individual Axes depending on the categorical variates.
 - JointChart for plotting multiple axes to which different plotters can be applied.
 - Any type of plotters such as Bar, Violin, KDE, Scatter, Line, Errorbar, Confidence Intervals, Pareto, Bland Altmann, Parallel Coordinate and Jitter.
 - Pre-built Matplotlib stylesheet

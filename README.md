@@ -37,7 +37,7 @@ To use DaSPi, you can import the package and start exploring your data. Here is 
 import daspi as dsp
 df = dsp.load_dataset('iris')
 
-chart = dsp.MultipleVariateChart(
+chart = dsp.MultivariateChart(
         source=df,
         target='length',
         feature='width',

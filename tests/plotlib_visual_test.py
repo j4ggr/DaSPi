@@ -36,7 +36,7 @@ from daspi import VariationTest
 from daspi import ResidualsCharts
 from daspi import StandardErrorMean
 from daspi import GaussianKDEContour
-from daspi import MultipleVariateChart
+from daspi import MultivariateChart
 from daspi import PairComparisonCharts
 from daspi import LinearRegressionLine
 from daspi import ParameterRelevanceCharts
@@ -117,7 +117,7 @@ df_dist10: DataFrame = pd.read_csv(
 df_dist25: DataFrame = pd.read_csv(
     source/f'dists_25-samples.csv', nrows=25, **KW_READ)
 
-def get_texts(chart: SingleChart | JointChart | MultipleVariateChart) -> List[Text]:
+def get_texts(chart: SingleChart | JointChart | MultivariateChart) -> List[Text]:
     return sorted(chart.figure.texts, key=lambda t: t._y, reverse=True) # type: ignore
 
 
@@ -1316,9 +1316,9 @@ class TestJointChart:
         assert self.info_msg in info_msg
 
 
-class TestMultipleVariateChart:
+class TestMultivariateChart:
 
-    fig_title: str = 'MultipleVariateChart'
+    fig_title: str = 'MultivariateChart'
     _sub_title: str = 'Traveling Mode Dataset'
 
     @property
@@ -1333,7 +1333,7 @@ class TestMultipleVariateChart:
         self.base = f'{self.fig_title}'
 
         self.kind = 'full'
-        chart = MultipleVariateChart(
+        chart = MultivariateChart(
                 source = df_affairs,
                 target = 'affairs',
                 feature = 'yrs_married', 
@@ -1358,7 +1358,7 @@ class TestMultipleVariateChart:
 
         self.base = f'{self.fig_title}'
         self.kind = 'full-stripes'
-        chart = MultipleVariateChart(
+        chart = MultivariateChart(
                 source = df_affairs,
                 target = 'affairs',
                 feature = 'yrs_married', 

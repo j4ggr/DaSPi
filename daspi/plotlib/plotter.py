@@ -2543,9 +2543,9 @@ class Errorbar(TransformPlotter):
         """Get separated error lengths as 2D array. 
         First row contains the lower errors, the second row contains the 
         upper errors."""
-        err = np.array([
+        err = np.abs(np.array([
             self.source[self.target] - self.source[self.lower],
-            self.source[self.upper] - self.source[self.target]])
+            self.source[self.upper] - self.source[self.target]]))
         return err
     
     def __call__(self, kw_points: dict = {}, **kwds) -> None:

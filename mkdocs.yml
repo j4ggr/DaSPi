@@ -91,7 +91,7 @@ nav:
         - Chart Module: plotlib/chart/index.md
         - plotlib/chart/chart.md
         - plotlib/chart/single-chart.md
-        - plotlib/chart/multiple-variate-chart.md
+        - plotlib/chart/multivariate-chart.md
         - plotlib/chart/joint-chart.md
       - Plotter:
         - Plotter Module: plotlib/plotter/index.md

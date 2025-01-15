@@ -20,7 +20,7 @@ to produce consistent charts for very different plots.
   visualization with customizable features.
 - *JointChart:* Represents a joint chart visualization combining
   multiple individual Axes.
-- *MultipleVariateChart:* Represents a chart visualization handling 
+- *MultivariateChart:* Represents a chart visualization handling 
   multiple variables simultaneously.
 
 ## Functionality
@@ -184,7 +184,7 @@ class Chart(ABC):
     method."""
     _ax: Axes | None
     """Axes object to which this chart belongs. This attribute is None 
-    for parent charts such as JointChart and MultipleVariateChart. For 
+    for parent charts such as JointChart and MultivariateChart. For 
     SingleChart this cannot be None."""
 
     def __init__(
@@ -742,8 +742,8 @@ class SingleChart(Chart):
             return
         
         hue_variate = self._current_variate.get(self.hue, None)
-        dodged_features = self.dodging(self._data[self.feature], hue_variate)
-        self._data.loc[:, self.feature] = dodged_features
+        positions = self._data.pop(self.feature)
+        self._data[self.feature] = self.dodging(positions, hue_variate)
         
     def _categorical_feature_grid_(self, ax: Axes) -> None:
         """Hide the major grid and set the subgrid between each category 
@@ -1610,6 +1610,8 @@ class JointChart(Chart):
             target_label: str | bool | Tuple = '', 
             info: bool | str = False,
             axes_titles: Tuple[str, ...] = (),
+            rows: Tuple[str, ...] = (),
+            cols: Tuple[str, ...] = (),
             row_title: str = '',
             col_title: str = '') -> Self:
         """Add labels and titles to the chart.
@@ -1641,6 +1643,10 @@ class JointChart(Chart):
             is displayed.
         axes_titles : Tuple[str, ...]
             Title for each Axes, by default ()
+        rows: Tuple[str, ...], optional
+            The row labels of the figure, by default ().
+        cols: Tuple[str, ...], optional
+            The column labels of the figure, by default ().
         row_title : str, optional
             The title of the rows, by default ''.
         col_title : str, optional
@@ -1671,6 +1677,8 @@ class JointChart(Chart):
             xlabel=xlabel,
             ylabel=ylabel,
             info=info,
+            rows=rows,
+            cols=cols,
             row_title=row_title,
             col_title=col_title,
             axes_titles=axes_titles,
@@ -1679,7 +1687,7 @@ class JointChart(Chart):
         return self
 
 
-class MultipleVariateChart(SingleChart):
+class MultivariateChart(SingleChart):
     """Represents a chart visualization that handles multiple variables
     simultaneously.
 
@@ -1729,7 +1737,7 @@ class MultipleVariateChart(SingleChart):
     import daspi as dsp
     df = dsp.load_dataset('iris')
 
-    chart = dsp.MultipleVariateChart(
+    chart = dsp.MultivariateChart(
             source=df,
             target='length',
             feature='width',
@@ -1875,7 +1883,7 @@ class MultipleVariateChart(SingleChart):
         Returns
         -------
         Self
-            The updated MultipleVariateChart object."""
+            The updated MultivariateChart object."""
         if kw_where:
             raise ValueError(
                 'Keyword argument "kw_where" is not allowed in this instance.')
@@ -2079,5 +2087,5 @@ class MultipleVariateChart(SingleChart):
 __all__ = [
     'SingleChart',
     'JointChart',
-    'MultipleVariateChart'
+    'MultivariateChart'
 ]
