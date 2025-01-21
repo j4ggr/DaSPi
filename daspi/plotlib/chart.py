@@ -1600,7 +1600,7 @@ class JointChart(Chart):
                 agreement=agreement[i],
                 **kwds)
         return self
-    
+
     def label(
             self,
             *,

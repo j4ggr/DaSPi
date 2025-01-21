@@ -97,15 +97,18 @@ class Estimator:
         by default `DIST.COMMON`
     """
     __slots__ = (
-        '_samples', '_filtered', '_n_samples', '_n_missing', '_mean', '_median', 
-        '_std', '_sem', '_lcl', '_ucl', '_strategy', '_agreement', '_excess', 
-        '_p_excess', '_skew', '_p_skew', '_dist', '_p_dist', '_p_ad',
-        '_dist_params', 'possible_dists', '_k', '_evaluate', '_q_low', '_q_upp')
+        '_samples', '_filtered', '_n_samples', '_n_missing', '_min', '_max', 
+        '_mean', '_median', '_std', '_sem', '_lcl', '_ucl', '_strategy',
+        '_agreement', '_excess', '_p_excess', '_skew', '_p_skew', '_dist',
+        '_p_dist', '_p_ad', '_dist_params', 'possible_dists', '_k', '_evaluate',
+        '_q_low', '_q_upp')
     
     _samples: Series
     _filtered: Series
     _n_samples: int
     _n_missing: int
+    _min: float | None
+    _max: float | None
     _mean: float | None
     _median: float | None
     _std: float | None
@@ -138,7 +141,8 @@ class Estimator:
             possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
             evaluate: Callable | None = None
             ) -> None:
-
+        self._min = None
+        self._max = None
         self._mean = None
         self._median = None
         self._std = None
@@ -172,63 +176,78 @@ class Estimator:
     def _descriptive_statistic_attrs_(self) -> Tuple[str, ...]:
         """Get attribute names used for `describe` method."""
         attrs = (
-            'n_samples', 'n_missing', 'mean', 'median', 'std', 'sem', 'excess',
-            'p_excess', 'skew', 'p_skew', 'dist', 'p_ad', 'lcl', 'ucl',
-            'strategy')
+            'n_samples', 'n_missing', 'min', 'max', 'mean', 'median', 'std',
+            'sem', 'excess', 'p_excess', 'skew', 'p_skew', 'dist', 'p_ad',
+            'lcl', 'ucl', 'strategy')
         return attrs
 
     @property
     def samples(self) -> pd.Series:
         """Get the raw samples as it was given during instantiation
-        as pandas Series."""
+        as pandas Series (read-only)."""
         return self._samples
         
     @property
     def filtered(self) -> pd.Series:
-        """Get the samples without error values and no missing value"""
+        """Get the samples without error values and no missing value 
+        (read-only)."""
         if self._filtered.empty:
             self._filtered = pd.to_numeric(self.samples[self.samples.notna()])
         return self._filtered
     
     @property
     def n_samples(self) -> int:
-        """Get sample size of unfiltered samples"""
+        """Get sample size of unfiltered samples (read-only)."""
         return self._n_samples
     
     @property
     def n_missing(self) -> int:
-        """Get amount of missing values"""
+        """Get amount of missing values (read-only)."""
         return self._n_missing
     
     @property
     def dof(self) -> int:
-        """Get degree of freedom for filtered samples"""
+        """Get degree of freedom for filtered samples (read-only)."""
         return len(self.filtered)-1
 
     @property
+    def min(self) -> float:
+        """Get the minimum value of filtered samples (read-only)."""
+        if self._min is None:
+            self._min = float(self.filtered.min())
+        return self._min
+
+    @property
+    def max(self) -> float:
+        """Get the maximum value of filtered samples (read-only)."""
+        if self._max is None:
+            self._max = float(self.filtered.max())
+        return self._max
+
+    @property
     def mean(self) -> float:
-        """Get mean of filtered samples"""
+        """Get mean of filtered samples (read-only)."""
         if self._mean is None:
             self._mean = self.filtered.mean()
         return self._mean
 
     @property
     def median(self) -> float:
-        """Get median of filtered samples"""
+        """Get median of filtered samples (read-only)."""
         if self._median is None:
             self._median = self.filtered.median()
         return self._median
     
     @property
     def std(self) -> float:
-        """Get standard deviation of filtered samples"""
+        """Get standard deviation of filtered samples (read-only)."""
         if self._std is None:
             self._std = self.filtered.std()
         return self._std
     
     @property
     def sem(self) -> float:
-        """Get standard error mean of filtered samples"""
+        """Get standard error mean of filtered samples (read-only)."""
         if self._sem is None:
             self._sem = float(self.filtered.sem()) # type: ignore
         return self._sem
@@ -236,7 +255,7 @@ class Estimator:
     @property
     def lcl(self) -> float:
         """Get lower control limit according to given strategy and 
-        agreement."""
+        agreement (read-only)."""
         if self._lcl is None:
             self._lcl, self._ucl = self._calculate_control_limits_()
         return self._lcl
@@ -244,7 +263,7 @@ class Estimator:
     @property
     def ucl(self) -> float:
         """Get upper control limit according to given strategy and 
-        agreement."""
+        agreement (read-only)."""
         if self._ucl is None:
             self._lcl, self._ucl = self._calculate_control_limits_()
         return self._ucl
@@ -253,8 +272,8 @@ class Estimator:
     def q_low(self) -> float:
         """Get quantil for lower control limit according to given 
         agreement. If the samples is subject to normal distribution and 
-        the agreement is given as 6, this value corresponds to the 0.135 % 
-        quantile (6 sigma ~ 99.73 % of the samples)."""
+        the agreement is given as 6, this value corresponds to the 
+        0.135 % quantile: 6 sigma ~ 99.73 % of the samples (read-only)."""
         if self._q_low is None:
             self._q_low = float(stats.norm.cdf(-self.agreement/2))
         return self._q_low
@@ -264,7 +283,7 @@ class Estimator:
         """Get quantil for upper control limit according to given 
         agreement. If the sample data is subject to normal distribution 
         and the agreement is given as 6, this value corresponds to the 
-        Q_0.99865 (0.99865-quantile or 99.865-percentile)."""
+        Q_0.99865: 0.99865-quantile or 99.865-percentile (read-only)."""
         if self._q_upp is None:
             self._q_upp = 1 - self.q_low
         return self._q_upp
@@ -272,7 +291,7 @@ class Estimator:
     @property
     def excess(self) -> float:
         """Get the Fisher kurtosis (excess) of filtered samples.
-        Calculations are corrected for statistical bias.
+        Calculations are corrected for statistical bias (read-only).
         The curvature of the distribution corresponds to the 
         curvature of a normal distribution when the excess is close to 
         zero. Distributions with negative excess kurtosis are said to be 
@@ -295,14 +314,14 @@ class Estimator:
     def p_excess(self) -> float:
         """Get the probability that the excess of the population that
         the sample was drawn from is the same as that of a corresponding
-        normal distribution."""
+        normal distribution (read-only)."""
         if self._p_excess is None:
             self._p_excess = kurtosis_test(self.filtered)[0]
         return self._p_excess
     
     @property
     def skew(self) -> float:
-        """Get the skewness of the filtered samples.
+        """Get the skewness of the filtered samples (read-only).
         Calculations are corrected for statistical bias.
         For normally distributed data, the skewness should be about zero. 
         For unimodal continuous distributions, a skewness value greater 
@@ -319,7 +338,7 @@ class Estimator:
     def p_skew(self) -> float:
         """Get the probability that the skewness of the population that
         the sample was drawn from is the same as that of a corresponding
-        normal distribution"""
+        normal distribution (read-only)."""
         if self._p_skew is None:
             self._p_skew = skew_test(self.filtered)[0]
         return self._p_skew
@@ -327,7 +346,8 @@ class Estimator:
     @property
     def p_ad(self) -> float:
         """Get the probability that the filtered samples are subject of
-        the normal distribution by performing a Anderson-Darling test."""
+        the normal distribution by performing a Anderson-Darling test
+        (read-only)."""
         if self._p_ad is None:
             self._p_ad = anderson_darling_test(self.filtered)[0]
         return self._p_ad
@@ -335,7 +355,7 @@ class Estimator:
     @property
     def dist(self) -> rv_continuous:
         """Get fitted distribution. None if method distribution has 
-        not been called."""
+        not been called (read-only)."""
         if self._dist is None:
             self._dist, self._p_dist, self._dist_params = self.distribution()
         return self._dist
@@ -343,7 +363,7 @@ class Estimator:
     @property
     def p_dist(self) -> float:
         """Get probability of fitted distribution. None if method 
-        distribution has not been called."""
+        distribution has not been called (read-only)."""
         if self._p_dist is None:
             self._dist, self._p_dist, self._dist_params = self.distribution()
         return self._p_dist
@@ -351,15 +371,15 @@ class Estimator:
     @property
     def dist_params(self) -> Tuple[float, ...]:
         """Get params of fitted distribution. None if method 
-        distribution has not been called."""
+        distribution has not been called (read-only)."""
         if self._dist_params is None:
             self._dist, self._p_dist, self._dist_params = self.distribution()
         return self._dist_params
     
     @property
     def strategy(self) -> Literal['eval', 'fit', 'norm', 'data']:
-        """Strategy used to determine the control limits (can also be 
-        interpreted as the process range).
+        """Strategy used to determine the control limits. The control 
+        limits can also be interpreted as the process range.
 
         Set strategy as one of {'eval', 'fit', 'norm', 'data'}
             - eval: If no evaluate function is given, the strategy is 
@@ -668,30 +688,40 @@ class Estimator:
         self._q_low = None
         self._q_upp = None
     
-    def describe(self) -> Series:
+    def describe(self, exclude: Tuple[str, ...] = ()) -> Series:
         """Generate descriptive statistics.
         
         Returns
         -------
         stats : Series
-            Summary statistics as pandas Series 
+            Summary statistics as pandas Series.
+        exclude : Tuple[str, ...]
+            Attributes to exclude from the summary statistics.
         """
         def _value_(a: str) -> float | int | str:
             return getattr(self, a).name if a == 'dist' else getattr(self, a)
-        stats = pd.Series(
-            {a: _value_(a) for a in self._descriptive_statistic_attrs_})
-        return stats
+        
+        data = {}
+        for attribute in self._descriptive_statistic_attrs_:
+            if attribute in exclude:
+                continue
+
+            data[attribute] = _value_(attribute)
+
+        return pd.Series(data)
 
 
 class ProcessEstimator(Estimator):
 
     __slots__ = (
-        '_lsl', '_usl', '_n_ok', '_n_nok', '_error_values', '_n_errors', 
-        '_cp', '_cpk', '_Z', '_Z_lt')
+        '_lsl', '_usl', '_n_ok', '_n_nok', '_ok', '_nok', '_error_values',
+        '_n_errors', '_cp', '_cpk', '_Z', '_Z_lt')
     _lsl: SpecLimit
     _usl: SpecLimit
     _n_ok: int | None
     _n_nok: int | None
+    _ok: float | None
+    _nok: float | None
     _error_values: Tuple[float, ...]
     _n_errrors: int
     _cp: float | None
@@ -763,6 +793,8 @@ class ProcessEstimator(Estimator):
         self._n_ok = None
         self._n_nok = None
         self._n_errors = None
+        self._ok = None
+        self._nok = None
         self._cp = None
         self._cpk = None
         self._Z = None
@@ -780,7 +812,7 @@ class ProcessEstimator(Estimator):
         """Get attribute names used for `describe` method (read-only)."""
         _attrs = super()._descriptive_statistic_attrs_
         attrs = (_attrs[:2]
-                 + ('n_ok', 'n_nok', 'n_errors')
+                 + ('n_ok', 'n_nok', 'n_errors', 'ok', 'nok')
                  + _attrs[2:]
                  + ('lsl', 'usl', 'cp', 'cpk', 'Z', 'Z_lt'))
         return attrs
@@ -800,10 +832,11 @@ class ProcessEstimator(Estimator):
     def n_ok(self) -> int:
         """Get amount of OK-values (read-only)."""
         if self._n_ok is None:
-            self._n_ok = (self.n_samples
-                          - self.n_nok
-                          - self.n_errors
-                          - self.n_missing)
+            self._n_ok = (
+                self.n_samples
+                - self.n_nok
+                - self.n_errors
+                - self.n_missing)
         return self._n_ok
     
     @property
@@ -816,14 +849,18 @@ class ProcessEstimator(Estimator):
         return self._n_nok
     
     @property
-    def p_ok(self) -> float:
+    def ok(self) -> str:
         """Get amount of OK-values as percent (read-only)."""
-        return 100*self.n_ok/self.n_samples
+        if self._ok is None:
+            self._ok = self.n_ok/self.n_samples
+        return f'{100*self._ok:.2f} %'
     
     @property
-    def p_nok(self) -> float:
+    def nok(self) -> str:
         """Get amount of NOK-values as percent (read-only)."""
-        return 100*self.n_nok/self.n_samples
+        if self._nok is None:
+            self._nok = self.n_nok/self.n_samples
+        return f'{100*self._nok:.2f} %'
     
     @property
     def n_errors(self) -> int:
@@ -955,6 +992,8 @@ class ProcessEstimator(Estimator):
         self._n_ok = None
         self._n_nok = None
         self._n_errors = None
+        self._ok = None
+        self._nok = None
         self._cp = None
         self._cpk = None
         self._Z = None

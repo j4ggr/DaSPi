@@ -33,7 +33,13 @@ class TestEstimator:
     # source data contains 8 decimal places
     rel_curve: float = 1e-7
     estimate: Estimator = Estimator(df_dist10['rayleigh'])
-
+    
+    @pytest.fixture
+    def sample_estimator(self) -> Estimator:
+        np.random.seed(42)
+        data = np.random.normal(0, 1, 100)
+        return Estimator(data)
+    
     def test_data_filtered(self) -> None:
         N = 10
         N_nan = 2
@@ -44,6 +50,16 @@ class TestEstimator:
         assert len(estimate.filtered) == N
         assert not estimate._filtered.empty
         assert not any(np.isnan(estimate.filtered))
+
+    def test_min(self) -> None:
+        assert self.estimate._min is None
+        assert self.estimate.min == approx(np.min(self.estimate.filtered))
+        assert self.estimate._min is not None
+
+    def test_max(self) -> None:
+        assert self.estimate._max is None
+        assert self.estimate.max == approx(np.max(self.estimate.filtered))
+        assert self.estimate._max is not None
 
     def test_mean(self) -> None:
         assert self.estimate._mean is None
@@ -136,6 +152,39 @@ class TestEstimator:
         assert estimate.p_dist > 0.005
         assert estimate.dist.name != 'expon'
 
+    def test_describe_basic(self, sample_estimator: Estimator) -> None:
+        result = sample_estimator.describe()
+        assert 'min' in result.index
+        assert 'max' in result.index
+        assert 'mean' in result.index
+        assert 'median' in result.index
+        assert 'std' in result.index
+
+    def test_describe_with_exclude(self, sample_estimator: Estimator) -> None:
+        result = sample_estimator.describe(exclude=('mean', 'median'))
+        assert 'mean' not in result.index
+        assert 'median' not in result.index
+        assert 'min' in result.index
+        assert 'max' in result.index
+
+    def test_describe_with_distribution(self, sample_estimator: Estimator) -> None:
+        sample_estimator.distribution()
+        result = sample_estimator.describe()
+        assert 'dist' in result.index
+        assert isinstance(result['dist'], str)
+
+    def test_describe_with_empty_exclude(self, sample_estimator: Estimator) -> None:
+        result = sample_estimator.describe(exclude=())
+        expected_attrs = sample_estimator._descriptive_statistic_attrs_
+        assert all(attr in result.index for attr in expected_attrs)
+
+    def test_describe_with_nan_values(self) -> None:
+        data = [1.0, np.nan, 3.0, 4.0, np.nan]
+        estimator = Estimator(data)
+        result = estimator.describe()
+        assert not np.isnan(result['mean'])
+        assert not np.isnan(result['std'])
+        assert len(result) == len(estimator._descriptive_statistic_attrs_)
 
 class TestLoess:
     @pytest.fixture
@@ -221,6 +270,12 @@ class TestProcessEstimator:
         data = np.random.normal(0, 1, 100)
         return pd.DataFrame({'values': data})
 
+    @pytest.fixture
+    def sample_estimator(self) -> ProcessEstimator:
+        np.random.seed(42)
+        data = np.random.normal(0, 1, 100)
+        return ProcessEstimator(data, lsl=None, usl=2)
+    
     def test_init_with_series(self, sample_data: DataFrame) -> None:
         estimator = ProcessEstimator(sample_data['values'])
         assert len(estimator.samples) == 100
@@ -268,3 +323,42 @@ class TestProcessEstimator:
         assert not np.isnan(estimator.std)
         assert not np.isnan(estimator.skew)
         assert not np.isnan(estimator.excess)
+
+    def test_describe_basic(self, sample_estimator: ProcessEstimator) -> None:
+        result = sample_estimator.describe()
+        assert 'n_ok' in result.index
+        assert 'n_nok' in result.index
+        assert 'n_errors' in result.index
+        assert 'ok' in result.index
+        assert 'nok' in result.index
+        assert 'min' in result.index
+        assert 'max' in result.index
+        assert 'mean' in result.index
+        assert 'median' in result.index
+        assert 'std' in result.index
+        assert 'dist' in result.index
+        assert 'lcl' in result.index
+        assert 'ucl' in result.index
+        assert 'strategy' in result.index
+        assert 'Z' in result.index
+        assert 'Z_lt' in result.index
+
+    def test_describe_with_exclude(self, sample_estimator: ProcessEstimator) -> None:
+        result = sample_estimator.describe(exclude=('dist', 'strategy'))
+        assert 'dist' not in result.index
+        assert 'strategy' not in result.index
+        assert 'lcl' in result.index
+        assert 'ucl' in result.index
+
+    def test_describe_with_empty_exclude(self, sample_estimator: ProcessEstimator) -> None:
+        result = sample_estimator.describe(exclude=())
+        expected_attrs = sample_estimator._descriptive_statistic_attrs_
+        assert all(attr in result.index for attr in expected_attrs)
+
+    def test_describe_with_nan_values(self) -> None:
+        data = [1.0, np.nan, 3.0, 4.0, np.nan]
+        estimator = ProcessEstimator(data, lsl=1.5, usl=3.5)
+        result = estimator.describe()
+        assert not np.isnan(result['mean'])
+        assert not np.isnan(result['std'])
+        assert len(result) == len(estimator._descriptive_statistic_attrs_)
