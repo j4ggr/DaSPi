@@ -307,10 +307,10 @@ class _Plotter_:
     F_BASE_NAME: Literal['_base_'] = '_base_'
     """Column name for the base position of transformed features such 
     as Jitter or KDE."""
-    ERR_LOW: Literal['_error_lower_'] = '_error_lower_'
-    """Column name for errorbar lower points."""
-    ERR_UPP: Literal['_error_upper_'] = '_error_upper_'
-    """Column name for errorbar upper points."""
+    LOWER: Literal['_lower_'] = '_lower_'
+    """Column name for lower points used for e.g. error bars."""
+    UPPER: Literal['_upper_'] = '_upper_'
+    """Column name for upper points used for e.g. error bars."""
     FITTED_VALUES: Literal['_fitted_values_'] = '_fitted_values_'
     """Column name for fitted values."""
     FIT_CI_LOW: Literal['_fit_ci_low_'] = '_fit_ci_low_'
@@ -337,6 +337,8 @@ class _Plotter_:
     PARETO_F_MARGIN: float = 0.1
     """Margin in feature axis direction to ensure space for percentage
     values."""
+    SUBGROUP: Literal['_subgroup_'] = '_subgroup_'
+    """Column name for subgroups used mostly in TransformPlotter."""
 
     @property
     def REGRESSION_CI_NAMES(self) -> Tuple[str, str, str, str]:
@@ -425,6 +427,19 @@ class _Default_:
     """Default color in plots if there is no hueing only used for styles
     they dont use the regular color palette order (e.g. daspi and 
     ggplot2)."""
+    QUANTILE_RANGES: Tuple[float, float, float] = (0.682, 0.954, 0.997)
+    """Default quantile ranges for the Quantile Plotter.
+
+    These values represent the quantiles corresponding to the standard 
+    deviations (sigma) of a normal distribution:
+    - 0.682 = approximately ±1 sigma, capturing about 68.2% of the data.
+    - 0.954 = approximately ±2 sigma, capturing about 95.4% of the data.
+    - 0.997 = approximately ±3 sigma, capturing about 99.7% of the data.
+
+    These quantile ranges are commonly used in statistical analysis to 
+    visualize the spread and concentration of data around the mean in a 
+    quantile plot.
+    """
 
     @property
     def MARKER(self) -> str:

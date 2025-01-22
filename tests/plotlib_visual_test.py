@@ -26,6 +26,7 @@ from daspi import Scatter
 from daspi import Violine
 from daspi import Beeswarm
 from daspi import MeanTest
+from daspi import Quantiles
 from daspi import LoessLine
 from daspi import JointChart
 from daspi import SingleChart
@@ -691,6 +692,70 @@ class TestSingleChart:
                 hue = self.cat2,
                 dodge = True,
                 target_on_y=False
+            ).plot(
+                Beeswarm,
+            ).plot(
+                Violine,
+                fill = False
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = self.target_label,    
+                info = self.info_msg
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert self.file_name.is_file()
+        assert len(texts) == 5
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+    
+    def test_quantiles_plot(self) -> None:
+        self.base = f'{self.fig_title}_quantiles'
+
+        self.kind = 'simple'
+        chart = SingleChart(
+                source = df_aspirin,
+                target = self.target,
+                feature = self.cat1, 
+                categorical_feature = True,
+            ).plot(
+                Quantiles
+            ).plot(
+                Beeswarm
+            ).plot(
+                Violine,
+                fill=False
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = self.target_label,    
+                info = self.info_msg
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert self.file_name.is_file()
+        assert len(texts) == 5
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+        
+        self.kind = 'multiple'
+        chart = SingleChart(
+                source = df_aspirin,
+                target = self.target,
+                feature = self.cat1, 
+                hue = self.cat2,
+                dodge = True,
+                target_on_y=False
+            ).plot(
+                Quantiles,
+                vary_width=False,
             ).plot(
                 Beeswarm,
             ).plot(

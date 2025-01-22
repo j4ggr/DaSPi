@@ -112,6 +112,7 @@ from typing import List
 from typing import Dict
 from typing import Tuple
 from typing import Literal
+from typing import Sequence
 from typing import Hashable
 from typing import Callable
 from typing import Iterable
@@ -2025,7 +2026,7 @@ class Beeswarm(TransformPlotter):
         it is calculated as the length of the data divided by 6. 
         Defaults to None
     width : float, optional
-        The width of the jitter, by default `CATEGORY.FEATURE_SPACE`.
+        The width of the beeswarm, by default `CATEGORY.FEATURE_SPACE`.
     skip_na : Literal['none', 'all', 'any'], optional
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
@@ -2185,6 +2186,175 @@ class Beeswarm(TransformPlotter):
         """
         _kwds = self.kw_default | kwds
         self.ax.scatter(self.x, self.y, **_kwds)
+
+
+class Quantiles(TransformPlotter):
+    """TransformPlotter for visualizing quantiles through box plots.
+
+    This class is designed to create box plots that represent various 
+    quantiles of the data based on specified ranges. The ranges are used
+    to calculate the lower and upper quantiles, which define the 
+    boundaries of the boxes.
+
+    Parameters
+    ----------
+    source : pandas DataFrame
+        A long-format DataFrame containing the data source for the plot.
+    target : str
+        The column name of the target variable to be plotted.
+    feature : str, optional
+        The column name of the feature variable for the plot, by 
+        default an empty string.
+    quantile_ranges : Tuple[float, ...], optional
+        A tuple representing the ranges of the quantiles to be plotted. 
+        Each range should be a float between 0 and 1, indicating the 
+        quantile width. Defaults to `DEFAULT.QUANTILE_RANGES`
+    vary_width : float, optional
+        If True, the center box is the widest, while the outer boxes are 
+        progressively narrower, reflecting the distribution of the data.
+        Defaults to True
+    width : float, optional
+        The width of the boxes. If vary_width is set to True, the 
+        central box has this width, all others are narrower.
+        Defaults to `CATEGORY.FEATURE_SPACE`.
+    skip_na : Literal['none', 'all', 'any'], optional
+        A flag indicating how to handle missing values in the feature 
+        grouped data:
+        - 'none': No missing values are skipped.
+        - 'all': Grouped data is skipped if all values are missing.
+        - 'any': Grouped data is skipped if any value is missing.
+
+    target_on_y : bool, optional
+        A flag indicating whether the target variable is plotted on the 
+        y-axis, by default True.
+    color : str | None, optional
+        The color used to draw the box plots. If None, the first color 
+        from the color cycle is used, by default None.
+    ax : Axes | None, optional
+        The axes object for the plot. If None, an attempt is made to get
+        the current axes using `plt.gca()`. If no axes are available, a 
+        new one is created. Defaults to None.
+    **kwds :
+        Additional keyword arguments that are ignored in this context, 
+        primarily serving to capture any extra arguments when this class 
+        is used within chart objects.
+    """
+
+    __slots__ = ('quantile_ranges', 'vary_width', 'width')
+
+    quantile_ranges: Tuple[float, ...]
+    """A tuple of ranges representing the quantiles for the box plots."""
+    vary_width: bool
+    """Flag that indicates whether the width of the boxes should vary, 
+    with the widest box in the middle and the narrower one towards the 
+    outside. If False, all have the same width."""
+    width: float
+    """The maximum width of the center box in the plot."""
+    
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str = '',
+            quantile_ranges: Tuple[float, ...] = DEFAULT.QUANTILE_RANGES,
+            vary_width: bool = True,
+            width: float = CATEGORY.FEATURE_SPACE,
+            skip_na: Literal['all', 'any'] | None = None,
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        assert all([0 < w <= 1 for w in quantile_ranges]), (
+            'All quantile widths must be between 0 and 1.')
+        self.quantile_ranges = tuple(
+            sorted(np.unique(quantile_ranges), reverse=True))
+        self.vary_width = vary_width
+        self.width = width
+        super().__init__(
+            source=source,
+            target=target,
+            feature=feature,
+            skip_na=skip_na,
+            target_on_y=target_on_y,
+            color=color,
+            ax=ax,
+            **kwds)
+    
+    @property
+    def kw_default(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = dict(color=self.color)
+        return kwds
+    
+    @property
+    def alpha(self) -> Dict[Any, float]:
+        """Get color transparency for each quantile range."""
+        alpha = {}
+        for i, q_range in enumerate(self.quantile_ranges, start=1):
+            alpha[q_range] = i * COLOR.FILL_ALPHA / len(self.quantile_ranges)
+        return alpha
+    
+    def transform(
+            self, feature_data: float | int, target_data: Series) -> DataFrame:
+        """Generates the spread values for the beeswarm plot by 
+        arranging the target data into bins.
+
+        The method divides the input data into bins based on the 
+        specified number of bins and calculates the spread of values 
+        within each bin to create a horizontal distribution.
+
+        Parameters
+        ----------
+        feature_data : float
+            The center position on the feature axis where the beeswarm 
+            values will be centered.
+        target_data : pandas Series
+            feature grouped target data, coming from `feature_grouped' 
+            generator.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            The transformed data source for the plot.
+        """
+        data = pd.DataFrame()
+        for i, q_range in enumerate(self.quantile_ranges, start=1):
+            q_low = (1 - q_range) / 2
+            q_upp = 1 - q_low
+            quantiles = [target_data.quantile(q) for q in [q_low, q_upp]]
+            if self.vary_width:
+                half_width = i * self.width / (len(self.quantile_ranges) * 2)
+            else:
+                half_width = self.width / 2
+            temp = pd.DataFrame({
+                self.target: quantiles,
+                PLOTTER.LOWER: [feature_data - half_width]*2,
+                PLOTTER.UPPER: [feature_data + half_width]*2,
+                PLOTTER.SUBGROUP: q_range})
+            data = pd.concat([data, temp], axis=0, ignore_index=True)
+        data[PLOTTER.F_BASE_NAME] = feature_data
+        return data
+
+    def __call__(self, **kwds) -> None:
+        """Perform the quantiles plot operation.
+
+        Parameters
+        ----------
+        **kwds
+            Additional keyword arguments to be passed to the Axes 
+            `fill_between` method.
+        """
+        
+        for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME):
+            for q_range, subgroup in group.groupby(PLOTTER.SUBGROUP):
+                _kwds = self.kw_default | {'alpha': self.alpha[q_range]} | kwds
+                quantiles = subgroup[self.target]
+                lower = subgroup[PLOTTER.LOWER]
+                upper = subgroup[PLOTTER.UPPER]
+                if self.target_on_y:
+                    self.ax.fill_betweenx(quantiles, lower, upper, **_kwds)
+                else:
+                    self.ax.fill_between(quantiles, lower, upper, **_kwds)
 
 
 class GaussianKDE(TransformPlotter):
@@ -2831,8 +3001,8 @@ class StandardErrorMean(Errorbar):
         super().__init__(
             source=source,
             target=target,
-            lower=PLOTTER.ERR_LOW,
-            upper=PLOTTER.ERR_UPP,
+            lower=PLOTTER.LOWER,
+            upper=PLOTTER.UPPER,
             feature=feature,
             show_center=show_center,
             bars_same_color=bars_same_color,
@@ -2999,8 +3169,8 @@ class SpreadWidth(Errorbar):
         super().__init__(
             source=source,
             target=target,
-            lower=PLOTTER.ERR_LOW,
-            upper=PLOTTER.ERR_UPP,
+            lower=PLOTTER.LOWER,
+            upper=PLOTTER.UPPER,
             feature=feature,
             show_center=show_center,
             bars_same_color=bars_same_color,
@@ -3185,8 +3355,8 @@ class ConfidenceInterval(Errorbar):
         super().__init__(
             source=source,
             target=target,
-            lower=PLOTTER.ERR_LOW,
-            upper=PLOTTER.ERR_UPP,
+            lower=PLOTTER.LOWER,
+            upper=PLOTTER.UPPER,
             feature=feature,
             show_center=show_center,
             bars_same_color=bars_same_color,
@@ -4441,6 +4611,7 @@ __all__ = [
     'Pareto',
     'Jitter',
     'Beeswarm',
+    'Quantiles',
     'GaussianKDE',
     'GaussianKDEContour',
     'Violine',
