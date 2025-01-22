@@ -24,6 +24,7 @@ from daspi import Pareto
 from daspi import Jitter
 from daspi import Scatter
 from daspi import Violine
+from daspi import Beeswarm
 from daspi import MeanTest
 from daspi import LoessLine
 from daspi import JointChart
@@ -652,8 +653,8 @@ class TestSingleChart:
         assert STR.USERNAME in info_msg
         assert self.info_msg not in info_msg
     
-    def test_jitter_plot(self) -> None:
-        self.base = f'{self.fig_title}_jitter'
+    def test_beeswarm_plot(self) -> None:
+        self.base = f'{self.fig_title}_beeswarm'
 
         self.kind = 'simple'
         chart = SingleChart(
@@ -661,7 +662,11 @@ class TestSingleChart:
                 target = self.target,
                 feature = self.cat1, 
                 categorical_feature = True,
-            ).plot(Jitter
+            ).plot(
+                Beeswarm
+            ).plot(
+                Violine,
+                fill=False
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,
@@ -684,8 +689,66 @@ class TestSingleChart:
                 target = self.target,
                 feature = self.cat1, 
                 hue = self.cat2,
-                dodge = True
-            ).plot(Jitter, target_on_y=False
+                dodge = True,
+                target_on_y=False
+            ).plot(
+                Beeswarm,
+            ).plot(
+                Violine,
+                fill = False
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = self.target_label,    
+                info = self.info_msg
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert self.file_name.is_file()
+        assert len(texts) == 5
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+    
+    def test_jitter_plot(self) -> None:
+        self.base = f'{self.fig_title}_jitter'
+
+        self.kind = 'simple'
+        chart = SingleChart(
+                source = df_aspirin,
+                target = self.target,
+                feature = self.cat1, 
+                categorical_feature = True,
+            ).plot(
+                Jitter
+            ).label(
+                fig_title = self.fig_title,
+                sub_title = self.sub_title,
+                feature_label = True,
+                target_label = self.target_label,    
+                info = self.info_msg
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert self.file_name.is_file()
+        assert len(texts) == 5
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+        
+        self.kind = 'multiple'
+        chart = SingleChart(
+                source = df_aspirin,
+                target = self.target,
+                feature = self.cat1, 
+                hue = self.cat2,
+                dodge = True,
+                target_on_y=False
+            ).plot(
+                Jitter
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,

@@ -129,6 +129,7 @@ from .plotlib.plotter import Jitter
 from .plotlib.plotter import Plotter
 from .plotlib.plotter import Scatter
 from .plotlib.plotter import Violine
+from .plotlib.plotter import Beeswarm
 from .plotlib.plotter import Errorbar
 from .plotlib.plotter import MeanTest
 from .plotlib.plotter import LoessLine

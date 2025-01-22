@@ -133,6 +133,8 @@ from matplotlib.container import BarContainer
 from scipy import stats
 from scipy.stats._distn_infrastructure import rv_continuous
 
+from itertools import cycle
+
 from statsmodels.graphics.gofplots import ProbPlot
 from statsmodels.regression.linear_model import OLSResults
 
@@ -1872,7 +1874,7 @@ class Jitter(TransformPlotter):
     feature : str, optional
         Column name of the feature variable for the plot,
         by default ''
-    width : float
+    width : float, optional
         The width of the jitter, by default `CATEGORY.FEATURE_SPACE`.
     skip_na : Literal['none', 'all', 'any'], optional
         Flag indicating whether to skip missing values in the feature 
@@ -1983,6 +1985,193 @@ class Jitter(TransformPlotter):
         data = pd.DataFrame({
             self.target: target_data,
             self.feature: self.jitter(feature_data, target_data.size)})
+        return data
+
+    def __call__(self, **kwds) -> None:
+        """Perform the jitter plot operation.
+
+        Parameters
+        ----------
+        **kwds
+            Additional keyword arguments to be passed to the Axes 
+            `scatter` method.
+        """
+        _kwds = self.kw_default | kwds
+        self.ax.scatter(self.x, self.y, **_kwds)
+
+
+class Beeswarm(TransformPlotter):
+    """A class to create and display a basic bee swarm plot.
+
+    This class includes methods that organize the input data into bins 
+    according to a specified number of bins (or a default value if none 
+    is provided). It calculates the upper limits for each bin and 
+    positions the data points within these bins to achieve a horizontal
+    distribution in the plot, ensuring as little overlap as possible 
+    among the points.
+
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''
+    n_bins : int | None, optional
+        The number of bins to divide the data into. If not specified, 
+        it is calculated as the length of the data divided by 6. 
+        Defaults to None
+    width : float, optional
+        The width of the jitter, by default `CATEGORY.FEATURE_SPACE`.
+    skip_na : Literal['none', 'all', 'any'], optional
+        Flag indicating whether to skip missing values in the feature 
+        grouped data, by default None
+        - None, no missing values are skipped
+        - all', grouped data is skipped if all values are missing
+        - any', grouped data is skipped if any value is missing
+
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on 
+        the y-axis, by default True
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the scatter plot. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
+    ax : Axes | None, optional
+        The axes object for the plot. If None, an attempt is made to get
+        the current one using `plt.gca`. If none is available, one is 
+        created. The same applies to the Figure object. Defaults to 
+        None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
+    
+    Source
+    ------
+    This code is based on the following source: 
+    https://python-graph-gallery.com/509-introduction-to-swarm-plot-in-matplotlib/
+    """
+    __slots__ = ('width', 'n_bins')
+
+    width: float
+    """The maximum width of the beeswarm."""
+    n_bins: int
+    """The number of bins to divide the data into"""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str = '',
+            n_bins: int | None = None,
+            width: float = CATEGORY.FEATURE_SPACE,
+            skip_na: Literal['all', 'any'] | None = None,
+            target_on_y: bool = True,
+            color: str | None = None,
+            marker: str | None = None,
+            ax: Axes | None = None,
+            **kwds) -> None:
+        if n_bins is None:
+            n_bins = len(source[target]) // 6
+        self.n_bins = n_bins
+        self.width = width
+        super().__init__(
+            source=source,
+            target=target,
+            feature=feature,
+            skip_na=skip_na,
+            target_on_y=target_on_y,
+            color=color,
+            ax=ax,
+            **kwds)
+        self._marker = marker
+    
+    @property
+    def kw_default(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = dict(color=self.color, marker=self.marker)
+        return kwds
+        
+    def _spread_(
+            self,
+            n_values: int,
+            delta: float
+            ) -> Generator[float, Any, None]:
+        """Generates the spread values for the beeswarm within the 
+        current bin.
+
+        This method calculates the positions of the data points in the 
+        beeswarm plot based on the number of values in the current bin 
+        and a specified delta value. It determines the direction of 
+        spreading based on whether the number of values is odd or even, 
+        ensuring a balanced distribution of points.
+
+        Parameters
+        ----------
+        n_values : int
+            The number of values in the current bin for which spread 
+            values are to be generated.
+
+        delta : float
+            The distance between adjacent spread values, which 
+            determines the overall spread of the points in the beeswarm 
+            plot.
+
+        Yields
+        ------
+        float
+            The calculated spread values for each point in the current 
+            bin, allowing for an alternating distribution to minimize 
+            overlap.
+        """
+        odd = bool(n_values % 2)
+        direction = cycle([-1, 1]) if odd else cycle([1, -1])
+        offset = 1 if odd else 2
+        for i in range(n_values):
+            if odd:
+                pos = delta * ((i + offset) // 2)
+            else:
+                pos =  delta * ((i + offset) // 2) - delta/2
+            yield next(direction) * pos
+        
+    def transform(
+            self, feature_data: float | int, target_data: Series) -> DataFrame:
+        """Generates the spread values for the beeswarm plot by 
+        arranging the target data into bins.
+
+        The method divides the input data into bins based on the 
+        specified number of bins and calculates the spread of values 
+        within each bin to create a horizontal distribution.
+
+        Parameters
+        ----------
+        feature_data : float
+            The center position on the feature axis where the beeswarm 
+            values will be centered.
+        target_data : pandas Series
+            feature grouped target data, coming from `feature_grouped' 
+            generator.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            The transformed data source for the plot.
+        """
+        hist, _ = np.histogram(target_data, bins=self.n_bins)
+        delta = self.width / hist.max()
+        beeswarm = np.array(
+            [pos for n in hist for pos in self._spread_(n, delta)])
+        
+        data = pd.DataFrame({
+            self.target: sorted(target_data),
+            self.feature: feature_data + beeswarm})
         return data
 
     def __call__(self, **kwds) -> None:
@@ -2333,6 +2522,8 @@ class Violine(GaussianKDE):
         by default ''.
     width : float, optional
         Width of the violine, by default CATEGORY.FEATURE_SPACE.
+    fill : bool, optional
+        Flag whether to fill in the curves, by default True
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
         the y-axis, by default True.
@@ -2349,12 +2540,14 @@ class Violine(GaussianKDE):
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
     """
+
     def __init__(
             self,
             source: DataFrame,
             target: str,
             feature: str = '',
             width: float = CATEGORY.FEATURE_SPACE,
+            fill: bool = True,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -2365,6 +2558,7 @@ class Violine(GaussianKDE):
             feature=feature,
             height=width/2,
             ignore_feature=False,
+            fill=fill,
             target_on_y=target_on_y,
             color=color,
             ax=ax,
@@ -2389,19 +2583,23 @@ class Violine(GaussianKDE):
             Additional keyword arguments for the fill plot, by default {}.
         """
         _kwds = self.kw_default | kwds
-        _kw_line: Dict[str, Any] = dict(color=COLOR.DARKEN) | kw_line
+        _kw_line: Dict[str, Any] = dict(
+            color=COLOR.DARKEN if self.fill else self.color
+            ) | kw_line
         for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME):
             estim_upp = group[self.feature]
             estim_low = 2*f_base - estim_upp # type: ignore
             sequence = group[self.target]
             if self.target_on_y:
-                self.ax.fill_betweenx(
-                    sequence, estim_low, estim_upp, **_kwds)
+                if self.fill:
+                    self.ax.fill_betweenx(
+                        sequence, estim_low, estim_upp, **_kwds)
                 self.ax.plot(
                     estim_low, sequence, estim_upp, sequence, **_kw_line)
             else:
-                self.ax.fill_between(
-                    sequence, estim_low, estim_upp, **_kwds)
+                if self.fill:
+                    self.ax.fill_between(
+                        sequence, estim_low, estim_upp, **_kwds)
                 self.ax.plot(
                     sequence, estim_low, sequence, estim_upp, **_kw_line)
 
@@ -4242,6 +4440,7 @@ __all__ = [
     'Bar',
     'Pareto',
     'Jitter',
+    'Beeswarm',
     'GaussianKDE',
     'GaussianKDEContour',
     'Violine',

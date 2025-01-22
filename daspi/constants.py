@@ -25,7 +25,7 @@ and long-term differences."""
 
 @dataclass(frozen=True)
 class _Line_:
-    WIDTH: float = 0.8
+    WIDTH: float = 1.0
     """Line width for special lines e.g. StripeLines."""
     SOLID: LineStyle = (0, ())
     """Line style argument for a solid line."""
