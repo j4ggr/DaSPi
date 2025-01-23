@@ -828,7 +828,7 @@ class SingleChart(Chart):
             kw_where: Dict[str, Any] = {},
             **kwds
             ) -> Self:
-        """Plot the chart.
+        """Apply a plotter with the specified data on the axis.
 
         Parameters
         ----------
@@ -844,7 +844,13 @@ class SingleChart(Chart):
             Additional keyword arguments for the where method used to
             filter the data.
         **kwds:
-            Additional keyword arguments for the plotter object.
+            Additional keyword arguments for the plotter object. Here 
+            you can set the plotter specific initialization parameters. 
+            You can also override the standard parameters color, marker, 
+            target_on_y, size (marker size) and width 
+            (for categorical feature plots). These parameters are 
+            handled automatically by the class. Only change them if you 
+            know what you are doing.
 
         Returns:
         --------
@@ -852,20 +858,22 @@ class SingleChart(Chart):
             The SingleChart instance.
         """
         self.target_on_y = kwds.pop('target_on_y', self.target_on_y)
+        _color = kwds.pop('marker', None)
         _marker = kwds.pop('marker', None)
+        _size = kwds.pop('size', None)
+        _width = kwds.pop('width', None)
         self._kw_where = kw_where
         for data in self.variate_data(skip_variate):
-            marker = _marker or self.marker
             plot = plotter(
                 source=data,
                 target=self.target,
                 feature=self.feature,
                 target_on_y=self.target_on_y,
-                color=self.color, 
+                color=_color or self.color,
+                marker=_marker or self.marker,
+                size=_size or self.sizes,
+                width=_width or self.dodging.width,
                 ax=self.axes.ax,
-                marker=marker,
-                size=self.sizes,
-                width=self.dodging.width,
                 categorical_feature=self.categorical_feature,
                 **kwds)
             plot(**kw_call)
@@ -1470,7 +1478,11 @@ class JointChart(Chart):
             If True, plot on the last axes in the grid. If False, plot 
             on the next axes in the grid, by default False.
         **kwds:
-            Additional keyword arguments for the plotter object.
+            Additional keyword arguments for the plotter object. Here 
+            you can set the plotter specific initialization parameters. 
+            You can also override the standard parameters color, marker, 
+            target_on_y, size (marker size) and width 
+            (for categorical feature plots).
 
         Returns
         -------
@@ -1878,7 +1890,13 @@ class MultivariateChart(SingleChart):
         kw_where : dict
             Do not use this argument in this instance.
         **kwds : Any
-            Additional keyword arguments to pass to the plotter.
+            Additional keyword arguments for the plotter object. Here 
+            you can set the plotter specific initialization parameters. 
+            Do not override the standard parameters color, marker, 
+            target_on_y, size (marker size) and width 
+            (for categorical feature plots). These parameters are 
+            handled automatically by the class. For more flexibility, 
+            use the JointChart class.
 
         Returns
         -------

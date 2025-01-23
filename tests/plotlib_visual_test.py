@@ -756,6 +756,7 @@ class TestSingleChart:
             ).plot(
                 Quantiles,
                 vary_width=False,
+                width=0.1,
             ).plot(
                 Beeswarm,
             ).plot(
