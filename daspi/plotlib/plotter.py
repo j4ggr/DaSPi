@@ -173,40 +173,53 @@ from ..statistics import estimate_capability_confidence
 
 class Plotter(ABC):
     """Abstract base class for creating plotters.
-    
+
+    This class serves as a blueprint for plotter implementations, 
+    facilitating the visualization of data from a given source.
+
     Parameters
     ----------
-    source : pandas DataFrame
-        Pandas long format DataFrame containing the data source for the
-        plot.
+    source : pandas.DataFrame
+        A long format DataFrame containing the data source for the plot.
     target : str
-        Column name of the target variable for the plot.
+        The column name of the target variable to be plotted.
     feature : str, optional
-        Column name of the feature variable for the plot,
-        by default ''
+        The column name of the feature variable to be plotted. 
+        Defaults to an empty string ('').
     target_on_y : bool, optional
-        Flag indicating whether the target variable is plotted on the
-        y-axis, by default True
-    color : str | None, optional
-        Color to be used to draw the artists. If None, the first 
-        color is taken from the color cycle, by default None.
-    marker : str | None, optional
-        The marker style for the scatters. Available markers see:
-        https://matplotlib.org/stable/api/markers_api.html, 
-        by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
-    **kwds:
-        Those arguments have no effect. Only serves to catch further
-        arguments that have no use here (occurs when this class is 
-        used within chart objects).
+        A flag indicating whether the target variable is plotted on the 
+        y-axis. Defaults to True.
+    color : str or None, optional
+        The color used for drawing the plot elements. If None, the first 
+        color from the color cycle is used. Defaults to None.
+    marker : str or None, optional
+        The marker style for scatter plots. For available markers, see:
+        https://matplotlib.org/stable/api/markers_api.html. 
+        Defaults to None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawnaccording to the stylesheet.
+        Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, no changes are 
+        made, and the axes are displayed according to the stylesheet.
+        Defaults to None.
+    **kwds :
+        Additional keyword arguments that are ignored in this class but 
+        may be used for compatibility with chart objects.
+
+    Notes
+    -----
+    This class is intended to be subclassed, and specific plotting 
+    functionality should be implemented in derived classes.
     """
     __slots__ = (
         'source', 'target', 'feature', 'target_on_y', '_color', '_marker',
-        'fig', 'ax')
+        'fig', 'ax', '_visible_spines', '_hide_axis')
     source: DataFrame
     """The data source for the plot"""
     target: str
@@ -224,6 +237,10 @@ class Plotter(ABC):
     """The top level container for all the plot elements."""
     ax: Axes
     """The axes object for the plot."""
+    _visible_spines: Literal['target', 'feature', 'none'] | None
+    """Which spine is visible."""
+    _hide_axis: Literal['target', 'feature', 'both'] | None
+    """Which axis is hidden if specified."""
 
     def __init__(
             self,
@@ -234,8 +251,12 @@ class Plotter(ABC):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         self.target_on_y = target_on_y
+        self._visible_spines = None
+        self._hide_axis = None
         self.source = source
         if not feature:
             feature = PLOTTER.FEATURE
@@ -246,7 +267,84 @@ class Plotter(ABC):
         self.fig, self.ax = self.figure_axes(ax)
         self._color = color
         self._marker = marker
+        self.visible_spines = visible_spines
+        self.hide_axis = hide_axis
     
+    @property
+    def visible_spines(self) -> Literal['target', 'feature', 'none'] | None:
+        """Get which spines are visible if specified.
+
+        Set which spines should be visible, the others are hidden.
+        If 'none', no spines are visible. If None, no changes are made 
+        and the spines are drawn according to the stylesheet.
+        """
+        return self._visible_spines
+    @visible_spines.setter
+    def visible_spines(
+            self,
+            visible_spines: Literal['target', 'feature', 'none'] | None
+            ) -> None:
+        if self._visible_spines == visible_spines:
+            return
+
+        assert visible_spines in ['target', 'feature', 'none', None], (
+            'visible_spines must be one of {"target", "feature", "none", None}'
+            f', got {visible_spines}')
+        self._visible_spines = visible_spines
+        positions = ('top', 'bottom', 'left', 'right')
+        ys = positions[:2]
+        xs = positions[2:]
+        for pos in positions:
+            self.ax.spines[pos].set_visible(plt.rcParams[f'axes.spines.{pos}'])
+
+        if visible_spines == 'target':
+            hidden_positions = ys if self.target_on_y else xs
+        elif visible_spines == 'feature':
+            hidden_positions = xs if self.target_on_y else ys
+        elif visible_spines == 'none':
+            hidden_positions = positions
+        else:
+            hidden_positions = ()
+
+        for pos in hidden_positions:
+            self.ax.spines[pos].set_visible(False)
+    
+    @property
+    def hide_axis(self) -> Literal['target', 'feature', 'both'] | None:
+        return self._hide_axis
+    @hide_axis.setter
+    def hide_axis(
+            self,
+            hide_axis: Literal['target', 'feature', 'both'] | None
+            ) -> None:
+        if self._hide_axis == hide_axis:
+            return
+
+        assert hide_axis in ['target', 'feature', 'both', None], (
+            'hide_axis must be one of {"target", "feature", "both", None}'
+            f', got {hide_axis}')
+        self._hide_axis = hide_axis
+        xaxis = self.ax.xaxis
+        yaxis = self.ax.yaxis
+
+        if hide_axis == 'target':
+            if self.target_on_y:
+                xaxis.set_visible(True)
+                yaxis.set_visible(False)
+            else:
+                xaxis.set_visible(False)
+                yaxis.set_visible(True)
+        elif hide_axis == 'feature':
+            if self.target_on_y:
+                xaxis.set_visible(False)
+                yaxis.set_visible(True)
+            else:
+                xaxis.set_visible(True)
+                yaxis.set_visible(False)
+        elif hide_axis == 'both':
+            xaxis.set_visible(False)
+            yaxis.set_visible(False)
+
     @property
     @abstractmethod
     def kw_default(self) -> Dict[str, Any]:
@@ -354,11 +452,17 @@ class Scatter(Plotter):
         by default None
     size : Iterable[int] | None, optional
         The size of the markers in the scatter plot, by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -378,6 +482,8 @@ class Scatter(Plotter):
             marker: str | None = None,
             size: Iterable[int] | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         super().__init__(
             source=source,
@@ -386,7 +492,9 @@ class Scatter(Plotter):
             target_on_y=target_on_y,
             color=color,
             marker=marker,
-            ax=ax)
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
         self.size = size
     
     @property
@@ -431,11 +539,17 @@ class Line(Plotter):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -449,6 +563,8 @@ class Line(Plotter):
             target_on_y: bool = True, 
             color: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         super().__init__(
             source=source,
@@ -457,7 +573,9 @@ class Line(Plotter):
             target_on_y=target_on_y,
             color=color,
             marker=None,
-            ax=ax)
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
         
     @property
     def kw_default(self) -> Dict[str, Any]:
@@ -506,11 +624,6 @@ class LinearRegressionLine(Plotter):
         The marker style for the scatter plot. Available markers see:
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
     show_scatter : bool, optional
         Flag indicating whether to show the individual points, 
         by default False.
@@ -520,6 +633,17 @@ class LinearRegressionLine(Plotter):
     show_pred_ci : bool, optional
         Flag indicating whether to show the confidence interval for 
         predictions as additional lines, by default False
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -548,10 +672,12 @@ class LinearRegressionLine(Plotter):
             target_on_y: bool = True,
             color: str | None = None,
             marker: str | None = None,
-            ax: Axes | None = None,
             show_scatter: bool = True,
             show_fit_ci: bool = False,
             show_pred_ci: bool = False,
+            ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         self.fit = PLOTTER.FITTED_VALUES
         self.show_scatter = show_scatter
@@ -573,7 +699,9 @@ class LinearRegressionLine(Plotter):
             target_on_y=target_on_y,
             color=color,
             marker=marker,
-            ax=ax)
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
     
     @property
     def kw_default(self) -> Dict[str, Any]:
@@ -676,11 +804,6 @@ class LoessLine(Plotter):
         The marker style for the scatter plot. Available markers see:
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
     show_ci : bool, optional
         Flag indicating whether to show the confidence interval for
         the lowess line as filled area, by default False.
@@ -719,6 +842,17 @@ class LoessLine(Plotter):
         'LOWESS': Lowess line using the LOWESS algorithm
         Default is 'LOESS' because it needs less computational
         power.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -740,7 +874,6 @@ class LoessLine(Plotter):
             target_on_y: bool = True,
             color: str | None = None,
             marker: str | None = None,
-            ax: Axes | None = None,
             show_ci: bool = False,
             confidence_level: float = 0.95,
             fraction: float = 0.2,
@@ -748,6 +881,9 @@ class LoessLine(Plotter):
             kernel: Literal['tricube', 'gaussian', 'epanechnikov'] = 'gaussian',
             n_points: int = DEFAULT.LOWESS_SEQUENCE_LEN,
             kind: Literal['LOESS', 'LOWESS'] = 'LOESS',
+            ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         self.show_ci = show_ci
         source = source[[target, feature]].copy()
@@ -769,7 +905,9 @@ class LoessLine(Plotter):
             target_on_y=target_on_y,
             color=color,
             marker=marker,
-            ax=ax)
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
     
     @property
     def kw_default(self) -> Dict[str, Any]:
@@ -842,11 +980,6 @@ class Probability(LinearRegressionLine):
         The marker style for the scatter plot. Available markers see:
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
     show_scatter : bool, optional
         Flag indicating whether to show the individual points, 
         by default True.
@@ -856,6 +989,17 @@ class Probability(LinearRegressionLine):
     show_pred_ci : bool, optional
         Flag indicating whether to show the confidence interval for 
         predictions as additional lines, by default False.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -884,10 +1028,12 @@ class Probability(LinearRegressionLine):
             target_on_y: bool = True,
             color: str | None = None,
             marker: str | None = None,
-            ax: Axes | None = None,
             show_scatter: bool = True,
             show_fit_ci: bool = True,
             show_pred_ci: bool = True,
+            ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         assert kind in ('qq', 'pp', 'sq', 'sp'), (
             f'kind must be one of {"qq", "pp", "sq", "sp"}, got {kind}')
@@ -909,9 +1055,12 @@ class Probability(LinearRegressionLine):
             target_on_y=target_on_y,
             color=color,
             marker=marker,
-            ax=ax, 
-            show_scatter=show_scatter, show_fit_ci=show_fit_ci,
-            show_pred_ci=show_pred_ci)
+            show_scatter=show_scatter,
+            show_fit_ci=show_fit_ci,
+            show_pred_ci=show_pred_ci,
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
     
     def _xy_scale_(self) -> Tuple[str, str]:
         """If given distribution is exponential or logaritmic, change
@@ -1018,11 +1167,17 @@ class ParallelCoordinate(Plotter):
         The marker style for the scatter plot. Available markers see:
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -1047,6 +1202,8 @@ class ParallelCoordinate(Plotter):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         self.identity = identity
         self.show_scatter = show_scatter
@@ -1057,7 +1214,9 @@ class ParallelCoordinate(Plotter):
             target_on_y=target_on_y,
             color=color,
             marker=marker,
-            ax=ax)
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
     
     @property
     def kw_default(self) -> Dict[str, Any]:
@@ -1111,11 +1270,17 @@ class TransformPlotter(Plotter):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -1147,6 +1312,8 @@ class TransformPlotter(Plotter):
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         self._f_base = f_base
         self.target = target
@@ -1165,7 +1332,9 @@ class TransformPlotter(Plotter):
             feature=feature,
             target_on_y=target_on_y,
             color=color,
-            ax=ax)
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
     
     def feature_grouped(
             self, source: DataFrame) -> Generator[Tuple, Self, None]:
@@ -1283,11 +1452,17 @@ class CenterLocation(TransformPlotter):
         The marker style for the center points. Available markers see:
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -1316,6 +1491,8 @@ class CenterLocation(TransformPlotter):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         self._kind = 'mean'
         self.kind = kind
@@ -1329,7 +1506,9 @@ class CenterLocation(TransformPlotter):
             skip_na=skip_na,
             target_on_y=target_on_y,
             color=color,
-            ax=ax)
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
         self._marker = marker
 
     @property
@@ -1456,11 +1635,17 @@ class Bar(TransformPlotter):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -1492,6 +1677,8 @@ class Bar(TransformPlotter):
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         self.stack = stack
         self.width = width
@@ -1506,6 +1693,8 @@ class Bar(TransformPlotter):
             target_on_y=target_on_y,
             color=color,
             ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis,
             **kwds)
 
         if self.method is not None:
@@ -1671,11 +1860,17 @@ class Pareto(Bar):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first color
         is taken from the color cycle, by default None.
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is used
@@ -1718,6 +1913,8 @@ class Pareto(Bar):
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         assert not (kwds.get('categorical_feature', False)), (
             "Don't set categorical_feature to True for Pareto charts, "
@@ -1739,6 +1936,8 @@ class Pareto(Bar):
             target_on_y=target_on_y,
             color=color,
             ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis,
             **kwds)
         self.source[self.feature] = self._original_f_values
         assert not self.shared_feature_axes, (
@@ -1894,11 +2093,17 @@ class Jitter(TransformPlotter):
         The marker style for the scatter plot. Available markers see:
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -1920,6 +2125,8 @@ class Jitter(TransformPlotter):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         self.width = width
         super().__init__(
@@ -1930,6 +2137,8 @@ class Jitter(TransformPlotter):
             target_on_y=target_on_y,
             color=color,
             ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis,
             **kwds)
         self._marker = marker
     
@@ -2044,11 +2253,17 @@ class Beeswarm(TransformPlotter):
         The marker style for the scatter plot. Available markers see:
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -2078,6 +2293,8 @@ class Beeswarm(TransformPlotter):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         if n_bins is None:
             n_bins = len(source[target]) // 6
@@ -2091,6 +2308,8 @@ class Beeswarm(TransformPlotter):
             target_on_y=target_on_y,
             color=color,
             ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis,
             **kwds)
         self._marker = marker
     
@@ -2230,10 +2449,17 @@ class Quantiles(TransformPlotter):
     color : str | None, optional
         The color used to draw the box plots. If None, the first color 
         from the color cycle is used, by default None.
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current axes using `plt.gca()`. If no axes are available, a 
-        new one is created. Defaults to None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds :
         Additional keyword arguments that are ignored in this context, 
         primarily serving to capture any extra arguments when this class 
@@ -2263,6 +2489,8 @@ class Quantiles(TransformPlotter):
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         assert all([0 < w <= 1 for w in quantile_ranges]), (
             'All quantile widths must be between 0 and 1.')
@@ -2278,6 +2506,8 @@ class Quantiles(TransformPlotter):
             target_on_y=target_on_y,
             color=color,
             ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis,
             **kwds)
     
     @property
@@ -2400,33 +2630,33 @@ class GaussianKDE(TransformPlotter):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
-    show_density_axis : bool, optional
-        Flag indicating whether to show the density axis,
-        by default True.
     n_points : int, optional
         Number of points the kernel density estimation and sequence 
         should have, by default KD_SEQUENCE_LEN 
         (defined in constants.py).
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
     """
     __slots__ = (
-        '_height', '_stretch', 'show_density_axis', 'fill', 'n_points')
+        '_height', '_stretch', 'fill', 'n_points')
 
     _height: float | None
     """Height of kde curve at its maximum."""
     _stretch: float
     """Factor by which the curve was stretched in height."""
-    show_density_axis: bool
-    """Flag indicating whether to show the density axis spine, ticks and
-    labels."""
     fill: bool
     """Flag whether to fill in the curves"""
     n_points: int
@@ -2443,13 +2673,13 @@ class GaussianKDE(TransformPlotter):
             fill: bool = True,
             target_on_y: bool = True,
             color: str | None = None,
-            ax: Axes | None = None,
-            show_density_axis: bool = True,
             n_points: int = DEFAULT.KD_SEQUENCE_LEN,
+            ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         self._height = height
         self._stretch = stretch
-        self.show_density_axis = show_density_axis
         self.n_points = n_points
         self.fill = fill
         feature = PLOTTER.TRANSFORMED_FEATURE
@@ -2466,6 +2696,8 @@ class GaussianKDE(TransformPlotter):
             target_on_y=target_on_y,
             color=color,
             ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis,
             **kwds)
     
     @property
@@ -2526,13 +2758,6 @@ class GaussianKDE(TransformPlotter):
             self.feature: estimation,
             PLOTTER.F_BASE_NAME: feature_data * np.ones(len(sequence))})
         return data
-    
-    def hide_density_axis(self) -> None:
-        """Hide the density axis (spine, ticks and labels)."""
-        axis = 'xaxis' if self.target_on_y else 'yaxis'
-        spine = 'bottom' if self.target_on_y else 'left'
-        getattr(self.ax, axis).set_visible(False)
-        self.ax.spines[spine].set_visible(False)
         
     def __call__(self, kw_line: Dict[str, Any] = {}, **kw_fill) -> None:
         """Perform the plotting operation.
@@ -2558,9 +2783,6 @@ class GaussianKDE(TransformPlotter):
                 self.ax.fill_betweenx(self.y, self._f_base, self.x, **_kw_fill)
             else:
                 self.ax.fill_between(self.x, self._f_base, self.y, **_kw_fill)
-        
-        if not self.show_density_axis:
-            self.hide_density_axis()
 
 
 class GaussianKDEContour(Plotter):
@@ -2600,11 +2822,17 @@ class GaussianKDEContour(Plotter):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first 
         color is taken from the color cycle, by default None.
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
@@ -2630,6 +2858,8 @@ class GaussianKDEContour(Plotter):
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         self.shape = (n_points, n_points)
         self.fill = fill
@@ -2646,6 +2876,8 @@ class GaussianKDEContour(Plotter):
             target_on_y=target_on_y,
             color=color,
             ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis,
             **kwds)
         if fade_outers:
             rgba = to_rgba(self.color)
@@ -2700,11 +2932,17 @@ class Violine(GaussianKDE):
     color : str | None, optional
         Color to be used to draw the artists. If None, the first
         color is taken from the color cycle, by default None.
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -2721,6 +2959,8 @@ class Violine(GaussianKDE):
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         super().__init__(
             source=source,
@@ -2732,7 +2972,8 @@ class Violine(GaussianKDE):
             target_on_y=target_on_y,
             color=color,
             ax=ax,
-            show_density_axis=True,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis,
             **kwds)
 
     @property
@@ -2815,11 +3056,17 @@ class Errorbar(TransformPlotter):
         The marker style for the center points. Available markers see:
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -2851,6 +3098,8 @@ class Errorbar(TransformPlotter):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         self.lower = lower
         self.upper = upper
@@ -2864,7 +3113,9 @@ class Errorbar(TransformPlotter):
             skip_na=skip_na,
             target_on_y=target_on_y,
             color=color,
-            ax=ax)
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
         self._marker = marker
 
     @property
@@ -2975,11 +3226,17 @@ class StandardErrorMean(Errorbar):
         The marker style for the center points. Available markers see:
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -2997,6 +3254,8 @@ class StandardErrorMean(Errorbar):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         super().__init__(
             source=source,
@@ -3010,7 +3269,9 @@ class StandardErrorMean(Errorbar):
             target_on_y=target_on_y,
             color=color,
             marker=marker,
-            ax=ax)
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
 
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
@@ -3118,11 +3379,17 @@ class SpreadWidth(Errorbar):
         The marker style for the center points. Available markers see:
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -3159,6 +3426,8 @@ class SpreadWidth(Errorbar):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         self._kind = 'mean'
         self.kind = kind
@@ -3178,7 +3447,9 @@ class SpreadWidth(Errorbar):
             target_on_y=target_on_y,
             color=color,
             marker=marker,
-            ax=ax)
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
 
     @property
     def marker(self) -> str:
@@ -3311,11 +3582,17 @@ class ConfidenceInterval(Errorbar):
         The marker style for the center points. Available markers see:
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -3345,6 +3622,8 @@ class ConfidenceInterval(Errorbar):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         assert n_groups >= 1 and isinstance(n_groups, int), (
             f'The given n_groups must be an integer and >= 1 got {n_groups}')
@@ -3364,7 +3643,9 @@ class ConfidenceInterval(Errorbar):
             target_on_y=target_on_y,
             color=color,
             marker=marker,
-            ax=ax)
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
     
     def transform(
             self, feature_data: float | int, target_data: Series
@@ -3444,11 +3725,17 @@ class MeanTest(ConfidenceInterval):
         The marker style for the center points. Available markers see:
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -3467,6 +3754,8 @@ class MeanTest(ConfidenceInterval):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         super().__init__(
             source=source,
@@ -3480,7 +3769,9 @@ class MeanTest(ConfidenceInterval):
             ci_func=mean_ci,
             color=color,
             marker=marker,
-            ax=ax)
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
 
 
 class VariationTest(ConfidenceInterval):
@@ -3534,11 +3825,17 @@ class VariationTest(ConfidenceInterval):
         The marker style for the center points. Available markers see:
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -3558,6 +3855,8 @@ class VariationTest(ConfidenceInterval):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         ci_func = stdev_ci if kind == 'stdev' else variance_ci
         super().__init__(
@@ -3572,7 +3871,9 @@ class VariationTest(ConfidenceInterval):
             ci_func=ci_func,
             color=color,
             marker=marker,
-            ax=ax)
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
 
 
 class ProportionTest(ConfidenceInterval):
@@ -3637,11 +3938,17 @@ class ProportionTest(ConfidenceInterval):
         The marker style for the center points. Available markers see:
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -3676,6 +3983,8 @@ class ProportionTest(ConfidenceInterval):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         target = target if target else f'{events}/{observations}'
         data = source[[c for c in (events, observations, feature) if c]].copy()
@@ -3696,7 +4005,9 @@ class ProportionTest(ConfidenceInterval):
             ci_func=proportion_ci,
             color=color,
             marker=marker,
-            ax=ax)
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
     
     def transform(
             self, feature_data: float | int, target_data: Series
@@ -3789,11 +4100,17 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
         The marker style for the center points. Available markers see:
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
-    ax : Axes | None, optional
-        The axes object for the plot. If None, an attempt is made to get
-        the current one using `plt.gca`. If none is available, one is 
-        created. The same applies to the Figure object. Defaults to 
-        None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
@@ -3824,6 +4141,8 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
 
         self.spec_limits = spec_limits
@@ -3844,7 +4163,9 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
             ci_func=estimate_capability_confidence,
             color=color,
             marker=marker,
-            ax=ax)
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
     
     def hide_feature_axis(self) -> None:
         """Hide the density axis (spine, ticks and labels)."""
@@ -4498,6 +4819,8 @@ class BlandAltman(Plotter):
             color: str | None = None,
             marker: str | None = None,
             ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
         self.identity = identity
         
@@ -4530,7 +4853,9 @@ class BlandAltman(Plotter):
             target_on_y=target_on_y,
             color=color,
             marker=marker,
-            ax=ax)
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
         self.stripes = {}
         self.lines_same_color = lines_same_color
         self.confidence = confidence

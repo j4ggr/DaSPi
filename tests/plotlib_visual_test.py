@@ -611,7 +611,9 @@ class TestSingleChart:
                 target = self.target,
                 target_on_y = False
             ).plot(
-                GaussianKDE, show_density_axis=True
+                GaussianKDE,
+                hide_axis=None,
+                visible_spines=None,
             ).label(
                 sub_title = self.sub_title,
                 feature_label = True,
@@ -632,7 +634,9 @@ class TestSingleChart:
                 hue = self.cat1,
                 target_on_y = True
             ).plot(
-                GaussianKDE, show_density_axis=False
+                GaussianKDE,
+                visible_spines='target',
+                hide_axis='feature',
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,
