@@ -14,6 +14,27 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.1.0] - 2025-01-23
+
+### Added
+
+- The options rows and cols in label method of JointChart used to labell the axes rows and columns.
+- The Estimation class got now the min and max properties.
+- The option exclude added to Estimation describe method, used to exclude variables from the analysis.
+- The describe method of ProcessEstimation returns now also ok and nok as percentage values.
+- A Beeswarm plotter that is comparable to the Jitter plotter. However, with Beeswarm the points are not distributed randomly, but arranged from the inside to the outside.
+- A Quantiles plotter that is comparable to a boxplot. However, quantiles does not draw whiskers but rather just several boxes that show the given number of percent of the observed data.
+- The option to change color, marker, target_on_y, size and width in plot method for SingleChart and JointChart.
+- The option hide_axis for each Plotter class during initialization.
+- The option visible_spines for each Plotter class during initialization.
+
+## Changed
+
+- The class name MultipleVariateChart to MultivariateChart
+
+## Removed
+
+- The option show_density_axis for GaussianKDE. Use hide_axis and visible_spines instead.
 
 ## [1.0.1] - 2025-01-09
 
