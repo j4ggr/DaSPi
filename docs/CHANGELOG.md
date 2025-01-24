@@ -14,6 +14,12 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.1.1] - 2025-01-24
+
+### Added
+
+- Option target_on_y for MultivariateChart
+
 ## [1.1.0] - 2025-01-23
 
 ### Added

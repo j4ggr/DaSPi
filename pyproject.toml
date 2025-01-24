@@ -1,6 +1,6 @@
 [project]
 name = "DaSPi"
-version = "1.1.0"
+version = "1.1.1"
 description = "Visualize and analyze your data with DaSPi. This package is designed for users who want to find relevant influencing factors in processes and validate improvements."
 authors = [
     {name = "Reto Jäggli", email = "reto@jaeggli.email"},
