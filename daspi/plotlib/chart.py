@@ -1732,6 +1732,9 @@ class MultivariateChart(SingleChart):
     categorical_feature : bool, optional
         Whether the feature variable is categorical. If `dodge` is True,
         this will be automatically set to True, by default False.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on the
+        y-axis, by default True
     colors: Tuple[str, ...], optional
         Tuple of unique colors used for hue categories as hex or str,
         by default `CATEGORY.PALETTE`.
@@ -1791,11 +1794,11 @@ class MultivariateChart(SingleChart):
             dodge: bool = False,
             stretch_figsize: bool = False,
             categorical_feature: bool = False,
+            target_on_y: bool = True,
             colors: Tuple[str, ...] | None = None,
             markers: Tuple[str, ...] | None = None,
             n_size_bins: int = CATEGORY.N_SIZE_BINS,
             ) -> None:
-        self.target_on_y = True
         self.source = source
         self.col = col
         self.row = row
@@ -1817,6 +1820,7 @@ class MultivariateChart(SingleChart):
             ncols=ncols,
             stretch_figsize=stretch_figsize,
             categorical_feature=categorical_feature,
+            target_on_y=target_on_y,
             colors=colors,
             markers=markers,
             n_size_bins=n_size_bins)
