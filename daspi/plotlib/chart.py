@@ -1837,6 +1837,15 @@ class MultivariateChart(SingleChart):
                 return True
         return False
     
+    def _transpose_xy_axes_params_(self) -> None:
+        """if target_on_y is false, all X- or Y-axis related rcParams 
+        are swapped in pairs. If the plot is transposed, the set 
+        parameters should also be swapped"""
+        if self.target_on_y:
+            return
+        for ax in self.axes:
+            transpose_xy_axes_params(ax)
+    
     def _categorical_feature_axis_(self) -> None:
         """Set one major tick for each category and label it. Hide 
         major grid and set one minor grid for feature axis."""

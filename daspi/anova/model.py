@@ -60,6 +60,7 @@ simplifying linear models, particularly in the context of designed
 experiments or engineering applications where categorical and continuous 
 variables are involved.
 """
+import warnings
 import itertools
 
 import numpy as np
@@ -556,7 +557,15 @@ class LinearModel:
         y = self.model.model.data.endog
         try:
             P = X @ np.linalg.inv(X.T @ X) @ X.T
-        except LinAlgError:
+        except LinAlgError as linalg_err:
+            warnings.warn(
+                f'Linear algebra error encountered: {linalg_err}. '
+                'Unable to compute R2_pred.')
+            return None
+        except MemoryError as mem_err:
+            warnings.warn(
+                f'Memory error encountered: {mem_err}. '
+                'Unable to compute R2_pred.')
             return None
         
         ss_pred = np.sum(np.square(self.model.resid / (1 - np.diag(P))))

@@ -2494,10 +2494,9 @@ class Quantiles(TransformPlotter):
             **kwds) -> None:
         assert all([0 < w <= 1 for w in quantile_ranges]), (
             'All quantile widths must be between 0 and 1.')
-        self.quantile_ranges = tuple(
-            sorted(np.unique(quantile_ranges), reverse=True))
+        self.quantile_ranges = tuple(np.unique(quantile_ranges))
         self.vary_width = vary_width
-        self.width = width
+        self.width = width / len(quantile_ranges) if vary_width else width
         super().__init__(
             source=source,
             target=target,
@@ -2513,16 +2512,15 @@ class Quantiles(TransformPlotter):
     @property
     def kw_default(self) -> Dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(color=self.color)
+        kwds = dict(color=self.color, interpolate=False)
         return kwds
     
     @property
     def alpha(self) -> Dict[Any, float]:
         """Get color transparency for each quantile range."""
-        alpha = {}
-        for i, q_range in enumerate(self.quantile_ranges, start=1):
-            alpha[q_range] = i * COLOR.FILL_ALPHA / len(self.quantile_ranges)
-        return alpha
+        n = len(self.quantile_ranges)
+        alphas = ((i + 1) * COLOR.FILL_ALPHA / n for i in range(n))
+        return {q: a for q, a in zip(self.quantile_ranges[::-1], alphas)}
     
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
@@ -2548,21 +2546,32 @@ class Quantiles(TransformPlotter):
             The transformed data source for the plot.
         """
         data = pd.DataFrame()
-        for i, q_range in enumerate(self.quantile_ranges, start=1):
-            q_low = (1 - q_range) / 2
-            q_upp = 1 - q_low
-            quantiles = [target_data.quantile(q) for q in [q_low, q_upp]]
-            if self.vary_width:
-                half_width = i * self.width / (len(self.quantile_ranges) * 2)
-            else:
-                half_width = self.width / 2
-            temp = pd.DataFrame({
-                self.target: quantiles,
-                PLOTTER.LOWER: [feature_data - half_width]*2,
-                PLOTTER.UPPER: [feature_data + half_width]*2,
-                PLOTTER.SUBGROUP: q_range})
-            data = pd.concat([data, temp], axis=0, ignore_index=True)
-        data[PLOTTER.F_BASE_NAME] = feature_data
+        quantiles = []
+        q_ranges = []
+        widths = []
+        for i, q_range in enumerate(sorted(self.quantile_ranges, reverse=True)):
+            quantile = target_data.quantile((1 - q_range) / 2)
+            if quantiles:
+                quantiles.append(quantile)
+                q_ranges.append(q_ranges[-1])
+                widths.append(widths[-1])
+            quantiles.append(quantile)
+            q_ranges.append(q_range)
+            widths.append((i + 1 if self.vary_width else 1) * self.width / 2)
+
+        for i, q_range in enumerate(sorted(self.quantile_ranges, reverse=False)):
+            if i > 0:
+                quantiles.append(quantiles[-1])
+            quantiles.append(target_data.quantile(1 - (1 - q_range) / 2))
+
+        q_ranges += q_ranges[::-1]
+        widths = np.array(widths + widths[::-1])
+        data = pd.DataFrame({
+            self.target: quantiles,
+            PLOTTER.LOWER: feature_data - widths,
+            PLOTTER.UPPER: feature_data + widths,
+            PLOTTER.SUBGROUP: q_ranges,
+            PLOTTER.F_BASE_NAME: feature_data})
         return data
 
     def __call__(self, **kwds) -> None:
@@ -2574,13 +2583,18 @@ class Quantiles(TransformPlotter):
             Additional keyword arguments to be passed to the Axes 
             `fill_between` method.
         """
-        
         for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME):
-            for q_range, subgroup in group.groupby(PLOTTER.SUBGROUP):
-                _kwds = self.kw_default | {'alpha': self.alpha[q_range]} | kwds
-                quantiles = subgroup[self.target]
-                lower = subgroup[PLOTTER.LOWER]
-                upper = subgroup[PLOTTER.UPPER]
+            quantiles = group[self.target]
+            lower = group[PLOTTER.LOWER]
+            upper = group[PLOTTER.UPPER]
+            for q_range in group[PLOTTER.SUBGROUP].unique():
+
+                _kwds = (
+                    self.kw_default
+                    | dict(
+                        alpha=self.alpha[q_range],
+                        where=group[PLOTTER.SUBGROUP]==q_range)
+                    | kwds)
                 if self.target_on_y:
                     self.ax.fill_betweenx(quantiles, lower, upper, **_kwds)
                 else:

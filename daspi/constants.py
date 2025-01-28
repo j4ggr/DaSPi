@@ -179,7 +179,7 @@ class _Kw_:
     def MEDIAN_LINE(self) -> Dict[str, Any]:
         """Keyword arguments for median line."""
         return dict(
-            lw=LINE.WIDTH, ls=LINE.DASHDOT, color=COLOR.MEDIAN, zorder=0.8)
+            lw=LINE.WIDTH, ls=LINE.DOTTED, color=COLOR.MEDIAN, zorder=0.8)
 
     @property
     def CONTROL_LINE(self) -> Dict[str, Any]:
