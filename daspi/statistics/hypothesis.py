@@ -470,10 +470,9 @@ def proportions_test(
         statistic, p = fisher_exact(table, alternative='two-sided')
         test = 'Exakter Fisher'
     else:
-        res = test_proportions_2indep(
+        statistic, p = test_proportions_2indep(
             events1, observations1, events2, observations2, 
-            method='wald', alternative='two-sided')
-        p, statistic = res.pvalue, res.statistic
+            method='wald', alternative='two-sided', return_results=False)
         test = 'Wald'
     return p, statistic, test # type: ignore
 
