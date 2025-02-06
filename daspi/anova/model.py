@@ -73,6 +73,7 @@ from typing import Set
 from typing import Self
 from typing import List
 from typing import Dict
+from typing import Tuple
 from typing import Literal
 from typing import LiteralString
 from typing import Generator
@@ -402,6 +403,15 @@ class LinearModel:
             columns=self.model.model.data.xnames)
         dm[self.model.model.data.ynames] = self.model.model.data.endog
         return dm
+    
+    @property
+    def _repr_captions(self) -> Tuple[str, str, str, str]:
+        captions = (
+                STR['lm_table_caption_summary'],
+                STR['lm_table_caption_statistics'],
+                STR['lm_table_caption_anova'],
+                STR['lm_table_caption_vif'])
+        return captions
     
     def _reset_tables_(self) -> None:
         """Reset the anova table, the p_values and the effects."""
@@ -1071,11 +1081,7 @@ class LinearModel:
         html = f'<b>{STR["formula"]}:</b></br>{self}</br></br>'
         html += frames_to_html(
             self._dfs_repr_(),
-            captions=(
-                STR['lm_table_caption_summary'],
-                STR['lm_table_caption_statistics'],
-                STR['lm_table_caption_anova'],
-                STR['lm_table_caption_vif']))
+            captions=self._repr_captions)
         return html
 
     def __html__(self) -> str:
@@ -1096,7 +1102,7 @@ class LinearModel:
         """
         spacing = 2*'\n'
         _repr = f'{STR["formula"]}:\n{str(self)}'
-        for df, caption in zip(self._dfs_repr_(), STR['lm_repr_captions']):
+        for df, caption in zip(self._dfs_repr_(), self._repr_captions):
             _repr += spacing + caption + ':\n' + str(df)
         return _repr
     
