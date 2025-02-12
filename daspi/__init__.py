@@ -133,7 +133,7 @@ from .plotlib.plotter import Beeswarm
 from .plotlib.plotter import Errorbar
 from .plotlib.plotter import MeanTest
 from .plotlib.plotter import LoessLine
-from .plotlib.plotter import Quantiles
+from .plotlib.plotter import QuantileBoxes
 from .plotlib.plotter import StripeLine
 from .plotlib.plotter import StripeSpan
 from .plotlib.plotter import HideSubplot

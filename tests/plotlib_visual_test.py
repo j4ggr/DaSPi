@@ -26,7 +26,7 @@ from daspi import Scatter
 from daspi import Violine
 from daspi import Beeswarm
 from daspi import MeanTest
-from daspi import Quantiles
+from daspi import QuantileBoxes
 from daspi import LoessLine
 from daspi import JointChart
 from daspi import SingleChart
@@ -727,7 +727,7 @@ class TestSingleChart:
                 feature = self.cat1, 
                 categorical_feature = True,
             ).plot(
-                Quantiles
+                QuantileBoxes
             ).plot(
                 Beeswarm
             ).plot(
@@ -758,9 +758,10 @@ class TestSingleChart:
                 dodge = True,
                 target_on_y=False
             ).plot(
-                Quantiles,
+                QuantileBoxes,
                 vary_width=False,
                 width=0.1,
+                strategy='norm',
             ).plot(
                 Beeswarm,
             ).plot(

@@ -31,7 +31,6 @@ from .._typing import NumericSample1D
 
 from ..constants import DIST
 from ..constants import DEFAULT
-from ..constants import PLOTTER
 from ..constants import SIGMA_DIFFERENCE
 
 from .confidence import cp_ci
@@ -82,13 +81,13 @@ class Estimator:
         Specify the tolerated process variation for which the 
         control limits are to be calculated. 
         - If int, the spread is determined using the normal 
-          distribution agreement*sigma, 
-          e.g. agreement = 6 -> 6*sigma ~ covers 99.75 % of the data. 
+          distribution agreement*σ, 
+          e.g. agreement = 6 -> 6*σ ~ covers 99.75 % of the data. 
           The upper and lower permissible quantiles are then 
           calculated from this.
         - If float, the value must be between 0 and 1.This value is
           then interpreted as the acceptable proportion for the 
-          spread, e.g. 0.9973 (which corresponds to ~ 6 sigma)
+          spread, e.g. 0.9973 (which corresponds to ~ 6 σ)
         
         Default is 6 because SixSigma ;-)
     possible_dists : tuple of strings or rv_continous, optional
@@ -273,7 +272,7 @@ class Estimator:
         """Get quantil for lower control limit according to given 
         agreement. If the samples is subject to normal distribution and 
         the agreement is given as 6, this value corresponds to the 
-        0.135 % quantile: 6 sigma ~ 99.73 % of the samples (read-only)."""
+        0.135 % quantile: 6 σ ~ 99.73 % of the samples (read-only)."""
         if self._q_low is None:
             self._q_low = float(stats.norm.cdf(-self.agreement/2))
         return self._q_low
@@ -402,13 +401,13 @@ class Estimator:
 
     @property
     def agreement(self) -> float:
-        """Get the multiplier of the sigma agreement for Cp and Cpk 
+        """Get the multiplier of the σ agreement for Cp and Cpk 
         value (default 6). By setting this value the cp and cpk values
         are resetted to None.
         
         If setting agreement by giving the percentile, enter the 
         acceptable proportion for the spread, e.g. 0.9973 
-        (which corresponds to ~ 6 sigma)"""
+        (which corresponds to ~ 6 σ)"""
         return self._agreement
     @agreement.setter
     def agreement(self, agreement: int | float) -> None:
@@ -777,13 +776,13 @@ class ProcessEstimator(Estimator):
             Specify the tolerated process variation for which the 
             control limits are to be calculated. 
             - If int, the spread is determined using the normal 
-            distribution agreement*sigma, 
-            e.g. agreement = 6 -> 6*sigma ~ covers 99.75 % of the data. 
+            distribution agreement*σ, 
+            e.g. agreement = 6 -> 6*σ ~ covers 99.75 % of the data. 
             The upper and lower permissible quantiles are then 
             calculated from this.
             - If float, the value must be between 0 and 1.This value is
             then interpreted as the acceptable proportion for the 
-            spread, e.g. 0.9973 (which corresponds to ~ 6 sigma)
+            spread, e.g. 0.9973 (which corresponds to ~ 6 σ)
             by default 6
         possible_dists : tuple of strings or rv_continous, optional
             Distributions to which the data may be subject. Only 
@@ -915,7 +914,7 @@ class ProcessEstimator(Estimator):
     def cp(self) -> float | None:
         """Cp is a measure of process capability. Cp is the ratio of the 
         specification width (usl - lsl) to the process variation 
-        (agreement*sigma). The location is not taken into account by the 
+        (agreement*σ). The location is not taken into account by the 
         Cp value. This value therefore only indicates the potential for 
         the Cpk value.
         This value cannot be calculated unless an upper and lower 
@@ -976,8 +975,8 @@ class ProcessEstimator(Estimator):
     @property
     def Z_lt(self) -> float:
         """Statements about long-term capabilities can be derived from 
-        short-term capabilities using the sigma level. The empirically 
-        determined value of 1.5 is subtracted from the sigma level."""
+        short-term capabilities using the σ level. The empirically 
+        determined value of 1.5 is subtracted from the σ level."""
         if self._Z_lt is None:
             self._Z_lt = self.Z - SIGMA_DIFFERENCE
         return self._Z_lt

@@ -171,6 +171,133 @@ from ..statistics import estimate_kernel_density_2d
 from ..statistics import estimate_capability_confidence
 
 
+class SpreadOpacity:
+    """A class for controlling the opacity of plot elements based on 
+    quantile agreements to enhance data visualization.
+
+    This class is designed to adjust the opacity of filled areas in 
+    plots, allowing for better visual emphasis on quantiles derived from 
+    a given dataset. By using different strategies for quantile 
+    estimation, it provides flexibility in how the data's spread is 
+    represented. The opacity is determined based on the specified 
+    agreements, which can be either integer or float values, allowing 
+    the user to define the tolerance of process variation.
+
+    Parameters
+    ----------
+    strategy : {'eval', 'fit', 'norm', 'data'}, optional
+        Which strategy should be used to determine the quantiles:
+        - `eval`: The strategy is determined according to the given 
+          evaluate function. If none is given, the internal `evaluate`
+          method is used.
+        - `fit`: First, the distribution that best represents the 
+          process data is searched for and then the agreed process 
+          spread is calculated
+        - `norm`: it is assumed that the data is subject to normal 
+          distribution. The variation tolerance is then calculated as 
+          agreement * standard deviation
+        - `data`: The quantiles for the process variation tolerance 
+          are read directly from the data.
+        
+        Default is 'data'.
+    agreements : Tuple[float, ...] or Tuple[int, ...], optional
+        Specify the tolerated process variation for which the 
+        control limits are to be calculated. 
+        - If int, the spread is determined using the normal 
+          distribution agreement*σ, 
+          e.g. agreement = 6 -> 6*σ ~ covers 99.75 % of the data. 
+          The upper and lower permissible quantiles are then 
+          calculated from this.
+        - If float, the value must be between 0 and 1.This value is
+          then interpreted as the acceptable proportion for the 
+          spread, e.g. 0.9973 (which corresponds to ~ 6 σ)
+        
+        Default is (2, 4, 6) which corresponds to (±1 σ, ±2 σ, ±3 σ) 
+    possible_dists : tuple of strings or rv_continous, optional
+        Distributions to which the data may be subject. Only 
+        continuous distributions of scipy.stats are allowed,
+        by default `DIST.COMMON`
+    """
+    strategy: Literal['eval', 'fit', 'norm', 'data']
+    """Strategy for estimating the spread width."""
+    _agreements: Tuple[float, ...] | Tuple[int, ...]
+    """The agreement values used to calculate the quantiles."""
+    possible_dists: Tuple[str | rv_continuous, ...]
+    """Tuple of possible distributions for the spread width
+    estimation."""
+    
+    @property
+    def agreements(self) -> Tuple[float, ...] | Tuple[int, ...]:
+        """Get a tuple containing unique agreement values, which can be 
+        either floats or integers. The values are sorted in ascending 
+        order.
+        
+        Set the agreements by passing a tuple of floats or integers.
+        It ensures that the agreements are unique by using `np.unique`, 
+        and sorts them in ascending order before storing them in the 
+        instance."""
+        return self._agreements
+    @agreements.setter
+    def agreements(
+            self, agreements: Tuple[float, ...] | Tuple[int, ...]) -> None:
+        self._agreements = tuple(sorted(np.unique(agreements), reverse=False))
+
+    @property
+    def alpha(self) -> Dict[float | int, float]:
+        """Get color transparency for each quantile range."""
+        n = len(self.agreements)
+        alphas = ((i + 1) * COLOR.FILL_ALPHA / n for i in range(n))
+        return {q: a for q, a in zip(self.agreements, alphas)}
+
+    def quantiles(self, target_data: Series) -> List[float]:
+        """Calculate the quantiles in ascending order:
+        
+        Parameters
+        ----------
+        target_data : pandas Series
+            feature grouped target data used for transformation, coming
+            from `feature_grouped' generator.
+        
+        Returns
+        -------
+        List[float]
+            quantiles in ascending order
+        """
+        quantiles = []
+        
+        for agreement in self.agreements:
+            k = 1 if agreement == max(self.agreements) else 2
+            estimation = Estimator(
+                samples=target_data,
+                strategy=self.strategy,
+                agreement=agreement,
+                possible_dists=self.possible_dists)
+            quantiles.extend([estimation.lcl, estimation.ucl] * k)
+        return sorted(quantiles)
+    
+    def subgroup_values(self) -> List[float | int]:
+        """Generate a list of subgroup values based on the agreements.
+
+        This method creates a list of subgroup values derived from the 
+        instance's agreements. It iterates through the agreements and 
+        appends each agreement to the subgroup list. If the current 
+        agreement is the same as the first agreement, the last 
+        subgroup value is appended instead.
+
+        Returns
+        -------
+        List[float | int]:
+            A list of subgroup values, which can include both floats 
+            and integers.
+        """
+        subgroup = []
+        for agreement in self.agreements:
+            if agreement != self.agreements[0]:
+                subgroup.append(subgroup[-1])
+            subgroup.append(agreement)
+        return subgroup + subgroup[::-1]
+
+
 class Plotter(ABC):
     """Abstract base class for creating plotters.
 
@@ -2407,7 +2534,7 @@ class Beeswarm(TransformPlotter):
         self.ax.scatter(self.x, self.y, **_kwds)
 
 
-class Quantiles(TransformPlotter):
+class QuantileBoxes(SpreadOpacity, TransformPlotter):
     """TransformPlotter for visualizing quantiles through box plots.
 
     This class is designed to create box plots that represent various 
@@ -2424,10 +2551,38 @@ class Quantiles(TransformPlotter):
     feature : str, optional
         The column name of the feature variable for the plot, by 
         default an empty string.
-    quantile_ranges : Tuple[float, ...], optional
-        A tuple representing the ranges of the quantiles to be plotted. 
-        Each range should be a float between 0 and 1, indicating the 
-        quantile width. Defaults to `DEFAULT.QUANTILE_RANGES`
+    strategy : {'eval', 'fit', 'norm', 'data'}, optional
+        Which strategy should be used to determine the quantiles:
+        - `eval`: The strategy is determined according to the given 
+          evaluate function. If none is given, the internal `evaluate`
+          method is used.
+        - `fit`: First, the distribution that best represents the 
+          process data is searched for and then the agreed process 
+          spread is calculated
+        - `norm`: it is assumed that the data is subject to normal 
+          distribution. The variation tolerance is then calculated as 
+          agreement * standard deviation
+        - `data`: The quantiles for the process variation tolerance 
+          are read directly from the data.
+        
+        Default is 'data'.
+    agreements : Tuple[float, ...] or Tuple[int, ...], optional
+        Specify the tolerated process variation for which the 
+        control limits are to be calculated. 
+        - If int, the spread is determined using the normal 
+          distribution agreement*σ, 
+          e.g. agreement = 6 -> 6*σ ~ covers 99.75 % of the data. 
+          The upper and lower permissible quantiles are then 
+          calculated from this.
+        - If float, the value must be between 0 and 1.This value is
+          then interpreted as the acceptable proportion for the 
+          spread, e.g. 0.9973 (which corresponds to ~ 6 σ)
+        
+        Default is (2, 4, 6) which corresponds to (±1 σ, ±2 σ, ±3 σ) 
+    possible_dists : tuple of strings or rv_continous, optional
+        Distributions to which the data may be subject. Only 
+        continuous distributions of scipy.stats are allowed,
+        by default `DIST.COMMON`
     vary_width : float, optional
         If True, the center box is the widest, while the outer boxes are 
         progressively narrower, reflecting the distribution of the data.
@@ -2465,11 +2620,9 @@ class Quantiles(TransformPlotter):
         primarily serving to capture any extra arguments when this class 
         is used within chart objects.
     """
-
-    __slots__ = ('quantile_ranges', 'vary_width', 'width')
-
-    quantile_ranges: Tuple[float, ...]
-    """A tuple of ranges representing the quantiles for the box plots."""
+    __slots__ = (
+        'strategy', '_agreements', 'possible_dists', 'vary_width', 'width')
+    
     vary_width: bool
     """Flag that indicates whether the width of the boxes should vary, 
     with the widest box in the middle and the narrower one towards the 
@@ -2482,7 +2635,9 @@ class Quantiles(TransformPlotter):
             source: DataFrame,
             target: str,
             feature: str = '',
-            quantile_ranges: Tuple[float, ...] = DEFAULT.QUANTILE_RANGES,
+            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'data',
+            agreements: Tuple[float, ...] = DEFAULT.AGREEMENTS,
+            possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
             vary_width: bool = True,
             width: float = CATEGORY.FEATURE_SPACE,
             skip_na: Literal['all', 'any'] | None = None,
@@ -2492,11 +2647,11 @@ class Quantiles(TransformPlotter):
             visible_spines: Literal['target', 'feature', 'none'] | None = None,
             hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
-        assert all([0 < w <= 1 for w in quantile_ranges]), (
-            'All quantile widths must be between 0 and 1.')
-        self.quantile_ranges = tuple(np.unique(quantile_ranges))
         self.vary_width = vary_width
-        self.width = width / len(quantile_ranges) if vary_width else width
+        self.strategy = strategy
+        self.agreements = agreements
+        self.possible_dists = possible_dists
+        self.width = width / len(agreements) if vary_width else width
         super().__init__(
             source=source,
             target=target,
@@ -2515,12 +2670,14 @@ class Quantiles(TransformPlotter):
         kwds = dict(color=self.color, interpolate=False)
         return kwds
     
-    @property
-    def alpha(self) -> Dict[Any, float]:
-        """Get color transparency for each quantile range."""
-        n = len(self.quantile_ranges)
-        alphas = ((i + 1) * COLOR.FILL_ALPHA / n for i in range(n))
-        return {q: a for q, a in zip(self.quantile_ranges[::-1], alphas)}
+    def width_values(self):
+        """Returns the widths of the boxes in the plot."""
+        widths = []
+        for i in range(len(self.agreements)):
+            if i > 0:
+                widths.append(widths[-1])
+            widths.append((i + 1 if self.vary_width else 1) * self.width / 2)
+        return np.array(widths + widths[::-1])
     
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
@@ -2546,32 +2703,13 @@ class Quantiles(TransformPlotter):
             The transformed data source for the plot.
         """
         data = pd.DataFrame()
-        quantiles = []
-        q_ranges = []
-        widths = []
-        for i, q_range in enumerate(sorted(self.quantile_ranges, reverse=True)):
-            quantile = target_data.quantile((1 - q_range) / 2)
-            if quantiles:
-                quantiles.append(quantile)
-                q_ranges.append(q_ranges[-1])
-                widths.append(widths[-1])
-            quantiles.append(quantile)
-            q_ranges.append(q_range)
-            widths.append((i + 1 if self.vary_width else 1) * self.width / 2)
-
-        for i, q_range in enumerate(sorted(self.quantile_ranges, reverse=False)):
-            if i > 0:
-                quantiles.append(quantiles[-1])
-            quantiles.append(target_data.quantile(1 - (1 - q_range) / 2))
-
-        q_ranges += q_ranges[::-1]
-        widths = np.array(widths + widths[::-1])
+        widths = self.width_values()
         data = pd.DataFrame({
-            self.target: quantiles,
+            self.target: self.quantiles(target_data),
             PLOTTER.LOWER: feature_data - widths,
             PLOTTER.UPPER: feature_data + widths,
-            PLOTTER.SUBGROUP: q_ranges,
-            PLOTTER.F_BASE_NAME: feature_data})
+            PLOTTER.SUBGROUP: self.subgroup_values(),
+            PLOTTER.F_BASE_NAME: [feature_data]*len(widths)})
         return data
 
     def __call__(self, **kwds) -> None:
@@ -2587,12 +2725,12 @@ class Quantiles(TransformPlotter):
             quantiles = group[self.target]
             lower = group[PLOTTER.LOWER]
             upper = group[PLOTTER.UPPER]
-            for q_range in group[PLOTTER.SUBGROUP].unique():
+            for agreement in group[PLOTTER.SUBGROUP].unique():
                 _kwds = (
                     self.kw_default
                     | dict(
-                        alpha=self.alpha[q_range],
-                        where=group[PLOTTER.SUBGROUP]==q_range)
+                        alpha=self.alpha[agreement],
+                        where=group[PLOTTER.SUBGROUP]==agreement)
                     | kwds)
                 if self.target_on_y:
                     self.ax.fill_betweenx(quantiles, lower, upper, **_kwds)
@@ -4949,7 +5087,7 @@ __all__ = [
     'Pareto',
     'Jitter',
     'Beeswarm',
-    'Quantiles',
+    'QuantileBoxes',
     'GaussianKDE',
     'GaussianKDEContour',
     'Violine',

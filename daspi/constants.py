@@ -431,14 +431,20 @@ class _Default_:
     """Default quantile ranges for the Quantile Plotter.
 
     These values represent the quantiles corresponding to the standard 
-    deviations (sigma) of a normal distribution:
-    - 0.682 = approximately ±1 sigma, capturing about 68.2% of the data.
-    - 0.954 = approximately ±2 sigma, capturing about 95.4% of the data.
-    - 0.997 = approximately ±3 sigma, capturing about 99.7% of the data.
-
-    These quantile ranges are commonly used in statistical analysis to 
-    visualize the spread and concentration of data around the mean in a 
-    quantile plot.
+    deviations (σ) of a normal distribution:
+    - 0.682 = approximately ±1 σ, capturing about 68.2% of the data.
+    - 0.954 = approximately ±2 σ, capturing about 95.4% of the data.
+    - 0.997 = approximately ±3 σ, capturing about 99.7% of the data.
+    """
+    AGREEMENTS: Tuple[int, int, int] = (2, 4, 6)
+    """Default agreement levels for the Quantile Plotter and for the
+    quantiles in GaussianKDE and Violine Plotter.
+    
+    These values represent the quantiles corresponding to the standard
+    deviations (σ) of a normal distribution:
+    - 2 = ±1 σ, capturing about 68.2% of the data.
+    - 4 = ±2 σ, capturing about 95.4% of the data.
+    - 6 = ±3 σ, capturing about 99.7% of the data.
     """
 
     @property
