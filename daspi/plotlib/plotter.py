@@ -2800,7 +2800,6 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
         by default True
     fill : bool, optional
         Flag whether to fill in the curves, by default True
-    
     agreements : Tuple[float, ...] or Tuple[int, ...], optional
         Specifies the tolerated process variation for calculating 
         quantiles. These quantiles are used to represent the filled area 
@@ -3149,6 +3148,26 @@ class Violine(GaussianKDE):
         Width of the violine, by default CATEGORY.FEATURE_SPACE.
     fill : bool, optional
         Flag whether to fill in the curves, by default True
+    agreements : Tuple[float, ...] or Tuple[int, ...], optional
+        Specifies the tolerated process variation for calculating 
+        quantiles. These quantiles are used to represent the filled area 
+        with different opacity, thus highlighting the quantiles.If you 
+        want the filled area to be uniform without highlighting the 
+        quantiles, provide an empty tuple. This argument is only taken 
+        into account if fill is set to True. The agreements can be either 
+        integers or floats, determining the process variation tolerance 
+        in the following ways:
+        - If integers, the quantiles are determined using the normal 
+          distribution (agreement * σ), e.g., agreement = 6 covers 
+          ~99.75% of the data.
+        - If floats, values must be between 0 and 1, interpreted as 
+          acceptable proportions for the quantiles, e.g., 0.9973 
+          corresponds to ~6σ.
+        - If empty tuple, the filled area is uniform without 
+          highlighting the quantiles.
+        
+        Default is `DEFAULT.AGREEMENTS` = (2, 4, 6), corresponding to 
+        (±1σ, ±2σ, ±3σ).
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
         the y-axis, by default True.
@@ -3179,6 +3198,7 @@ class Violine(GaussianKDE):
             feature: str = '',
             width: float = CATEGORY.FEATURE_SPACE,
             fill: bool = True,
+            agreements: Tuple[float, ...] | Tuple[int, ...] = DEFAULT.AGREEMENTS,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -3192,6 +3212,7 @@ class Violine(GaussianKDE):
             height=width/2,
             ignore_feature=False,
             fill=fill,
+            agreements=agreements,
             target_on_y=target_on_y,
             color=color,
             ax=ax,
@@ -3216,7 +3237,6 @@ class Violine(GaussianKDE):
         **kwds : dict, optional
             Additional keyword arguments for the fill plot, by default {}.
         """
-        _kwds = self.kw_default | kwds
         _kw_line: Dict[str, Any] = dict(
             color=COLOR.DARKEN if self.fill else self.color
             ) | kw_line
@@ -3224,18 +3244,26 @@ class Violine(GaussianKDE):
             estim_upp = group[self.feature]
             estim_low = 2*f_base - estim_upp # type: ignore
             sequence = group[self.target]
-            if self.target_on_y:
-                if self.fill:
-                    self.ax.fill_betweenx(
-                        sequence, estim_low, estim_upp, **_kwds)
-                self.ax.plot(
-                    estim_low, sequence, estim_upp, sequence, **_kw_line)
-            else:
-                if self.fill:
-                    self.ax.fill_between(
-                        sequence, estim_low, estim_upp, **_kwds)
-                self.ax.plot(
-                    sequence, estim_low, sequence, estim_upp, **_kw_line)
+            
+            for agreement in group[PLOTTER.SUBGROUP].unique():
+                _kwds = (
+                    self.kw_default
+                    | dict(
+                        alpha=self._alphas.get(agreement, COLOR.FILL_ALPHA),
+                        where=group[PLOTTER.SUBGROUP]==agreement)
+                    | kwds)
+                if self.target_on_y:
+                    if self.fill:
+                        self.ax.fill_betweenx(
+                            sequence, estim_low, estim_upp, **_kwds)
+                    self.ax.plot(
+                        estim_low, sequence, estim_upp, sequence, **_kw_line)
+                else:
+                    if self.fill:
+                        self.ax.fill_between(
+                            sequence, estim_low, estim_upp, **_kwds)
+                    self.ax.plot(
+                        sequence, estim_low, sequence, estim_upp, **_kw_line)
 
 
 class Errorbar(TransformPlotter):
