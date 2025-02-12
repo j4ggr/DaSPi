@@ -14,6 +14,23 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.2.0] - 2025-02-12
+
+### Fixed
+
+- Transpose xy-axes parameters did not work for MultivariateCharts.
+- LinearModel getting captions failed when printing tables.
+- SingleChart had wrong key for getting color at plot method.
+
+### Added
+
+- Option to highlight quantiles in the fill area of Violine and GaussianKDE Plotters.
+  
+### Changed
+
+- The name of the Plotter Quantiles to QuantileBoxes
+- QuantileBoxes draws now not overlapping boxes
+
 ## [1.1.1] - 2025-01-24
 
 ### Added
@@ -34,11 +51,11 @@ __Types of changes__:
 - The option hide_axis for each Plotter class during initialization.
 - The option visible_spines for each Plotter class during initialization.
 
-## Changed
+### Changed
 
 - The class name MultipleVariateChart to MultivariateChart
 
-## Removed
+### Removed
 
 - The option show_density_axis for GaussianKDE. Use hide_axis and visible_spines instead.
 

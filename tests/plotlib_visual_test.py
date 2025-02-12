@@ -637,6 +637,7 @@ class TestSingleChart:
                 GaussianKDE,
                 visible_spines='target',
                 hide_axis='feature',
+                agreements=(),
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,
@@ -890,7 +891,7 @@ class TestSingleChart:
                 feature = self.cat1, 
                 hue = self.cat2,
                 dodge = True
-            ).plot(Violine, target_on_y=False
+            ).plot(Violine, target_on_y=False, agreements=()
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,
