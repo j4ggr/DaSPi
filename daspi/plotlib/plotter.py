@@ -200,19 +200,23 @@ class SpreadOpacity:
           are read directly from the data.
         
         Default is 'data'.
+
     agreements : Tuple[float, ...] or Tuple[int, ...], optional
-        Specify the tolerated process variation for which the 
-        control limits are to be calculated. 
-        - If int, the spread is determined using the normal 
-          distribution agreement*σ, 
-          e.g. agreement = 6 -> 6*σ ~ covers 99.75 % of the data. 
-          The upper and lower permissible quantiles are then 
-          calculated from this.
-        - If float, the value must be between 0 and 1.This value is
-          then interpreted as the acceptable proportion for the 
-          spread, e.g. 0.9973 (which corresponds to ~ 6 σ)
+        Specifies the tolerated process variation for calculating 
+        quantiles. These quantiles are used to represent the filled area 
+        with different opacity, thus highlighting the quantiles in the
+        plot. The agreements can be either integers or floats,
+        determining the process variation tolerance in the following
+        ways:
+        - If integers, the quantiles are determined using the normal 
+          distribution (agreement * σ), e.g., agreement = 6 covers 
+          ~99.75% of the data.
+        - If floats, values must be between 0 and 1, interpreted as 
+          acceptable proportions for the quantiles, e.g., 0.9973 
+          corresponds to ~6σ.
         
-        Default is (2, 4, 6) which corresponds to (±1 σ, ±2 σ, ±3 σ) 
+        Default is `DEFAULT.AGREEMENTS` = (2, 4, 6), corresponding to 
+        (±1σ, ±2σ, ±3σ).
     possible_dists : tuple of strings or rv_continous, optional
         Distributions to which the data may be subject. Only 
         continuous distributions of scipy.stats are allowed,
@@ -243,11 +247,11 @@ class SpreadOpacity:
         self._agreements = tuple(sorted(np.unique(agreements), reverse=False))
 
     @property
-    def alpha(self) -> Dict[float | int, float]:
+    def _alphas(self) -> Dict[float | int, float]:
         """Get color transparency for each quantile range."""
         n = len(self.agreements)
         alphas = ((i + 1) * COLOR.FILL_ALPHA / n for i in range(n))
-        return {q: a for q, a in zip(self.agreements, alphas)}
+        return {q: a for q, a in zip(self.agreements[::-1], alphas)}
 
     def quantiles(self, target_data: Series) -> List[float]:
         """Calculate the quantiles in ascending order:
@@ -275,7 +279,10 @@ class SpreadOpacity:
             quantiles.extend([estimation.lcl, estimation.ucl] * k)
         return sorted(quantiles)
     
-    def subgroup_values(self) -> List[float | int]:
+    def subgroup_values(
+            self,
+            sequence: NDArray | int,
+            quantiles: List[float]) -> List[float | int]:
         """Generate a list of subgroup values based on the agreements.
 
         This method creates a list of subgroup values derived from the 
@@ -291,11 +298,26 @@ class SpreadOpacity:
             and integers.
         """
         subgroup = []
-        for agreement in self.agreements:
-            if agreement != self.agreements[0]:
-                subgroup.append(subgroup[-1])
-            subgroup.append(agreement)
-        return subgroup + subgroup[::-1]
+        names = self.agreements[::-1] + self.agreements[1:]
+        if isinstance(sequence, int):
+            for name in names:
+                subgroup.extend([name] * sequence)
+        else:
+            _quantiles = np.unique(quantiles)
+            for name, beg, end in zip(names, _quantiles[:-1], _quantiles[1:]):
+                if not subgroup:
+                    n_values = np.sum((sequence <= end))
+                elif name == names[-1]:
+                    n_values = np.sum((sequence > beg))
+                else:
+                    n_values = np.sum((sequence > beg) & (sequence <= end))
+                subgroup.extend([name] * n_values)
+            if difference := len(sequence) - len(subgroup):
+                if difference < 0:
+                    subgroup = subgroup[:difference]
+                else:
+                    subgroup.extend([names[-1]] * difference)
+        return subgroup
 
 
 class Plotter(ABC):
@@ -2567,18 +2589,20 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
         
         Default is 'data'.
     agreements : Tuple[float, ...] or Tuple[int, ...], optional
-        Specify the tolerated process variation for which the 
-        control limits are to be calculated. 
-        - If int, the spread is determined using the normal 
-          distribution agreement*σ, 
-          e.g. agreement = 6 -> 6*σ ~ covers 99.75 % of the data. 
-          The upper and lower permissible quantiles are then 
-          calculated from this.
-        - If float, the value must be between 0 and 1.This value is
-          then interpreted as the acceptable proportion for the 
-          spread, e.g. 0.9973 (which corresponds to ~ 6 σ)
+        Specifies the tolerated process variation for calculating 
+        quantiles. These quantiles are used to represent the filled area 
+        with different opacity, thus highlighting the quantiles. The 
+        agreements can be either integers or floats, determining the 
+        process variation tolerance in the following ways:
+        - If integers, the quantiles are determined using the normal 
+          distribution (agreement * σ), e.g., agreement = 6 covers 
+          ~99.75% of the data.
+        - If floats, values must be between 0 and 1, interpreted as 
+          acceptable proportions for the quantiles, e.g., 0.9973 
+          corresponds to ~6σ.
         
-        Default is (2, 4, 6) which corresponds to (±1 σ, ±2 σ, ±3 σ) 
+        Default is `DEFAULT.AGREEMENTS` = (2, 4, 6), corresponding to 
+        (±1σ, ±2σ, ±3σ).
     possible_dists : tuple of strings or rv_continous, optional
         Distributions to which the data may be subject. Only 
         continuous distributions of scipy.stats are allowed,
@@ -2670,7 +2694,7 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
         kwds = dict(color=self.color, interpolate=False)
         return kwds
     
-    def width_values(self):
+    def width_values(self) -> NDArray:
         """Returns the widths of the boxes in the plot."""
         widths = []
         for i in range(len(self.agreements)):
@@ -2704,12 +2728,13 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
         """
         data = pd.DataFrame()
         widths = self.width_values()
+        quantiles = self.quantiles(target_data)
         data = pd.DataFrame({
-            self.target: self.quantiles(target_data),
+            self.target: quantiles,
             PLOTTER.LOWER: feature_data - widths,
             PLOTTER.UPPER: feature_data + widths,
-            PLOTTER.SUBGROUP: self.subgroup_values(),
-            PLOTTER.F_BASE_NAME: [feature_data]*len(widths)})
+            PLOTTER.SUBGROUP: self.subgroup_values(2, quantiles),
+            PLOTTER.F_BASE_NAME: feature_data * np.ones(len(widths))})
         return data
 
     def __call__(self, **kwds) -> None:
@@ -2729,7 +2754,7 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
                 _kwds = (
                     self.kw_default
                     | dict(
-                        alpha=self.alpha[agreement],
+                        alpha=self._alphas[agreement],
                         where=group[PLOTTER.SUBGROUP]==agreement)
                     | kwds)
                 if self.target_on_y:
@@ -2738,7 +2763,7 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
                     self.ax.fill_between(quantiles, lower, upper, **_kwds)
 
 
-class GaussianKDE(TransformPlotter):
+class GaussianKDE(SpreadOpacity, TransformPlotter):
     """Class for creating Gaussian Kernel Density Estimation (KDE) 
     plotters. Use this class for univariate plots.
 
@@ -2775,6 +2800,27 @@ class GaussianKDE(TransformPlotter):
         by default True
     fill : bool, optional
         Flag whether to fill in the curves, by default True
+    
+    agreements : Tuple[float, ...] or Tuple[int, ...], optional
+        Specifies the tolerated process variation for calculating 
+        quantiles. These quantiles are used to represent the filled area 
+        with different opacity, thus highlighting the quantiles.If you 
+        want the filled area to be uniform without highlighting the 
+        quantiles, provide an empty tuple. This argument is only taken 
+        into account if fill is set to True. The agreements can be either 
+        integers or floats, determining the process variation tolerance 
+        in the following ways:
+        - If integers, the quantiles are determined using the normal 
+          distribution (agreement * σ), e.g., agreement = 6 covers 
+          ~99.75% of the data.
+        - If floats, values must be between 0 and 1, interpreted as 
+          acceptable proportions for the quantiles, e.g., 0.9973 
+          corresponds to ~6σ.
+        - If empty tuple, the filled area is uniform without 
+          highlighting the quantiles.
+        
+        Default is `DEFAULT.AGREEMENTS` = (2, 4, 6), corresponding to 
+        (±1σ, ±2σ, ±3σ).
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
         the y-axis, by default True.
@@ -2802,7 +2848,8 @@ class GaussianKDE(TransformPlotter):
         (occurs when this class is used within chart objects).
     """
     __slots__ = (
-        '_height', '_stretch', 'fill', 'n_points')
+        'strategy', '_agreements', 'possible_dists', '_height', '_stretch', 
+        'fill', 'n_points')
 
     _height: float | None
     """Height of kde curve at its maximum."""
@@ -2822,6 +2869,7 @@ class GaussianKDE(TransformPlotter):
             skip_na: Literal['all', 'any'] | None = None,
             ignore_feature: bool = True,
             fill: bool = True,
+            agreements: Tuple[float, ...] | Tuple[int, ...] = DEFAULT.AGREEMENTS,
             target_on_y: bool = True,
             color: str | None = None,
             n_points: int = DEFAULT.KD_SEQUENCE_LEN,
@@ -2829,6 +2877,9 @@ class GaussianKDE(TransformPlotter):
             visible_spines: Literal['target', 'feature', 'none'] | None = None,
             hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
+        self.strategy= 'data'
+        self.agreements = agreements
+        self.possible_dists = DIST.COMMON
         self._height = height
         self._stretch = stretch
         self.n_points = n_points
@@ -2867,6 +2918,11 @@ class GaussianKDE(TransformPlotter):
     def stretch(self) -> float:
         """Factor by which the curve was stretched in height"""
         return self._stretch
+
+    @property
+    def highlight_quantiles(self) -> bool:
+        """Flag indicating whether the quantiles should be highlighted."""
+        return bool(self.agreements) and self.fill
         
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
@@ -2892,7 +2948,7 @@ class GaussianKDE(TransformPlotter):
             feature data.
         """
 
-        first_value = target_data.iloc[0]
+        first_value: float = target_data.iloc[0]
         if all(target_data == first_value):
             stretch = self.stretch if self.height is None else self.height
             estimation = [stretch + feature_data]
@@ -2904,9 +2960,17 @@ class GaussianKDE(TransformPlotter):
                 height=self.height,
                 base=feature_data,
                 n_points=self.n_points)
+            
+        if self.highlight_quantiles and not isinstance(sequence, list):
+            quantiles = self.quantiles(target_data)
+            subgroups = self.subgroup_values(sequence, quantiles)
+        else:
+            subgroups = np.zeros(len(sequence))
+
         data = pd.DataFrame({
             self.target: sequence,
             self.feature: estimation,
+            PLOTTER.SUBGROUP: subgroups,
             PLOTTER.F_BASE_NAME: feature_data * np.ones(len(sequence))})
         return data
         
@@ -2929,11 +2993,19 @@ class GaussianKDE(TransformPlotter):
         _kw_line = self.kw_default | kw_line
         self.ax.plot(self.x, self.y, **_kw_line)
         if self.fill:
-            _kw_fill = self.kw_default | {'alpha': COLOR.FILL_ALPHA} | kw_fill
-            if self.target_on_y:
-                self.ax.fill_betweenx(self.y, self._f_base, self.x, **_kw_fill)
-            else:
-                self.ax.fill_between(self.x, self._f_base, self.y, **_kw_fill)
+            for agreement in self.source[PLOTTER.SUBGROUP].unique():
+                _kw_fill = (
+                    self.kw_default
+                    | dict(
+                        alpha=self._alphas.get(agreement, COLOR.FILL_ALPHA),
+                        where=self.source[PLOTTER.SUBGROUP]==agreement)
+                    | kw_fill)
+                if self.target_on_y:
+                    self.ax.fill_betweenx(
+                        self.y, self._f_base, self.x, **_kw_fill)
+                else:
+                    self.ax.fill_between(
+                        self.x, self._f_base, self.y, **_kw_fill)
 
 
 class GaussianKDEContour(Plotter):
