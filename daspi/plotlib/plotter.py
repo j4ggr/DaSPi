@@ -2588,7 +2588,6 @@ class Quantiles(TransformPlotter):
             lower = group[PLOTTER.LOWER]
             upper = group[PLOTTER.UPPER]
             for q_range in group[PLOTTER.SUBGROUP].unique():
-
                 _kwds = (
                     self.kw_default
                     | dict(

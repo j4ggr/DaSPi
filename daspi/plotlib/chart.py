@@ -858,7 +858,7 @@ class SingleChart(Chart):
             The SingleChart instance.
         """
         self.target_on_y = kwds.pop('target_on_y', self.target_on_y)
-        _color = kwds.pop('marker', None)
+        _color = kwds.pop('color', None)
         _marker = kwds.pop('marker', None)
         _size = kwds.pop('size', None)
         _width = kwds.pop('width', None)
