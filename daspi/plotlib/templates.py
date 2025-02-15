@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from typing import Any
@@ -24,6 +25,7 @@ from .plotter import Probability
 from .plotter import GaussianKDE
 from .plotter import BlandAltman
 from .plotter import ParallelCoordinate
+from .plotter import CapabilityConfidenceInterval
 
 from ..anova import LinearModel
 from ..strings import STR
@@ -31,6 +33,8 @@ from ..constants import KW
 from ..constants import COLOR
 from ..constants import ANOVA
 from ..constants import CATEGORY
+
+from .._typing import SpecLimits
 
 
 class ParameterRelevanceCharts(JointChart):
@@ -249,10 +253,10 @@ class ResidualsCharts(JointChart):
                 sub_title=sub_title,
                 target_label=STR['resid_name'],
                 feature_label=(
-                    STR['residcharts_flabel_quantiles'],
-                    STR['residcharts_flabel_density'],
-                     f'{STR["residcharts_flabel_predicted"]} {self.lm.target}',
-                    STR['residcharts_flabel_observed']),
+                    STR['charts_flabel_quantiles'],
+                    STR['charts_flabel_density'],
+                     f'{STR["charts_flabel_predicted"]} {self.lm.target}',
+                    STR['charts_flabel_observed']),
                 info = info
             ) | kwds
         super().label(**labels) # type: ignore
@@ -655,9 +659,165 @@ class BivariateUnivariateCharts(JointChart):
         return self
 
 
+class ProcessCapabilityAnalysisCharts(JointChart):
+    """A class for creating process capability analysis charts.
+
+    This class extends the `JointChart` class and provides methods for
+    creating process capability analysis charts. It allows you to
+    visualize process capability analysis data and perform various
+    analysis tasks.
+
+
+    Parameters
+    ----------
+    source : DataFrame
+        The source data.
+    target : str
+        The target (dependant) variable.
+    spec_limits : SpecLimits
+        The specification limits for the process capability analysis.
+    hue : str, optional
+        The hue variable for the chart, by default ''.
+    """
+    __slots__ = ('spec_limits')
+
+    spec_limits: SpecLimits
+    """The specification limits for the process capability analysis."""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            *,
+            spec_limits: SpecLimits,
+            hue: str = '',
+            ) -> None:
+        assert any(sl is not None for sl in spec_limits), (
+            'At least one specification limit must not be None')
+        self.spec_limits = spec_limits
+        super().__init__(
+            source=source,
+            target=target,
+            feature='',
+            hue=hue,
+            mosaic=('rr', 'pd', 'ck',),
+            height_ratios=[3, 3, 1],
+            sharex='row',
+            dodge=(False, False, False, True, True),
+            target_on_y=(True, False, False, False, False))
+
+    def plot(self, **kwds_cpi) -> Self: # type: ignore
+        """Plot the process capability analysis charts.
+        
+        This method plots the process capability analysis charts, including
+        scatter plots, probability density functions, Gaussian kernel
+        density estimation, and capability confidence intervals.
+
+        Parameters
+        ----------
+        kwds_cpi : dict
+            Additional keyword arguments for the capability confidence
+            interval plot.
+
+        Returns
+        -------
+        Self
+            The `ProcessCapabilityAnalysisCharts` instance, for method
+            chaining.
+        """
+        hue = self.hues[0]
+        n_groups = self.source.groupby(hue).ngroups if hue else 1
+        _kwds_cpi: Dict[str, Any] = dict(
+            n_groups=n_groups,
+            spec_limits=self.spec_limits,
+            show_center=True,
+            bars_same_color=True,
+            hide_axis='feature',
+            visible_spines='target') | kwds_cpi
+        super().plot(Scatter)
+        super().plot(Probability, dist='norm')
+        super().plot(GaussianKDE, hide_axis='feature', visible_spines='target')
+        super().plot(CapabilityConfidenceInterval, kind='cpk', **_kwds_cpi)
+        if None in self.spec_limits:
+            super().plot(HideSubplot)
+        else:
+            super().plot(CapabilityConfidenceInterval, kind='cp', **_kwds_cpi)
+
+        return self
+    
+    def stripes(self) -> Self: # type: ignore
+        """Add stripes to the process capability analysis charts.
+        """
+        flags = (True, False, True, False, False)
+        super().stripes(
+            mean=flags,
+            median=flags,
+            control_limits=flags,
+            spec_limits=tuple(
+                self.spec_limits if f else (None, None) for f in flags))
+        return self
+
+    def label( # type: ignore
+            self,
+            *,
+            fig_title: str = '',
+            sub_title: str = '',
+            feature_label: Tuple[str, ...] = (),
+            target_label: str = '',
+            info: bool | str = False,
+            ) -> Self:
+        """Label the process capability analysis charts.
+        
+        This method labels the process capability analysis charts with
+        custom labels and titles.
+
+        Parameters
+        ----------
+        fig_title : str, optional
+            The title of the figure, by default ''.
+        sub_title : str, optional
+            The subtitle of the figure, by default ''.
+        feature_label : Tuple[str, ...], optional
+            The labels for the features. If not provided, default labels
+            will be used. The tuple should contain five elements. By
+            default, the labels are:
+            ('Observation order',
+            '', 'Quantiles of standard normal distribution', 
+            '', '')
+        target_label : str, optional
+            The label for the target variable, by default ''.
+        info : bool | str, optional
+            Whether to display information about the chart. If True, the
+            information will be displayed. If a string is provided, it
+            will be used as the title of the information box. By default,
+            the information is not displayed.
+
+        Returns
+        -------
+        Self
+            The `ProcessCapabilityAnalysisCharts` instance, for method
+            chaining.
+        """
+        if not target_label:
+            target_label = self.targets[0]
+        _target_label = 3 * (target_label, ) + (STR['cpk'], STR['cp'])
+        if not feature_label:
+            feature_label = (
+                STR['charts_flabel_observed'], 
+                STR['charts_flabel_quantiles'], '', '', '')
+        super().label(
+            fig_title=fig_title,
+            sub_title=sub_title,
+            target_label=_target_label,
+            feature_label=feature_label,
+            info=info)
+        return self
+
+
 __all__ = [
     'ResidualsCharts',
     'ParameterRelevanceCharts',
     'PairComparisonCharts',
     'BivariateUnivariateCharts',
+    'ProcessCapabilityAnalysisCharts',
     ]

@@ -73,7 +73,7 @@ class _String_:
         'de': 'Parameter'}
     
     residcharts_fig_title: Dict[str, str] = {
-        'en': 'Residuals Analysis',
+        'en': 'Residuals analysis',
         'de': 'Residuen Analyse'}
     
     resid_name: Dict[str, str] = {
@@ -84,25 +84,33 @@ class _String_:
         'en': 'Fit',
         'de': 'Anpassung'}
     
-    residcharts_flabel_quantiles: Dict[str, str]= {
-        'en': 'Quantiles of standard normal distribution',
-        'de': 'Quantile der Standardnormalverteilung'}
+    charts_flabel_quantiles: Dict[str, str]= {
+        'en': 'Std. Normal Distribution quantiles',
+        'de': 'Standardnormalverteilung Quantile'}
     
-    residcharts_flabel_density: Dict[str, str] = {
+    charts_flabel_density: Dict[str, str] = {
         'en': 'Estimated kernel density',
         'de': 'Geschätzte Kerndichte'}
     
-    residcharts_flabel_predicted: Dict[str, str] = {
+    charts_flabel_predicted: Dict[str, str] = {
         'en': 'Predicted values',
         'de': 'Vorhersage'}
     
-    residcharts_flabel_observed: Dict[str, str] = {
+    charts_flabel_observed: Dict[str, str] = {
         'en': 'Observation order',
         'de': 'Beobachtungsreihenfolge'}
     
     paircharts_fig_title: Dict[str, str] = {
-        'en': 'Pairwise Analysis',
+        'en': 'Pairwise analysis',
         'de': 'Paarweise Analyse'}
+
+    cp: Dict[str, str] = {
+        'en': 'Pocess Capability index Cp',
+        'de': 'Prozessfähigkeitsindex Cp'}
+
+    cpk: Dict[str, str] = {
+        'en': 'Adjusted Pocess Capability index Cpk',
+        'de': 'Angepasster Prozessfähigkeitsindex Cpk'}
     
     paircharts_sub_title: Dict[str, str] = {
         'en': 'Bland-Altman 95 % CI and individual value comparison',
