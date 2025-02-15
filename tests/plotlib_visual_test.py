@@ -43,6 +43,7 @@ from daspi import PairComparisonCharts
 from daspi import LinearRegressionLine
 from daspi import ParameterRelevanceCharts
 from daspi import BivariateUnivariateCharts
+from daspi import ProcessCapabilityAnalysisCharts
 
 
 matplotlib.use("Agg")
@@ -1704,6 +1705,8 @@ class TestTemplates:
                 MeanTest, n_groups=n_groups
             ).plot_bivariate(
                 GaussianKDEContour, fill=False, fade_outers=False
+            ).plot_univariates(
+                QuantileBoxes, strategy='fit'
             ).plot_bivariate(
                 Scatter
             ).label(
@@ -1725,6 +1728,55 @@ class TestTemplates:
         assert texts[1].get_text() == self.sub_title
         assert xlabels == ('', '', self.feature_label, '')
         assert ylabels == ('', '', self.target_label, '')
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+
+        fitted_dists = []
+        for plot in chart.plots:
+            if isinstance(plot, QuantileBoxes):
+                fitted_dists.append(plot.estimation.dist.name)
+        assert fitted_dists == ['logistic', 'gamma', 'foldnorm', 'norm']
+        
+    def test_process_capabity_analysis_charts(self) -> None:
+        
+        df = load_dataset('drop_card')
+        spec_limits = 0, float(df.loc[0, 'usl']) # type: ignore
+        target = 'distance'
+        fig_title='Process Capability Analysis'
+        sub_title='Drop Card Experiment'
+        target_label='Distance (cm)'
+
+        self.base = f'{self.fig_title}_process-capabity-analysis-charts'
+        self.kind = 'hue'
+        chart = ProcessCapabilityAnalysisCharts(
+                source=df,
+                target=target,
+                spec_limits=spec_limits,
+                hue='method'
+            ).plot(
+            ).stripes(
+            ).label(
+                fig_title=fig_title,
+                sub_title=sub_title,
+                target_label=target_label,
+                info=self.info_msg
+            ).save(self.file_name
+            ).close()
+        
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        xlabels = tuple(ax.get_xlabel() for ax in chart.axes.flat)
+        ylabels = tuple(ax.get_ylabel() for ax in chart.axes.flat)
+        assert self.file_name.is_file()
+        assert len(texts) == 3
+        assert texts[0].get_text() == fig_title
+        assert texts[1].get_text() == sub_title
+        assert xlabels == (
+            STR['charts_flabel_observed'], target_label, target_label, 
+            STR['cpk'], STR['cp'])
+        assert ylabels == (
+            target_label, STR['charts_flabel_quantiles'], '', '', '')
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg

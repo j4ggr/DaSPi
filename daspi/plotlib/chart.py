@@ -80,6 +80,8 @@ from .facets import StripesFacets
 
 from .plotter import Stripe
 from .plotter import Plotter
+from .plotter import HideSubplot
+from .plotter import SkipSubplot
 
 from ..strings import STR
 
@@ -247,7 +249,8 @@ class Chart(ABC):
     @property
     def plots(self) -> List[Plotter]:
         """Get plotter objects used in `plot` method"""
-        return self._plots
+        ignore_types = (HideSubplot, SkipSubplot)
+        return [p for p in self._plots if not isinstance(p, ignore_types)]
     
     @abstractmethod
     def _axis_label_(

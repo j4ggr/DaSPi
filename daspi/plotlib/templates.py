@@ -415,7 +415,7 @@ class BivariateUnivariateCharts(JointChart):
         ).plot_univariates(
             dsp.MeanTest, n_groups=n_groups
         ).plot_univariates(
-            dsp.QuantileBoxes, strategy='data'
+            dsp.QuantileBoxes, strategy='fit'
         ).plot_bivariate(
             dsp.LinearRegressionLine, show_fit_ci=True
         ).label(
@@ -426,6 +426,17 @@ class BivariateUnivariateCharts(JointChart):
             axes_titles=('95 % Bonferroni confidence interval of mean', '', '', ''),
             info=True
         )
+    ```
+    
+    Information about which distribution is used to calculate the
+    quantile boxes can be obtained as follows:
+
+    ``` python
+    brands = (brand for brand in df[hue].unique().tolist()*2)
+    for plot in chart.plots:
+        if isinstance(plot, dsp.QuantileBoxes):
+            print(f'{next(brands)} {plot.target}: {plot.estimation.dist.name}')
+    ```
     """
     __slots__ = ('_top_right_hidden')
 
@@ -719,7 +730,7 @@ class ProcessCapabilityAnalysisCharts(JointChart):
     spec_limits = 0, float(df.loc[0, 'usl'])
     target = 'distance'
 
-    dsp.ProcessCapabilityAnalysisCharts(
+    chart = dsp.ProcessCapabilityAnalysisCharts(
             source=df,
             target=target,
             spec_limits=spec_limits,
