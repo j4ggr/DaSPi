@@ -396,6 +396,36 @@ class BivariateUnivariateCharts(JointChart):
     colors: Tuple[str, ...], optional
         Tuple of unique colors used for hue categories as hex or str. If
         not provided, the default colors will be used, by default ().
+    
+    Examples
+    --------
+
+    ``` python
+    import daspi as dsp
+
+    df = dsp.load_dataset('aspirin-dissolution')
+    hue = 'brand'
+    n_groups = df.groupby(hue).ngroups
+    chart = dsp.BivariateUnivariateCharts(
+            source=df,
+            target='dissolution',
+            feature='temperature',
+            hue=hue,
+            dodge_univariates=True,
+        ).plot_univariates(
+            dsp.MeanTest, n_groups=n_groups
+        ).plot_univariates(
+            dsp.QuantileBoxes, strategy='data'
+        ).plot_bivariate(
+            dsp.LinearRegressionLine, show_fit_ci=True
+        ).label(
+            fig_title='Regression and distribution analysis',
+            sub_title='Aspirin dissolution time vs. temperature',
+            feature_label='Water temperature (°C)',
+            target_label='Dissolution time (s)',
+            axes_titles=('95 % Bonferroni confidence interval of mean', '', '', ''),
+            info=True
+        )
     """
     __slots__ = ('_top_right_hidden')
 
@@ -678,6 +708,30 @@ class ProcessCapabilityAnalysisCharts(JointChart):
         The specification limits for the process capability analysis.
     hue : str, optional
         The hue variable for the chart, by default ''.
+    
+    Examples
+    --------
+    
+    ``` python
+    import daspi as dsp
+
+    df = dsp.load_dataset('drop_card')
+    spec_limits = 0, float(df.loc[0, 'usl'])
+    target = 'distance'
+
+    dsp.ProcessCapabilityAnalysisCharts(
+            source=df,
+            target=target,
+            spec_limits=spec_limits,
+            hue='method'
+        ).plot(
+        ).stripes(
+        ).label(
+            fig_title='Process Capability Analysis',
+            sub_title='Drop Card Experiment',
+            target_label='Distance (cm)',
+            info=True)
+    ``` 
     """
     __slots__ = ('spec_limits')
 
