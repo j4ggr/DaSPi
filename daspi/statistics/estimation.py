@@ -2,7 +2,6 @@
 
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
 
 from abc import abstractmethod
 from typing import Any
@@ -21,7 +20,6 @@ from pandas.core.series import Series
 from scipy.stats._distn_infrastructure import rv_continuous
 
 from scipy import stats
-from scipy.stats import sem
 from scipy.stats import skew
 from scipy.stats import kurtosis
 
@@ -177,7 +175,7 @@ class Estimator:
         attrs = (
             'n_samples', 'n_missing', 'min', 'max', 'mean', 'median', 'std',
             'sem', 'excess', 'p_excess', 'skew', 'p_skew', 'dist', 'p_ad',
-            'lcl', 'ucl', 'strategy')
+            'strategy', 'lcl', 'ucl')
         return attrs
 
     @property
@@ -687,40 +685,51 @@ class Estimator:
         self._q_low = None
         self._q_upp = None
     
-    def describe(self, exclude: Tuple[str, ...] = ()) -> Series:
+    def _get_(self, name) -> float | int | str:
+        """Return the current value of the specified attribute."""
+        assert name in self._descriptive_statistic_attrs_, (
+            f'Attribute {name} is not a valid descriptive statistic '
+            'attribute')
+        if name == 'dist':
+            return self.dist.name
+        return getattr(self, name)
+    
+    def describe(self, exclude: Tuple[str, ...] = ()) -> DataFrame:
         """Generate descriptive statistics.
+        
+        Parameters
+        ----------
+        exclude : Tuple[str,...], optional
+            Attributes to exclude from the summary statistics,
+            by default ()
         
         Returns
         -------
-        stats : Series
-            Summary statistics as pandas Series.
-        exclude : Tuple[str, ...]
-            Attributes to exclude from the summary statistics.
+        stats : DataFrame
+            Summary statistics as pandas DataFrame. The indices of the
+            DataFrame are the attributes that have been computed and the
+            column name is the name of the samples.
         """
-        def _value_(a: str) -> float | int | str:
-            return getattr(self, a).name if a == 'dist' else getattr(self, a)
-        
-        data = {}
-        for attribute in self._descriptive_statistic_attrs_:
-            if attribute in exclude:
-                continue
-
-            data[attribute] = _value_(attribute)
-
-        return pd.Series(data)
+        names = (
+            n for n in self._descriptive_statistic_attrs_ if n not in exclude)
+        data = pd.DataFrame(
+            data={name: [self._get_(name)] for name in names},
+            index=[self.samples.name])
+        return data.T
 
 
 class ProcessEstimator(Estimator):
 
     __slots__ = (
-        '_lsl', '_usl', '_n_ok', '_n_nok', '_ok', '_nok', '_error_values',
-        '_n_errors', '_cp', '_cpk', '_Z', '_Z_lt')
+        '_lsl', '_usl', '_n_ok', '_n_nok', '_ok', '_nok', '_nok_pred', 
+        '_error_values', '_n_errors', '_cp', '_cpk', '_Z', '_Z_lt')
     _lsl: SpecLimit
     _usl: SpecLimit
     _n_ok: int | None
     _n_nok: int | None
     _ok: float | None
     _nok: float | None
+    _nok_pred: float | None
     _error_values: Tuple[float, ...]
     _n_errrors: int
     _cp: float | None
@@ -794,6 +803,7 @@ class ProcessEstimator(Estimator):
         self._n_errors = None
         self._ok = None
         self._nok = None
+        self._nok_pred = None
         self._cp = None
         self._cpk = None
         self._Z = None
@@ -811,7 +821,7 @@ class ProcessEstimator(Estimator):
         """Get attribute names used for `describe` method (read-only)."""
         _attrs = super()._descriptive_statistic_attrs_
         attrs = (_attrs[:2]
-                 + ('n_ok', 'n_nok', 'n_errors', 'ok', 'nok')
+                 + ('n_ok', 'n_nok', 'n_errors', 'ok', 'nok', 'nok_pred')
                  + _attrs[2:]
                  + ('lsl', 'usl', 'cp', 'cpk', 'Z', 'Z_lt'))
         return attrs
@@ -852,14 +862,28 @@ class ProcessEstimator(Estimator):
         """Get amount of OK-values as percent (read-only)."""
         if self._ok is None:
             self._ok = self.n_ok/self.n_samples
-        return f'{100*self._ok:.2f} %'
+        return f'{100 * self._ok:.2f} %'
     
     @property
     def nok(self) -> str:
         """Get amount of NOK-values as percent (read-only)."""
         if self._nok is None:
             self._nok = self.n_nok/self.n_samples
-        return f'{100*self._nok:.2f} %'
+        return f'{100 * self._nok:.2f} %'
+    
+    @property
+    def nok_pred(self) -> str:
+        """Predict the amount NOK-values as percent based on the 
+        fitted distribution (read-only)."""
+        if self._nok_pred is None:
+            self._nok_pred = 0
+            if self.usl:
+                self._nok_pred += 1 - float(
+                    self.dist.cdf(self.usl, *self.dist_params))
+            if self.lsl:
+                self._nok_pred += float(
+                    self.dist.cdf(self.lsl, *self.dist_params))
+        return f'{100 * self._nok_pred:.2f} %'
     
     @property
     def n_errors(self) -> int:
@@ -993,6 +1017,7 @@ class ProcessEstimator(Estimator):
         self._n_errors = None
         self._ok = None
         self._nok = None
+        self._nok_pred = None
         self._cp = None
         self._cpk = None
         self._Z = None

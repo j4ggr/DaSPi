@@ -317,7 +317,7 @@ class PairComparisonCharts(JointChart):
         super().plot(BlandAltman, identity=self.identity, feature_axis='data')
         super().plot(
             ParallelCoordinate, identity=self.identity, show_points=False)
-        super().plot(MeanTest, on_last_axes=True)
+        super().plot(MeanTest, n_groups=2, on_last_axes=True)
         super().plot(Violine, on_last_axes=True)
         return self
 
