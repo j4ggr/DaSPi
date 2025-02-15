@@ -6,7 +6,7 @@ authors = [
     {name = "Reto Jäggli", email = "reto@jaeggli.email"},
 ]
 dependencies = [
-    "matplotlib>=3.8.2",
+    "matplotlib>=3.10.0",
     "pandas>=2.1.4",
     "statsmodels>=0.14.1",
     "scipy>=1.11.4",
