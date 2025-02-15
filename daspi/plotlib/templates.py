@@ -6,6 +6,7 @@ from typing import Self
 from typing import Dict
 from typing import Type
 from typing import Tuple
+from typing import Literal
 from matplotlib.axes import Axes
 from pandas.core.frame import DataFrame
 
@@ -462,20 +463,35 @@ class BivariateUnivariateCharts(JointChart):
         HideSubplot(self.hidden_ax)()
         self._top_right_hidden = True
     
-    def plot(
+    def plot( # type: ignore
             self,
             plotter: Type[Plotter],
+            kind: Literal['univariate', 'bivariate'],
+            *,
             kw_call: Dict[str, Any] = {},
             kw_where: Dict[str, Any] = {},
-            on_last_axes: bool = False,
             **kwds
             ) -> Self:
-        raise NotImplementedError(
-            'Use the methods "plot_univariates" and "plot_bivariate"!')
+        if kind == 'bivariate':
+            self.plot_bivariate(
+                plotter,
+                kw_call=kw_call,
+                kw_where=kw_where,
+                **kwds)
+        elif kind == 'univariate':
+            self.plot_univariates(
+                plotter,
+                kw_call=kw_call,
+                kw_where=kw_where,
+                **kwds)
+        else:
+            raise ValueError('kind must be either "bivariate" or "univariate"')
+        return self
     
     def plot_univariates(
             self,
             plotter: Type[Plotter],
+            *,
             kw_call: Dict[str, Any] = {},
             kw_where: Dict[str, Any] = {},
             **kwds
@@ -521,6 +537,7 @@ class BivariateUnivariateCharts(JointChart):
     def plot_bivariate(
             self,
             plotter: Type[Plotter],
+            *,
             kw_call: Dict[str, Any] = {},
             kw_where: Dict[str, Any] = {},
             **kwds) -> Self:
