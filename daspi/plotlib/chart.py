@@ -53,10 +53,13 @@ from typing import Self
 from typing import Dict
 from typing import List
 from typing import Tuple
+from typing import TypeVar
 from typing import Literal
+from typing import Callable
 from typing import Sequence
 from typing import Generator
 from pathlib import Path
+from functools import wraps
 from numpy.typing import NDArray
 from matplotlib.axes import Axes
 from matplotlib.axis import XAxis
@@ -95,6 +98,39 @@ from ..constants import KW
 from ..constants import COLOR
 from ..constants import PLOTTER
 from ..constants import CATEGORY
+
+
+T = TypeVar('T')
+
+def check_label_order(method: Callable[..., T]) -> Callable[..., T]:
+    """Decorator that checks if a method is called after label().
+    
+    This decorator ensures that plot() and stripes() methods cannot be 
+    called after the label() method has been called, enforcing the 
+    correct order of method calls in Chart classes.
+
+    Parameters
+    ----------
+    method : Callable[..., T]
+        The method to be decorated.
+
+    Returns
+    -------
+    Callable[..., T]
+        The wrapped method that includes the order check.
+
+    Raises
+    ------
+    ValueError
+        If the decorated method is called after label() method.
+    """
+    @wraps(method)
+    def wrapper(self: Chart, *args: Any, **kwargs: Any) -> T:
+        assert not hasattr(self, 'label_facets'), (
+            f'Cannot call {method.__name__}() after label(). '
+            'The label() method must be called after stripes() and plot().')
+        return method(self, *args, **kwargs)
+    return wrapper
 
 
 class Chart(ABC):
@@ -290,6 +326,24 @@ class Chart(ABC):
         """
         raise NotImplementedError(
             'Generating data for each variate not implemented.')
+    
+    def _check_method_order(self, method_name: str) -> None:
+        """Check if methods are called in the correct order.
+        
+        Parameters
+        ----------
+        method_name : str
+            Name of the method being called.
+            
+        Raises
+        ------
+        ValueError
+            If plot or stripes methods are called after label method.
+        """
+        if hasattr(self, 'label_facets') and method_name in ('plot', 'stripes'):
+            raise ValueError(
+                f'Cannot call {method_name}() after label(). '
+                'The label() method must be called last.')
     
     @abstractmethod
     def plot(
@@ -822,6 +876,7 @@ class SingleChart(Chart):
         self._reset_variate_()
         self._kw_where = {}
 
+    @check_label_order
     def plot(
             self,
             plotter: Type[Plotter],
@@ -883,6 +938,7 @@ class SingleChart(Chart):
             self._plots.append(plot)
         return self
     
+    @check_label_order
     def stripes(
             self,
             stripes: List[Stripe] = [],
@@ -1456,7 +1512,8 @@ class JointChart(Chart):
         ylabel = self._axis_label_(target_label, True)
         xlabel, ylabel = self._swap_labels_(xlabel, ylabel)
         return xlabel, ylabel
-
+    
+    @check_label_order
     def plot(
             self,
             plotter: Type[Plotter],
@@ -1507,6 +1564,7 @@ class JointChart(Chart):
         chart.plot(plotter, kw_call=kw_call, kw_where=kw_where, **kwds)
         return self
 
+    @check_label_order
     def stripes(
             self,
             stripes: List[Stripe] | Tuple[List[Stripe], ...] = [],
@@ -1879,6 +1937,7 @@ class MultivariateChart(SingleChart):
             yield axes_data
         self._ax = self.axes._default
 
+    @check_label_order
     def plot(
             self,
             plotter: Type[Plotter],
@@ -1941,6 +2000,7 @@ class MultivariateChart(SingleChart):
             self._plots.append(plot)
         return self
     
+    @check_label_order
     def stripes(
             self,
             stripes: List[Stripe] = [],

@@ -146,6 +146,17 @@ class TestSingleChart:
     def file_name(self) -> Path:
         return savedir/f'{self.base}_{self.kind}.png'
 
+    def test_raises(self) -> None:
+
+        with pytest.raises(AssertionError) as err:
+            SingleChart(
+                source = df_aspirin,
+                target = self.target,
+                feature = self.cat1,
+            ).label(info = self.info_msg
+            ).plot(Scatter)
+        assert 'Cannot call plot() after label()' in str(err.value)
+
     def test_line_plot(self) -> None:
         self.base = f'{self.fig_title}_line'
 
@@ -1159,8 +1170,21 @@ class TestJointChart:
                 feature_label = True,
                 target_label = self.target_label,
                 info = self.info_msg)
-        err_msg = 'Single label not allowed'
-        assert err_msg in str(err.value)
+        assert 'Single label not allowed' in str(err.value)
+    
+        with pytest.raises(AssertionError) as err:
+            JointChart(
+                source = df_aspirin,
+                target = self.target,
+                feature = self.cat1,
+                nrows = 2,
+                ncols = 2,
+                target_on_y = (True, True, False, False)
+            ).plot(Scatter
+            ).label(info=self.info_msg
+            ).stripes(mean=True)
+        assert 'Cannot call stripes() after label()' in str(err.value)
+    
 
     def test_kde_mean_plots(self) -> None:
         self.base = f'{self.fig_title}_kdes'
