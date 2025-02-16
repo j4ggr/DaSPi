@@ -16,7 +16,6 @@ from .plotter import Line
 from .plotter import Pareto
 from .plotter import Plotter
 from .plotter import Scatter
-from .plotter import Violine
 from .plotter import MeanTest
 from .plotter import StripeLine
 from .plotter import SkipSubplot
@@ -24,6 +23,7 @@ from .plotter import HideSubplot
 from .plotter import Probability
 from .plotter import GaussianKDE
 from .plotter import BlandAltman
+from .plotter import QuantileBoxes
 from .plotter import ParallelCoordinate
 from .plotter import CapabilityConfidenceInterval
 
@@ -61,6 +61,26 @@ class ParameterRelevanceCharts(JointChart):
     stretch_figsize : bool, optional
         If True, stretch the figure height and width based on the number of
         rows and columns, by default False.
+    
+    Examples
+    --------
+
+    ``` python
+    import daspi as dsp
+    import pandas as pd
+
+    df = dsp.load_dataset('aspirin-dissolution')
+    model = dsp.LinearModel(
+        source=df,
+        target='dissolution',
+        categorical=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+        continuous=['temperature', 'preparation'],
+        order=2)
+    df_gof = pd.DataFrame()
+    for data_gof in model.recursive_feature_elimination():
+        df_gof = pd.concat([df_gof, data_gof])
+    dsp.ParameterRelevanceCharts(model).plot().label(info=True)
+    ```
     """
     __slots__ = ('lm')
 
@@ -174,6 +194,26 @@ class ResidualsCharts(JointChart):
     stretch_figsize : bool, optional
         If True, stretch the figure height and width based on the number of
         rows and columns, by default False.
+    
+    Examples
+    --------
+
+    ``` python
+    import daspi as dsp
+    import pandas as pd
+
+    df = dsp.load_dataset('aspirin-dissolution')
+    model = dsp.LinearModel(
+        source=df,
+        target='dissolution',
+        categorical=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+        continuous=['temperature', 'preparation'],
+        order=2)
+    df_gof = pd.DataFrame()
+    for data_gof in model.recursive_feature_elimination():
+        df_gof = pd.concat([df_gof, data_gof])
+    dsp.ResidualsCharts(model).plot().stripes().label(info=True)
+    ```
     """
     __slots__ = ('lm')
 
@@ -281,6 +321,24 @@ class PairComparisonCharts(JointChart):
     stretch_figsize : bool, optional
         If True, stretch the figure height and width based on the number of
         rows and columns, by default False.
+    
+    Examples
+    --------
+
+    ``` python
+    import daspi as dsp
+
+    df = dsp.load_dataset('shoe-sole')
+    chart = dsp.PairComparisonCharts(
+            source=df,
+            target='wear',
+            feature='status',
+            identity='tester'
+        ).plot(
+        ).label(
+            info=True
+        )
+    ```
     """
 
     __slots__ = ('identity')
@@ -323,7 +381,7 @@ class PairComparisonCharts(JointChart):
         super().plot(
             ParallelCoordinate, identity=self.identity, show_points=False)
         super().plot(MeanTest, n_groups=2, on_last_axes=True)
-        super().plot(Violine, on_last_axes=True)
+        super().plot(QuantileBoxes, strategy='fit', on_last_axes=True)
         return self
 
     def label(self, info: bool | str = False, **kwds) -> Self: # type: ignore
