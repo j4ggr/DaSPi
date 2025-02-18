@@ -593,11 +593,9 @@ class StripesFacets:
         kwds = self._kwds | KW.SPECIFICATION_LINE
         _labels = (STR['lsl'], STR['usl'])
         for label, limit in zip(_labels, self.estimation.limits):
-            if limit is None:
-                continue
-            
-            line = StripeLine(label=str(label), position=limit, **kwds)
-            self.stripes[line.identity] = line
+            if limit is not None:
+                line = StripeLine(label=str(label), position=limit, **kwds)
+                self.stripes[line.identity] = line
     
     def handles_labels(self) -> LegendHandlesLabels:
         """Get the legend handles and labels for the plot.

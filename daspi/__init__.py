@@ -167,6 +167,7 @@ from .plotlib.templates import ResidualsCharts
 from .plotlib.templates import PairComparisonCharts
 from .plotlib.templates import ParameterRelevanceCharts
 from .plotlib.templates import BivariateUnivariateCharts
+from .plotlib.templates import ProcessCapabilityAnalysisCharts
 
 
 from .anova.convert import get_term_name

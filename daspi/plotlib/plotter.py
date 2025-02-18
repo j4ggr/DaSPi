@@ -112,7 +112,6 @@ from typing import List
 from typing import Dict
 from typing import Tuple
 from typing import Literal
-from typing import Sequence
 from typing import Hashable
 from typing import Callable
 from typing import Iterable
@@ -127,11 +126,9 @@ from matplotlib.lines import Line2D
 from matplotlib.figure import Figure
 from matplotlib.ticker import PercentFormatter
 from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.colors import to_rgba
 from matplotlib.patches import Patch
 from matplotlib.container import BarContainer
 
-from scipy import stats
 from scipy.stats._distn_infrastructure import rv_continuous
 
 from itertools import cycle
@@ -229,6 +226,8 @@ class SpreadOpacity:
     possible_dists: Tuple[str | rv_continuous, ...]
     """Tuple of possible distributions for the spread width
     estimation."""
+    estimation: Estimator
+    """The estimator used to calculate the quantiles."""
     
     @property
     def agreements(self) -> Tuple[float, ...] | Tuple[int, ...]:
@@ -269,14 +268,14 @@ class SpreadOpacity:
         """
         quantiles = []
         
+        self.estimation = Estimator(
+            samples=target_data,
+            strategy=self.strategy,
+            possible_dists=self.possible_dists)
         for agreement in self.agreements:
+            self.estimation.agreement = agreement
             k = 1 if agreement == max(self.agreements) else 2
-            estimation = Estimator(
-                samples=target_data,
-                strategy=self.strategy,
-                agreement=agreement,
-                possible_dists=self.possible_dists)
-            quantiles.extend([estimation.lcl, estimation.ucl] * k)
+            quantiles.extend([self.estimation.lcl, self.estimation.ucl] * k)
         return sorted(quantiles)
     
     def subgroup_values(
@@ -2645,7 +2644,8 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
         is used within chart objects.
     """
     __slots__ = (
-        'strategy', '_agreements', 'possible_dists', 'vary_width', 'width')
+        'strategy', '_agreements', 'possible_dists', 'estimation', 
+        'vary_width', 'width')
     
     vary_width: bool
     """Flag that indicates whether the width of the boxes should vary, 
@@ -3102,7 +3102,6 @@ class GaussianKDEContour(Plotter):
             hide_axis=hide_axis,
             **kwds)
         if fade_outers:
-            rgba = to_rgba(self.color)
             colors = [(1, 1, 1, 0), self.color]
         else:
             colors = [self.color, self.color]

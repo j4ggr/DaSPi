@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from typing import Any
@@ -6,6 +7,7 @@ from typing import Self
 from typing import Dict
 from typing import Type
 from typing import Tuple
+from typing import Literal
 from matplotlib.axes import Axes
 from pandas.core.frame import DataFrame
 
@@ -14,7 +16,6 @@ from .plotter import Line
 from .plotter import Pareto
 from .plotter import Plotter
 from .plotter import Scatter
-from .plotter import Violine
 from .plotter import MeanTest
 from .plotter import StripeLine
 from .plotter import SkipSubplot
@@ -22,7 +23,9 @@ from .plotter import HideSubplot
 from .plotter import Probability
 from .plotter import GaussianKDE
 from .plotter import BlandAltman
+from .plotter import QuantileBoxes
 from .plotter import ParallelCoordinate
+from .plotter import CapabilityConfidenceInterval
 
 from ..anova import LinearModel
 from ..strings import STR
@@ -30,6 +33,8 @@ from ..constants import KW
 from ..constants import COLOR
 from ..constants import ANOVA
 from ..constants import CATEGORY
+
+from .._typing import SpecLimits
 
 
 class ParameterRelevanceCharts(JointChart):
@@ -56,6 +61,26 @@ class ParameterRelevanceCharts(JointChart):
     stretch_figsize : bool, optional
         If True, stretch the figure height and width based on the number of
         rows and columns, by default False.
+    
+    Examples
+    --------
+
+    ``` python
+    import daspi as dsp
+    import pandas as pd
+
+    df = dsp.load_dataset('aspirin-dissolution')
+    model = dsp.LinearModel(
+        source=df,
+        target='dissolution',
+        categorical=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+        continuous=['temperature', 'preparation'],
+        order=2)
+    df_gof = pd.DataFrame()
+    for data_gof in model.recursive_feature_elimination():
+        df_gof = pd.concat([df_gof, data_gof])
+    dsp.ParameterRelevanceCharts(model).plot().label(info=True)
+    ```
     """
     __slots__ = ('lm')
 
@@ -169,6 +194,26 @@ class ResidualsCharts(JointChart):
     stretch_figsize : bool, optional
         If True, stretch the figure height and width based on the number of
         rows and columns, by default False.
+    
+    Examples
+    --------
+
+    ``` python
+    import daspi as dsp
+    import pandas as pd
+
+    df = dsp.load_dataset('aspirin-dissolution')
+    model = dsp.LinearModel(
+        source=df,
+        target='dissolution',
+        categorical=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+        continuous=['temperature', 'preparation'],
+        order=2)
+    df_gof = pd.DataFrame()
+    for data_gof in model.recursive_feature_elimination():
+        df_gof = pd.concat([df_gof, data_gof])
+    dsp.ResidualsCharts(model).plot().stripes().label(info=True)
+    ```
     """
     __slots__ = ('lm')
 
@@ -248,10 +293,10 @@ class ResidualsCharts(JointChart):
                 sub_title=sub_title,
                 target_label=STR['resid_name'],
                 feature_label=(
-                    STR['residcharts_flabel_quantiles'],
-                    STR['residcharts_flabel_density'],
-                     f'{STR["residcharts_flabel_predicted"]} {self.lm.target}',
-                    STR['residcharts_flabel_observed']),
+                    STR['charts_flabel_quantiles'],
+                    STR['charts_flabel_density'],
+                     f'{STR["charts_flabel_predicted"]} {self.lm.target}',
+                    STR['charts_flabel_observed']),
                 info = info
             ) | kwds
         super().label(**labels) # type: ignore
@@ -276,6 +321,24 @@ class PairComparisonCharts(JointChart):
     stretch_figsize : bool, optional
         If True, stretch the figure height and width based on the number of
         rows and columns, by default False.
+    
+    Examples
+    --------
+
+    ``` python
+    import daspi as dsp
+
+    df = dsp.load_dataset('shoe-sole')
+    chart = dsp.PairComparisonCharts(
+            source=df,
+            target='wear',
+            feature='status',
+            identity='tester'
+        ).plot(
+        ).label(
+            info=True
+        )
+    ```
     """
 
     __slots__ = ('identity')
@@ -318,7 +381,7 @@ class PairComparisonCharts(JointChart):
         super().plot(
             ParallelCoordinate, identity=self.identity, show_points=False)
         super().plot(MeanTest, n_groups=2, on_last_axes=True)
-        super().plot(Violine, on_last_axes=True)
+        super().plot(QuantileBoxes, strategy='fit', on_last_axes=True)
         return self
 
     def label(self, info: bool | str = False, **kwds) -> Self: # type: ignore
@@ -391,6 +454,47 @@ class BivariateUnivariateCharts(JointChart):
     colors: Tuple[str, ...], optional
         Tuple of unique colors used for hue categories as hex or str. If
         not provided, the default colors will be used, by default ().
+    
+    Examples
+    --------
+
+    ``` python
+    import daspi as dsp
+
+    df = dsp.load_dataset('aspirin-dissolution')
+    hue = 'brand'
+    n_groups = df.groupby(hue).ngroups
+    chart = dsp.BivariateUnivariateCharts(
+            source=df,
+            target='dissolution',
+            feature='temperature',
+            hue=hue,
+            dodge_univariates=True,
+        ).plot_univariates(
+            dsp.MeanTest, n_groups=n_groups
+        ).plot_univariates(
+            dsp.QuantileBoxes, strategy='fit'
+        ).plot_bivariate(
+            dsp.LinearRegressionLine, show_fit_ci=True
+        ).label(
+            fig_title='Regression and distribution analysis',
+            sub_title='Aspirin dissolution time vs. temperature',
+            feature_label='Water temperature (°C)',
+            target_label='Dissolution time (s)',
+            axes_titles=('95 % Bonferroni confidence interval of mean', '', '', ''),
+            info=True
+        )
+    ```
+    
+    Information about which distribution is used to calculate the
+    quantile boxes can be obtained as follows:
+
+    ``` python
+    brands = (brand for brand in df[hue].unique().tolist()*2)
+    for plot in chart.plots:
+        if isinstance(plot, dsp.QuantileBoxes):
+            print(f'{next(brands)} {plot.target}: {plot.estimation.dist.name}')
+    ```
     """
     __slots__ = ('_top_right_hidden')
 
@@ -462,20 +566,35 @@ class BivariateUnivariateCharts(JointChart):
         HideSubplot(self.hidden_ax)()
         self._top_right_hidden = True
     
-    def plot(
+    def plot( # type: ignore
             self,
             plotter: Type[Plotter],
+            kind: Literal['univariate', 'bivariate'],
+            *,
             kw_call: Dict[str, Any] = {},
             kw_where: Dict[str, Any] = {},
-            on_last_axes: bool = False,
             **kwds
             ) -> Self:
-        raise NotImplementedError(
-            'Use the methods "plot_univariates" and "plot_bivariate"!')
+        if kind == 'bivariate':
+            self.plot_bivariate(
+                plotter,
+                kw_call=kw_call,
+                kw_where=kw_where,
+                **kwds)
+        elif kind == 'univariate':
+            self.plot_univariates(
+                plotter,
+                kw_call=kw_call,
+                kw_where=kw_where,
+                **kwds)
+        else:
+            raise ValueError('kind must be either "bivariate" or "univariate"')
+        return self
     
     def plot_univariates(
             self,
             plotter: Type[Plotter],
+            *,
             kw_call: Dict[str, Any] = {},
             kw_where: Dict[str, Any] = {},
             **kwds
@@ -521,6 +640,7 @@ class BivariateUnivariateCharts(JointChart):
     def plot_bivariate(
             self,
             plotter: Type[Plotter],
+            *,
             kw_call: Dict[str, Any] = {},
             kw_where: Dict[str, Any] = {},
             **kwds) -> Self:
@@ -638,9 +758,189 @@ class BivariateUnivariateCharts(JointChart):
         return self
 
 
+class ProcessCapabilityAnalysisCharts(JointChart):
+    """A class for creating process capability analysis charts.
+
+    This class extends the `JointChart` class and provides methods for
+    creating process capability analysis charts. It allows you to
+    visualize process capability analysis data and perform various
+    analysis tasks.
+
+
+    Parameters
+    ----------
+    source : DataFrame
+        The source data.
+    target : str
+        The target (dependant) variable.
+    spec_limits : SpecLimits
+        The specification limits for the process capability analysis.
+    hue : str, optional
+        The hue variable for the chart, by default ''.
+    
+    Examples
+    --------
+    
+    ``` python
+    import daspi as dsp
+
+    df = dsp.load_dataset('drop_card')
+    spec_limits = 0, float(df.loc[0, 'usl'])
+    target = 'distance'
+
+    chart = dsp.ProcessCapabilityAnalysisCharts(
+            source=df,
+            target=target,
+            spec_limits=spec_limits,
+            hue='method'
+        ).plot(
+        ).stripes(
+        ).label(
+            fig_title='Process Capability Analysis',
+            sub_title='Drop Card Experiment',
+            target_label='Distance (cm)',
+            info=True)
+    ``` 
+    """
+    __slots__ = ('spec_limits')
+
+    spec_limits: SpecLimits
+    """The specification limits for the process capability analysis."""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            *,
+            spec_limits: SpecLimits,
+            hue: str = '',
+            ) -> None:
+        assert any(sl is not None for sl in spec_limits), (
+            'At least one specification limit must not be None')
+        self.spec_limits = spec_limits
+        super().__init__(
+            source=source,
+            target=target,
+            feature='',
+            hue=hue,
+            mosaic=('rr', 'pd', 'ck',),
+            height_ratios=[3, 3, 1],
+            sharex='row',
+            dodge=(False, False, False, True, True),
+            target_on_y=(True, False, False, False, False))
+
+    def plot(self, **kwds_cpi) -> Self: # type: ignore
+        """Plot the process capability analysis charts.
+        
+        This method plots the process capability analysis charts, including
+        scatter plots, probability density functions, Gaussian kernel
+        density estimation, and capability confidence intervals.
+
+        Parameters
+        ----------
+        kwds_cpi : dict
+            Additional keyword arguments for the capability confidence
+            interval plot.
+
+        Returns
+        -------
+        Self
+            The `ProcessCapabilityAnalysisCharts` instance, for method
+            chaining.
+        """
+        hue = self.hues[0]
+        n_groups = self.source.groupby(hue).ngroups if hue else 1
+        _kwds_cpi: Dict[str, Any] = dict(
+            n_groups=n_groups,
+            spec_limits=self.spec_limits,
+            show_center=True,
+            bars_same_color=True,
+            hide_axis='feature',
+            visible_spines='target') | kwds_cpi
+        super().plot(Scatter)
+        super().plot(Probability, dist='norm')
+        super().plot(GaussianKDE, hide_axis='feature', visible_spines='target')
+        super().plot(CapabilityConfidenceInterval, kind='cpk', **_kwds_cpi)
+        if None in self.spec_limits:
+            super().plot(HideSubplot)
+        else:
+            super().plot(CapabilityConfidenceInterval, kind='cp', **_kwds_cpi)
+
+        return self
+    
+    def stripes(self) -> Self: # type: ignore
+        """Add stripes to the process capability analysis charts.
+        """
+        flags = (True, False, True, False, False)
+        super().stripes(
+            mean=flags,
+            median=flags,
+            control_limits=flags,
+            spec_limits=tuple(
+                self.spec_limits if f else (None, None) for f in flags))
+        return self
+
+    def label( # type: ignore
+            self,
+            *,
+            fig_title: str = '',
+            sub_title: str = '',
+            feature_label: Tuple[str, ...] = (),
+            target_label: str = '',
+            info: bool | str = False,
+            ) -> Self:
+        """Label the process capability analysis charts.
+        
+        This method labels the process capability analysis charts with
+        custom labels and titles.
+
+        Parameters
+        ----------
+        fig_title : str, optional
+            The title of the figure, by default ''.
+        sub_title : str, optional
+            The subtitle of the figure, by default ''.
+        feature_label : Tuple[str, ...], optional
+            The labels for the features. If not provided, default labels
+            will be used. The tuple should contain five elements. By
+            default, the labels are:
+            ('Observation order',
+            '', 'Quantiles of standard normal distribution', 
+            '', '')
+        target_label : str, optional
+            The label for the target variable, by default ''.
+        info : bool | str, optional
+            Whether to display information about the chart. If True, the
+            information will be displayed. If a string is provided, it
+            will be used as the title of the information box. By default,
+            the information is not displayed.
+
+        Returns
+        -------
+        Self
+            The `ProcessCapabilityAnalysisCharts` instance, for method
+            chaining.
+        """
+        if not target_label:
+            target_label = self.targets[0]
+        _target_label = 3 * (target_label, ) + (STR['cpk'], STR['cp'])
+        if not feature_label:
+            feature_label = (
+                STR['charts_flabel_observed'], 
+                STR['charts_flabel_quantiles'], '', '', '')
+        super().label(
+            fig_title=fig_title,
+            sub_title=sub_title,
+            target_label=_target_label,
+            feature_label=feature_label,
+            info=info)
+        return self
+
+
 __all__ = [
     'ResidualsCharts',
     'ParameterRelevanceCharts',
     'PairComparisonCharts',
     'BivariateUnivariateCharts',
+    'ProcessCapabilityAnalysisCharts',
     ]
