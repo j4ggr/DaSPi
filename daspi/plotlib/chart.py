@@ -694,7 +694,8 @@ class SingleChart(Chart):
         parameters should also be swapped"""
         if self.target_on_y:
             return
-        transpose_xy_axes_params(self.ax)
+        ticks = not bool(self.axes.sharex or self.axes.sharey)
+        transpose_xy_axes_params(self.ax, ticks=ticks)
     
     def _axis_label_(
             self, label: str | bool | None, is_target: bool) -> str:
@@ -1904,8 +1905,9 @@ class MultivariateChart(SingleChart):
         parameters should also be swapped"""
         if self.target_on_y:
             return
+        ticks = not bool(self.axes.sharex or self.axes.sharey)
         for ax in self.axes:
-            transpose_xy_axes_params(ax)
+            transpose_xy_axes_params(ax, ticks=ticks)
     
     def _categorical_feature_axis_(self) -> None:
         """Set one major tick for each category and label it. Hide 

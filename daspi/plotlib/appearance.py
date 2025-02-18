@@ -287,7 +287,7 @@ def transpose_xy_axes_params(
         ax: Axes,
         margin: bool = True,
         spines: bool = True,
-        ticks: bool | Literal['x', 'y', 'both'] | None = True
+        ticks: bool = True
         ) -> None:
     """Swaps the x and y axis parameters of the given Axes object, 
     including grid, margins, spines, and ticks.
@@ -316,41 +316,17 @@ def transpose_xy_axes_params(
         ax.spines['top'].set_visible(plt.rcParams['axes.spines.right'])
         ax.spines['right'].set_visible(plt.rcParams['axes.spines.top'])
     
-    if ticks: # TODO: Does it really do what I hope it does
-        ax_position = getattr(ax.figure, 'axes', []).index(ax)
-        sharex_positions = positions_of_shared_axes(ax, axis='x')
-        sharey_positions = positions_of_shared_axes(ax, axis='y')
-        first_sharex = ax_position == min(sharex_positions)
-        first_sharey = ax_position == min(sharey_positions)
-        last_sharex = ax_position == max(sharex_positions)
-        last_sharey = ax_position == max(sharey_positions)
-        if not any((first_sharex, first_sharey, last_sharex, last_sharey)):
-            return
-
+    if ticks:
         x_major = ax.xaxis._major_tick_kw.copy() # type: ignore
         x_minor = ax.xaxis._minor_tick_kw.copy() # type: ignore
         y_major = ax.yaxis._major_tick_kw.copy() # type: ignore
         y_minor = ax.yaxis._minor_tick_kw.copy() # type: ignore
 
-        if first_sharex and (y_major['tick2On'] or y_major['label2On']):
-            ax.xaxis.set_tick_params(which='major', reset=False, **y_major)
-        if first_sharex and (y_minor['tick2On'] or y_minor['label2On']):
-            ax.xaxis.set_tick_params(which='minor', reset=False, **y_minor)
-
-        if last_sharex and (y_major['tick1On'] or y_major['label1On']):
-            ax.xaxis.set_tick_params(which='major', reset=False, **y_major)
-        if last_sharex and (y_minor['tick1On'] or y_minor['label1On']):
-            ax.xaxis.set_tick_params(which='minor', reset=False, **y_minor)
+        ax.xaxis.set_tick_params(which='major', reset=False, **y_major)
+        ax.xaxis.set_tick_params(which='minor', reset=False, **y_minor)
+        ax.yaxis.set_tick_params(which='major', reset=False, **x_major)
+        ax.yaxis.set_tick_params(which='minor', reset=False, **x_minor)
         
-        if first_sharey and (x_major['tick1On'] or x_major['label1On']):
-            ax.yaxis.set_tick_params(which='major', reset=False, **x_major)
-        if first_sharey and (x_minor['tick1On'] or x_minor['label1On']):
-            ax.yaxis.set_tick_params(which='minor', reset=False, **x_minor)
-        
-        if last_sharey and (x_major['tick2On'] or x_major['label2On']):
-            ax.yaxis.set_tick_params(which='major', reset=False, **x_major)
-        if last_sharey and (x_minor['tick2On'] or x_minor['label2On']):
-            ax.yaxis.set_tick_params(which='minor', reset=False, **x_minor)
 
 _rocket_lut: List[List[float]] = [
     [ 0.01060815, 0.01808215, 0.10018654],
