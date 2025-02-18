@@ -969,37 +969,40 @@ class LinearModel:
         return False
     
     def predict(
-            self, xs: List[float], intercept: Literal[0, 1] = 1,
-            negate: bool = False) -> float:
+            self,
+            xs: Dict[str, Any],
+            negate: bool = False) -> DataFrame:
         """Predict y with given xs. Ensure that all non interactions are 
         given in xs
         
         Parameters
         ----------
-        xs : array_like
-            The values for which you want to predict. Make sure the 
-            order matches the `main_features` property.
-        intercept : Literal[0, 1], optional
-            Factor level for the intercept, either 0 or 1, by default 1
+        xs : Dict[str, Any]
+            The values for which you want to predict. Make sure that all
+            non interactions are given in xs. If multiple values are to 
+            be predicted, provide a list of values for each factor level.
         negate : bool, optional
             If True, the predicted value is negated (used for 
             optimization), by default False
             
         Returns
         -------
-        y : float
-            Predicted value
+        DataFrame
+            A DataFrame containing the predicted values for the given
+            values of the predictor variables.
         """
-        assert len(xs) == len(self.main_features), (
-            f'Please provide a value for each main feature')
-        
-        X = np.zeros(len(self._term_names_))
-        for i, feature in enumerate(self._term_names_):
-            if ANOVA.SEP not in feature:
-                X[i] = xs[i]
-        X[-1] = intercept
-        y = float(self.model.predict(pd.DataFrame([X], columns=features))) # type: ignore
-        return -y if negate else y
+        xs = {
+            self.input_map[n]: v if isinstance(v, list) else [v]
+            for n, v in xs.items()}
+
+        for f in self.main_features:
+            assert f in xs, (
+                f'Please provide a value for "{self.input_rmap[f]}"')
+
+        df_pred = pd.DataFrame(xs)
+        y = self.model.predict(df_pred)
+        df_pred[self.target] = -y if negate else y
+        return df_pred
     
     def residual_data(self) -> DataFrame:
         """
