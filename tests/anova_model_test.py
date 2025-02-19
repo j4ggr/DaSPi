@@ -11,6 +11,8 @@ from pandas.testing import assert_frame_equal
 from pandas.core.frame import DataFrame
 from statsmodels.regression.linear_model import RegressionResultsWrapper
 
+from daspi.anova.model import LinearModel
+
 sys.path.append(str(Path(__file__).parent.resolve()))
 
 from daspi import load_dataset
@@ -376,3 +378,42 @@ class TestLinearModel:
 
         lm3.eliminate('x2[T.2.2]')
         assert 'x2' in lm3.excluded
+
+    def test_optimize_default_initial_values(
+            self, lm3: LinearModel, lm4: LinearModel) -> None:
+        lm3.fit()
+        optimized_values = lm3.optimize()
+        assert isinstance(optimized_values, dict)
+        assert 'A' in optimized_values
+        assert 'B' in optimized_values
+        assert 'C' in optimized_values
+        assert 'D' in optimized_values
+
+        lm4.fit()
+        optimized_values = lm4.optimize()
+        assert isinstance(optimized_values, dict)
+        assert 'A' in optimized_values
+        assert 'B' in optimized_values
+        assert 'C' in optimized_values
+        assert 'D' in optimized_values
+
+    def test_optimize_initial_values(self, lm3: LinearModel) -> None:
+        lm3.fit()
+        optimized_values = lm3.optimize(
+            initial_values={'A': 'c', 'B': 2, 'C': False, 'D': 5.0})
+        assert isinstance(optimized_values, dict)
+        assert 'A' in optimized_values
+        assert 'B' in optimized_values
+        assert 'C' in optimized_values
+        assert 'D' in optimized_values
+    
+    def test_optimize_maximize(self, lm4: LinearModel) -> None:
+        lm4.fit()
+        optimized_values = lm4.optimize(
+            initial_values={'A': 'c', 'B': 2, 'C': False, 'D': 5.0},
+            maximize=True)
+        assert isinstance(optimized_values, dict)
+        assert 'A' in optimized_values
+        assert 'B' in optimized_values
+        assert 'C' in optimized_values
+        assert 'D' in optimized_values

@@ -187,11 +187,17 @@ class LinearModel:
     missing, Patsy will automatically add all one-hot encoded levels for
     a categorical variable to compensate for this missing term. This 
     will result in extremely high VIFs.
+
+    Terminology
+    -----------
+    - feature: The original name as it appears in the provided data.
+    - term: The name of the term as it appears in the design matrix.
+    - parameter: The term name in connection with a coefficient.
     """
     __slots__ = (
         'data', 'target', 'categorical', 'continuous', '_model', '_alpha',
-        'skip_intercept_as_least', 'generalized_vif', 'input_map', 'input_rmap',
-        'output_map', 'excluded', 'level_map', '_initial_terms_', '_p_values',
+        'skip_intercept_as_least', 'generalized_vif', 'feature_map', 'term_map',
+        'target_map', 'excluded', '_initial_terms_', '_p_values',
         '_anova', '_effects', '_vif')
     data: DataFrame
     """The Pandas DataFrame containing the data for the linear model."""
@@ -215,13 +221,13 @@ class LinearModel:
     _model: RegressionResultsWrapper | None
     """The regression results of the fitted model. This property raises 
     an AssertionError if no model has been fitted yet."""
-    input_map: Dict[str, str]
+    feature_map: Dict[str, str]
     """A dictionary that maps the original feature names to the encoded 
-    feature names used in the model."""
-    input_rmap: Dict[str, str]
-    """A dictionary that maps the encoded feature names back to the 
-    original feature names used in the model."""
-    output_map: Dict[str, str]
+    names (term) used in the model."""
+    term_map: Dict[str, str]
+    """A dictionary that maps term names (the encoded names) back to 
+    the original feature names used in the model."""
+    target_map: Dict[str, str]
     """A dictionary that maps the original feature names to the encoded 
     feature names used in the model."""
     excluded: Set[str]
@@ -274,13 +280,13 @@ class LinearModel:
         self.target = target
         self.categorical = categorical
         self.continuous = continuous
-        self.output_map = {target: 'y'}
+        self.target_map = {target: 'y'}
         _categorical = [f'x{i}' for i in range(len(categorical))]
         _continuous = [f'e{i}' for i in range(len(continuous))]
-        self.input_map = (
+        self.feature_map = (
             {f: _f for f, _f in zip(categorical, _categorical)}
             | {c: _c for c, _c in zip(continuous, _continuous)})
-        self.input_rmap = {v: k for k, v in self.input_map.items()}
+        self.term_map = {v: k for k, v in self.feature_map.items()}
         self.alpha = alpha
         self.skip_intercept_as_least = skip_intercept_as_least
         self.generalized_vif = generalized_vif
@@ -288,11 +294,11 @@ class LinearModel:
         self._model = None
         self.data = (source
             .copy()
-            .rename(columns=self.input_map|self.output_map))
+            .rename(columns=self.feature_map|self.target_map))
         if encode_categoricals:
             self.data[_categorical] = self.data[_categorical].astype('category')
         model_desc = ModelDesc.from_formula(
-            f'{self.output_map[self.target]}~'
+            f'{self.target_map[self.target]}~'
             + ('*'.join(_categorical))
             + ('+'.join(['', *_continuous]) if _continuous else ''))
         terms = model_desc.describe().split(' ~ ')[1].split(' + ')
@@ -317,7 +323,7 @@ class LinearModel:
         less than or equal to the specified order.
         """
         initial_formula = (
-            f'{self.output_map[self.target]} ~ '
+            f'{self.target_map[self.target]} ~ '
             + ' + '.join(self._initial_terms_))
         return initial_formula
     
@@ -368,7 +374,9 @@ class LinearModel:
     def main_features(self) -> List[str]:
         """Get all main parameters of current model excluding intercept
         (read-only)."""
-        return [n for n in self._term_names_ if is_main_feature(n)]
+        main_features = [
+            self.term_map[n] for n in self._term_names_ if is_main_feature(n)]
+        return main_features
     
     @property
     def formula(self) -> str:
@@ -385,7 +393,7 @@ class LinearModel:
         terms = [t for t in self._initial_terms_ if t not in ignore]
         if ANOVA.INTERCEPT in self.excluded:
             terms = ['-1'] + terms
-        return f'{self.output_map[self.target]} ~ {" + ".join(terms)}'
+        return f'{self.target_map[self.target]} ~ {" + ".join(terms)}'
     
     @property
     def effect_threshold(self) -> float:
@@ -422,7 +430,7 @@ class LinearModel:
     
     def _convert_single_term_name_(self, term_name: str) -> str:
         """Convert the single term name using the original names stored
-        in `input_rmap`.
+        in `term_map`.
 
         Parameters
         ----------
@@ -438,7 +446,7 @@ class LinearModel:
         split = term_name.split(sep)
         if len(split) > 2:
             split = [sep.join(split[:-1]), split[-1]]
-        split[0] = self.input_rmap.get(split[0], split[0])
+        split[0] = self.term_map.get(split[0], split[0])
         return sep.join(split)
 
     def _convert_term_name_(self, term_name: str) -> str:
@@ -688,7 +696,7 @@ class LinearModel:
             If the given term is not in the model.
         """ 
         term = ANOVA.SEP.join(map(
-            lambda x: get_term_name(self.input_map.get(x, x)),
+            lambda x: get_term_name(self.feature_map.get(x, x)),
             term.split(ANOVA.SEP)))
         assert term in self._term_names_, f'Given term {term} is not in model'
         self.excluded.add(term)
@@ -970,8 +978,7 @@ class LinearModel:
     
     def predict(
             self,
-            xs: Dict[str, Any],
-            negate: bool = False) -> DataFrame:
+            xs: Dict[str, Any]) -> DataFrame:
         """Predict y with given xs. Ensure that all non interactions are 
         given in xs
         
@@ -981,9 +988,6 @@ class LinearModel:
             The values for which you want to predict. Make sure that all
             non interactions are given in xs. If multiple values are to 
             be predicted, provide a list of values for each factor level.
-        negate : bool, optional
-            If True, the predicted value is negated (used for 
-            optimization), by default False
             
         Returns
         -------
@@ -991,17 +995,14 @@ class LinearModel:
             A DataFrame containing the predicted values for the given
             values of the predictor variables.
         """
+        for feature in self.main_features:
+            assert feature in xs, (
+                f'Please provide a value for "{feature}"')
         xs = {
-            self.input_map[n]: v if isinstance(v, list) else [v]
+            self.feature_map[n]: v if isinstance(v, list) else [v]
             for n, v in xs.items()}
-
-        for f in self.main_features:
-            assert f in xs, (
-                f'Please provide a value for "{self.input_rmap[f]}"')
-
         df_pred = pd.DataFrame(xs)
-        y = self.model.predict(df_pred)
-        df_pred[self.target] = -y if negate else y
+        df_pred[self.target] = self.model.predict(df_pred)
         return df_pred
     
     def residual_data(self) -> DataFrame:
