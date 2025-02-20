@@ -226,8 +226,10 @@ KW = _Kw_()
 @dataclass(frozen=True)
 class _Regex_:
 
-    ENCODED_NAME: Pattern = re.compile(r'(\w+)\[[T.]?\S+\]')
+    ENCODED_NAME: Pattern = re.compile(r'(.+)\[[T.]?\S+\]')
     """Patsy encoded column name."""
+    ENCODED_VALUE: Pattern = re.compile(r'\[T.(.+)]')
+    """Patsy encoded value shown in parameter name."""
 
 RE = _Regex_()
 

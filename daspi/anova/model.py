@@ -82,7 +82,6 @@ from numpy.linalg import LinAlgError
 from pandas.core.frame import DataFrame
 from patsy.design_info import DesignInfo
 from pandas.core.series import Series
-from scipy.optimize._optimize import OptimizeResult
 from statsmodels.iolib.table import SimpleTable
 from statsmodels.iolib.summary import forg
 from statsmodels.iolib.summary import Summary
@@ -98,6 +97,7 @@ from .tables import terms_effect
 from .tables import terms_probability
 from .tables import variance_inflation_factor
 
+from ..constants import RE
 from ..constants import ANOVA
 
 from ..strings import STR
@@ -153,7 +153,7 @@ class LinearModel:
     with all factor levels, including their interactions. All
     non-significant factors can then be automatically eliminated.
     Furthermore, this class allows the examination of main effects, 
-    the sum of squares (explained variation), and the Anova table in 
+    the sum of squares (explained variation), and the ANOVA table in 
     more detail.
     
     Parameters
@@ -190,9 +190,12 @@ class LinearModel:
 
     Terminology
     -----------
-    - feature: The original name as it appears in the provided data.
-    - term: The name of the term as it appears in the design matrix.
-    - parameter: The term name in connection with a coefficient.
+    - feature: 
+      The original name as it appears in the provided data.
+    - term:
+      The name of the term as it appears in the design matrix.
+    - parameter:
+      The variable names in connection with a coefficient.
     """
     __slots__ = (
         'data', 'target', 'categorical', 'continuous', '_model', '_alpha',
@@ -232,9 +235,6 @@ class LinearModel:
     feature names used in the model."""
     excluded: Set[str]
     """A set of feature names that should be excluded from the model."""
-    level_map: Dict[Any, Any]
-    """A dictionary that maps the original feature names to their 
-    encoded versions used in the model."""
     _initial_terms_: List[LiteralString]
     """The list of initial terms used in the linear model. These terms 
     include the categorical features and continuous features up to the 
@@ -294,7 +294,7 @@ class LinearModel:
         self._model = None
         self.data = (source
             .copy()
-            .rename(columns=self.feature_map|self.target_map))
+            .rename(columns=self.feature_map | self.target_map))
         if encode_categoricals:
             self.data[_categorical] = self.data[_categorical].astype('category')
         model_desc = ModelDesc.from_formula(
@@ -676,20 +676,60 @@ class LinearModel:
             summary.tables.append(table)
         return summary
     
-    def eliminate(self, term: str) -> Self:
-        """Removes the given term from the model by adding it to the 
-        `exclude` set.
+    def eliminate(self, feature: str) -> Self:
+        """Removes the given feature from the model by adding it to the 
+        `exclude` set. Call `fit` to refit the model.
         
         Parameters
         ----------
-        term : str
-            The term to be removed from the model.
+        feature : str
+            The feature name or the interaction of multiple features
+            to be removed from the model.
         
         Returns
         -------
         Self
             The current instance of the model for more method chaining.
         
+        Examples
+        --------
+
+        Prepare a LinearModel instance, fit the model and plot the 
+        relevance of the parameters. If you run the following code in
+        a Jupyter Notebook, the plot and the html representation of the
+        model will be displayed.
+
+        ``` python
+        import pandas as pd
+        import daspi as dsp
+
+        df = dsp.load_dataset('aspirin-dissolution')
+        lm = dsp.LinearModel(
+                source=df,
+                target='dissolution',
+                categorical=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+                continuous=['temperature', 'preparation'],
+                alpha=0.05,
+                order=3,
+                encode_categoricals=False
+            ).fit()
+        dsp.ParameterRelevanceCharts(lm).plot().stripes().label()
+        lm
+        ```
+        Now remove the least significant term from the model and refit.
+        Repeat the process until the model contains only significant
+        terms.
+        
+        ``` python
+        lm.eliminate('stirrer:brand:catalyst').fit()
+        dsp.ParameterRelevanceCharts(lm).plot().stripes().label()
+        lm
+        ```
+
+        To add again a feature to the model, use the `include` method.
+        For an automatic elimination of insignificant terms, use the
+        'recursive_feature_elimination' method.
+
         Raises
         ------
         AssertionError: 
@@ -697,14 +737,52 @@ class LinearModel:
         """ 
         term = ANOVA.SEP.join(map(
             lambda x: get_term_name(self.feature_map.get(x, x)),
-            term.split(ANOVA.SEP)))
+            feature.split(ANOVA.SEP)))
         assert term in self._term_names_, f'Given term {term} is not in model'
         self.excluded.add(term)
         return self
 
+    def include(self, feature: str) -> Self:
+        """Adds the given feature to the model by removing it from the
+        `excluded` set. Call `fit` to refit the model.
+
+        Parameters
+        ----------
+        feature : str
+            The feature name or the interaction of multiple features
+            to be added to the model.
+        
+        Returns
+        -------
+        Self
+            The current instance of the model for more method chaining.
+        
+        Examples
+        --------
+        See `eliminate` method. After removing a term from the model,
+        you can add it again by using the `include` method.
+
+        ``` python
+        lm.include('C').fit()
+        dsp.ParameterRelevanceCharts(lm).plot().stripes().label()
+        lm
+        ```
+        """
+        term = ANOVA.SEP.join(map(
+            lambda x: get_term_name(self.feature_map.get(x, x)),
+            feature.split(ANOVA.SEP)))
+        if term not in self.excluded:
+            warnings.warn(
+                f'Given feature {feature} was not excluded from model')
+        self.excluded.discard(term)
+        return self
+
     def recursive_feature_elimination(
-            self, rsquared_max: float = 0.99, ensure_hierarchy: bool = True,
-            **kwds) -> Generator[DataFrame, Any, None]:
+            self,
+            rsquared_max: float = 0.99,
+            ensure_hierarchy: bool = True,
+            **kwds
+            ) -> Generator[DataFrame, Any, None]:
         """Perform a recursive feature elimination on the fitted model.
         
         This function starts with the complete model and recursively 
@@ -730,6 +808,37 @@ class LinearModel:
         DataFrame
             The goodness-of-fit metrics at each step of the recursive 
             feature elimination.
+        
+        Examples
+        --------
+
+        Prepare a LinearModel instance, fit the model, automatically
+        eliminate insignificant terms and plot the relevance of the
+        parameters and the residuals. In the DataFrame df_gof you can 
+        see when which feature was removed and the current 
+        goodness-of-fit values can also be viewed. If you run the 
+        following code in  a Jupyter Notebook, the plots and the html 
+        representation of the model will be displayed.
+
+        ``` python
+        import pandas as pd
+        import daspi as dsp
+
+        df = dsp.load_dataset('aspirin-dissolution')
+        lm = dsp.LinearModel(
+                source=df,
+                target='dissolution',
+                categorical=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+                continuous=['temperature', 'preparation'],
+                alpha=0.05,
+                order=3,
+                encode_categoricals=False
+            ).fit()
+        df_gof = pd.concat(list(lm.recursive_feature_elimination()))
+        dsp.ParameterRelevanceCharts(lm).plot().stripes().label(info=True)
+        dsp.ResidualsCharts(lm).plot().stripes().label(info=True)
+        lm
+        ```
         """
         self._model = None
         self.excluded = set()
@@ -845,8 +954,15 @@ class LinearModel:
                     typ = 'III'
                 else:
                     typ = 'I'
-            self._anova = anova_table(self.model, typ=typ)
-        
+            try:
+                self._anova = anova_table(self.model, typ=typ)
+            except ValueError:
+                warnings.warn(
+                    f"ANOVA table could not be computed with type {typ}."
+                    " Using type III instead.",
+                    RuntimeWarning)
+                self._anova = anova_table(self.model, typ='III')
+
         if vif:
             self.variance_inflation_factor()
             idx = [i for i in self._vif.index if i in self._anova.index]
@@ -976,6 +1092,16 @@ class LinearModel:
                 return True
         return False
     
+    @staticmethod
+    def _as_tuple_(value: Any) -> Tuple:
+        """Ensure that the given value is a tuple."""
+        if isinstance(value, tuple):
+            return value
+        elif isinstance(value, (list, set)):
+            return tuple(value)
+        else:
+            return (value,)
+
     def predict(
             self,
             xs: Dict[str, Any]) -> DataFrame:
@@ -999,12 +1125,93 @@ class LinearModel:
             assert feature in xs, (
                 f'Please provide a value for "{feature}"')
         xs = {
-            self.feature_map[n]: v if isinstance(v, list) else [v]
-            for n, v in xs.items()}
+            self.feature_map[f]: self._as_tuple_(v) for f, v in xs.items()}
         df_pred = pd.DataFrame(xs)
         df_pred[self.target] = self.model.predict(df_pred)
-        return df_pred
+        return df_pred.rename(columns=self.term_map)
     
+    def optimize(
+            self,
+            maximize: bool = True,
+            bounds: Dict[str, Any] = {},) -> Dict[str, Any]:
+        """Optimize the prediction by optimizing the parameters.
+
+        Parameters
+        ----------
+        maximize : bool, optional
+            Whether to maximize the prediction or minimize it.
+        bounds : Dict[str, Any], optional
+            Bounds for the parameters to optimize.
+            - You can freeze a paramater by setting it to the desired 
+              value. For example, to fix the value of a parameter to 1, 
+              you can set bounds = {'param_name': 1}.
+            - To keep an ordinal or metric parameter within a specific
+              range, you can set bounds = {'param_name': (lower, upper)}.
+              For example, to constrain a parameter to be between 0 and 
+              1, you can set bounds = {'param_name': (0, 1)}.
+            - In order to limit the selection of a nominal parameter 
+              only to a certain subset of the originally conained values,
+              you can set bounds = {'param_name': (val1, val2, ...)}.
+              For example, to limit the selection of a nominal parameter
+              to the values 'A' and 'B', you can set 
+              bounds = {'param_name': ('A', 'B')}.
+
+        Returns
+        -------
+        Dict[str, Any]
+            The optimized parameters.
+        """
+        minimize = not maximize
+        bounds = {k: self._as_tuple_(v) for k, v in bounds.items()}
+        xs_optimized = {k: v[0] for k, v in bounds.items() if len(v) == 1}
+
+        coefficients = (self
+            .parameter_statistics()
+            .drop(ANOVA.INTERCEPT, axis=0, errors='ignore')
+            .sort_values(by='coef', ascending=not maximize)
+            ['coef'])
+        
+
+        for parameter, beta_i in coefficients.items():
+            for main_parameter in str(parameter).split(ANOVA.SEP):
+                nominal = RE.ENCODED_NAME.findall(main_parameter)
+                feature = nominal[0] if nominal else main_parameter
+                term = self.feature_map[feature]
+
+                if feature in xs_optimized:
+                    continue
+
+                if nominal:
+                    if (maximize and beta_i < 0) or (minimize and beta_i > 0):
+                        x = self.data[term].iloc[0]
+                    else:
+                        x = pd.Series(
+                            RE.ENCODED_VALUE.findall(main_parameter),
+                            dtype=self.data[term].dtype
+                            )[0]
+                    if x not in bounds.get(feature, (x,)):
+                        continue
+
+                else:
+                    x_lower = self.data[term].min()
+                    x_upper = self.data[term].max()
+                    if feature in bounds:
+                        assert len(bounds[feature]) == 2, (
+                            f'Bounds for {feature} must be a tuple of length 2.')
+                        _lower, _upper = bounds[feature]
+                        assert _lower <= _upper, (
+                            f'Lower bound {_lower} must be less than or equal '
+                            f'to upper bound {_upper}.')
+                        assert _lower >= x_lower and _upper <= x_upper, (
+                            f'Bounds for {feature} must be within the range of '
+                            f'the data ({x_lower}, {x_upper}).')
+                        x_lower, x_upper = _lower, _upper
+
+                    x = x_upper if maximize else x_lower
+                
+                xs_optimized[feature] = x
+        return xs_optimized
+
     def residual_data(self) -> DataFrame:
         """
         Get the residual data from the fitted model.
