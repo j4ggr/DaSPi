@@ -14,6 +14,28 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.3.0] - 2025-02-12
+
+### Fixed
+
+- PairComparisonChart failed when plotting MeanTest, because of n_groups was not set.
+- The method anova() of LinearModel class failed for typ "I" under certain conditions. Automatically changed to "III" for the moment.
+- The function transpose_xy_axes_params() did wrong stuff if axes were shared
+
+### Changed
+
+- Dependency of matplotlib to >= 3.10.0
+- Method description() of Estimator class now returns a DataFrame instead of a Series.
+- Terminology for "term", "feature" and "parameter" at LinearModel class so that it is used consistently across all methods.
+
+### Added
+
+- Method include() for LinearModel class to re include a parameter.
+- Method optimize() for LinearModel class to optimize the model.
+- Method predict() for LinearModel class to predict the response.
+- Examples for LinearModel class.
+- Example for chart templates.
+
 ## [1.2.0] - 2025-02-12
 
 ### Fixed
