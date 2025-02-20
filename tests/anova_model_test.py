@@ -406,16 +406,60 @@ class TestLinearModel:
 
     def test_predict_invalid_data(self, lm: LinearModel) -> None:
         lm.fit()
-        with pytest.raises(AssertionError, match=r'Please provide a value for "A"'):
+        with pytest.raises(
+                AssertionError,
+                match=r'Please provide a value for "A"'):
             lm.predict({})
         
-        with pytest.raises(AssertionError, match=r'Please provide a value for "C"'):
+        with pytest.raises(
+                AssertionError,
+                match=r'Please provide a value for "C"'):
             lm.predict({'A': 1, 'B': 1, 'bad': 1})
 
-        with pytest.raises(AssertionError, match=r'"foo" is not a main parameter of the model.'):
+        with pytest.raises(
+                AssertionError,
+                match=r'"foo" is not a main parameter of the model.'):
             lm.predict({'A': 1, 'B': 1, 'C': 1, 'bad': 1, 'foo': 1})
     
     def test_optimize(self, lm: LinearModel) -> None:
         lm.fit().eliminate('bad').fit()
         assert lm.optimize(maximize=True) == {'A': 1, 'B': 1, 'C': 18.1}
         assert lm.optimize(maximize=False) == {'A': 0, 'B': -1, 'C': 3.1}
+
+    def test_optimize_bounds(self, lm: LinearModel) -> None:
+        lm.fit().eliminate('bad').fit()
+        bounds={'A': (0, 1), 'B': (-1, 1), 'C': (10, 15)}
+        xs_max = lm.optimize(maximize=True, bounds=bounds)
+        assert xs_max['A'] in bounds['A']
+        assert xs_max['B'] in bounds['B']
+        assert xs_max['C'] == 15
+
+        xs_min = lm.optimize(maximize=False, bounds=bounds)
+        assert xs_min['A'] in bounds['A']
+        assert xs_min['A'] != xs_max['A']
+        assert xs_min['B'] in bounds['B']
+        assert xs_min['B'] != xs_max['B']
+        assert xs_min['C'] == 10
+
+        bounds={'A': 1, 'C': 13}
+        xs_single_max = lm.optimize(maximize=True, bounds=bounds)
+        assert xs_single_max['A'] == 1
+        assert xs_single_max['C'] == 13
+
+        xs_single_min = lm.optimize(maximize=False, bounds=bounds)
+        assert xs_single_min['A'] == 1
+        assert xs_single_min['B'] != xs_single_max['B']
+        assert xs_single_min['C'] == 13
+    
+    def test_optimize_invalid_bounds(self, lm: LinearModel) -> None:
+        lm.fit().eliminate('bad').fit()
+
+        with pytest.raises(
+                AssertionError,
+                match=r'Bounds for "C" must be a tuple of length 2.'):
+            lm.optimize(maximize=True, bounds={'C': (15, 18, 30)})
+        
+        with pytest.raises(
+                AssertionError,
+                match=r'Bounds for "C" must be within the range of the data'):
+            lm.optimize(maximize=True, bounds={'C': (20, 15)})

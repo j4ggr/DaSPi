@@ -1222,17 +1222,13 @@ class LinearModel:
                 else:
                     x_lower = self.data[term].min()
                     x_upper = self.data[term].max()
-                    if feature in bounds:
-                        assert len(bounds[feature]) == 2, (
-                            f'Bounds for {feature} must be a tuple of length 2.')
+                    if parameter in bounds:
+                        assert len(bounds[parameter]) == 2, (
+                            f'Bounds for "{parameter}" must be a tuple of length 2.')
                         
-                        _lower, _upper = bounds[feature]
-                        assert _lower <= _upper, (
-                            f'Lower bound {_lower} must be less than or equal '
-                            f'to upper bound {_upper}.')
-                        
+                        _lower, _upper = sorted(bounds[parameter])
                         assert _lower >= x_lower and _upper <= x_upper, (
-                            f'Bounds for {feature} must be within the range of '
+                            f'Bounds for "{parameter}" must be within the range of '
                             f'the data ({x_lower}, {x_upper}).')
                         
                         x_lower, x_upper = _lower, _upper
