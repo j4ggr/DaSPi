@@ -7,13 +7,15 @@ continuous variables.
 The class takes three main inputs:
 
 - source: A pandas DataFrame containing the tabular data in a long 
-format, which will be used for the model.
+  format, which will be used for the model.
 - target: The name of the column in the DataFrame that represents the 
-endogenous (dependent) variable.
-- categorical: A list of column names in the DataFrame that represent 
-the categorical exogenous (independent) variables.
-- Additionally, it can take an optional input continuous, which is a 
-list of column names representing continuous exogenous variables.
+  endogenous (dependent) variable.
+- features: A list of column names in the DataFrame that represent 
+  the exogenous (independent) variables.
+- Additionally, it can take an optional input disturbances, which is a 
+  list of column names representing exogenous variables that are logged 
+  but cannot be influenced. No interactions are created for these
+  variables.
 
 The purpose of this class is to create a linear model that includes all 
 factor levels and their interactions, and then automatically eliminate 
@@ -24,31 +26,31 @@ relevant features are included.
 To achieve this, the class follows these steps:
 
 1. It encodes the design matrix with all factor levels and their 
-interactions.
+    interactions.
 2. It fits a linear model using the encoded design matrix and the 
-provided data.
+    provided data.
 3. It calculates the p-values for each factor and interaction,
-indicating their significance in the model.
+    indicating their significance in the model.
 4. It provides methods to recursively eliminate non-significant factors 
-or interactions based on their p-values, until only significant features 
-remain.
+    or interactions based on their p-values, until only significant features 
+    remain.
 
 The class also provides methods to analyze the model in more detail, 
 such as:
 
 - Calculating the sum of squares (explained variation) for each factor 
-and interaction.
+  and interaction.
 - Generating an ANOVA (Analysis of Variance) table to assess the 
-significance of each factor and interaction.
+  significance of each factor and interaction.
 - Calculating the effects (impact) of each factor and interaction on the 
-target variable.
+  target variable.
 - Checking if the model is hierarchical (i.e., if all lower-order 
-interactions are included when higher-order interactions are present).
+  interactions are included when higher-order interactions are present).
 - The main output of this class is a simplified linear model that 
-includes only the significant features. Additionally, it provides 
-various statistics and metrics related to the model, such as the ANOVA 
-table, p-values, effects, and goodness-of-fit measures 
-(e.g., R-squared, adjusted R-squared, AIC).
+  includes only the significant features. Additionally, it provides 
+  various statistics and metrics related to the model, such as the ANOVA 
+  table, p-values, effects, and goodness-of-fit measures 
+  (e.g., R-squared, adjusted R-squared, AIC).
 
 The class achieves its purpose through a combination of linear 
 regression techniques, statistical hypothesis testing, and recursive 
@@ -89,8 +91,8 @@ from statsmodels.iolib.summary import summary_params_frame
 from statsmodels.iolib.tableformatting import fmt_base
 from statsmodels.regression.linear_model import RegressionResultsWrapper
 
-from .convert import get_term_name
 from .convert import frames_to_html
+from .convert import get_term_name
 
 from .tables import anova_table
 from .tables import terms_effect
@@ -103,45 +105,45 @@ from ..constants import ANOVA
 from ..strings import STR
 
 
-def is_main_feature(feature: str) -> bool:
-    """Check if given feature is a main parameter (intercept is 
+def is_main_parameter(parameter: str) -> bool:
+    """Check if given parameter is a main parameter (intercept is 
     excluded)."""
-    return feature != ANOVA.INTERCEPT and ANOVA.SEP not in feature
+    return parameter != ANOVA.INTERCEPT and ANOVA.SEP not in parameter
 
-def get_order(feature: str) -> int:
-    """Get the order of a feature (i.e., how many interactions it
+def get_order(parameter: str) -> int:
+    """Get the order of a parameter (i.e., how many interactions it
     contains)."""
-    return feature.count(ANOVA.SEP) + 1
+    return parameter.count(ANOVA.SEP) + 1
 
-def hierarchical(features: List[str]) -> List[str]:
-    """Get all features such that all lower interactions and main 
-    effects are present with the same features that appear in the higher 
-    interactions
+def hierarchical(parameters: List[str]) -> List[str]:
+    """Get all parameters such that all lower interactions and main 
+    effects are present with the same parameters that appear in the 
+    higher interactions
 
     Parameters
     ----------
-    features : list of str
+    parameters : list of str
         Columns of exogene variables
     
     Returns
     -------
-    h_features : list of str
+    h_parameters : list of str
         Sorted features for hierarchical model"""
 
-    h_features = set(features)
-    for feature in features:
-        split = feature.split(ANOVA.SEP)
+    h_parameters = set(parameters)
+    for parameter in parameters:
+        split = parameter.split(ANOVA.SEP)
         n_splits = len(split)
         for s in split:
-            h_features.add(s)
+            h_parameters.add(s)
         if n_splits <= ANOVA.SMALLEST_INTERACTION:
             continue
 
         for i in range(ANOVA.SMALLEST_INTERACTION, n_splits):
             for combo in map(ANOVA.SEP.join, itertools.combinations(split, i)):
-                h_features.add(combo)
+                h_parameters.add(combo)
 
-    return sorted(sorted(h_features), key=get_order)
+    return sorted(sorted(h_parameters), key=get_order)
 
 
 class LinearModel:
@@ -163,10 +165,13 @@ class LinearModel:
         model.
     target : str
         Column name of the endogenous variable.
-    categorical : List[str]
-        Column names of the categorical exogenous variables.
-    continuous : List[str], optional
-        Column names for continuous exogenous variables.
+    features : List[str]
+        Column names of the exogenous variables that can be actively 
+        changed (factor levels for DOE or EVOP). Interactions are also 
+        created for these variables if the order is set > 1.
+    disturbances : List[str], optional
+        Column names for exogenous variables that are logged but cannot 
+        be influenced. No interactions are created for these variables.
     alpha : float, optional
         Threshold as alpha risk. All features, including continuous and 
         intercept, that have a p-value smaller than alpha are removed 
@@ -174,42 +179,50 @@ class LinearModel:
     skip_intercept_as_least : bool, optional
         If True, the intercept is not removed as a least significant 
         term when using recursive feature elimination. Also if True, the
-        intercept does not appear when calling the `least_term` method,
+        intercept does not appear when calling the `least_parameter` method,
         by default True.
-    encode_categoricals : bool, optional
-        If True, all of the categorical variables are encoded using
-        one-hot encoding. Otherwise they are interpreted as continuous
-        variables when possible, by default True.
+    encode_features : bool, optional
+        If True, all of the provided feature variables are encoded using
+        one-hot encoding by changing the data type to category. 
+        Otherwise they are interpreted as continuous variables when 
+        possible, by default True.
     
     Notes
     -----
     Always be careful when removing the intercept. If the intercept is 
     missing, Patsy will automatically add all one-hot encoded levels for
     a categorical variable to compensate for this missing term. This 
-    will result in extremely high VIFs.
+    will result in extremely high VIFs. That means that the parameters
+    are not linearly independent.
 
     Terminology
     -----------
     - feature: 
       The original name as it appears in the provided data.
     - term:
-      The name of the term as it appears in the design matrix.
+      The name of the term as it appears in the design matrix. All 
+      feature names are converted to "xi" where i is an ascending 
+      number. The name of the first feature becomes "x0", the second 
+      becomes "x1",... The disturbance variables are also converted in 
+      the same way, but instead of the letter "x" the letter "e" is 
+      used.
     - parameter:
-      The variable names in connection with a coefficient.
+      The variable names in connection with a coefficient, but in the
+      composition with the original feature names.
     """
     __slots__ = (
-        'data', 'target', 'categorical', 'continuous', '_model', '_alpha',
-        'skip_intercept_as_least', 'generalized_vif', 'feature_map', 'term_map',
-        'target_map', 'excluded', '_initial_terms_', '_p_values',
-        '_anova', '_effects', '_vif')
+        'data', 'target', 'features', 'disturbances', '_model', '_alpha',
+        'skip_intercept_as_least', 'generalized_vif', 'feature_map', 
+        'main_term_map', 'target_map', 'excluded', '_initial_terms', 
+        '_p_values', '_anova', '_effects', '_vif')
     data: DataFrame
     """The Pandas DataFrame containing the data for the linear model."""
     target: str
     """The name of the target variable for the linear model."""
-    categorical: List[str]
-    """The list of categorical feature names used in the linear model."""
-    continuous: List[str]
-    """The list of continuous exogenous variables used in the linear 
+    features: List[str]
+    """The list of features used in the linear model."""
+    disturbances: List[str]
+    """The list of disturbances variables used in the linear 
     model."""
     _alpha: float
     """The alpha risk threshold used for automatic elimination of 
@@ -227,18 +240,18 @@ class LinearModel:
     feature_map: Dict[str, str]
     """A dictionary that maps the original feature names to the encoded 
     names (term) used in the model."""
-    term_map: Dict[str, str]
-    """A dictionary that maps term names (the encoded names) back to 
-    the original feature names used in the model."""
+    main_term_map: Dict[str, str]
+    """A dictionary that maps the main term names (no interactions) back 
+    to the original feature names used in the model."""
     target_map: Dict[str, str]
     """A dictionary that maps the original feature names to the encoded 
     feature names used in the model."""
     excluded: Set[str]
     """A set of feature names that should be excluded from the model."""
-    _initial_terms_: List[LiteralString]
+    _initial_terms: List[LiteralString]
     """The list of initial terms used in the linear model. These terms 
-    include the categorical features and continuous features up to the 
-    specified interaction order."""
+    include the encoded names of disturbances and the features with all 
+    interactions up to the specified interaction order."""
     _p_values: 'Series[float]'
     """The `_p_values` attribute is a Pandas Series that stores the 
     p-values for the features in the linear regression model. This 
@@ -266,27 +279,27 @@ class LinearModel:
             self,
             source: DataFrame,
             target: str,
-            categorical: List[str],
-            continuous: List[str] = [],
+            features: List[str],
+            disturbances: List[str] = [],
             alpha: float = 0.05,
             order: int = 1,
             skip_intercept_as_least: bool = True,
             generalized_vif: bool = True,
-            encode_categoricals: bool = True) -> None:
+            encode_features: bool = True) -> None:
         assert order > 0 and isinstance(order, int), (
             'Interaction order must be a positive integer')
-        for column in categorical + continuous:
-            assert column in source, f'{column=} not found in source!'
+        for column in features + disturbances:
+            assert column in source, f'Column {column} not found in source!'
         self.target = target
-        self.categorical = categorical
-        self.continuous = continuous
+        self.features = features
+        self.disturbances = disturbances
         self.target_map = {target: 'y'}
-        _categorical = [f'x{i}' for i in range(len(categorical))]
-        _continuous = [f'e{i}' for i in range(len(continuous))]
+        f_main_terms = [f'x{i}' for i in range(len(features))]
+        d_main_terms = [f'e{i}' for i in range(len(disturbances))]
         self.feature_map = (
-            {f: _f for f, _f in zip(categorical, _categorical)}
-            | {c: _c for c, _c in zip(continuous, _continuous)})
-        self.term_map = {v: k for k, v in self.feature_map.items()}
+            {f: _f for f, _f in zip(features, f_main_terms)}
+            | {c: _c for c, _c in zip(disturbances, d_main_terms)})
+        self.main_term_map = {v: k for k, v in self.feature_map.items()}
         self.alpha = alpha
         self.skip_intercept_as_least = skip_intercept_as_least
         self.generalized_vif = generalized_vif
@@ -295,14 +308,14 @@ class LinearModel:
         self.data = (source
             .copy()
             .rename(columns=self.feature_map | self.target_map))
-        if encode_categoricals:
-            self.data[_categorical] = self.data[_categorical].astype('category')
+        if encode_features:
+            self.data[f_main_terms] = self.data[f_main_terms].astype('category')
         model_desc = ModelDesc.from_formula(
             f'{self.target_map[self.target]}~'
-            + ('*'.join(_categorical))
-            + ('+'.join(['', *_continuous]) if _continuous else ''))
+            + ('*'.join(f_main_terms))
+            + ('+'.join(['', *d_main_terms]) if d_main_terms else ''))
         terms = model_desc.describe().split(' ~ ')[1].split(' + ')
-        self._initial_terms_ = [
+        self._initial_terms = [
             t for t in terms if t.count(ANOVA.SEP) < order]
         self._reset_tables_()
         
@@ -324,7 +337,7 @@ class LinearModel:
         """
         initial_formula = (
             f'{self.target_map[self.target]} ~ '
-            + ' + '.join(self._initial_terms_))
+            + ' + '.join(self._initial_terms))
         return initial_formula
     
     @property
@@ -353,30 +366,31 @@ class LinearModel:
         return self.model.model.data.design_info
     
     @property
-    def _term_names_(self) -> List[str]:
-        """Get the internal names of all terms variables for the current 
+    def terms(self) -> List[str]:
+        """Get the encoded names of all variables for the current 
         fitted model (read-only)."""
         return self.model.model.data.design_info.term_names
     
     @property
-    def term_names(self) -> List[str]:
-        """Get the names of all terms variables for the current fitted 
-        model (read-only)."""
-        return list(map(self._convert_term_name_, self._term_names_))
+    def parameters(self) -> List[str]:
+        """Get the names of all variables for the current fitted 
+        model in the composition using the original feature and 
+        disturbances names (read-only)."""
+        return list(map(self._convert_term_name_, self.terms))
 
     @property
-    def _term_map_(self) -> Dict[str, str]:
+    def term_map(self) -> Dict[str, str]:
         """Get the names of all internal used and original terms 
         variables for the current fitted model as dict (read-only)"""
-        return {n: self._convert_term_name_(n) for n in self._term_names_}
+        return {n: self._convert_term_name_(n) for n in self.terms}
     
     @property
-    def main_features(self) -> List[str]:
+    def main_parameters(self) -> List[str]:
         """Get all main parameters of current model excluding intercept
         (read-only)."""
-        main_features = [
-            self.term_map[n] for n in self._term_names_ if is_main_feature(n)]
-        return main_features
+        main_parameters = [
+            self.main_term_map[n] for n in self.terms if is_main_parameter(n)]
+        return main_parameters
     
     @property
     def formula(self) -> str:
@@ -390,7 +404,7 @@ class LinearModel:
             return self.initial_formula
     
         ignore = list(self.excluded) + [ANOVA.INTERCEPT]
-        terms = [t for t in self._initial_terms_ if t not in ignore]
+        terms = [t for t in self._initial_terms if t not in ignore]
         if ANOVA.INTERCEPT in self.excluded:
             terms = ['-1'] + terms
         return f'{self.target_map[self.target]} ~ {" + ".join(terms)}'
@@ -446,7 +460,7 @@ class LinearModel:
         split = term_name.split(sep)
         if len(split) > 2:
             split = [sep.join(split[:-1]), split[-1]]
-        split[0] = self.term_map.get(split[0], split[0])
+        split[0] = self.main_term_map.get(split[0], split[0])
         return sep.join(split)
 
     def _convert_term_name_(self, term_name: str) -> str:
@@ -473,8 +487,7 @@ class LinearModel:
     
     def is_hierarchical(self) -> bool:
         """Check if current fitted model is hierarchical."""
-        hierarchical_terms = hierarchical(self._term_names_)
-        return all([term in self._term_names_ for term in hierarchical_terms])
+        return all(term in self.terms for term in hierarchical(self.terms))
     
     def effects(self) -> Series:
         """Calculates the impact of each term on the target. The
@@ -482,7 +495,7 @@ class LinearModel:
         coefficients devided by its standard error."""
         if self._effects.empty:
             self._effects = terms_effect(self.model)
-        effects = self._effects.copy().rename(index=self._term_map_)
+        effects = self._effects.copy().rename(index=self.term_map)
         return effects
 
     def p_values(self) -> 'Series[float]':
@@ -490,16 +503,18 @@ class LinearModel:
         anova typ III table for current model."""
         if self._p_values.empty:
             self._p_values = terms_probability(self.model)
-        return self._p_values.copy().rename(index=self._term_map_)
+        return self._p_values.copy().rename(index=self.term_map)
 
-    def least_term(self) -> str:
-        """Get the term name with the least effect or the least p-value
-        coming from a ANOVA typ III table of current fitted model.
+    def least_parameter(self) -> str:
+        """Get the parameter name with the least effect or the least 
+        p-value coming from a ANOVA typ III table of current fitted 
+        model.
 
         Returns
         -------
         str
-            The term name with the least effect or the least p-value.
+            The parameter name with the least p_value if possible
+            or the parameter name with the least effect.
 
         Notes
         -----
@@ -528,14 +543,14 @@ class LinearModel:
     
     def fit(self, **kwds) -> Self:
         """Create and fit a ordinary least squares model using current 
-        formula. Then  Finally calculate 
-        the impact of each term on the target.
+        formula. To fit with a user-defined formula, use the 
+        `formula` keyword argument.
         
         Parameters
         ----------
         **kwds
-            Additional keyword arguments for `ols` function of 
-            `statsmodels.formula.api`.
+            Pass formula and other keyword arguments to `ols` function
+            of `statsmodels.formula.api`.
         """
         self._reset_tables_()
         formula = kwds.pop('formula', self.formula)
@@ -597,7 +612,7 @@ class LinearModel:
         ----------
         index : int | str
             Value is set as index. When using the method 
-            recursive_feature_elimination, the current step is passed as
+            recursive_elimination, the current step is passed as
             index
         
         Returns
@@ -610,7 +625,7 @@ class LinearModel:
             - 'aic' = Akaike's information criteria
             - 'r2' = R-squared of the model
             - 'r2_adj' = adjusted R-squared
-            - 'least_term' = the least significant term
+            - 'least_parameter' = the least significant term
             - 'p_least' = The p-value of least significant term, coming
             from ANOVA table Type-III.
             - 'hierarchical' = True if model is hierarchical
@@ -619,7 +634,7 @@ class LinearModel:
         data = {
             'formula': self.formula,
             'hierarchical': self.is_hierarchical(),
-            'least_term': self._convert_term_name_(self.least_term()),
+            'least_parameter': self.least_parameter(),
             'p_least': self.p_values().max(),
             's': self.uncertainty,
             'aic': self.model.aic,
@@ -631,7 +646,8 @@ class LinearModel:
     def summary(
             self, 
             anova_typ: Literal['', 'I', 'II', 'III', None] = None,
-            vif: bool = True, **kwds
+            vif: bool = True,
+            **kwds
             ) -> Summary:
         """Generate a summary of the fitted model.
 
@@ -676,15 +692,15 @@ class LinearModel:
             summary.tables.append(table)
         return summary
     
-    def eliminate(self, feature: str) -> Self:
-        """Removes the given feature from the model by adding it to the 
-        `exclude` set. Call `fit` to refit the model.
+    def eliminate(self, parameter: str) -> Self:
+        """Removes the given parameter from the model by adding it to t
+        he `exclude` set. Call `fit` to refit the model.
         
         Parameters
         ----------
-        feature : str
-            The feature name or the interaction of multiple features
-            to be removed from the model.
+        parameter : str
+            The feature name, the disturbances name or the interaction 
+            of multiple features to be removed from the model.
         
         Returns
         -------
@@ -693,7 +709,6 @@ class LinearModel:
         
         Examples
         --------
-
         Prepare a LinearModel instance, fit the model and plot the 
         relevance of the parameters. If you run the following code in
         a Jupyter Notebook, the plot and the html representation of the
@@ -707,8 +722,8 @@ class LinearModel:
         lm = dsp.LinearModel(
                 source=df,
                 target='dissolution',
-                categorical=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
-                continuous=['temperature', 'preparation'],
+                features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+                disturbances=['temperature', 'preparation'],
                 alpha=0.05,
                 order=3,
                 encode_categoricals=False
@@ -728,7 +743,14 @@ class LinearModel:
 
         To add again a feature to the model, use the `include` method.
         For an automatic elimination of insignificant terms, use the
-        'recursive_feature_elimination' method.
+        'recursive_elimination' method.
+
+        Notes
+        -----
+        Always be careful when removing the intercept. If the intercept is 
+        missing, Patsy will automatically add all one-hot encoded levels for
+        a categorical variable to compensate for this missing term. This 
+        will result in extremely high VIFs.
 
         Raises
         ------
@@ -737,20 +759,21 @@ class LinearModel:
         """ 
         term = ANOVA.SEP.join(map(
             lambda x: get_term_name(self.feature_map.get(x, x)),
-            feature.split(ANOVA.SEP)))
-        assert term in self._term_names_, f'Given term {term} is not in model'
+            parameter.split(ANOVA.SEP)))
+        assert term in self.terms, (
+            f'Given term {term} is not in model')
         self.excluded.add(term)
         return self
 
-    def include(self, feature: str) -> Self:
+    def include(self, parameter: str) -> Self:
         """Adds the given feature to the model by removing it from the
         `excluded` set. Call `fit` to refit the model.
 
         Parameters
         ----------
-        feature : str
-            The feature name or the interaction of multiple features
-            to be added to the model.
+        parameter : str
+            The feature name, the disturbances name or the interaction 
+            of multiple features to be added to the model.
         
         Returns
         -------
@@ -770,24 +793,24 @@ class LinearModel:
         """
         term = ANOVA.SEP.join(map(
             lambda x: get_term_name(self.feature_map.get(x, x)),
-            feature.split(ANOVA.SEP)))
+            parameter.split(ANOVA.SEP)))
         if term not in self.excluded:
             warnings.warn(
-                f'Given feature {feature} was not excluded from model')
+                f'Given parameter {parameter} was not excluded from model')
         self.excluded.discard(term)
         return self
 
-    def recursive_feature_elimination(
+    def recursive_elimination(
             self,
             rsquared_max: float = 0.99,
             ensure_hierarchy: bool = True,
             **kwds
             ) -> Generator[DataFrame, Any, None]:
-        """Perform a recursive feature elimination on the fitted model.
+        """Perform a recursive parameter elimination on the fitted model.
         
         This function starts with the complete model and recursively 
-        eliminates features based on their p-values, until only 
-        significant features remain in the model. The function yields 
+        eliminates parameters based on their p-values, until only 
+        significant parameters remain in the model. The function yields 
         the goodness-of-fit metrics at each step of the elimination
         process.
         
@@ -828,13 +851,13 @@ class LinearModel:
         lm = dsp.LinearModel(
                 source=df,
                 target='dissolution',
-                categorical=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
-                continuous=['temperature', 'preparation'],
+                features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+                disturbances=['temperature', 'preparation'],
                 alpha=0.05,
                 order=3,
                 encode_categoricals=False
             ).fit()
-        df_gof = pd.concat(list(lm.recursive_feature_elimination()))
+        df_gof = pd.concat(list(lm.recursive_elimination()))
         dsp.ParameterRelevanceCharts(lm).plot().stripes().label(info=True)
         dsp.ResidualsCharts(lm).plot().stripes().label(info=True)
         lm
@@ -843,11 +866,11 @@ class LinearModel:
         self._model = None
         self.excluded = set()
         self.fit(**kwds)
-        max_steps = len(self._term_names_)
+        max_steps = len(self.terms)
         step = -1
         for step in range(max_steps):
             if self.has_insignificant_term(rsquared_max):
-                self.eliminate(self.least_term())
+                self.eliminate(self.least_parameter())
                 self.fit(**kwds)
                 yield self.gof_metrics(step)
             else:
@@ -858,8 +881,8 @@ class LinearModel:
         
         if ensure_hierarchy and not self.is_hierarchical():
             step = step + 1
-            h_features = hierarchical(self._term_names_)
-            self.excluded = {e for e in self.excluded if e not in h_features}
+            h_parameters = hierarchical(self.terms)
+            self.excluded = {e for e in self.excluded if e not in h_parameters}
             self.fit(**kwds)
             yield self.gof_metrics(step)
     
@@ -1034,12 +1057,12 @@ class LinearModel:
         if self._vif.empty:
             self._vif = variance_inflation_factor(
                 self.model, threshold, generalized=self.generalized_vif)
-        return self._vif.copy().rename(index=self._term_map_)
+        return self._vif.copy().rename(index=self.term_map)
 
-    def highest_features(self) -> List[str]:
+    def highest_features(self) -> List[str]: # TODO: Change Name
         """Get all main and interaction features that do not appear in a 
         higher interaction. Covariates are not taken into account here."""
-        _features = [f for f in self.term_names if not f.startswith('e')]
+        _features = [p for p in self.parameters if not p.startswith('e')]
         features_splitted = sorted(
             [f.split(ANOVA.SEP) for f in _features], 
             key=len, reverse=True)
@@ -1072,7 +1095,7 @@ class LinearModel:
             False otherwise.
         """
         n_terms_min = 2 if self.skip_intercept_as_least else 1
-        if len(self._term_names_) == n_terms_min:
+        if len(self.terms) == n_terms_min:
             return False
         
         if all(self.p_values().isna()):
@@ -1102,9 +1125,7 @@ class LinearModel:
         else:
             return (value,)
 
-    def predict(
-            self,
-            xs: Dict[str, Any]) -> DataFrame:
+    def predict(self, xs: Dict[str, Any]) -> DataFrame:
         """Predict y with given xs. Ensure that all non interactions are 
         given in xs
         
@@ -1112,8 +1133,9 @@ class LinearModel:
         ----------
         xs : Dict[str, Any]
             The values for which you want to predict. Make sure that all
-            non interactions are given in xs. If multiple values are to 
-            be predicted, provide a list of values for each factor level.
+            non interaction parameters are given in xs. If multiple 
+            values are to be predicted, provide a list of values for 
+            each factor level.
             
         Returns
         -------
@@ -1121,19 +1143,25 @@ class LinearModel:
             A DataFrame containing the predicted values for the given
             values of the predictor variables.
         """
-        for feature in self.main_features:
-            assert feature in xs, (
-                f'Please provide a value for "{feature}"')
+        for parameter in self.main_parameters:
+            assert parameter in xs, (
+                f'Please provide a value for "{parameter}"')
+        
+        for x in xs.keys():
+            assert x in self.main_parameters, (
+                f'"{x}" is not a main parameter of the model.')
+        
         xs = {
             self.feature_map[f]: self._as_tuple_(v) for f, v in xs.items()}
         df_pred = pd.DataFrame(xs)
         df_pred[self.target] = self.model.predict(df_pred)
-        return df_pred.rename(columns=self.term_map)
+        return df_pred.rename(columns=self.main_term_map)
     
     def optimize(
             self,
             maximize: bool = True,
-            bounds: Dict[str, Any] = {},) -> Dict[str, Any]:
+            bounds: Dict[str, Any] = {}
+            ) -> Dict[str, Any]:
         """Optimize the prediction by optimizing the parameters.
 
         Parameters
@@ -1170,9 +1198,8 @@ class LinearModel:
             .drop(ANOVA.INTERCEPT, axis=0, errors='ignore')
             .sort_values(by='coef', ascending=not maximize)
             ['coef'])
-        
 
-        for parameter, beta_i in coefficients.items():
+        for parameter, coef in coefficients.items():
             for main_parameter in str(parameter).split(ANOVA.SEP):
                 nominal = RE.ENCODED_NAME.findall(main_parameter)
                 feature = nominal[0] if nominal else main_parameter
@@ -1182,7 +1209,7 @@ class LinearModel:
                     continue
 
                 if nominal:
-                    if (maximize and beta_i < 0) or (minimize and beta_i > 0):
+                    if (maximize and coef < 0) or (minimize and coef > 0):
                         x = self.data[term].iloc[0]
                     else:
                         x = pd.Series(
@@ -1198,13 +1225,16 @@ class LinearModel:
                     if feature in bounds:
                         assert len(bounds[feature]) == 2, (
                             f'Bounds for {feature} must be a tuple of length 2.')
+                        
                         _lower, _upper = bounds[feature]
                         assert _lower <= _upper, (
                             f'Lower bound {_lower} must be less than or equal '
                             f'to upper bound {_upper}.')
+                        
                         assert _lower >= x_lower and _upper <= x_upper, (
                             f'Bounds for {feature} must be within the range of '
                             f'the data ({x_lower}, {x_upper}).')
+                        
                         x_lower, x_upper = _lower, _upper
 
                     x = x_upper if maximize else x_lower
@@ -1223,12 +1253,17 @@ class LinearModel:
 
         Examples
         --------
-        >>> import daspi
-        >>> df = daspi.load_dataset('partial_factorial')
-        >>> target = 'Yield'
-        >>> features = [c for c in df.columns if c != target]
-        >>> lm = LinearModel(df, target, features).fit()
-        >>> print(lm.residual_data())
+        
+        ``` python
+        import daspi
+        df = daspi.load_dataset('partial_factorial')
+        target = 'Yield'
+        features = [c for c in df.columns if c != target]
+        lm = LinearModel(df, target, features).fit()
+        print(lm.residual_data())
+        ```
+
+        ```
             Observation      Residuals  Prediction
         0             0  9.250000e+00       46.75
         1             1  2.000000e+00       51.00
@@ -1246,6 +1281,7 @@ class LinearModel:
         13           13 -3.250000e+00       63.25
         14           14  9.250000e+00       85.75
         15           15  4.500000e+00       77.50
+        ```
         """
         data = self.model.resid
         data.name = ANOVA.RESIDUAL

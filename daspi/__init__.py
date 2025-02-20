@@ -181,7 +181,7 @@ from .anova.tables import variance_inflation_factor
 
 from .anova.model import hierarchical
 from .anova.model import LinearModel
-from .anova.model import is_main_feature
+from .anova.model import is_main_parameter
 
 
 from .datasets import load_dataset

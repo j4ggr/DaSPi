@@ -47,24 +47,24 @@ class TestHierarchical:
 class TestIsMainFeature:
 
     def test_basics(self) -> None:
-        assert is_main_feature('A') == True
-        assert is_main_feature('B') == True
-        assert is_main_feature('Intercept') == False
-        assert is_main_feature('A:B') == False
-        assert is_main_feature('A:B:C') == False
+        assert is_main_parameter('A') == True
+        assert is_main_parameter('B') == True
+        assert is_main_parameter('Intercept') == False
+        assert is_main_parameter('A:B') == False
+        assert is_main_parameter('A:B:C') == False
 
     def test_empty(self) -> None:
-        assert is_main_feature('') == True
+        assert is_main_parameter('') == True
 
     def test_whitespace(self) -> None:
-        assert is_main_feature(' ') == True
-        assert is_main_feature('  ') == True
+        assert is_main_parameter(' ') == True
+        assert is_main_parameter('  ') == True
 
     def test_separator(self) -> None:
-        assert is_main_feature(':') == False
-        assert is_main_feature('A:') == False
-        assert is_main_feature('A:B') == False
-        assert is_main_feature('A:B:C') == False
+        assert is_main_parameter(':') == False
+        assert is_main_parameter('A:') == False
+        assert is_main_parameter('A:B') == False
+        assert is_main_parameter('A:B:C') == False
 
 
 
@@ -78,12 +78,12 @@ def lm() -> LinearModel:
         'bad': [0, 0, 0, 0, 0, 0],
         'Target': [11, 19, 30, 42, 49, 50]})
     target = 'Target'
-    categorical = ['A', 'B', 'C', 'bad']
-    continuous = []
+    features = ['A', 'B', 'C', 'bad']
+    disturbances = []
     alpha = 0.05
     return LinearModel(
-        source, target, categorical, continuous, alpha,
-        order=1, encode_categoricals=False)
+        source, target, features, disturbances, alpha,
+        order=1, encode_features=False)
 
 @pytest.fixture
 def lm2() -> LinearModel:
@@ -95,12 +95,12 @@ def lm2() -> LinearModel:
         'bad': [0, 0, 0, 0, 0, 0],
         'Target': [11, 19, 30, 42, 49, 50]})
     target = 'Target'
-    categorical = ['A', 'B', 'C', 'bad']
-    continuous = []
+    features = ['A', 'B', 'C', 'bad']
+    disturbances = []
     alpha = 0.05
     return LinearModel(
-        source, target, categorical, continuous, alpha,
-        order=4, encode_categoricals=False, skip_intercept_as_least=True)
+        source, target, features, disturbances, alpha,
+        order=4, encode_features=False, skip_intercept_as_least=True)
 
 @pytest.fixture
 def lm3() -> LinearModel:
@@ -112,12 +112,12 @@ def lm3() -> LinearModel:
         'D': [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
         'Target': [10, 20, 30, 40, 50, 60]})
     target = 'Target'
-    categorical = ['A', 'B', 'C']
-    continuous = ['D']
+    features = ['A', 'B', 'C']
+    disturbances = ['D']
     alpha = 0.05
     return LinearModel(
-        source, target, categorical, continuous, alpha,
-        order=1, encode_categoricals=False)
+        source, target, features, disturbances, alpha,
+        order=1, encode_features=False)
 
 @pytest.fixture
 def lm4() -> LinearModel:
@@ -129,12 +129,12 @@ def lm4() -> LinearModel:
         'D': [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
         'Target': [10, 20, 30, 40, 50, 60]})
     target = 'Target'
-    categorical = ['A', 'B', 'C']
-    continuous = ['D']
+    features = ['A', 'B', 'C']
+    disturbances = ['D']
     alpha = 0.05
     return LinearModel(
-        source, target, categorical, continuous, alpha,
-        order=3, encode_categoricals=False)
+        source, target, features, disturbances, alpha,
+        order=3, encode_features=False)
 
 @pytest.fixture
 def anova3_c_valid() -> DataFrame:
@@ -160,11 +160,11 @@ class TestLinearModel:
             'x3': [0, 0, 0, 0, 0, 0],
             'y': [11, 19, 30, 42, 49, 50]}), check_dtype=False)
         assert lm.target == 'Target'
-        assert lm.categorical == ['A', 'B', 'C', 'bad']
-        assert lm.continuous == []
+        assert lm.features== ['A', 'B', 'C', 'bad']
+        assert lm.disturbances== []
         assert lm.alpha == 0.05
-        assert lm.output_map == {'Target': 'y'}
-        assert lm.input_map == {'A': 'x0', 'B': 'x1', 'C': 'x2', 'bad': 'x3'}
+        assert lm.target_map == {'Target': 'y'}
+        assert lm.feature_map == {'A': 'x0', 'B': 'x1', 'C': 'x2', 'bad': 'x3'}
         assert lm.excluded == set()
         assert lm._model is None
     
@@ -193,13 +193,13 @@ class TestLinearModel:
         lm.fit()
         assert isinstance(lm.model, RegressionResultsWrapper)
 
-    def test_least_term(self, lm: LinearModel, lm4: LinearModel) -> None:
+    def test_least_parameter(self, lm: LinearModel, lm4: LinearModel) -> None:
         lm4.fit()
         assert all(lm4.p_values().isna())
-        assert lm4.least_term() == 'A:B:C'
+        assert lm4.least_parameter() == 'A:B:C'
 
         p_values = lm.fit().p_values()
-        least = lm.least_term()
+        least = lm.least_parameter()
         assert any(p_values.isna())
         assert p_values.max() > 0.05
         assert p_values.idxmax() != least
@@ -208,19 +208,19 @@ class TestLinearModel:
         p_values = lm.eliminate('bad').fit().p_values()
         assert not any(p_values.isna())
         assert p_values.max() > 0.05
-        assert lm.least_term() == 'A'
+        assert lm.least_parameter() == 'A'
 
-    def test_main_features_property(self, lm2: LinearModel) -> None:
+    def test_main_parameters_property(self, lm2: LinearModel) -> None:
         lm2.fit()
-        assert lm2.main_features == ['x0', 'x1', 'x2', 'x3']
+        assert lm2.main_parameters == ['A', 'B', 'C', 'bad']
         formula = ''
         gof = pd.DataFrame()
-        for i, _gof in enumerate(lm2.recursive_feature_elimination()):
+        for i, _gof in enumerate(lm2.recursive_elimination()):
             assert _gof.loc[i, 'formula'] != formula
             formula = _gof.loc[i, 'formula']
             gof = pd.concat([gof, _gof])
         assert gof['p_least'].iloc[-2] >= lm2.alpha
-        assert lm2.main_features == ['x2']
+        assert lm2.main_parameters == ['C']
 
     def test_alpha_property(self, lm: LinearModel) -> None:
         assert lm.alpha == 0.05
@@ -328,7 +328,7 @@ class TestLinearModel:
             'Center': [1, 0, 1, 0, 0, 0]})
         lm = LinearModel(
                 data, 'Ergebnis', ['A', 'B'], ['Center'], order=2, 
-                encode_categoricals=False
+                encode_features=False
             ).fit()
         assert lm.r2_pred(), approx(0.350426519634100657)
     
@@ -378,42 +378,44 @@ class TestLinearModel:
 
         lm3.eliminate('x2[T.2.2]')
         assert 'x2' in lm3.excluded
-
-    def test_optimize_default_initial_values(
-            self, lm3: LinearModel, lm4: LinearModel) -> None:
-        lm3.fit()
-        optimized_values = lm3.optimize()
-        assert isinstance(optimized_values, dict)
-        assert 'A' in optimized_values
-        assert 'B' in optimized_values
-        assert 'C' in optimized_values
-        assert 'D' in optimized_values
-
-        lm4.fit()
-        optimized_values = lm4.optimize()
-        assert isinstance(optimized_values, dict)
-        assert 'A' in optimized_values
-        assert 'B' in optimized_values
-        assert 'C' in optimized_values
-        assert 'D' in optimized_values
-
-    def test_optimize_initial_values(self, lm3: LinearModel) -> None:
-        lm3.fit()
-        optimized_values = lm3.optimize(
-            initial_values={'A': 'c', 'B': 2, 'C': False, 'D': 5.0})
-        assert isinstance(optimized_values, dict)
-        assert 'A' in optimized_values
-        assert 'B' in optimized_values
-        assert 'C' in optimized_values
-        assert 'D' in optimized_values
     
-    def test_optimize_maximize(self, lm4: LinearModel) -> None:
-        lm4.fit()
-        optimized_values = lm4.optimize(
-            initial_values={'A': 'c', 'B': 2, 'C': False, 'D': 5.0},
-            maximize=True)
-        assert isinstance(optimized_values, dict)
-        assert 'A' in optimized_values
-        assert 'B' in optimized_values
-        assert 'C' in optimized_values
-        assert 'D' in optimized_values
+    def test_include_term(self, lm3: LinearModel) -> None:
+        lm3.fit().eliminate('A').fit()
+        assert 'x0' in lm3.excluded
+        assert 'A' not in lm3.anova().index
+        
+        lm3.include('A').fit()
+        assert 'x0' not in lm3.excluded
+        assert 'A' in lm3.anova().index
+
+    def test_include_interaction_term(self, lm4: LinearModel) -> None:
+        lm4.fit().eliminate('A:B').fit()
+        assert 'x0:x1' in lm4.excluded
+        assert 'A:B' not in lm4.parameters
+
+        lm4.include('A:B').fit()
+        assert 'x0:x1' not in lm4.excluded
+        assert 'A:B' in lm4.parameters
+
+    def test_predict(self, lm: LinearModel) -> None:
+        lm.fit().eliminate('bad').fit()
+        prediction = lm.predict({'A': 1, 'B': 0, 'C': 18.1})[lm.target][0]
+        assert prediction > 45.0
+        prediction = lm.predict({'A': 1, 'B': -1, 'C': 3.1})[lm.target][0]
+        assert prediction < 15.0
+
+    def test_predict_invalid_data(self, lm: LinearModel) -> None:
+        lm.fit()
+        with pytest.raises(AssertionError, match=r'Please provide a value for "A"'):
+            lm.predict({})
+        
+        with pytest.raises(AssertionError, match=r'Please provide a value for "C"'):
+            lm.predict({'A': 1, 'B': 1, 'bad': 1})
+
+        with pytest.raises(AssertionError, match=r'"foo" is not a main parameter of the model.'):
+            lm.predict({'A': 1, 'B': 1, 'C': 1, 'bad': 1, 'foo': 1})
+    
+    def test_optimize(self, lm: LinearModel) -> None:
+        lm.fit().eliminate('bad').fit()
+        assert lm.optimize(maximize=True) == {'A': 1, 'B': 1, 'C': 18.1}
+        assert lm.optimize(maximize=False) == {'A': 0, 'B': -1, 'C': 3.1}

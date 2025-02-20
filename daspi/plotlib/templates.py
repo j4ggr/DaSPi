@@ -73,11 +73,11 @@ class ParameterRelevanceCharts(JointChart):
     model = dsp.LinearModel(
         source=df,
         target='dissolution',
-        categorical=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
-        continuous=['temperature', 'preparation'],
+        features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+        disturbances=['temperature', 'preparation'],
         order=2)
     df_gof = pd.DataFrame()
-    for data_gof in model.recursive_feature_elimination():
+    for data_gof in model.recursive_elimination():
         df_gof = pd.concat([df_gof, data_gof])
     dsp.ParameterRelevanceCharts(model).plot().label(info=True)
     ```
@@ -206,11 +206,11 @@ class ResidualsCharts(JointChart):
     model = dsp.LinearModel(
         source=df,
         target='dissolution',
-        categorical=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
-        continuous=['temperature', 'preparation'],
+        features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+        disturbances=['temperature', 'preparation'],
         order=2)
     df_gof = pd.DataFrame()
-    for data_gof in model.recursive_feature_elimination():
+    for data_gof in model.recursive_elimination():
         df_gof = pd.concat([df_gof, data_gof])
     dsp.ResidualsCharts(model).plot().stripes().label(info=True)
     ```

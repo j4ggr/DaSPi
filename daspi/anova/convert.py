@@ -37,7 +37,7 @@ def get_term_name(name: str) -> str:
     print(term_name)
     ```
     
-    ``` console
+    ```
     'Category:OtherCategory'
     ```
     """
