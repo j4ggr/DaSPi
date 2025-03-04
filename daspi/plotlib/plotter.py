@@ -1576,7 +1576,7 @@ class CenterLocation(TransformPlotter):
     show_line : bool, optional
         Flag indicating whether to draw a line between the calculated 
         mean or median points, by default True
-    center_points : bool, optional
+    show_center : bool, optional
         Flag indicating whether to show the center points, 
         by default True.
     f_base : int | float, optional
@@ -1615,14 +1615,20 @@ class CenterLocation(TransformPlotter):
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
         used within chart objects).
+    
+    Note
+    ----
+    Be careful with the `show_center` and `show_line` flags. Either 
+    `show_center` or `show_line` must be True, otherwise this plot makes 
+    no sense. If both are False, nothing will be drawn.
     """
-    __slots__ = ('_kind', 'show_line', 'center_points')
+    __slots__ = ('_kind', 'show_line', 'show_center')
 
     _kind: Literal['mean', 'median']
     """The type of center to plot ('mean' or'median')."""
     show_line: bool
     """Whether to draw a line between the calculated means or medians."""
-    center_points: bool
+    show_center: bool
     """Whether to draw the center points."""
 
     def __init__(
@@ -1632,7 +1638,7 @@ class CenterLocation(TransformPlotter):
             feature: str = '',
             kind: Literal['mean', 'median'] = 'mean',
             show_line: bool = True,
-            center_points: bool = True,
+            show_center: bool = True,
             f_base: int | float = DEFAULT.FEATURE_BASE,
             skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
@@ -1645,7 +1651,7 @@ class CenterLocation(TransformPlotter):
         self._kind = 'mean'
         self.kind = kind
         self.show_line = show_line
-        self.center_points = center_points
+        self.show_center = show_center
         super().__init__(
             source=source,
             target=target,
@@ -1688,11 +1694,11 @@ class CenterLocation(TransformPlotter):
     
     @property
     def marker(self) -> str:
-        """Get the marker style for the center points if center_points
+        """Get the marker style for the center points if show_center
         is True, otherwise '' is returned (read-only)."""
         if self._marker is None:
             self._marker = DEFAULT.MARKER
-        return self._marker if self.center_points else ''
+        return self._marker if self.show_center else ''
     
     @property
     def linestyle(self) -> str:
