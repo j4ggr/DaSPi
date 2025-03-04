@@ -85,54 +85,6 @@ def frames_to_html(
     return html
 
 
-# TODO: implement optimizer in model
-# def optimize(
-#         fun: Callable, x0: List[float], negate: bool, columns: List[str], 
-#         mapper: dict, bounds: Bounds|None = None, **kwds
-#         ) -> Tuple[List[float], float, OptimizeResult]:
-#     """Base function for optimize output with scipy.optimize.minimize 
-#     function
-
-#     Parameters
-#     ----------
-#     fun : callable
-#         The objective function to be minimized.
-#     x0 : ndarray, shape (n,)
-#         Initial guess. Array of real elements of size (n,), where n is 
-#         the number of independent
-#     negate : bool
-#         If the function was created for maximization, the prediction is 
-#         negated here again
-#     mapper : dict or None
-#         - key: str = feature name of main level
-#         - value: dict = key: originals, value: codes
-#     bounds : scipy optimizer Bounds
-#         Bounds on variables
-#     **kwds
-#         Additional keyword arguments for `scipy.optimize.minimize`
-#         function.
-    
-#     Returns
-#     -------
-#     xs : ndarray
-#         Optimized values for independents
-#     y : float
-#         predicted output
-#     res : OptimizeResult
-#         The optimization result represented as a ``OptimizeResult`` object.
-#         Important attributes are: ``x`` the solution array, ``success`` a
-#         Boolean flag indicating if the optimizer exited successfully and
-#         ``message`` which describes the cause of the termination. See
-#         `OptimizeResult` for a description of other attributes.
-#     """
-#     if not bounds:
-#         bounds = Bounds(-np.ones(len(x0)), np.ones(len(x0))) # type: ignore
-#     res: OptimizeResult = minimize(fun, x0, bounds=bounds, **kwds)
-#     xs = [decode(x, mapper, c) for x, c in zip(res.x, columns)]
-#     y = -res.fun if negate else res.fun
-#     return xs, y, res
-
-
 __all__ = [
     'get_term_name',
     'frames_to_html',

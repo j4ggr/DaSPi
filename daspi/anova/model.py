@@ -1059,25 +1059,54 @@ class LinearModel:
                 self.model, threshold, generalized=self.generalized_vif)
         return self._vif.copy().rename(index=self.term_map)
 
-    def highest_features(self) -> List[str]: # TODO: Change Name
-        """Get all main and interaction features that do not appear in a 
-        higher interaction. Covariates are not taken into account here."""
-        _features = [p for p in self.parameters if not p.startswith('e')]
-        features_splitted = sorted(
-            [f.split(ANOVA.SEP) for f in _features], 
-            key=len, reverse=True)
+    def highest_parameters(
+            self,
+            features_only: bool = False) -> List[str]:
+        """Determines all main and interaction parameters that do not 
+        occur in a higher interaction in this constellation.
         
-        features = []
-        highest_level = len(features_splitted[0])
-        for f_split in features_splitted:
-            level = len(f_split)
-            if level == highest_level:
-                features.append(f_split)
-            else:
-                intersect = [i for f in features for i in set(f_split) & set(f)]
-                if len(intersect) < level:
-                    features.append(f_split)
-        return [ANOVA.SEP.join(f) for f in features]
+        Parameters
+        ----------
+        features_only : bool, optional
+            If true, intercept and interaction parameters are not 
+            returned. By default False.
+        
+        Returns
+        -------
+        List[str]
+            List of highest parameters.
+        """
+        splitted_params = sorted(
+            [p.split(ANOVA.SEP) for p in self.parameters], 
+            key=len,
+            reverse=True)
+        
+        _parameters: List[List[str]] = []
+        highest_order = len(splitted_params[0])
+        last_order = highest_order
+        current_params = []
+        for split in splitted_params:
+            order = len(split)
+            if order == highest_order:
+                _parameters.append(split)
+                continue
+
+            if last_order != order and current_params:
+                _parameters.extend(current_params.copy())
+                current_params = []
+
+            intersection_count = 0
+            for parameter in _parameters:
+                intersection_count += len(set(split) & set(parameter))
+            if intersection_count < order:
+                current_params.append(split)
+            last_order = order
+        
+        parameters= [ANOVA.SEP.join(p) for p in _parameters + current_params]
+        if features_only:
+            ignore = self.disturbances + [ANOVA.INTERCEPT]
+            parameters = [p for p in parameters if p not in ignore]
+        return parameters
     
     def has_insignificant_term(self, rsquared_max: float = 0.99) -> bool:
         """Check if the fitted model has any insignificant terms.
@@ -1108,10 +1137,11 @@ class LinearModel:
 
     def has_significant_interactions(self) -> bool:
         """True if fitted model has significant interactions."""
-        for feature in self.highest_features():
-            if ANOVA.SEP not in feature:
+        for parameter in self.highest_parameters():
+            if ANOVA.SEP not in parameter:
                 continue
-            if self.p_values()[feature] < self.alpha:
+            
+            if self.p_values()[parameter] < self.alpha:
                 return True
         return False
     

@@ -463,3 +463,30 @@ class TestLinearModel:
                 AssertionError,
                 match=r'Bounds for "C" must be within the range of the data'):
             lm.optimize(maximize=True, bounds={'C': (20, 15)})
+    
+    def test_highest_parameters(self, lm4: LinearModel) -> None:
+        lm4.fit()
+        parameters = lm4.highest_parameters(features_only=False)
+        assert parameters == ['A:B:C', ANOVA.INTERCEPT, 'D']
+        parameters = lm4.highest_parameters(features_only=True)
+        assert parameters == ['A:B:C']
+        
+        lm4.eliminate('A:B:C').fit()
+        parameters = lm4.highest_parameters(features_only=False)
+        assert parameters == [
+            'A:C', 'A:B', 'B:C', ANOVA.INTERCEPT, 'D']
+        parameters = lm4.highest_parameters(features_only=True)
+        assert parameters == ['A:C', 'A:B', 'B:C']
+        
+        lm4.eliminate('A:B').fit()
+        parameters = lm4.highest_parameters(features_only=False)
+        assert parameters == ['A:C', 'B:C', ANOVA.INTERCEPT, 'D']
+        parameters = lm4.highest_parameters(features_only=True)
+        assert parameters == ['A:C', 'B:C']
+        
+        lm4.eliminate('A:C').fit()
+        parameters = lm4.highest_parameters(features_only=False)
+        assert parameters == ['B:C', ANOVA.INTERCEPT, 'A', 'D']
+        parameters = lm4.highest_parameters(features_only=True)
+        assert parameters == ['B:C', 'A']
+            
