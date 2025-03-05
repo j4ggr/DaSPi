@@ -251,6 +251,23 @@ class SpreadOpacity:
         n = len(self.agreements)
         alphas = ((i + 1) * COLOR.FILL_ALPHA / n for i in range(n))
         return {q: a for q, a in zip(self.agreements[::-1], alphas)}
+    
+    def _kw_fill(
+            self,
+            color: str | Tuple,
+            agreement: float,
+            data: DataFrame
+            ) -> Dict[str, Any]:
+        """"""
+        alpha = self._alphas.get(agreement, COLOR.FILL_ALPHA)
+        kw = dict(
+            color=color,
+            alpha=alpha,
+            edgecolor=mcolors.to_rgb(color) + (alpha/2,),
+            linewidth=1,
+            where=data[PLOTTER.SUBGROUP]==agreement,
+            interpolate=False)
+        return kw
 
     def quantiles(self, target_data: Series) -> List[float]:
         """Calculate the quantiles in ascending order:
@@ -1469,11 +1486,11 @@ class TransformPlotter(Plotter):
         self._original_f_values = ()
         self.skip_na = skip_na
         
-        df = pd.DataFrame()
-        for _feature, _target in self.feature_grouped(source):
-            _data = self.transform(_feature, _target)
-            df = pd.concat([df, _data], axis=0)
-        df.reset_index(drop=True, inplace=True)
+        df =  pd.concat(
+            [self.transform(f, t) for f, t in self.feature_grouped(source)],
+            axis=0,
+            ignore_index=True)
+
         super().__init__(
             source=df,
             target=target,
@@ -2697,7 +2714,7 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
     @property
     def kw_default(self) -> Dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(color=self.color, interpolate=False)
+        kwds = dict(color=self.color)
         return kwds
     
     def width_values(self) -> NDArray:
@@ -2757,12 +2774,7 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
             lower = group[PLOTTER.LOWER]
             upper = group[PLOTTER.UPPER]
             for agreement in group[PLOTTER.SUBGROUP].unique():
-                _kwds = (
-                    self.kw_default
-                    | dict(
-                        alpha=self._alphas[agreement],
-                        where=group[PLOTTER.SUBGROUP]==agreement)
-                    | kwds)
+                _kwds = self._kw_fill(self.color, agreement, group) | kwds
                 if self.target_on_y:
                     self.ax.fill_betweenx(quantiles, lower, upper, **_kwds)
                 else:
@@ -2885,19 +2897,18 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
         self.strategy= 'data'
         self.agreements = agreements
         self.possible_dists = DIST.COMMON
-        self._height = height
         self._stretch = stretch
         self.n_points = n_points
         self.fill = fill
-        feature = PLOTTER.TRANSFORMED_FEATURE
-        _feature = kwds.pop('feature')
-        if not ignore_feature and _feature:
-            feature = _feature
+        if not ignore_feature and kwds.get('feature', False):
+            height = height if height else CATEGORY.FEATURE_SPACE
+        else:
+            kwds['feature'] = PLOTTER.TRANSFORMED_FEATURE
+        self._height = height
         f_base = kwds.pop('f_base', DEFAULT.FEATURE_BASE)
         super().__init__(
             source=source,
             target=target,
-            feature=feature,
             f_base=f_base,
             skip_na=skip_na,
             target_on_y=target_on_y,
@@ -2911,7 +2922,7 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
     def kw_default(self) -> Dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
         kwds = dict(
-            color=self.color,)
+            color=COLOR.DARKEN if self.fill else self.color,)
         return kwds
     
     @property
@@ -2965,21 +2976,36 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
                 height=self.height,
                 base=feature_data,
                 n_points=self.n_points)
-            
+        
+        ones = np.ones(len(sequence))
         if self.highlight_quantiles and not isinstance(sequence, list):
             quantiles = self.quantiles(target_data)
             subgroups = self.subgroup_values(sequence, quantiles)
         else:
-            subgroups = np.zeros(len(sequence))
+            subgroups = 0 * ones
 
         data = pd.DataFrame({
             self.target: sequence,
             self.feature: estimation,
             PLOTTER.SUBGROUP: subgroups,
-            PLOTTER.F_BASE_NAME: feature_data * np.ones(len(sequence))})
+            PLOTTER.F_BASE_NAME: feature_data * ones})
         return data
+    
+    def _get_lower_estimation_(
+        self, f_base: float | int, estim_upp: Series) -> Series:
+        """Get the lower estimation of the kernel density. For the KDE 
+        it is just a straight line at the location of the feature base. 
+        For Violine the upper kernel density estimate is mirrored at the
+        feature base."""
+        if self.__class__.__name__ == 'Violine':
+            estim_low = 2*f_base - estim_upp
+        else:
+            estim_low = pd.Series(
+                f_base * np.ones(len(estim_upp)),
+                index=estim_upp.index)
+        return estim_low
         
-    def __call__(self, kw_line: Dict[str, Any] = {}, **kw_fill) -> None:
+    def __call__(self, kw_line: Dict[str, Any] = {}, **kwds) -> None:
         """Perform the plotting operation.
 
         The estimated kernel density is plotted as a line. The curves 
@@ -2991,26 +3017,30 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
         kw_line : Dict[str, Any], optional
             Additional keyword arguments for the axes `plot` method,
             by default {}.
-        **kw_fill : Dict[str, Any], optional
+        **kwds : Dict[str, Any], optional
             Additional keyword arguments for the axes `fill_between`
             method, by default {}.
         """
         _kw_line = self.kw_default | kw_line
-        self.ax.plot(self.x, self.y, **_kw_line)
-        if self.fill:
-            for agreement in self.source[PLOTTER.SUBGROUP].unique():
-                _kw_fill = (
-                    self.kw_default
-                    | dict(
-                        alpha=self._alphas.get(agreement, COLOR.FILL_ALPHA),
-                        where=self.source[PLOTTER.SUBGROUP]==agreement)
-                    | kw_fill)
+        for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME):
+            estim_upp = group[self.feature]
+            estim_low = self._get_lower_estimation_(f_base, estim_upp) # type: ignore
+            sequence = group[self.target]
+            
+            for agreement in group[PLOTTER.SUBGROUP].unique():
+                _kwds = self._kw_fill(self.color, agreement, group) | kwds
                 if self.target_on_y:
-                    self.ax.fill_betweenx(
-                        self.y, self._f_base, self.x, **_kw_fill)
+                    if self.fill:
+                        self.ax.fill_betweenx(
+                            sequence, estim_low, estim_upp, **_kwds)
+                    self.ax.plot(
+                        estim_upp, sequence, estim_low, sequence, **_kw_line)
                 else:
-                    self.ax.fill_between(
-                        self.x, self._f_base, self.y, **_kw_fill)
+                    if self.fill:
+                        self.ax.fill_between(
+                            sequence, estim_low, estim_upp, **_kwds)
+                    self.ax.plot(
+                        sequence, estim_upp, sequence, estim_low,**_kw_line)
 
 
 class GaussianKDEContour(Plotter):
@@ -3230,45 +3260,6 @@ class Violine(GaussianKDE):
         """Default keyword arguments for plotting (read-only)"""
         kwds = dict(color=self.color, alpha=COLOR.FILL_ALPHA)
         return kwds
-    
-    def __call__(self, kw_line: Dict[str, Any] = {}, **kwds) -> None:
-        """Perform the plotting operation.
-
-        Parameters
-        ----------
-        kw_line : Dict[str, Any], optional
-            Additional keyword arguments for the axes `plot` method,
-            by default {}.
-        **kwds : dict, optional
-            Additional keyword arguments for the fill plot, by default {}.
-        """
-        _kw_line: Dict[str, Any] = dict(
-            color=COLOR.DARKEN if self.fill else self.color
-            ) | kw_line
-        for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME):
-            estim_upp = group[self.feature]
-            estim_low = 2*f_base - estim_upp # type: ignore
-            sequence = group[self.target]
-            
-            for agreement in group[PLOTTER.SUBGROUP].unique():
-                _kwds = (
-                    self.kw_default
-                    | dict(
-                        alpha=self._alphas.get(agreement, COLOR.FILL_ALPHA),
-                        where=group[PLOTTER.SUBGROUP]==agreement)
-                    | kwds)
-                if self.target_on_y:
-                    if self.fill:
-                        self.ax.fill_betweenx(
-                            sequence, estim_low, estim_upp, **_kwds)
-                    self.ax.plot(
-                        estim_low, sequence, estim_upp, sequence, **_kw_line)
-                else:
-                    if self.fill:
-                        self.ax.fill_between(
-                            sequence, estim_low, estim_upp, **_kwds)
-                    self.ax.plot(
-                        sequence, estim_low, sequence, estim_upp, **_kw_line)
 
 
 class Errorbar(TransformPlotter):
