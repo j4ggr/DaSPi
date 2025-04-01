@@ -1201,18 +1201,18 @@ class LinearModel:
         bounds : Dict[str, Any], optional
             Bounds for the parameters to optimize.
             - You can freeze a paramater by setting it to the desired 
-              value. For example, to fix the value of a parameter to 1, 
-              you can set bounds = {'param_name': 1}.
+                value. For example, to fix the value of a parameter to 1, 
+                you can set bounds = {'param_name': 1}.
             - To keep an ordinal or metric parameter within a specific
-              range, you can set bounds = {'param_name': (lower, upper)}.
-              For example, to constrain a parameter to be between 0 and 
-              1, you can set bounds = {'param_name': (0, 1)}.
+                range, you can set bounds = {'param_name': (lower, upper)}.
+                For example, to constrain a parameter to be between 0 and 
+                1, you can set bounds = {'param_name': (0, 1)}.
             - In order to limit the selection of a nominal parameter 
-              only to a certain subset of the originally conained values,
-              you can set bounds = {'param_name': (val1, val2, ...)}.
-              For example, to limit the selection of a nominal parameter
-              to the values 'A' and 'B', you can set 
-              bounds = {'param_name': ('A', 'B')}.
+                only to a certain subset of the originally conained values,
+                you can set bounds = {'param_name': (val1, val2, ...)}.
+                For example, to limit the selection of a nominal parameter
+                to the values 'A' and 'B', you can set 
+                bounds = {'param_name': ('A', 'B')}.
 
         Returns
         -------
@@ -1242,10 +1242,11 @@ class LinearModel:
                     if (maximize and coef < 0) or (minimize and coef > 0):
                         x = self.data[term].iloc[0]
                     else:
-                        x = pd.Series(
-                            RE.ENCODED_VALUE.findall(main_parameter),
-                            dtype=self.data[term].dtype
-                            )[0]
+                        dtype = self.data[term].dtype
+                        values = RE.ENCODED_VALUE.findall(main_parameter)
+                        if dtype.name == 'category':
+                            dtype = dtype.categories.dtype # type: ignore
+                        x = pd.Series(values, dtype=dtype.name)[0]
                     if x not in bounds.get(feature, (x,)):
                         continue
 
@@ -1253,13 +1254,15 @@ class LinearModel:
                     x_lower = self.data[term].min()
                     x_upper = self.data[term].max()
                     if parameter in bounds:
-                        assert len(bounds[parameter]) == 2, (
-                            f'Bounds for "{parameter}" must be a tuple of length 2.')
+                        _bounds = sorted(bounds[str(parameter)])
+                        assert len(_bounds) == 2, (
+                            f'Bounds for "{parameter}" must be a tuple of '
+                            'length 2.')
                         
-                        _lower, _upper = sorted(bounds[parameter])
+                        _lower, _upper = _bounds
                         assert _lower >= x_lower and _upper <= x_upper, (
-                            f'Bounds for "{parameter}" must be within the range of '
-                            f'the data ({x_lower}, {x_upper}).')
+                            f'Bounds for "{parameter}" must be within the '
+                            f'range of the data ({x_lower}, {x_upper}).')
                         
                         x_lower, x_upper = _lower, _upper
 
@@ -1291,30 +1294,30 @@ class LinearModel:
 
         ```
             Observation      Residuals  Prediction
-        0             0  9.250000e+00       46.75
-        1             1  2.000000e+00       51.00
-        2             2 -1.050000e+01       73.50
-        3             3 -2.500000e-01       65.25
-        4             4 -1.421085e-14       53.00
-        5             5  1.025000e+01       44.75
-        6             6 -2.500000e-01       67.25
-        7             7 -1.050000e+01       71.50
-        8             8  3.750000e+00       65.25
-        9             9 -1.200000e+01       57.00
-        10           10 -1.500000e+00       79.50
-        11           11  9.250000e+00       83.75
-        12           12 -1.000000e+01       59.00
-        13           13 -3.250000e+00       63.25
-        14           14  9.250000e+00       85.75
-        15           15  4.500000e+00       77.50
+        0             1  9.250000e+00       46.75
+        1             2  2.000000e+00       51.00
+        2             3 -1.050000e+01       73.50
+        3             4 -2.500000e-01       65.25
+        4             5 -1.421085e-14       53.00
+        5             6  1.025000e+01       44.75
+        6             7 -2.500000e-01       67.25
+        7             8 -1.050000e+01       71.50
+        8             9  3.750000e+00       65.25
+        9            10 -1.200000e+01       57.00
+        10           11 -1.500000e+00       79.50
+        11           12  9.250000e+00       83.75
+        12           13 -1.000000e+01       59.00
+        13           14 -3.250000e+00       63.25
+        14           15  9.250000e+00       85.75
+        15           16  4.500000e+00       77.50
         ```
         """
         data = self.model.resid
         data.name = ANOVA.RESIDUAL
-        data.index.name = ANOVA.OBSERVATION
-        data = data.to_frame().reset_index()
+        data = data.to_frame()
         data[ANOVA.PREDICTION] = self.model.predict()
-        return data
+        data[ANOVA.OBSERVATION] = np.arange(len(data)) + 1
+        return data[[ANOVA.OBSERVATION, ANOVA.RESIDUAL, ANOVA.PREDICTION]]
     
     def _dfs_repr_(self) -> List[DataFrame]:
         """Returns a list of DataFrames containing the goodness-of-fit 

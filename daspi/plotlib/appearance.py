@@ -137,6 +137,7 @@ class Style:
         print(dsp.style.available)
         ```
         """
+        name = str(name)
         if name in self.daspi_styles:
             plt.style.use(self.folder/f'{name}.mplstyle')
             self.current = name
