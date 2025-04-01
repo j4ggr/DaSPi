@@ -52,7 +52,8 @@ def load_dataset(dataset_name: str) -> DataFrame:
     df = dsp.load_dataset('iris')
     df
     ```
-    ``` console
+
+    ```
         species   leaf  width  length
     0       setosa  sepal    3.5     5.1
     1       setosa  sepal    3.0     4.9

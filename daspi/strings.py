@@ -100,6 +100,10 @@ class _String_:
         'en': 'Observation order',
         'de': 'Beobachtungsreihenfolge'}
     
+    charts_label_alpha_th: Dict[str, str] = {
+        'en': 'Threshold (α={alpha})',
+        'de': 'Grenzwert (α={alpha})'}
+    
     paircharts_fig_title: Dict[str, str] = {
         'en': 'Pairwise analysis',
         'de': 'Paarweise Analyse'}

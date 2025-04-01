@@ -8,8 +8,10 @@ from typing import Dict
 from typing import Type
 from typing import Tuple
 from typing import Literal
+from typing import Generator
 from matplotlib.axes import Axes
 from pandas.core.frame import DataFrame
+from scipy.stats._distn_infrastructure import rv_continuous
 
 from .chart import JointChart
 from .plotter import Line
@@ -137,9 +139,20 @@ class ParameterRelevanceCharts(JointChart):
             Pareto, no_percentage_line=True, skip_na='all')
         super().plot(
             Pareto, highlight=ANOVA.RESIDUAL, skip_na='all')
-        
-        self.axes[0, 0].axvline(
-            self.lm.effect_threshold, **KW.SPECIFICATION_LINE)
+        return self
+    
+    def stripes(self) -> Self: # type: ignore
+        """Adds a line at position 0 for each subplot except for the 
+        probability plot. This line represents the fit of the model."""
+        threshold = StripeLine(
+            label=STR['charts_label_alpha_th'].format(alpha=self.lm.alpha),
+            position=self.lm.effect_threshold,
+            orientation='vertical',
+            color=COLOR.PALETTE[0])
+        for chart in self.itercharts():
+            if chart == self.charts[0]:
+                chart.stripes([threshold])
+                break
         return self
 
     def label(self, info: bool | str = False, **kwds) -> Self: # type: ignore
@@ -777,6 +790,9 @@ class ProcessCapabilityAnalysisCharts(JointChart):
         The specification limits for the process capability analysis.
     hue : str, optional
         The hue variable for the chart, by default ''.
+    dist : scipy stats rv_continuous, optional
+        The probability distribution use for creating feature data
+        (the theoretical values). Default is 'norm'.
     
     Examples
     --------
@@ -802,10 +818,14 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             info=True)
     ``` 
     """
-    __slots__ = ('spec_limits')
+    __slots__ = ('spec_limits', 'dist')
 
     spec_limits: SpecLimits
     """The specification limits for the process capability analysis."""
+
+    dist: rv_continuous | str
+    """The probability distribution use for creating feature data
+    (the theoretical values)."""
 
     def __init__(
             self,
@@ -814,10 +834,12 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             *,
             spec_limits: SpecLimits,
             hue: str = '',
+            dist: rv_continuous | str = 'norm',
             ) -> None:
         assert any(sl is not None for sl in spec_limits), (
             'At least one specification limit must not be None')
         self.spec_limits = spec_limits
+        self.dist = dist
         super().__init__(
             source=source,
             target=target,
@@ -858,7 +880,7 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             hide_axis='feature',
             visible_spines='target') | kwds_cpi
         super().plot(Scatter)
-        super().plot(Probability, dist='norm')
+        super().plot(Probability, dist=self.dist)
         super().plot(GaussianKDE, hide_axis='feature', visible_spines='target')
         super().plot(CapabilityConfidenceInterval, kind='cpk', **_kwds_cpi)
         if None in self.spec_limits:
@@ -868,16 +890,44 @@ class ProcessCapabilityAnalysisCharts(JointChart):
 
         return self
     
-    def stripes(self) -> Self: # type: ignore
-        """Add stripes to the process capability analysis charts.
+    def stripes(
+            self,
+            *,
+            mean: bool = True,
+            median: bool = True,
+            control_limits: bool = True
+            ) -> Self: # type: ignore
+        """This method adds stripes to the process capability analysis 
+        charts, including mean, median, control limits and specification 
+        limits.
+
+        Parameters
+        ----------
+        mean : bool, optional
+            Whether to add a line for the mean, by default True.
+        median : bool, optional
+            Whether to add a line for the median
+            (if applicable), by default True.
+        control_limits : bool, optional
+            Whether to add lines for the control limits
+            (if applicable), by default True.
+        
+        Returns
+        -------
+        Self
+            The `ProcessCapabilityAnalysisCharts` instance, for method
+            chaining.
         """
-        flags = (True, False, True, False, False)
+        def flags(x: bool) -> Generator[bool, Any, None]:
+            for flag in (x, False, x, False, False):
+                yield flag
+        
         super().stripes(
-            mean=flags,
-            median=flags,
-            control_limits=flags,
+            mean=tuple(flags(mean)),
+            median=tuple(flags(median)),
+            control_limits=tuple(flags(control_limits)),
             spec_limits=tuple(
-                self.spec_limits if f else (None, None) for f in flags))
+                self.spec_limits if f else (None, None) for f in flags(True)))
         return self
 
     def label( # type: ignore
