@@ -17,6 +17,7 @@ sys.path.append(Path(__file__).parent.resolve()) # type: ignore
 
 from daspi import JointChart
 from daspi import SingleChart
+from daspi import SpecLimits
 from daspi.plotlib.appearance import get_shared_axes
 from daspi.plotlib.appearance import positions_of_shared_axes
 
@@ -161,20 +162,22 @@ class TestJointChart:
             sample_data, feature='x', target='y', hue='category',
             ncols=2, nrows=3)
         
-        spec_limits = (1.0, 2.0)
+        spec_limits = SpecLimits(1.0, 2.0)
         limits = chart.specification_limits_iterator(spec_limits)
         assert isinstance(limits, Generator)
         for limit in limits:
             assert limit == spec_limits
         
-        spec_limits = ((1.0, 2.0), (3.0, 4.0), (5.0, 6.0), (7.0, 8.0), (9.0, 10.0), (11.0, 12.0))
+        spec_limits = (
+            SpecLimits(1.0, 2.0), SpecLimits(3.0, 4.0), SpecLimits(5.0, 6.0), 
+            SpecLimits(7.0, 8.0), SpecLimits(9.0, 10.0), SpecLimits(11.0, 12.0))
         limits = chart.specification_limits_iterator(spec_limits)
         for i, limit in enumerate(limits):
             assert limit == spec_limits[i]
 
-        spec_limits = ((1.0, 2.0), (3.0, 4.0))  # Less limits than n_axes
-        limits = chart.specification_limits_iterator(spec_limits)
+        spec_limits = (SpecLimits(1.0, 2.0), SpecLimits(3.0, 4.0))  # Less limits than n_axes
         with pytest.raises(AssertionError) as err:
+            limits = chart.specification_limits_iterator(spec_limits)
             next(limits)
 
     def test_share_axis(self, sample_data: pd.DataFrame) -> None:

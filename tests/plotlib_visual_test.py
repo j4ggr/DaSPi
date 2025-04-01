@@ -26,14 +26,15 @@ from daspi import Scatter
 from daspi import Violine
 from daspi import Beeswarm
 from daspi import MeanTest
-from daspi import QuantileBoxes
 from daspi import LoessLine
+from daspi import SpecLimits
 from daspi import JointChart
 from daspi import SingleChart
 from daspi import HideSubplot
 from daspi import BlandAltman
 from daspi import Probability
 from daspi import GaussianKDE
+from daspi import QuantileBoxes
 from daspi import VariationTest
 from daspi import ResidualsCharts
 from daspi import StandardErrorMean
@@ -254,7 +255,7 @@ class TestSingleChart:
                 mean=True,
                 median=True,
                 control_limits=True,
-                spec_limits=(8, 35),
+                spec_limits=SpecLimits(8, 35),
             ).label(
                 sub_title = self.sub_title
             ).save(self.file_name
@@ -1761,11 +1762,11 @@ class TestTemplates:
             if isinstance(plot, QuantileBoxes):
                 fitted_dists.append(plot.estimation.dist.name)
         assert fitted_dists == ['logistic', 'gamma', 'foldnorm', 'norm']
-        
+
     def test_process_capabity_analysis_charts(self) -> None:
         
         df = load_dataset('drop_card')
-        spec_limits = 0, float(df.loc[0, 'usl']) # type: ignore
+        spec_limits = SpecLimits(0, float(df.loc[0, 'usl'])) # type: ignore
         target = 'distance'
         fig_title='Process Capability Analysis'
         sub_title='Drop Card Experiment'

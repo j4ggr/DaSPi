@@ -36,7 +36,7 @@ from ..constants import COLOR
 from ..constants import ANOVA
 from ..constants import CATEGORY
 
-from .._typing import SpecLimits
+from ..statistics import SpecLimits
 
 
 class ParameterRelevanceCharts(JointChart):
@@ -836,7 +836,7 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             hue: str = '',
             dist: rv_continuous | str = 'norm',
             ) -> None:
-        assert any(sl is not None for sl in spec_limits), (
+        assert not spec_limits.both_unbounded, (
             'At least one specification limit must not be None')
         self.spec_limits = spec_limits
         self.dist = dist
@@ -883,7 +883,7 @@ class ProcessCapabilityAnalysisCharts(JointChart):
         super().plot(Probability, dist=self.dist)
         super().plot(GaussianKDE, hide_axis='feature', visible_spines='target')
         super().plot(CapabilityConfidenceInterval, kind='cpk', **_kwds_cpi)
-        if None in self.spec_limits:
+        if self.spec_limits.is_unbounded:
             super().plot(HideSubplot)
         else:
             super().plot(CapabilityConfidenceInterval, kind='cp', **_kwds_cpi)
@@ -927,7 +927,7 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             median=tuple(flags(median)),
             control_limits=tuple(flags(control_limits)),
             spec_limits=tuple(
-                self.spec_limits if f else (None, None) for f in flags(True)))
+                self.spec_limits if f else SpecLimits() for f in flags(True)))
         return self
 
     def label( # type: ignore

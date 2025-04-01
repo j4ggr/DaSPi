@@ -27,7 +27,6 @@ from .plotter import Stripe
 from .plotter import StripeLine
 from .plotter import StripeSpan
 
-from .._typing import SpecLimit
 from .._typing import MosaicLayout
 from .._typing import NumericSample1D
 from .._typing import ShareAxisProperty
@@ -39,7 +38,8 @@ from ..constants import KW
 from ..constants import LABEL
 from ..constants import DEFAULT
 
-from ..statistics.estimation import ProcessEstimator
+from ..statistics import SpecLimits
+from ..statistics import ProcessEstimator
 
 
 def flat_unique(nested: NDArray | List[List]) -> List:
@@ -349,8 +349,8 @@ class StripesFacets:
         Whether to include a median line on the chart, by default False.
     control_limits : bool, optional
         Whether to include control limits on the chart, by default False.
-    spec_limits : Tuple[float | None, float | None], optional
-        The specification limits for the chart, by default (None, None).
+    spec_limits : SpecLimits, optional
+        The specification limits for the chart, by default SpecLimits().
     confidence : float, optional
         The confidence level for the confidence intervals,
         by default None.
@@ -410,20 +410,16 @@ class StripesFacets:
         mean: bool = False,
         median: bool = False,
         control_limits: bool = False,
-        spec_limits: Tuple[SpecLimit, SpecLimit] = (None, None),
+        spec_limits: SpecLimits = SpecLimits(),
         confidence: float | None = None,
         strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
         agreement: float | int = 6,
         **kwds) -> None:
-        assert len(spec_limits) == 2, (
-            f'Specification limits must contain 2 values, got {spec_limits}. '
-            'Set None for limits that do not exist')
         self.single_axes = single_axes
         self._confidence = confidence
         self.estimation = ProcessEstimator(
             samples=target,
-            lsl=self.na_to_none(spec_limits[0]),
-            usl=self.na_to_none(spec_limits[1]),
+            spec_limits=spec_limits,
             strategy=strategy,
             agreement=agreement,
             **kwds)
@@ -446,11 +442,6 @@ class StripesFacets:
         if self._confidence is None:
             return DEFAULT.CONFIDENCE_LEVEL
         return self._confidence
-
-    @staticmethod
-    def na_to_none(value: Any) -> Any:
-        """Convert NaN to None."""
-        return None if pd.isna(value) else value
     
     @property
     def orientation(self) -> Literal['horizontal', 'vertical']:
@@ -592,8 +583,9 @@ class StripesFacets:
         """
         kwds = self._kwds | KW.SPECIFICATION_LINE
         _labels = (STR['lsl'], STR['usl'])
-        for label, limit in zip(_labels, self.estimation.limits):
-            if limit is not None:
+        _limits = self.estimation.spec_limits.to_tuple()
+        for label, limit in zip(_labels, _limits):
+            if float('-inf') < limit < float('inf'):
                 line = StripeLine(label=str(label), position=limit, **kwds)
                 self.stripes[line.identity] = line
     

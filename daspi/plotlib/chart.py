@@ -88,8 +88,6 @@ from .plotter import SkipSubplot
 
 from ..strings import STR
 
-from .._typing import SpecLimit
-from .._typing import SpecLimits
 from .._typing import MosaicLayout
 from .._typing import ShareAxisProperty
 from .._typing import LegendHandlesLabels
@@ -98,6 +96,8 @@ from ..constants import KW
 from ..constants import COLOR
 from ..constants import PLOTTER
 from ..constants import CATEGORY
+
+from ..statistics import SpecLimits
 
 
 T = TypeVar('T')
@@ -473,7 +473,7 @@ class Chart(ABC):
         >>> next(generator)
         (1.0, 2.0)
         """
-        if isinstance(spec_limits[0], tuple):
+        if isinstance(spec_limits, tuple):
             _spec_limits = spec_limits
         else:
             _spec_limits = tuple([spec_limits]*self.n_axes)
@@ -947,7 +947,7 @@ class SingleChart(Chart):
             mean: bool = False,
             median: bool = False,
             control_limits: bool = False, 
-            spec_limits: Tuple[SpecLimit, SpecLimit] = (None, None), 
+            spec_limits: SpecLimits = SpecLimits(), 
             confidence: float | None = None,
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: float | int = 6,
@@ -972,10 +972,9 @@ class SingleChart(Chart):
         control_limits : bool, optional
             Whether to plot control limits representing the process 
             spread, by default False.
-        spec_limits : Tuple[float], optional
+        spec_limits : SpecLimits, optional
             If provided, specifies the specification limits. 
-            The tuple must contain two values for the lower and upper 
-            limits. If a limit is not given, use None, by default ().
+            Default is SpecLimits(float('-inf'), float('inf')).
         confidence : float, optional
             The confidence level between 0 and 1, by default None.
         strategy : {'eval', 'fit', 'norm', 'data'}, optional
@@ -1573,7 +1572,7 @@ class JointChart(Chart):
             mean: bool | Tuple[bool, ...] = False,
             median: bool | Tuple[bool, ...] = False,
             control_limits: bool | Tuple[bool, ...] = False, 
-            spec_limits: SpecLimits | Tuple[SpecLimits, ...] = (None, None),
+            spec_limits: SpecLimits | Tuple[SpecLimits, ...] = SpecLimits(),
             confidence: float | None | Tuple[float | None, ...] = None,
             strategy: Literal['eval', 'fit', 'norm', 'data'] | Tuple = 'norm',
             agreement: float | int | Tuple[int | float, ...] = 6,
@@ -1598,9 +1597,8 @@ class JointChart(Chart):
             Whether to plot control limits representing the process 
             spread, by default False.
         spec_limits : SpecLimits | Tuple[SpecLimits, ...], optional
-            If provided, specifies the specification limits. 
-            The tuple must contain two values for the lower and upper 
-            limits. If a limit is not given, use None, by default ().
+            If provided, specifies the specification limits. Default
+            is SpecLimits().
         confidence : float | None | Tuple[float | None, ...], optional
             The confidence level between 0 and 1, by default None.
         strategy : {'eval', 'fit', 'norm', 'data'} | Tuple, optional
@@ -2010,7 +2008,7 @@ class MultivariateChart(SingleChart):
             mean: bool = False,
             median: bool = False,
             control_limits: bool = False, 
-            spec_limits: Tuple[SpecLimit, SpecLimit] = (None, None), 
+            spec_limits: SpecLimits = SpecLimits(), 
             confidence: float | None = None,
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: float | int = 6,
@@ -2036,9 +2034,8 @@ class MultivariateChart(SingleChart):
             Whether to plot control limits representing the process 
             spread, by default False.
         spec_limits : Tuple[float], optional
-            If provided, specifies the specification limits. 
-            The tuple must contain two values for the lower and upper 
-            limits. If a limit is not given, use None, by default ().
+            If provided, specifies the specification limits. Default is
+            SpecLimits().
         confidence : float, optional
             The confidence level between 0 and 1, by default None.
         strategy : {'eval', 'fit', 'norm', 'data'}, optional

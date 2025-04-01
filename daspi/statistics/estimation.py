@@ -23,13 +23,13 @@ from scipy import stats
 from scipy.stats import skew
 from scipy.stats import kurtosis
 
-from .._typing import SpecLimit
-from .._typing import SpecLimits
 from .._typing import NumericSample1D
 
 from ..constants import DIST
 from ..constants import DEFAULT
 from ..constants import SIGMA_DIFFERENCE
+
+from .montecarlo import SpecLimits
 
 from .confidence import cp_ci
 from .confidence import cpk_ci
@@ -719,12 +719,63 @@ class Estimator:
 
 
 class ProcessEstimator(Estimator):
+    """An object for various statistical estimators. This class extends 
+    the estimator with process-specific statistics such as specification
+    limits, Cp and Cpk values.
+    
+    The attributes are calculated lazily. After the class is instantiated,
+    all attributes are set to None. As soon as an attribute (actually
+    Property) is called, the value is calculated and stored so that the
+    calculation is only performed once.
+    
+    Parameters
+    ----------
+    samples : NumericSample1D
+        1D array of process data.
+    spec_limits : SpecLimits
+        Specification limits for process data.
+    error_values : tuple of float, optional
+        If the process data may contain coded values for measurement 
+        errors or similar, they can be specified here, 
+        by default [].
+    strategy : {'eval', 'fit', 'norm', 'data'}, optional
+        Which strategy should be used to determine the control 
+        limits (process spread):
+        - `eval`: The strategy is determined according to the given 
+        evaluate function. If none is given, the internal `evaluate`
+        method is used.
+        - `fit`: First, the distribution that best represents the 
+        process data is searched for and then the agreed process 
+        spread is calculated
+        - norm: it is assumed that the data is subject to normal 
+        distribution. The variation tolerance is then calculated as 
+        agreement * standard deviation
+        - data: The quantiles for the process variation tolerance 
+        are read directly from the data.
+        by default 'norm'
+    agreement : float or int, optional
+        Specify the tolerated process variation for which the 
+        control limits are to be calculated. 
+        - If int, the spread is determined using the normal 
+        distribution agreement*σ, 
+        e.g. agreement = 6 -> 6*σ ~ covers 99.75 % of the data. 
+        The upper and lower permissible quantiles are then 
+        calculated from this.
+        - If float, the value must be between 0 and 1.This value is
+        then interpreted as the acceptable proportion for the 
+        spread, e.g. 0.9973 (which corresponds to ~ 6 σ)
+        by default 6
+    possible_dists : tuple of strings or rv_continous, optional
+        Distributions to which the data may be subject. Only 
+        continuous distributions of scipy.stats are allowed,
+        by default DIST.COMMON
+
+    """
 
     __slots__ = (
-        '_lsl', '_usl', '_n_ok', '_n_nok', '_ok', '_nok', '_nok_pred', 
+        '_spec_limits', '_n_ok', '_n_nok', '_ok', '_nok', '_nok_pred', 
         '_error_values', '_n_errors', '_cp', '_cpk', '_Z', '_Z_lt')
-    _lsl: SpecLimit
-    _usl: SpecLimit
+    _spec_limits: SpecLimits
     _n_ok: int | None
     _n_nok: int | None
     _ok: float | None
@@ -740,64 +791,12 @@ class ProcessEstimator(Estimator):
     def __init__(
             self,
             samples: NumericSample1D, 
-            lsl: SpecLimit = None, 
-            usl: SpecLimit = None, 
+            spec_limits: SpecLimits,
             error_values: Tuple[float, ...] = (),
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: float | int = 6, 
             possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON
             ) -> None:
-        """"An object for various statistical estimators. This class 
-        extends the estimator with process-specific statistics such as 
-        specification limits, Cp and Cpk values
-        
-        The attributes are calculated lazily. After the class is 
-        instantiated, all attributes are set to None. As soon as an 
-        attribute (actually Property) is called, the value is calculated
-        and stored so that the calculation is only performed once
-
-        Parameters
-        ----------
-        samples : NumericSample1D
-            1D array of process data.
-        lsl, usl : float
-            Lower and upper specification limit for process data.
-        error_values : tuple of float, optional
-            If the process data may contain coded values for measurement 
-            errors or similar, they can be specified here, 
-            by default [].
-        strategy : {'eval', 'fit', 'norm', 'data'}, optional
-            Which strategy should be used to determine the control 
-            limits (process spread):
-            - `eval`: The strategy is determined according to the given 
-            evaluate function. If none is given, the internal `evaluate`
-            method is used.
-            - `fit`: First, the distribution that best represents the 
-            process data is searched for and then the agreed process 
-            spread is calculated
-            - norm: it is assumed that the data is subject to normal 
-            distribution. The variation tolerance is then calculated as 
-            agreement * standard deviation
-            - data: The quantiles for the process variation tolerance 
-            are read directly from the data.
-            by default 'norm'
-        agreement : float or int, optional
-            Specify the tolerated process variation for which the 
-            control limits are to be calculated. 
-            - If int, the spread is determined using the normal 
-            distribution agreement*σ, 
-            e.g. agreement = 6 -> 6*σ ~ covers 99.75 % of the data. 
-            The upper and lower permissible quantiles are then 
-            calculated from this.
-            - If float, the value must be between 0 and 1.This value is
-            then interpreted as the acceptable proportion for the 
-            spread, e.g. 0.9973 (which corresponds to ~ 6 σ)
-            by default 6
-        possible_dists : tuple of strings or rv_continous, optional
-            Distributions to which the data may be subject. Only 
-            continuous distributions of scipy.stats are allowed,
-            by default DIST.COMMON
-        """
         self._n_ok = None
         self._n_nok = None
         self._n_errors = None
@@ -809,10 +808,7 @@ class ProcessEstimator(Estimator):
         self._Z = None
         self._Z_lt = None
         self._error_values = error_values
-        self._lsl = None
-        self._usl = None
-        self.lsl = lsl
-        self.usl = usl
+        self._spec_limits = spec_limits
         self._reset_values_()
         super().__init__(samples, strategy, agreement, possible_dists)
     
@@ -893,33 +889,24 @@ class ProcessEstimator(Estimator):
         return self._n_errors
 
     @property
-    def lsl(self) -> SpecLimit:
-        """Get and set lower specification limit."""
-        if self._lsl is not None and self._usl is not None:
-            assert self._lsl < self._usl
-        return self._lsl
-    @lsl.setter
-    def lsl(self, lsl: SpecLimit) -> None:
-        if self._lsl != lsl:
-            self._lsl = lsl if pd.notna(lsl) else None
-            self._reset_values_()
+    def lsl(self) -> float:
+        """Get the lower specification limit (read-only)."""
+        return self._spec_limits.lower
 
     @property
-    def usl(self) -> SpecLimit:
-        """Get and set upper specification limit."""
-        if self._lsl is not None and self._usl is not None:
-            assert self._usl > self._lsl
-        return self._usl
-    @usl.setter
-    def usl(self, usl: SpecLimit) -> None:
-        if self._usl != usl:
-            self._usl = usl if pd.notna(usl) else None
-            self._reset_values_()
+    def usl(self) -> float:
+        """Get the upper specification limit (rad-only)."""
+        return self._spec_limits.upper
 
     @property
-    def limits(self) -> SpecLimits:
-        """Get lower and upper specification limits (read-only)."""
-        return (self.lsl, self.usl)
+    def spec_limits(self) -> SpecLimits:
+        """Get and set the specification limits."""
+        return self._spec_limits
+    @spec_limits.setter
+    def spec_limits(self, spec_limits: SpecLimits) -> None:
+        if spec_limits.to_tuple() != self._spec_limits.to_tuple():
+            self._reset_values_()
+        self._spec_limits = spec_limits
 
     @property
     def control_limits(self) -> Tuple[float, float]:
@@ -943,7 +930,7 @@ class ProcessEstimator(Estimator):
         the Cpk value.
         This value cannot be calculated unless an upper and lower 
         specification limit is given. In this case, None is returned."""
-        if None in self.limits:
+        if self.spec_limits.is_unbounded:
             return None
         
         if self._cp is None:
@@ -956,8 +943,6 @@ class ProcessEstimator(Estimator):
         of the distance between the process mean and the lower 
         specification limit and the lower spread of the process.
         Returns inf if no lower specification limit is specified."""
-        if self.lsl is None:
-            return float('inf')
         return (self.mean - self.lsl) / (self.mean - self.lcl)
     
     @property
@@ -966,8 +951,6 @@ class ProcessEstimator(Estimator):
         of the distance between the process mean and the upper 
         specification limit and the upper spread of the process.
         Returns inf if no upper specification limit is specified."""
-        if self.usl is None:
-            return float('inf')
         return (self.usl - self.mean) / (self.ucl - self.mean)
     
     @property
@@ -978,7 +961,7 @@ class ProcessEstimator(Estimator):
         Cpl and Cpu.
         In general, higher Cpk values indicate a more capable process. 
         Lower Cpk values indicate that the process may need improvement."""
-        if self.limits == (None, None):
+        if self.spec_limits.both_unbounded:
             return None
         return min([self.cpl, self.cpu])
     
@@ -990,10 +973,7 @@ class ProcessEstimator(Estimator):
         limit of a process."""
         if self._Z is None:
             limit = self.lsl if self.cpl < self.cpu else self.usl
-            if limit is None:
-                self._Z = float('inf')
-            else:
-                self._Z = abs(self.z_transform(limit))
+            self._Z = abs(self.z_transform(limit))
         return self._Z
     
     @property
@@ -1188,8 +1168,7 @@ def estimate_kernel_density_2d(
 
 def estimate_capability_confidence(
         samples: NumericSample1D, 
-        lsl: SpecLimit, 
-        usl: SpecLimit,
+        spec_limits: SpecLimits,
         kind: Literal['cp', 'cpk'] = 'cpk',
         level: float = 0.95,
         n_groups: int = 1,
@@ -1206,8 +1185,8 @@ def estimate_capability_confidence(
     ----------
     samples : NumericSample1D
         1D array of process data.
-    lsl, usl : float
-        Lower and upper specification limit for process data.
+    spec_limits: SpecLimits
+        Specification limits for the process data.
     kind : Literal['cp', 'cpk], optional
         Specifies whether to calculate the confidence interval for Cp or 
         Cpk ('cp' or 'cpk'). Defaults is 'cpk'.
@@ -1233,7 +1212,7 @@ def estimate_capability_confidence(
         If no limit is provided or if only one limit is provided and 
         kind is set to 'cp'.
     """
-    estimator = ProcessEstimator(samples, lsl, usl, **kwds)
+    estimator = ProcessEstimator(samples, spec_limits, **kwds)
     assert kind in ('cp', 'cpk'), f'Unkown value for {kind=}'
     
     if kind == 'cp':

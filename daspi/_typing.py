@@ -2,6 +2,7 @@ import numpy as np
 
 from typing import List
 from typing import Tuple
+from typing import TypeVar
 from typing import Literal
 from typing import Sequence
 from typing import Hashable
@@ -23,11 +24,16 @@ NumericSample1D: TypeAlias = (
     | 'Series[int | float]'
     | NDArray[np.integer | np.floating])
 
-SpecLimit: TypeAlias = float | int | None
-SpecLimits: TypeAlias = Tuple[SpecLimit, SpecLimit]
-
-ShareAxisProperty: TypeAlias = bool | Literal['none', 'all', 'row', 'col']
-""""""
+ShareAxisProperty: TypeAlias = (
+    bool | Literal['none', 'all', 'row', 'col'])
+"""Type alias for matplotlib share axis property.
+    - True: share all axes
+    - False: do not share axes
+    - 'none': do not share axes
+    - 'all': share all axes
+    - 'row': share axes within each row
+    - 'col': share axes within each column
+"""
 
 LegendHandlesLabels: TypeAlias = (
     Tuple[Tuple[Patch |Line2D, ...], Tuple[str, ...]])
@@ -65,13 +71,15 @@ best option is a tuple of strings. Dor example:
     ```
 """
 
+FloatOrArray = TypeVar('FloatOrArray', float, NDArray, Series)
+"""Type alias for float, numpy array, or pandas series."""
+
 __all__ = [
     'Sample1D',
     'NumericSample1D',
-    'SpecLimit',
-    'SpecLimits',
     'ShareAxisProperty',
     'LegendHandlesLabels',
     'LineStyle',
     'MosaicLayout',
+    'FloatOrArray',
 ]

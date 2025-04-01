@@ -141,7 +141,6 @@ from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
 from .._typing import LineStyle
-from .._typing import SpecLimits
 
 from ..strings import STR
 
@@ -159,6 +158,7 @@ from ..statistics import fit_ci
 from ..statistics import mean_ci
 from ..statistics import stdev_ci
 from ..statistics import Estimator
+from ..statistics import SpecLimits
 from ..statistics import variance_ci
 from ..statistics import prediction_ci
 from ..statistics import proportion_ci
@@ -4443,8 +4443,7 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
         """
         center, lower, upper = self.ci_func(
             samples=target_data,
-            lsl=self.spec_limits[0],
-            usl=self.spec_limits[1],
+            spec_limits=self.spec_limits,
             kind=self.kind,
             level=self.confidence_level,
             n_groups=self.n_groups)

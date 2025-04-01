@@ -13,7 +13,9 @@ from pandas.core.frame import DataFrame
 
 sys.path.append(Path(__file__).parent.resolve()) # type: ignore
 
+from daspi import SpecLimits
 from daspi.statistics.estimation import *
+
 
 source = Path(__file__).parent/'data'
 KW_READ: Dict[str, Any] = dict(sep=';', index_col=0)
@@ -171,7 +173,7 @@ class TestEstimator:
         sample_estimator.distribution()
         result = sample_estimator.describe()
         assert 'dist' in result.index
-        assert isinstance(result['dist'], str)
+        assert isinstance(result.loc['dist'][0], str)
 
     def test_describe_with_empty_exclude(self, sample_estimator: Estimator) -> None:
         result = sample_estimator.describe(exclude=())
@@ -182,8 +184,8 @@ class TestEstimator:
         data = [1.0, np.nan, 3.0, 4.0, np.nan]
         estimator = Estimator(data)
         result = estimator.describe()
-        assert not np.isnan(result['mean'])
-        assert not np.isnan(result['std'])
+        assert not np.isnan(result.loc['mean'][0])
+        assert not np.isnan(result.loc['std'][0])
         assert len(result) == len(estimator._descriptive_statistic_attrs_)
 
 class TestLoess:
@@ -274,23 +276,23 @@ class TestProcessEstimator:
     def sample_estimator(self) -> ProcessEstimator:
         np.random.seed(42)
         data = np.random.normal(0, 1, 100)
-        return ProcessEstimator(data, lsl=None, usl=2)
+        return ProcessEstimator(data, SpecLimits(upper=2))
     
     def test_init_with_series(self, sample_data: DataFrame) -> None:
-        estimator = ProcessEstimator(sample_data['values'])
+        estimator = ProcessEstimator(sample_data['values'], SpecLimits())
         assert len(estimator.samples) == 100
         assert estimator._filtered.empty
         assert len(estimator.filtered) == 100
 
     def test_init_with_nan_values(self) -> None:
         data = pd.Series([1.0, np.nan, 3.0, np.nan, 5.0])
-        estimator = ProcessEstimator(data)
+        estimator = ProcessEstimator(data, SpecLimits())
         assert len(estimator.samples) == 5
         assert len(estimator.filtered) == 3
         assert list(estimator.filtered) == [1.0, 3.0, 5.0]
 
     def test_inheritance_methods(self, sample_data: DataFrame) -> None:
-        estimator = ProcessEstimator(sample_data['values'])
+        estimator = ProcessEstimator(sample_data['values'], SpecLimits())
         assert hasattr(estimator, 'mean')
         assert hasattr(estimator, 'median')
         assert hasattr(estimator, 'std')
@@ -298,12 +300,12 @@ class TestProcessEstimator:
         assert hasattr(estimator, 'excess')
 
     def test_process_specific_methods(self, sample_data: DataFrame) -> None:
-        estimator = ProcessEstimator(sample_data['values'])
+        estimator = ProcessEstimator(sample_data['values'], SpecLimits())
         assert hasattr(estimator, 'describe')
         assert callable(estimator.describe)
 
     def test_describe_output(self, sample_data: DataFrame) -> None:
-        estimator = ProcessEstimator(sample_data['values'])
+        estimator = ProcessEstimator(sample_data['values'], SpecLimits())
         description = estimator.describe()
         expected_keys = (
             'lsl', 'usl', 'n_ok', 'n_nok', 'n_errors', 'cp', 'cpk', 'Z', 'Z_lt')
@@ -311,14 +313,14 @@ class TestProcessEstimator:
 
     def test_with_all_identical_values(self) -> None:
         data = pd.Series([1.0] * 10)
-        estimator = ProcessEstimator(data)
+        estimator = ProcessEstimator(data, SpecLimits())
         assert estimator.std == 0
         assert np.isnan(estimator.skew)
         assert np.isnan(estimator.excess)
 
     def test_with_extreme_values(self) -> None:
         data = pd.Series([1e10, 1e-10, 1e5, 1e-5])
-        estimator = ProcessEstimator(data)
+        estimator = ProcessEstimator(data, SpecLimits())
         assert not np.isnan(estimator.mean)
         assert not np.isnan(estimator.std)
         assert not np.isnan(estimator.skew)
@@ -357,8 +359,8 @@ class TestProcessEstimator:
 
     def test_describe_with_nan_values(self) -> None:
         data = [1.0, np.nan, 3.0, 4.0, np.nan]
-        estimator = ProcessEstimator(data, lsl=1.5, usl=3.5)
+        estimator = ProcessEstimator(data, SpecLimits(lower=1.5, upper=3.5))
         result = estimator.describe()
-        assert not np.isnan(result['mean'])
-        assert not np.isnan(result['std'])
+        assert not np.isnan(result.loc['mean'][0])
+        assert not np.isnan(result.loc['std'][0])
         assert len(result) == len(estimator._descriptive_statistic_attrs_)
