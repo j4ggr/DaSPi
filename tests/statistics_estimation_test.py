@@ -278,6 +278,10 @@ class TestProcessEstimator:
         data = np.random.normal(0, 1, 100)
         return ProcessEstimator(data, SpecLimits(upper=2))
     
+    @pytest.fixture
+    def estimator_norm(self) -> ProcessEstimator:
+        return ProcessEstimator(df_dist25['norm'], SpecLimits(lower=0))
+    
     def test_init_with_series(self, sample_data: DataFrame) -> None:
         estimator = ProcessEstimator(sample_data['values'], SpecLimits())
         assert len(estimator.samples) == 100
@@ -364,3 +368,32 @@ class TestProcessEstimator:
         assert not np.isnan(result.loc['mean'][0])
         assert not np.isnan(result.loc['std'][0])
         assert len(result) == len(estimator._descriptive_statistic_attrs_)
+    
+    def test_n_nok(self, estimator_norm: ProcessEstimator) -> None:
+        assert estimator_norm._n_nok is None
+        result = estimator_norm.n_nok
+        assert isinstance(result, int)
+        assert isinstance(estimator_norm._n_nok, int)
+        assert 0 < estimator_norm._n_nok < estimator_norm.n_samples
+
+    def test_nok_norm(self, estimator_norm: ProcessEstimator) -> None:
+        assert estimator_norm._nok_norm is None
+        result = estimator_norm.nok_norm
+        assert isinstance(result, str)
+        assert isinstance(estimator_norm._nok_norm, float)
+        assert 0 < estimator_norm._nok_norm < 1
+        assert f'{100 * estimator_norm._nok_norm:.2f}' in result
+        estimator_norm.nok
+        assert estimator_norm._nok_norm > estimator_norm._nok
+
+    def test_nok_fit(self, estimator_norm: ProcessEstimator) -> None:
+        assert estimator_norm._nok_fit is None
+        result = estimator_norm.nok_fit
+        assert isinstance(result, str)
+        assert isinstance(estimator_norm._nok_fit, float)
+        assert 0 < estimator_norm._nok_fit < 1
+        assert f'{100 * estimator_norm._nok_fit:.2f}' in result
+        estimator_norm.nok
+        estimator_norm.nok_norm
+        assert estimator_norm._nok_fit < estimator_norm._nok
+        assert estimator_norm._nok_fit < estimator_norm._nok_norm
