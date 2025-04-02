@@ -849,8 +849,8 @@ class ProcessEstimator(Estimator):
         """Get amount of NOK-values (read-only)."""
         if self._n_nok is None:
             self._n_nok = (
-                (self.filtered >= self.usl).sum() if self.usl else 0
-                + (self.filtered <= self.lsl).sum() if self.lsl else 0)
+                (self.filtered >= self.usl).sum()
+                + (self.filtered <= self.lsl).sum())
         return self._n_nok
     
     @property
