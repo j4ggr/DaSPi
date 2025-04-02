@@ -413,15 +413,19 @@ def round_to_nearest(
 def float_to_bins(
         data: NDArray | Series,
         num_bins: int,
-        clip: bool = True
+        clip: bool = True,
+        kind: Literal['linear', 'quantile'] = 'linear'
         ) -> NDArray[np.int_]: 
     """Convert an array of floats to a binned array of integers.
 
     This function bins the input data into the specified number of bins.
-    The bin edges are calculated based on the minimum and maximum values 
-    of the input data. Then each float is assigned to the nearest bin 
-    using the digitize function. If the clip parameter is set to True, 
-    the binned data is clipped to the range [0, num_bins-1].
+    If the kind parameter is set to 'linear', the bin edges are 
+    calculated based on the minimum and maximum values of the input 
+    data. If the kind parameter is set to 'quantile', the bin edges are 
+    calculated based on the quantiles of the input data.
+    Finally each float is assigned to the nearest bin using the 
+    digitize function. If the clip parameter is set to True, the binned 
+    data is clipped to the range [0, num_bins-1].
     
     Parameters
     ----------
@@ -432,21 +436,81 @@ def float_to_bins(
     clip : bool, optional
         Whether to clip the binned data to the range [0, num_bins-1], 
         by default True.
+    kind : Literal['linear', 'quantile'], optional
+        The method used to calculate the bin edges, by default 'linear'.
     
     Returns
     -------
     NDArray[np.int_]
         The binned array of integers.
     """
-    bin_edges = np.linspace(np.min(data), np.max(data), num_bins + 1)
+    assert kind in ['linear', 'quantile'], (
+        f'kind must be either "linear" or "quantile", got "{kind}"')
+    if kind == 'linear':
+        bin_edges = np.linspace(np.min(data), np.max(data), num_bins + 1)
+    else:
+        bin_edges = np.quantile(data, np.linspace(0, 1, num_bins + 1))
+
     binned_data = np.digitize(data, bin_edges) - 1
     if clip:
         binned_data = np.clip(binned_data, 0, num_bins - 1)
     return binned_data
+
+def precise_to_bin_nominals(
+        precise_values: NDArray[np.float_] | Series,
+        n_bins: int,
+        distance: float | None = None,
+        kind: Literal['linear', 'quantile'] = 'linear'
+        ) -> NDArray[np.float_]:
+    """Calculate the bin nominals
+
+    Suppose we simulate the precise values we need, but we can't provide
+    them continuously, but only at certain intervals with a certain 
+    tolerance. This function is used to calculate the nominal values for 
+    each of these intervals (bins).
+    - If kind is 'linear', the bin nominals are evenly distributed at 
+      the specified distance and aligned to the mean of precise values.
+    - If kind is 'quantile', the bin nominals are calculated as evenly 
+      spaced quantiles of the precise values.
+    
+    Parameters
+    ----------
+    precise_values : float
+        The precise values.
+    n_bins : int
+        The number of bins.
+    distance : float | None, optional
+        The distance between the bins e.g. the process tolerance.
+        Only considered if kind is "linear" and must be specified in 
+        this case. Default is None.
+    kind : Literal['linear', 'quantile'] = 'linear'
+        The method used to calculate the bin nominals.
+    
+    Returns
+    -------
+    NDArray[np.float_]
+        The bin nominals.
+    """
+    assert kind in ['linear', 'quantile'], (
+        f'kind must be either "linear" or "quantile", got "{kind}"')
+    
+    if kind == 'linear':
+        assert isinstance(distance, (int, float)), (
+            f'Specify a distance between the bins, got {distance}')
+        base = (
+            distance / 2 
+            + np.array([i * distance for i in range(n_bins)]))
+        shift = np.mean(precise_values) - np.mean(base)
+        nominals = base + shift
+    else:
+        quantiles = [i/(n_bins + 1) for i in range(1, n_bins + 1)]
+        nominals = np.array([np.quantile(precise_values, q) for q in quantiles])
+    return nominals
 
 __all__ = [
     'SpecLimits',
     'Parameter',
     'RandomProcessValue',
     'round_to_nearest',
-    'float_to_bins',]
+    'float_to_bins',
+    'precise_to_bin_nominals',]
