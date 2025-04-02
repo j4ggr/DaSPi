@@ -14,6 +14,13 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.4.1] - 2025-04-02
+
+## Added
+
+- The option kind to choose between 'linear' and 'quantile' aproach for float_to_bins function in montecarlo module.
+- The function precise_to_bin_nominals in montecarlo module.
+
 ## [1.4.0] - 2025-04-02
 
 ### Fixed
@@ -269,5 +276,4 @@ __Plotlib module:__
 - Any type of plotters such as Bar, Violin, KDE, Scatter, Line, Errorbar, Confidence Intervals, Pareto, Bland Altmann, Parallel Coordinate and Jitter.
 - Pre-built Matplotlib stylesheet
 - Classifiers to classify the plots into different colors, markers or marker sizes depending on the categorical variates.
-- Facets for plotting multiple charts in one figure, with the plots divided into the individual Axes depending on the categorical variates. Also for adding stribes to the charts or adding labels, titles and legends.
-
+- Facets for plotting multiple charts in one figure, with the plots divided into the individual Axes depending on the categorical variates. Also for adding stribes to the charts or adding labels, titles 
