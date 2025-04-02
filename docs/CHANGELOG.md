@@ -14,13 +14,43 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.4.0] - 2025-04-02
+
+### Fixed
+
+- LinearModel returned wrong parameters at highest_parameters method.
+- Categoical features are now correctly handled by GaussianKDE.
+- LinearModel failed when converting dtype to 'category' in optimize method.
+- LinearModel residual_data method failed for non-numeric index values ​​because they were used for "observation." Now, a separate data series is created.
+- ProcessEstimator n_nok was calculated incorrectly if usl was not present or 0.
+- ProcessEstimator check if lsl and usl are boolean True can lead to incorrectly predictive nok values.
+
+### Changed
+
+- LinearModel method name highest_features to highest_parameters.
+- The option center_points to show_center at CenterLocation plotter, due to consistency.
+- Individual options for mean, median and control_limits at stripes method for ProcessCapabilityAnalysisCharts
+- GaussianKDE and Violine uses now the same call method for plotting.
+- No tuple allowed anywhere where spec_limits must be defined.
+- ProcessEstimator property name "nok_pred" to "nok_fit.
+
+### Added
+
+- The _kw_fill method to SpreadOpacity class.
+- The stripes method for ParameterRelevanceCharts.
+- The option dist when instantiating ProcessCapabilityAnalysisCharts.
+- The property nok_norm to ProcessEstimator class.
+- The p_dist to the returned values of describe method of ProcessEstimator class.
+- Tests for LinearModel highest_parameter, optimize and predict methods.
+- Tests for ProcessEstimator nok_fit and nok_norm property.
+
 ## [1.3.0] - 2025-02-12
 
 ### Fixed
 
 - PairComparisonChart failed when plotting MeanTest, because of n_groups was not set.
 - The method anova() of LinearModel class failed for typ "I" under certain conditions. Automatically changed to "III" for the moment.
-- The function transpose_xy_axes_params() did wrong stuff if axes were shared
+- The function transpose_xy_axes_params() did wrong stuff if axes were shared.
 
 ### Changed
 

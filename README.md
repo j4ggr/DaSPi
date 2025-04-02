@@ -54,4 +54,4 @@ chart = dsp.MultivariateChart(
     )
 ```
 
-![Iris sepal length species](docs/img/iris_contour_size-leaf-species.png)
+![Iris sepal length species](img/iris_contour_size-leaf-species.png)
