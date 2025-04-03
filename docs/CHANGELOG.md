@@ -14,9 +14,20 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.4.2] - 2025-04-02
+
+### Added
+
+- Binning class for binning precise values into a specified number of bins.
+- Tests for Binning class.
+  
+### Removed
+
+- The functions float_to_bins and precise_to_bin_nominals from montecarlo module. They are now part of Binning class.
+
 ## [1.4.1] - 2025-04-02
 
-## Added
+### Added
 
 - The option kind to choose between 'linear' and 'quantile' aproach for float_to_bins function in montecarlo module.
 - The function precise_to_bin_nominals in montecarlo module.
