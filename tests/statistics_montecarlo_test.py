@@ -1,5 +1,6 @@
 import sys
 import pytest
+import numpy as np
 
 from pathlib import Path
 from pandas.core.frame import DataFrame
@@ -146,3 +147,56 @@ class TestParameter:
         
         with pytest.raises(AttributeError):
             param.NOMINAL = 1.5 # type: ignore
+
+class TestBinning:
+    
+    def test_linear_binning(self) -> None:
+        data = np.array([1.5, 2.3, 3.7, 4.1, 5.0])
+        binning = Binning(data, num_bins=3, distance=1.0, kind='linear')
+        expected_nominals = np.array([2.32, 3.32, 4.32])
+        expected_indices = np.array([0, 0, 1, 2, 2])
+        expected_binned_values = np.array([2.32, 2.32, 3.32, 4.32, 4.32])
+        
+        np.testing.assert_allclose(binning.nominals, expected_nominals)
+        assert (binning.indices == expected_indices).all()
+        np.testing.assert_allclose(binning.values(), expected_binned_values)
+
+    def test_quantile_binning(self) -> None:
+        data = np.array([1.5, 2.3, 3.7, 4.1, 5.0])
+        binning = Binning(data, num_bins=3, kind='quantile')
+        expected_nominals = np.array([2.3, 3.7, 4.1])
+        expected_indices = np.array([0, 0, 1, 2, 2])
+        expected_binned_values = np.array([2.3, 2.3, 3.7, 4.1, 4.1])
+        
+        np.testing.assert_allclose(binning.nominals, expected_nominals)
+        assert (binning.indices == expected_indices).all()
+        np.testing.assert_allclose(binning.values(), expected_binned_values)
+
+    def test_round_to_nearest(self) -> None:
+        data = np.array([1.5, 2.3, 3.7, 4.1, 5.0])
+        binning = Binning(data, num_bins=3, distance=1.0, kind='linear')
+        expected_nominals = np.array([2.32, 3.32, 4.32])
+        np.testing.assert_allclose(binning.nominals, expected_nominals)
+        binning.round_to_nearest(nearest=5, digit=2)
+        expected_nominals = np.array([2.30, 3.30, 4.30])
+        expected_indices = np.array([0, 0, 1, 2, 2])
+        expected_binned_values = np.array([2.30, 2.30, 3.30, 4.30, 4.30])
+        np.testing.assert_allclose(binning.values(), expected_binned_values)
+        assert (binning.indices == expected_indices).all()
+        np.testing.assert_allclose(binning.nominals, expected_nominals)
+        
+        binning = Binning(data, num_bins=3, distance=1.0, kind='quantile')
+        expected_nominals = np.array([2.3, 3.7, 4.1])
+        np.testing.assert_allclose(binning.nominals, expected_nominals)
+        binning.round_to_nearest(nearest=5, digit=1)
+        expected_nominals = np.array([2.5, 3.5, 4.0])
+        expected_indices = np.array([0, 0, 1, 2, 2])
+        expected_binned_values = np.array([2.5, 2.5, 3.5, 4.0, 4.0])
+        np.testing.assert_allclose(binning.values(), expected_binned_values)
+        assert (binning.indices == expected_indices).all()
+        np.testing.assert_allclose(binning.nominals, expected_nominals)
+
+    def test_assert_distance_linear(self) -> None:
+        data = np.array([1.5, 2.3, 3.7, 4.1, 5.0])
+        with pytest.raises(AssertionError, match='Specify a distance between the bins'):
+            Binning(data, num_bins=3, kind='linear')

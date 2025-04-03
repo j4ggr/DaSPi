@@ -5,6 +5,7 @@ import numpy as np
 from math import pi
 from math import sin
 from typing import Any
+from typing import Self
 from typing import Tuple
 from typing import Literal
 from dataclasses import dataclass
@@ -383,6 +384,201 @@ class RandomProcessValue:
         """
         return np.array([self() for _ in range(n)])
 
+
+class Binning:
+    """A class for binning precise values into a specified number of 
+    bins.
+
+    This class is designed to handle scenarios where precise values are 
+    available only at certain intervals with a defined tolerance. It 
+    provides methods to bin these values using either a linear or 
+    quantile approach.
+
+    The binning method is determined by the `kind` parameter:
+    - If `kind` is set to 'linear', bin edges are calculated based on 
+      the minimum and maximum values of the provided data.
+    - If `kind` is set to 'quantile', bin edges are determined by the 
+      quantiles of the input data.
+
+    The `values` method assigns each data point to the nearest bin using 
+    a digitizing function. For more accurate results, the 
+    `round_to_nearest` method can be used to round the bin nominal 
+    values.
+
+    Parameters
+    ----------
+    data : NDArray[np.float_] | Series
+        The precise values to be binned and used for calculations.
+    num_bins : int
+        The total number of bins to create.
+    distance : float | None, optional
+        The distance between the bins, representing the process tolerance.
+        This parameter is only relevant when `kind` is 'linear' and must 
+        be specified in that case. Default is None.
+    kind : Literal['linear', 'quantile'], optional
+        The method to calculate the bin edges, default is 'linear'.
+
+    Raises
+    ------
+    AssertionError
+        If the `distance` is not specified when `kind` is 'linear'.
+    
+    Examples
+    --------
+    Example 1: Binning with linear approach
+    ``` python
+    import numpy as np
+    import daspi as dsp
+    data = np.array([1.5, 2.3, 3.7, 4.1, 5.0])
+    binning = dsp.Binning(data, num_bins=3, distance=1.0, kind='linear')
+    binned_values = binning.values()
+    print(f'{binning.nominals=}')
+    print(f'{binning.indices=}')
+    print(binned_values)
+    ```
+
+    ``` console
+    binning.nominals=array([2.32, 3.32, 4.32])
+    binning.indices=array([0, 0, 1, 2, 2])
+    [2.32, 2.32, 3.32, 4.32, 4.32]
+    ```
+
+    Example 2: Binning with quantile approach
+    ``` python
+    data = np.array([1.5, 2.3, 3.7, 4.1, 5.0])
+    binning = dsp.Binning(data, num_bins=3, kind='quantile')
+    binned_values = binning.values()
+    print(f'{binning.nominals=}')
+    print(f'{binning.indices=}')
+    print(binned_values)
+    ```
+
+    ``` console
+    binning.nominals=array([2.3, 3.7, 4.1])
+    binning.indices=array([0, 0, 1, 2, 2])
+    [2.3, 2.3, 3.7, 4.1, 4.1]
+    ```
+
+    Example 3: Rounding nominals
+    ``` python
+    data = np.array([1.5, 2.3, 3.7, 4.1, 5.0])
+    binning = dsp.Binning(data, num_bins=3, kind='quantile')
+    binning.round_to_nearest(nearest=5, digit=1)
+    binned_values = binning.values()
+    print(f'{binning.nominals=}')
+    print(binned_values)
+    ```
+
+    ``` console
+    binning.nominals=array([2.5, 3.5, 4.0])
+    [2.5, 2.5, 3.5, 4.0, 4.0]
+    ```
+    """
+    def __init__(
+            self,
+            data: NDArray[np.float_] | Series,
+            num_bins: int,
+            distance: float | None = None,
+            kind: Literal['linear', 'quantile'] = 'linear'
+            ) -> None:
+        self.data = np.asarray(data)
+        self.num_bins = num_bins
+        self.distance = distance
+        self.kind = kind
+        self.edges = self._calculate_edges()
+        self.indices = self._calculate_indices()
+        self.nominals = self._calculate_nominals()
+
+    def _calculate_edges(self) -> np.ndarray:
+        """Calculate the bin edges based on the specified method.
+
+        Returns
+        -------
+        NDArray[np.float_]
+            The calculated bin edges.
+        """
+        if self.kind == 'linear':
+            edges = np.linspace(
+                np.min(self.data),
+                np.max(self.data),
+                self.num_bins + 1)
+        else:  # kind == 'quantile'
+            edges = np.quantile(
+                self.data,
+                np.linspace(0, 1, self.num_bins + 1))
+        return edges
+
+    def _calculate_indices(self) -> np.ndarray:
+        """Convert the precise values to bin indices.
+
+        Returns
+        -------
+        NDArray[np.int_]
+            The binned array of integers.
+        """
+        binned_data = np.digitize(self.data, self.edges) - 1
+        return np.clip(binned_data, 0, self.num_bins - 1)
+
+    def _calculate_nominals(self) -> NDArray[np.float_]:
+        """Calculate the bin nominals based on the specified method.
+
+        Returns
+        -------
+        NDArray[np.float_]
+            The bin nominals.
+        """
+        if self.kind == 'linear':
+            assert isinstance(self.distance, (int, float)), (
+                f'Specify a distance between the bins, got {self.distance}')
+            base = (
+                self.distance / 2
+                + np.array([i * self.distance for i in range(self.num_bins)]))
+            shift = np.mean(self.data) - np.mean(base)
+            nominals = base + shift
+        else:
+            _n = self.num_bins + 1
+            quantiles = [i / _n for i in range(1, _n)]
+            nominals = np.array(
+                [np.quantile(self.data, q) for q in quantiles])
+        return nominals
+
+    def round_to_nearest(self, nearest: int = 5, digit: int = 3) -> Self:
+        """Round to the nearest multiple of `nearest`.
+        
+        This function rounds the input data to the nearest multiple of 
+        the specified `nearest` value at the specified `digit`.
+
+        Parameters
+        ----------
+        data : float | NDArray[np.float_] | Series
+            The input data to be rounded.
+        nearest : int, optional
+            The multiple to round to, by default 5.
+        digit : int, optional
+            The number of decimal places to round to, by default 3.
+        
+        Returns
+        -------
+        Self
+            The instance with the rounded nominals.
+        """
+        self.nominals = round_to_nearest(self.nominals, nearest, digit)
+        return self
+
+    def values(self) -> NDArray[np.float_]:
+        """Get the binned values based on the calculated indices and 
+        nominals.
+
+        Returns
+        -------
+        NDArray[np.float_]
+            The binned values.
+        """
+        assert hasattr(self, 'nominals'), (
+            'Calculate the nominals first using the calculate_nominals method')
+        return self.nominals[self.indices]
+
+
 def round_to_nearest(
         x: FloatOrArray,
         nearest: int = 5,
@@ -410,107 +606,10 @@ def round_to_nearest(
     factor = 10**digit
     return np.round(x / nearest * factor) / factor * nearest
 
-def float_to_bins(
-        data: NDArray | Series,
-        num_bins: int,
-        clip: bool = True,
-        kind: Literal['linear', 'quantile'] = 'linear'
-        ) -> NDArray[np.int_]: 
-    """Convert an array of floats to a binned array of integers.
-
-    This function bins the input data into the specified number of bins.
-    If the kind parameter is set to 'linear', the bin edges are 
-    calculated based on the minimum and maximum values of the input 
-    data. If the kind parameter is set to 'quantile', the bin edges are 
-    calculated based on the quantiles of the input data.
-    Finally each float is assigned to the nearest bin using the 
-    digitize function. If the clip parameter is set to True, the binned 
-    data is clipped to the range [0, num_bins-1].
-    
-    Parameters
-    ----------
-    data : NDArray[np.float_] | Series
-        The array of floats to be binned.
-    num_bins : int
-        The number of bins to use.
-    clip : bool, optional
-        Whether to clip the binned data to the range [0, num_bins-1], 
-        by default True.
-    kind : Literal['linear', 'quantile'], optional
-        The method used to calculate the bin edges, by default 'linear'.
-    
-    Returns
-    -------
-    NDArray[np.int_]
-        The binned array of integers.
-    """
-    assert kind in ['linear', 'quantile'], (
-        f'kind must be either "linear" or "quantile", got "{kind}"')
-    if kind == 'linear':
-        bin_edges = np.linspace(np.min(data), np.max(data), num_bins + 1)
-    else:
-        bin_edges = np.quantile(data, np.linspace(0, 1, num_bins + 1))
-
-    binned_data = np.digitize(data, bin_edges) - 1
-    if clip:
-        binned_data = np.clip(binned_data, 0, num_bins - 1)
-    return binned_data
-
-def precise_to_bin_nominals(
-        precise_values: NDArray[np.float_] | Series,
-        n_bins: int,
-        distance: float | None = None,
-        kind: Literal['linear', 'quantile'] = 'linear'
-        ) -> NDArray[np.float_]:
-    """Calculate the bin nominals
-
-    Suppose we simulate the precise values we need, but we can't provide
-    them continuously, but only at certain intervals with a certain 
-    tolerance. This function is used to calculate the nominal values for 
-    each of these intervals (bins).
-    - If kind is 'linear', the bin nominals are evenly distributed at 
-      the specified distance and aligned to the mean of precise values.
-    - If kind is 'quantile', the bin nominals are calculated as evenly 
-      spaced quantiles of the precise values.
-    
-    Parameters
-    ----------
-    precise_values : float
-        The precise values.
-    n_bins : int
-        The number of bins.
-    distance : float | None, optional
-        The distance between the bins e.g. the process tolerance.
-        Only considered if kind is "linear" and must be specified in 
-        this case. Default is None.
-    kind : Literal['linear', 'quantile'] = 'linear'
-        The method used to calculate the bin nominals.
-    
-    Returns
-    -------
-    NDArray[np.float_]
-        The bin nominals.
-    """
-    assert kind in ['linear', 'quantile'], (
-        f'kind must be either "linear" or "quantile", got "{kind}"')
-    
-    if kind == 'linear':
-        assert isinstance(distance, (int, float)), (
-            f'Specify a distance between the bins, got {distance}')
-        base = (
-            distance / 2 
-            + np.array([i * distance for i in range(n_bins)]))
-        shift = np.mean(precise_values) - np.mean(base)
-        nominals = base + shift
-    else:
-        quantiles = [i/(n_bins + 1) for i in range(1, n_bins + 1)]
-        nominals = np.array([np.quantile(precise_values, q) for q in quantiles])
-    return nominals
 
 __all__ = [
     'SpecLimits',
     'Parameter',
     'RandomProcessValue',
-    'round_to_nearest',
-    'float_to_bins',
-    'precise_to_bin_nominals',]
+    'Binning',
+    'round_to_nearest',]
