@@ -225,19 +225,44 @@ class Parameter:
 
 class RandomProcessValue:
     """Class to generate a random process value.
+
+    This class generates random values based on the specified
+    distribution and parameters. The generated values are within the 
+    specified limits and tolerance comi. The class supports three types 
+    of distributions: normal, uniform, and circular. The generated
+    values can be clipped to the range defined by the tolerance. The 
+    class also provides a method to generate an array of random values.
     
     Parameters
     ----------
-    nominal : float
-        The base value around which the random value will be generated.
-    tolerance : float
-        The tolerance range within which the generated value will be
-        generated.
+    parameter : Parameter
+        The parameter for which the random value will be generated.
     dist : {'normal', 'uniform', 'circular'}
         The distribution from which the random value will be generated.
-    clip_within_tolerance : bool, optional
+    clip : bool, optional
         Whether to clip the generated value to the range defined by the
         tolerance. Default is False.
+    
+    Examples
+    --------
+    Generate a random value from a uniform distribution:
+    
+    ``` python
+    import daspi as dsp
+
+    PARAM_I = dsp.Parameter(limits=(5, 10))
+    PARAM_II = dsp.Parameter(tolerance=0.1, nominal=3)
+
+    rpv = RandomProcessValue(PARAM_I, 'uniform')
+    value = rpv()
+    ```
+
+    Generate a array from a normal distribution with clipping:
+
+    ```	python
+    rpv = RandomProcessValue(PARAM_II, 'normal', clip=True)
+    array = rpv.generate(100_000)
+    ```
     """
 
     _allowed_dists: Tuple[str, ...] = ('normal', 'uniform', 'circular')
@@ -245,33 +270,35 @@ class RandomProcessValue:
 
     def __init__(
             self,
-            nominal: float,
-            tolerance: float,
+            parameter: Parameter,
             dist: Literal['normal', 'uniform', 'circular'],
-            clip_within_tolerance: bool = False
+            clip: bool = False,
             ) -> None:
-        """Initialize the RandomProcessValue class."""
         assert dist in self._allowed_dists, (
             f'Distribution must be one of {self._allowed_dists}, got {dist}.')
-        self.nominal = nominal
-        self.tolerance = tolerance
+        self.parameter = parameter
         self.dist = dist
-        self.clip_within_tolerance = clip_within_tolerance
+        self.clip_within_tolerance = clip
     
     @property
     def scale(self) -> float:
         """Scale factor for the distribution (6 sigma rule)."""
-        return self.tolerance / 6
+        return self.parameter.TOLERANCE / 6
+    
+    @property
+    def loc(self) -> float:
+        """Location parameter of the distribution."""
+        return self.parameter.NOMINAL
     
     @property
     def lower(self) -> float:
         """Lower bound of the distribution."""
-        return self.nominal - self.tolerance / 2
+        return self.parameter.LIMITS.lower
     
     @property
     def upper(self) -> float:
         """Upper bound of the distribution."""
-        return self.nominal + self.tolerance / 2
+        return self.parameter.LIMITS.upper
     
     @staticmethod
     def clip(value: float, min_value: float, max_value: float) -> float:
@@ -310,7 +337,7 @@ class RandomProcessValue:
             The generated random value within the specified tolerance 
             range.
         """
-        value = random.normalvariate(self.nominal, self.scale)
+        value = random.normalvariate(self.loc, self.scale)
         if self.clip_within_tolerance:
             value = self.clip(value, self.lower, self.upper)
         return value
@@ -349,7 +376,7 @@ class RandomProcessValue:
         float
             The modified value after applying the random circular offset.
         """
-        return self.tolerance * sin(random.uniform(0, 2 * pi))
+        return self.parameter.TOLERANCE * sin(random.uniform(0, 2 * pi))
     
     def __call__(self) -> float:
         """Generate a random value within the specified tolerance range.

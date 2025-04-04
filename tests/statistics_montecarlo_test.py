@@ -1,9 +1,12 @@
 import sys
 import pytest
+import random
 import numpy as np
 
 from pathlib import Path
 from pandas.core.frame import DataFrame
+
+from daspi.statistics.montecarlo import Parameter
 
 sys.path.append(Path(__file__).parent.resolve()) # type: ignore
 
@@ -147,6 +150,50 @@ class TestParameter:
         
         with pytest.raises(AttributeError):
             param.NOMINAL = 1.5 # type: ignore
+
+
+class TestRandomProcessValue:
+    
+    @pytest.fixture
+    def PARAM(self) -> Parameter:
+        # Setup a parameter with limits and tolerance
+        return Parameter(limits=(5, 10))
+    
+    def test_initialization_with_invalid_distribution(self, PARAM: Parameter) -> None:
+        with pytest.raises(AssertionError):
+            RandomProcessValue(PARAM, 'invalid_distribution') # type: ignore
+
+    def test_normal_distribution(self, PARAM: Parameter) -> None:
+        rpv = RandomProcessValue(PARAM, 'normal')
+        value = rpv()
+        assert rpv.lower <= value <= rpv.upper, "Value not within limits"
+
+    def test_uniform_distribution(self, PARAM: Parameter) -> None:
+        rpv = RandomProcessValue(PARAM, 'uniform')
+        value = rpv()
+        assert rpv.lower <= value <= rpv.upper, "Value not within limits"
+
+    def test_circular_distribution(self, PARAM: Parameter) -> None:
+        rpv = RandomProcessValue(PARAM, 'circular')
+        value = rpv()
+        assert -rpv.parameter.TOLERANCE <= value <= rpv.parameter.TOLERANCE, "Value not within circular tolerance"
+
+    def test_clipping_function(self, PARAM: Parameter) -> None:
+        rpv = RandomProcessValue(PARAM, 'normal', clip=True)
+        # Generate a value outside the limits
+        random.seed(0)  # For reproducibility
+        value = rpv.clip(15, rpv.lower, rpv.upper)
+        assert value == rpv.upper, "Clipping failed for upper limit"
+        
+        value = rpv.clip(-5, rpv.lower, rpv.upper)
+        assert value == rpv.lower, "Clipping failed for lower limit"
+
+    def test_generate_method(self, PARAM: Parameter) -> None:
+        rpv = RandomProcessValue(PARAM, 'normal', clip=True)
+        values = rpv.generate(1000)
+        assert len(values) == 1000, "Generated array length mismatch"
+        assert all(rpv.lower <= v <= rpv.upper for v in values), "Generated values out of bounds"
+
 
 class TestBinning:
     
