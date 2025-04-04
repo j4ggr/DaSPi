@@ -14,7 +14,18 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
-## [1.4.2] - 2025-04-02
+## [1.4.3] - 2025-04-04
+
+### Changed
+
+- RandomProcessValue requires a Parameter instance instead of nominal and tolerance
+
+### Added
+
+- Tests for RandomProcessValue class
+- Examples to docstring of RandomProcessValue class
+
+## [1.4.2] - 2025-04-03
 
 ### Added
 
