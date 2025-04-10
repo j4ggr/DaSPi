@@ -14,6 +14,12 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.4.5] - 2025-04-10
+
+### Fixed
+
+- The images should now be displayed on GH pages and PyPI.
+
 ## [1.4.4] - 2025-04-10
 
 ### Fixed
