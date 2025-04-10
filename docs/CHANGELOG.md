@@ -14,6 +14,17 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.4.4] - 2025-04-10
+
+### Fixed
+
+- Fixed documentation and docstrings to eliminate mkdocs warnings when building documentation.
+- Typing in montecarlo module was not sutable for numpy v2.0.0
+
+### Changed
+
+- Enhanced README.
+
 ## [1.4.3] - 2025-04-04
 
 ### Changed
