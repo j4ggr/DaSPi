@@ -406,7 +406,7 @@ class RandomProcessValue:
         
         Returns
         -------
-        NDArray[np.float_]
+        NDArray[np.float64]
             An array of random values.
         """
         return np.array([self() for _ in range(n)])
@@ -434,7 +434,7 @@ class Binning:
 
     Parameters
     ----------
-    data : NDArray[np.float_] | Series
+    data : NDArray[np.float64] | Series
         The precise values to be binned and used for calculations.
     num_bins : int
         The total number of bins to create.
@@ -503,7 +503,7 @@ class Binning:
     """
     def __init__(
             self,
-            data: NDArray[np.float_] | Series,
+            data: NDArray[np.float64] | Series,
             num_bins: int,
             distance: float | None = None,
             kind: Literal['linear', 'quantile'] = 'linear'
@@ -521,7 +521,7 @@ class Binning:
 
         Returns
         -------
-        NDArray[np.float_]
+        NDArray[np.float64]
             The calculated bin edges.
         """
         if self.kind == 'linear':
@@ -546,12 +546,12 @@ class Binning:
         binned_data = np.digitize(self.data, self.edges) - 1
         return np.clip(binned_data, 0, self.num_bins - 1)
 
-    def _calculate_nominals(self) -> NDArray[np.float_]:
+    def _calculate_nominals(self) -> NDArray[np.float64]:
         """Calculate the bin nominals based on the specified method.
 
         Returns
         -------
-        NDArray[np.float_]
+        NDArray[np.float64]
             The bin nominals.
         """
         if self.kind == 'linear':
@@ -577,7 +577,7 @@ class Binning:
 
         Parameters
         ----------
-        data : float | NDArray[np.float_] | Series
+        data : float | NDArray[np.float64] | Series
             The input data to be rounded.
         nearest : int, optional
             The multiple to round to, by default 5.
@@ -592,13 +592,13 @@ class Binning:
         self.nominals = round_to_nearest(self.nominals, nearest, digit)
         return self
 
-    def values(self) -> NDArray[np.float_]:
+    def values(self) -> NDArray[np.float64]:
         """Get the binned values based on the calculated indices and 
         nominals.
 
         Returns
         -------
-        NDArray[np.float_]
+        NDArray[np.float64]
             The binned values.
         """
         assert hasattr(self, 'nominals'), (
@@ -618,7 +618,7 @@ def round_to_nearest(
 
     Parameters
     ----------
-    x : float | NDArray[np.float_] | Series
+    x : float | NDArray[np.float64] | Series
         The input data to be rounded.
     nearest : int, optional
         The multiple to round to, by default 5.
@@ -627,7 +627,7 @@ def round_to_nearest(
     
     Returns
     -------
-    float | NDArray[np.float_] | Series
+    float | NDArray[np.float64] | Series
         The rounded data as the same type as the input.
     """
     factor = 10**digit
