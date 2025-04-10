@@ -365,11 +365,6 @@ class RandomProcessValue:
         multiplying the tolerance by the sine of a random angle uniformly 
         distributed between 0 and 2π radians, simulating the effects of 
         coaxiality in all possible directions.
-
-        Parameters
-        ----------
-        value : float
-            The base value to which the circular offset will be applied.
         
         Returns
         -------
@@ -577,8 +572,6 @@ class Binning:
 
         Parameters
         ----------
-        data : float | NDArray[np.float64] | Series
-            The input data to be rounded.
         nearest : int, optional
             The multiple to round to, by default 5.
         digit : int, optional

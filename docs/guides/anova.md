@@ -173,7 +173,7 @@ We can check these four points graphically using the following command. Each sub
 chart = dsp.ResidualsCharts(model).plot().label()
 ```
 
-![Anova Residuals Pain-Color](../img/anova_residuals_pain-color.png)
+![Anova Residuals Pain-Color](../img/anova_residues_pain-color.png)
 
 ## References
 

@@ -624,9 +624,6 @@ class BivariateUnivariateCharts(JointChart):
         kw_where : Dict[str, Any]
             Additional keyword arguments for the where method used to
             filter the data.
-        on_last_axes : bool, optional
-            If True, plot on the last axes in the grid. If False, plot 
-            on the next axes in the grid, by default False.
         **kwds
             Additional keyword arguments to be passed to the super plot
             method.

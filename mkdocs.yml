@@ -89,7 +89,7 @@ nav:
       - Plotting Library: plotlib/index.md
       - Templates:
         - Templates Module: plotlib/templates/index.md
-        - plotlib/templates/residuals-charts.md
+        - plotlib/templates/residual-charts.md
         - plotlib/templates/parameter-relevance-charts.md
         - plotlib/templates/pair-comparison-charts.md
         - plotlib/templates/bivariate-univariate-charts.md
@@ -105,7 +105,7 @@ nav:
         - plotlib/plotter/plotter.md
         - plotlib/plotter/scatter.md
         - plotlib/plotter/line.md
-        - plotlib/plotter/linear-regression.md
+        - plotlib/plotter/linear-regression-line.md
         - plotlib/plotter/probability.md
         - plotlib/plotter/parallel-coordinate.md
         - plotlib/plotter/transform-plotter.md
@@ -144,4 +144,4 @@ nav:
         - statistics/estimation/process-estimator.md
       - Confidence:
         - statistics/confidence/index.md
-      - Monte-Carlo Library: montecarlo/index.md
+      - Monte-Carlo Library: statistics\montecarlo\index.md

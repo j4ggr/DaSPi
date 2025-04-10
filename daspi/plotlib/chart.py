@@ -569,7 +569,7 @@ class SingleChart(Chart):
     """A handler for dodging categorical features along the axis."""
     categorical_feature: bool
     """Flag indicating whether the features are categorical."""
-    _current_variate: dict
+    _current_variate: Dict[str, Any]
     """Dictionary to store current variate information."""
     _last_variate: dict
     """Dictionary to store last variate information."""

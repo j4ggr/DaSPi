@@ -512,7 +512,7 @@ class Dodger:
             return self._default
         return self.dodge.get(str(category), self._default)
     
-    def __call__(self, values: Series, category: str) -> 'Series[float]':
+    def __call__(self, values: Series, category: str | None) -> 'Series[float]':
         """Replace source values with dodged ticks using the given 
         category to get the right offset.
 
@@ -525,7 +525,7 @@ class Dodger:
         ----------
         values : Series
             Source values to be replaced.
-        category : str
+        category : str | None
             The category for which to apply the dodge.
 
         Returns

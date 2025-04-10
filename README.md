@@ -127,7 +127,7 @@ dissolution ~ 16.0792 + 2.3750 employee[T.B] + 0.8375 employee[T.C] + 10.7500 br
 |       water |    1 | 1.000000 | 1.000000 |  2.236068 |     False |           R_squared |
 | brand:water |    1 | 1.000000 | 1.000000 |  2.236068 |     False | single_order-2_term |
 
-![ANOVA dissolution residuals](docs/img/anova_dissolution_residuals.png)
+![ANOVA dissolution residuals](docs/img/anova_dissolution_residues.png)
 
 ![ANOVA dissolution parameters](docs/img/anova_dissolution_params.png)
 

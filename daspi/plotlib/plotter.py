@@ -3595,10 +3595,6 @@ class SpreadWidth(Errorbar):
         Distributions to which the data may be subject. Only 
         continuous distributions of scipy.stats are allowed,
         by default `DIST.COMMON`
-    evaluate : callable or None, optional
-        Function that takes this instance as argument and returns
-        one of the allowed strategy {'eval', 'fit', 'norm', 'data'},
-        by default None   
     show_center : bool, optional
         Flag indicating whether to show the center points,
         by default True.
@@ -4334,12 +4330,6 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
     confidence_level : float, optional
         Confidence level for the confidence intervals,
         by default 0.95.
-    ci_func : Callable, optional
-        Function for calculating the confidence intervals. The following
-        two arguments are passed to the function: The sample data and 
-        the confidence level. The returned values must be three floats
-        in order: center value, lower confidence limit and upper 
-        confidence limit, by default `mean_ci`.
     color : str | None, optional
         Color to be used to draw the artists. If None, the first
         color is taken from the color cycle, by default None.
@@ -4382,6 +4372,7 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
             feature: str = '',
             show_center: bool = True,
             bars_same_color: bool = False,
+            skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             confidence_level: float = 0.95,
             show_feature_axis: bool | None = None,
@@ -4405,6 +4396,7 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
             feature=feature,
             show_center=show_center,
             bars_same_color=bars_same_color,
+            skip_na=skip_na,
             target_on_y=target_on_y,
             confidence_level=confidence_level,
             ci_func=estimate_capability_confidence,
@@ -4690,7 +4682,7 @@ class StripeLine(Stripe):
         The width of the stripe.
     orientation : {'horizontal', 'vertical'}, optional
         The orientation of the stripe. Defaults to 'horizontal'.
-    color, c : str, optional
+    color : str, optional
         The color of the stripe as string or hex value. Defaults to
         `COLOR.STRIPE`
     alpha : float or None, optional
@@ -4816,7 +4808,7 @@ class StripeSpan(Stripe):
         upper_position is not given. Defaults to None.
     orientation : {'horizontal', 'vertical'}, optional
         The orientation of the stripe. Defaults to 'horizontal'.
-    color, c : str, optional
+    color : str, optional
         The color of the stripe as string or hex value. Defaults to
         `COLOR.STRIPE`
     alpha : float or None, optional
