@@ -4,7 +4,7 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/j4ggr/daspi)
 ![downloads](https://img.shields.io/pypi/dm/daspi)
 
-![logo](docs/img/logo.svg)
+![logo](/img/logo.svg)
 
 # Data analysis, Statistics and Process improvements (DaSPi)
 
@@ -64,7 +64,7 @@ chart = dsp.MultivariateChart(
     )
 ```
 
-![Iris sepal length species](docs/img/iris_contour_size-leaf-species.png)
+![Iris sepal length species](/img/iris_contour_size-leaf-species.png)
 
 ### ANOVA
 
@@ -128,9 +128,9 @@ dissolution ~ 16.0792 + 2.3750 employee[T.B] + 0.8375 employee[T.C] + 10.7500 br
 |       water |    1 | 1.000000 | 1.000000 |  2.236068 |     False |           R_squared |
 | brand:water |    1 | 1.000000 | 1.000000 |  2.236068 |     False | single_order-2_term |
 
-![ANOVA dissolution residuals](docs/img/anova_dissolution_residues.png)
+![ANOVA dissolution residuals](/img/anova_dissolution_residues.png)
 
-![ANOVA dissolution parameters](docs/img/anova_dissolution_params.png)
+![ANOVA dissolution parameters](/img/anova_dissolution_params.png)
 
 ### Process capability
 
@@ -201,7 +201,7 @@ pd.concat([
 |         Z |   1.635227 |      1.815434 |
 |      Z_lt |   0.135227 |      0.315434 |
 
-![Process Capability Analysis](docs/img/cpk-analysis_drop-card.png)
+![Process Capability Analysis](/img/cpk-analysis_drop-card.png)
 
 """
 

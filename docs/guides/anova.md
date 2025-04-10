@@ -70,7 +70,7 @@ chart = dsp.SingleChart(
     )
 ```
 
-![Anova Jitter Pain-Color](../img/anova_jitter_pain-color.png)
+![Anova Jitter Pain-Color](../../img/anova_jitter_pain-color.png)
 
 Visually they seem to be different, now we test against the hypothesis that they are not:
 
@@ -140,7 +140,7 @@ chart = dsp.SingleChart(
     )
 ```
 
-![Anova Mean-CI Pain-Color](../img/anova_mean-ci_pain-color.png)
+![Anova Mean-CI Pain-Color](../../img/anova_mean-ci_pain-color.png)
 
 The group means are shown as blue dots and the overall mean as a gray dashed line.
 
@@ -173,7 +173,7 @@ We can check these four points graphically using the following command. Each sub
 chart = dsp.ResidualsCharts(model).plot().label()
 ```
 
-![Anova Residuals Pain-Color](../img/anova_residues_pain-color.png)
+![Anova Residuals Pain-Color](../../img/anova_residues_pain-color.png)
 
 ## References
 
