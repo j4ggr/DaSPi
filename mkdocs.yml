@@ -87,6 +87,13 @@ nav:
       - anova/linear-model.md
     - Plotlib: 
       - Plotting Library: plotlib/index.md
+      - Templates:
+        - Templates Module: plotlib/templates/index.md
+        - plotlib/templates/residuals-charts.md
+        - plotlib/templates/parameter-relevance-charts.md
+        - plotlib/templates/pair-comparison-charts.md
+        - plotlib/templates/bivariate-univariate-charts.md
+        - plotlib/templates/process-capability-analysis-charts.md
       - Chart:
         - Chart Module: plotlib/chart/index.md
         - plotlib/chart/chart.md
@@ -101,13 +108,15 @@ nav:
         - plotlib/plotter/linear-regression.md
         - plotlib/plotter/probability.md
         - plotlib/plotter/parallel-coordinate.md
-        - plotlib/plotter/bland-altman.md
         - plotlib/plotter/transform-plotter.md
         - plotlib/plotter/center-location.md
         - plotlib/plotter/bar.md
         - plotlib/plotter/pareto.md
         - plotlib/plotter/jitter.md
+        - plotlib/plotter/beeswarm.md
+        - plotlib/plotter/quantile-boxes.md
         - plotlib/plotter/gaussian-kde.md
+        - plotlib/plotter/gaussian-kde-contour.md
         - plotlib/plotter/violine.md
         - plotlib/plotter/errorbar.md
         - plotlib/plotter/standard-error-mean.md
@@ -115,6 +124,11 @@ nav:
         - plotlib/plotter/confidence-interval.md
         - plotlib/plotter/mean-test.md
         - plotlib/plotter/variation-test.md
+        - plotlib/plotter/proportion-test.md
+        - plotlib/plotter/capability-confidence-interval.md
+        - plotlib/plotter/subplot.md
+        - plotlib/plotter/stripe.md
+        - plotlib/plotter/bland-altman.md
       - Facets:
         - Facets Module: plotlib/facets/index.md
         - plotlib/facets/axes-facets.md
@@ -130,3 +144,4 @@ nav:
         - statistics/estimation/process-estimator.md
       - Confidence:
         - statistics/confidence/index.md
+      - Monte-Carlo Library: montecarlo/index.md
