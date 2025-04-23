@@ -1017,16 +1017,15 @@ class LinearModel:
             (or z-values), and p-values.
         """
         params_table = summary_params_frame(
-            self.model,
-            yname=self.target,
-            xname=list(map(self._convert_term_name_, self.model.params.index)),
-            alpha=alpha,
-            use_t=use_t)
-        columns_map = {
-            'P>|t|': 'p',
-            'Conf. Int. Low': 'ci_low',
-            'Conf. Int. Upp.': 'ci_upp'}
-        params_table = params_table.rename(columns=columns_map)
+                self.model,
+                yname=self.target,
+                xname=list(map(self._convert_term_name_, self.model.params.index)),
+                alpha=alpha,
+                use_t=use_t
+            ).rename(columns={
+                'P>|t|': 'p',
+                'Conf. Int. Low': 'ci_low',
+                'Conf. Int. Upp.': 'ci_upp'})
         return params_table
     
     def variance_inflation_factor(self, threshold: int = 5) -> DataFrame:

@@ -433,12 +433,12 @@ class Binning:
         The precise values to be binned and used for calculations.
     num_bins : int
         The total number of bins to create.
+    kind : Literal['linear', 'quantile'], optional
+        The method to calculate the bin edges, default is 'quantile'.
     distance : float | None, optional
         The distance between the bins, representing the process tolerance.
         This parameter is only relevant when `kind` is 'linear' and must 
         be specified in that case. Default is None.
-    kind : Literal['linear', 'quantile'], optional
-        The method to calculate the bin edges, default is 'linear'.
 
     Raises
     ------
@@ -500,8 +500,8 @@ class Binning:
             self,
             data: NDArray[np.float64] | Series,
             num_bins: int,
+            kind: Literal['linear', 'quantile'] = 'quantile',
             distance: float | None = None,
-            kind: Literal['linear', 'quantile'] = 'linear'
             ) -> None:
         self.data = np.asarray(data)
         self.num_bins = num_bins
