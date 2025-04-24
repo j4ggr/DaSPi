@@ -161,6 +161,7 @@ class AxesFacets:
     mosaic: HashableList | None
     """A visual layout of how the Axes are arranged labeled as strings."""
     mosaic_pattern = re.compile(r'[\s+]?(\S+)[\s+]?')
+    """A regular expression pattern to match the mosaic layout pattern."""
 
     def __init__(
             self,
@@ -208,6 +209,7 @@ class AxesFacets:
             figsize=self.figsize,
             width_ratios=width_ratios,
             height_ratios=height_ratios,
+            layout='constrained',
             ) | kwds
         if self.mosaic:
             self.figure, axes = plt.subplot_mosaic(mosaic=self.mosaic, **_kwds)
