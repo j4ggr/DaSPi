@@ -1,12 +1,12 @@
 import re
 import math
+import warnings
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
 from typing import Any
 from typing import Self
-from typing import Type
 from typing import List
 from typing import Dict
 from typing import Tuple
@@ -15,6 +15,7 @@ from typing import overload
 from typing import Sequence
 from typing import Generator
 from numpy.typing import NDArray
+from matplotlib.text import Text
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.figure import Figure
@@ -161,7 +162,6 @@ class AxesFacets:
     mosaic: HashableList | None
     """A visual layout of how the Axes are arranged labeled as strings."""
     mosaic_pattern = re.compile(r'[\s+]?(\S+)[\s+]?')
-    """A regular expression pattern to match the mosaic layout pattern."""
 
     def __init__(
             self,
@@ -209,7 +209,7 @@ class AxesFacets:
             figsize=self.figsize,
             width_ratios=width_ratios,
             height_ratios=height_ratios,
-            layout='constrained',
+            layout='compressed',
             ) | kwds
         if self.mosaic:
             self.figure, axes = plt.subplot_mosaic(mosaic=self.mosaic, **_kwds)
@@ -672,11 +672,11 @@ class LabelFacets:
         and a label as a string, by default {}.
     """
 
-    figure: Figure
-    """The figure instance to label."""
     axes: AxesFacets
     """A AxesFacets instance containing the subplots' Axes and their 
     arrangement."""
+    figure: Figure
+    """The figure instance to label."""
     fig_title: str
     """The title to display at the top of the chart."""
     sub_title: str
@@ -701,10 +701,15 @@ class LabelFacets:
     """The legend_data to be added to the figure."""
     _legend: Legend | None
     """Figure legend if one is added"""
+    _size: Tuple[int, int]
+    """The size of the figure in pixels."""
+    _margin: Dict[str, int]
+    """The required margin for the labels of the image in pixels."""
+    labels: Dict[str, Text]
+    """The labels that were added to the image as text objects."""
 
     def __init__(
             self,
-            figure: Figure,
             axes: AxesFacets,
             *,
             fig_title: str = '', 
@@ -719,8 +724,8 @@ class LabelFacets:
             axes_titles: Tuple[str, ...] = (),
             legend_data: Dict[str, LegendHandlesLabels] = {}
             ) -> None:
-        self.figure = figure
         self.axes = axes
+        self.figure = self.axes.figure
         self.fig_title = fig_title
         self.sub_title = sub_title
         self.xlabel = xlabel
@@ -733,6 +738,33 @@ class LabelFacets:
         self.info = info
         self.legend_data = legend_data
         self._legend = None
+        self._size = (
+            int(self.figure.get_figwidth() * self.figure.dpi),
+            int(self.figure.get_figheight() * self.figure.dpi))
+        self._margin = dict(left=0, bottom=0, right=0, top=0)
+        self.labels = {}
+    
+    @property
+    def margin_rectangle(self) -> Tuple[float, float, float, float]:
+        """Get rectangle of margins around the subplots used for the
+        additional labels as fraction of figure size (read-only)."""
+        margins = (
+            self._margin['left'] / self._size[0],
+            self._margin['bottom'] / self._size[1],
+            max(1 - (self._margin['right'] / self._size[0]), 0.5),
+            max(1 - (self._margin['top'] / self._size[1]), 0.5))
+        return margins
+    
+    @property
+    def legend_fraction(self) -> float:
+        """Get fraction of figure size for legend (read-only)."""
+        return self.legend_width / self.figure.get_figwidth()
+
+    @staticmethod
+    def estimate_height(text: Text) -> int:
+        """Get the estimated size of the text in the figure in pixels."""
+        pixel_size = int(int(text.get_fontsize()) * LABEL.PPI * text.figure.dpi)
+        return pixel_size + LABEL.PADDING
     
     @staticmethod
     def get_legend_artists(legend: Legend) -> List[Artist]:
@@ -751,42 +783,6 @@ class LabelFacets:
         return legend.get_children()[0].get_children()
 
     @property
-    def shift_text_y(self) -> float:
-        """Get offset to move text based on the fig height (read-only)."""
-        return LABEL.SHIFT_BASE / self.figure.get_figheight()
-
-    @property
-    def shift_text_x(self) -> float:
-        """Get offset to move text based on the fig width (read-only)."""
-        return LABEL.SHIFT_BASE / self.figure.get_figwidth()
-
-    @property
-    def shift_fig_title(self) -> float:
-        """Get offset in y direction for fig title (read-only)."""
-        labels = (self.axes_titles, self.col_title, self.sub_title)
-        n = (LABEL.AXES_PADDING
-             + sum(map(bool, labels)))
-        return n * self.shift_text_y
-
-    @property
-    def shift_sub_title(self) -> float:
-        """Get offset in y direction for sub title (read-only)."""
-        labels = (self.col_title, self.axes_titles)
-        n = (LABEL.AXES_PADDING
-             + LABEL.LABEL_PADDING * int(any(map(bool, labels)))
-             + sum(map(bool, labels)))
-        return n * self.shift_text_y
-
-    @property
-    def shift_legend(self) -> float:
-        """Get offset in x direction for legend (read-only)."""
-        labels = (self.row_title, self.rows)
-        n = (LABEL.AXES_PADDING 
-             + LABEL.LABEL_PADDING * sum(map(bool, labels))
-             + sum(map(bool, labels)))
-        return n * self.shift_text_x
-
-    @property
     def legend(self) -> Legend | None:
         """Get legend added to figure (read-only)."""
         return self._legend
@@ -797,8 +793,15 @@ class LabelFacets:
         if self.legend is None:
             return []
         return self.get_legend_artists(self.legend)
+    
+    @property
+    def legend_width(self) -> int:
+        """Get width of legend in pixels (read-only)."""
+        if self.legend is None:
+            return 0
+        return int(self.legend.get_window_extent().width)
 
-    def add_legend(
+    def _add_legend(
             self, handles: Tuple[Patch |Line2D, ...], labels: Tuple[str, ...],
             title: str) -> None:
         """Adds a legend at the right side of the figure. If there is 
@@ -817,114 +820,175 @@ class LabelFacets:
             Title for the given handles and labels. 
         """
         kw = KW.LEGEND
-        bbox = kw['bbox_to_anchor']
-        kw['bbox_to_anchor'] = (bbox[0] + self.shift_legend, bbox[1])
         legend = Legend(
-            self.axes[0, -1], handles, labels, title=title, **kw)
+            self.figure, handles, labels, title=title, **kw)
+        
         if not self.legend:
             self.figure.legends.append(legend) # type: ignore
             self._legend = legend
         else:
             new_artists = self.get_legend_artists(legend)
             self.legend_artists.extend(new_artists)
-
-    def add_xlabel(self) -> None:
-        """Add x-axis label(s) to the figure."""
-        if not self.xlabel:
-            return
-        
-        if isinstance(self.xlabel, str):
-            kw = KW.XLABEL
-            kw['y'] = kw['y'] - LABEL.AXES_PADDING * self.shift_text_y
-            self.figure.text(s=self.xlabel, **kw)
-        else:
-            for ax, xlabel in zip(self.axes.flat, self.xlabel):
-                if (len(ax.xaxis._get_shared_axis()) == 1 # type: ignore
-                        or ax in self.axes[-1, :]): 
-                    ax.set(xlabel=xlabel)
-
-    def add_ylabel(self) -> None:
-        """Add y-axis label(s) to the figure."""
-        if not self.ylabel:
-            return
-        
-        if isinstance(self.ylabel, str):
-            kw = KW.YLABEL
-            kw['x'] = kw['x'] - LABEL.AXES_PADDING * self.shift_text_x
-            self.figure.text(s=self.ylabel, **kw)
-        else:
-            for ax, ylabel in zip(self.axes.flat, self.ylabel):
-                if (len(ax.yaxis._get_shared_axis()) == 1 # type: ignore
-                        or ax in self.axes[:, 0]): 
-                    ax.set(ylabel=ylabel)
-
-    def add_row_labels(self) -> None:
-        """Add row labels and row title to the figure."""
-        if not self.rows:
-            return
-        
-        for ax, label in zip(self.axes[:, -1], self.rows):
-            kwds = KW.ROW_LABEL | {'transform': ax.transAxes}
-            ax.text(s=label, **kwds)
-        self.figure.text(s=self.row_title, **KW.ROW_TITLE)
     
-    def add_col_labels(self) -> None:
-        """Add column labels and column title to the figure."""
-        if not self.cols:
-            return
-        for ax, label in zip(self.axes[0, :], self.cols):
-            kwds = KW.COL_LABEL | {'transform': ax.transAxes}
-            ax.text(s=label, **kwds)
-        self.figure.text(s=self.col_title, **KW.COL_TITLE)
-
-    def add_titles(self) -> None:
-        """Add the figure and sub-title at the top of the chart."""
-        if not self.fig_title and not self.sub_title:
-            return
-        kw_fig = KW.FIG_TITLE
-        kw_sub = KW.SUB_TITLE
-        kw_sub['y'] = kw_sub['y'] + self.shift_sub_title
-        kw_fig['y'] = kw_fig['y'] + self.shift_fig_title
-        if self.sub_title:
-            self.figure.text(s=self.sub_title, **kw_sub)
-        if self.fig_title:
-            self.figure.text(s=self.fig_title, **kw_fig)
+    @staticmethod
+    def not_shared(axis) -> bool:
+        """Check if an axis is not shared."""
+        return len(axis._get_shared_axis()) == 1
     
-    def add_axes_titles(self) -> None:
-        """Add the provided axes titles."""
+    def _add_axes_titles(self) -> None:
+        """Add the axes titles to the figure. If cols are set, the
+        axes titles are not drawn."""
         if not self.axes_titles:
             return
         
+        if self.cols:
+            warnings.warn('Drawing axes_titles ignored, because cols are set.')
+            return
+
         for ax, title in zip(self.axes.flat, self.axes_titles):
             ax.set_title(title)
-    
-    def add_info(self) -> None:
-        """Insert an info text in the bottom left-hand corner of the 
+
+    def _add_left_labels(self) -> None:
+        """Add the ylabel or ylabs. If only one is present, a label will
+        be added centrally for all axes. Otherwise, a label will be added
+        for all axes that do not have a shared axes."""
+        self._margin['left'] = 0
+
+        if self.ylabel:
+            if isinstance(self.ylabel, str):
+                if self.axes.shape[0] == 1:
+                    self.axes[0, -1].set(ylabel=self.ylabel)
+                else:
+                    _kwds = KW.YLABEL
+                    _kwds['x'] += self._margin['left'] / self._size[0]
+                    _text = self.figure.text(s=self.ylabel, **_kwds)
+                    self._margin['left'] += self.estimate_height(_text)
+                    self.labels['ylabel'] = _text
+            else:
+                for ax, ylabel in zip(self.axes.flat, self.ylabel):
+                    if self.not_shared(ax.yaxis) or ax in self.axes[:, 0]:
+                        ax.set(ylabel=ylabel)
+
+    def _add_bottom_labels(self) -> None:
+        """Insert the xlabel or xlabs. If only one is present, a label 
+        will be added centrally for all axes. Otherwise, a label will be 
+        added for all axes that do not have a shared axes.
+        Also insert an info text in the bottom left-hand corner of the 
         figure. By default, the info text contains today's date and the 
         user name. If attribute `info` is a string, it is added to the 
         info text separated by a comma."""
-        if not self.info:
-            return
+        self._margin['bottom'] = 0
+
+        if self.info:
+            info_text = f'{STR.TODAY} {STR.USERNAME}'
+            if isinstance(self.info, str):
+                info_text = f'{info_text}, {self.info}'
+            _text = self.figure.text(s=info_text, **KW.INFO)
+            self._margin['bottom'] += self.estimate_height(_text)
+            self.labels['info'] = _text
         
-        info_text = f'{STR.TODAY} {STR.USERNAME}'
-        if isinstance(self.info, str):
-            info_text = f'{info_text}, {self.info}'
-        kwds = KW.INFO
         if self.xlabel:
-            kwds['y'] = kwds['y'] - self.shift_text_y
-        self.figure.text(s=info_text, **kwds)
+            if isinstance(self.xlabel, str):
+                if self.axes.shape[1] == 1:
+                    self.axes[-1, 0].set(xlabel=self.xlabel)
+                else:
+                    _kwds = KW.XLABEL
+                    _kwds['y'] += self._margin['bottom'] / self._size[1]
+                    _text = self.figure.text(s=self.xlabel, **_kwds)
+                    self._margin['bottom'] += self.estimate_height(_text)
+                    self.labels['xlabel'] = _text
+            else:
+                for ax, xlabel in zip(self.axes.flat, self.xlabel):
+                    if self.not_shared(ax.xaxis) or ax in self.axes[-1, :]: 
+                        ax.set(xlabel=xlabel)
+
+    def _add_right_labels(self) -> None:
+        """Add row labels and row title to the figure. The title is 
+        added to figure object, the rows to the axes objects."""
+        self._margin['right'] = self.legend_width
+        if self.legend_width > 0:
+            self._margin['right'] += LABEL.PADDING
+
+        if self.row_title:
+            _kwds = KW.ROW_TITLE
+            _kwds['x'] -= self._margin['right'] / self._size[0]
+            _text = self.figure.text(s=self.row_title, **_kwds)
+            self._margin['right'] += self.estimate_height(_text)
+            self.labels['row_title'] = _text
+
+        if self.rows:
+            for ax, label in zip(self.axes[:, -1], self.rows):
+                _kwds = KW.ROW_LABEL | {'transform': ax.transAxes}
+                _text = ax.text(s=label, **_kwds)
+                self.labels[f'row_{label}'] = _text
+
+    def _add_top_labels(self) -> None:
+        """Add all provided labels at the top of the charts. These 
+        labels include the figure title, sub title, column title and 
+        column labels."""
+        self._margin['top'] = 0
+
+        if self.fig_title:
+            _text = self.figure.text(s=self.fig_title, **KW.FIG_TITLE)
+            self._margin['top'] += self.estimate_height(_text) + LABEL.PADDING
+            self.labels['fig_title'] = _text
+
+        if self.sub_title:
+            _kwds = KW.SUB_TITLE
+            _kwds['y'] -= self._margin['top'] / self._size[1]
+            _text = self.figure.text(s=self.sub_title, **_kwds)
+            self._margin['top'] += self.estimate_height(_text) + LABEL.PADDING
+            self.labels['sub_title'] = _text
+        
+        if self.col_title:
+            _kwds = KW.COL_TITLE
+            _kwds['y'] -= self._margin['top'] / self._size[1]
+            _text = self.figure.text(s=self.col_title, **_kwds)
+            self._margin['top'] += self.estimate_height(_text)
+            self.labels['col_title'] = _text
+
+        if self.cols:
+            for ax, label in zip(self.axes[0, :], self.cols):
+                _kwds = KW.COL_LABEL | {'transform': ax.transAxes}
+                _text = ax.text(s=label, **_kwds)
+                self.labels[f'col_{label}'] = _text
+    
+    def clear(self) -> None:
+        """Remove all the label facets."""
+        for label in self.labels.values():
+            label.remove()
+        self.labels = {}
+
+        if self.legend:
+            self.legend.remove()
+            self._legend = None
     
     def draw(self) -> None:
         """Draw all the label facets to the figure."""
-        self.add_xlabel()
-        self.add_ylabel()
-        self.add_axes_titles()
-        self.add_row_labels()
-        self.add_col_labels()
+        self.clear()
+
+        self._add_axes_titles()
         for title, (handles, labels) in self.legend_data.items():
-            self.add_legend(handles, labels, title)
-        self.add_info()
-        self.add_titles()
+            self._add_legend(handles, labels, title)
+        self._add_left_labels()
+        self._add_bottom_labels()
+        self._add_right_labels()
+        self._add_top_labels()
+
+        lr_adjustment = (
+            (self._margin['left'] - self._margin['right']) / self._size[0] / 2)
+        bt_adjustment = (
+            (self._margin['bottom'] - self._margin['top']) / self._size[1] / 2)
+        if 'xlabel' in self.labels:
+            self.labels['xlabel'].set_x(KW.XLABEL['x'] + lr_adjustment)
+        if 'ylabel' in self.labels:
+            self.labels['ylabel'].set_y(KW.YLABEL['y'] + bt_adjustment)
+        if 'col_title' in self.labels:
+            self.labels['col_title'].set_x(KW.COL_TITLE['x'] + lr_adjustment)
+        if 'row_title' in self.labels:
+            self.labels['row_title'].set_y(KW.ROW_TITLE['y'] + bt_adjustment)
+            
+        self.figure.tight_layout(rect=self.margin_rectangle)
 
 
 __all__ = [

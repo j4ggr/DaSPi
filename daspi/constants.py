@@ -43,6 +43,8 @@ class _Kw_:
 
     _x: float = 0.035
     """X position for fig title, subtitle and info."""
+    _label_padding: float = 0.01
+    """Padding between label and figure border."""
 
     @property
     def LINE(self) -> Dict[str, Any]:
@@ -78,7 +80,8 @@ class _Kw_:
     def LEGEND(self) -> Dict[str, Any]:
         """Figure legend at right side of figure."""
         return dict(
-            loc='upper left', bbox_to_anchor=(1, 1), alignment='left')
+            loc='center right', bbox_to_anchor=(1 - self._label_padding, 0.5),
+            alignment='left')
 
     @property
     def SAVE_CHART(self) -> Dict[str, Any]:
@@ -89,25 +92,28 @@ class _Kw_:
     def XLABEL(self) -> Dict[str, Any]:
         """Keyword arguments for Figure.text method used to add a 
         centered xlabel."""
-        return dict(x=0.5, y=0, ha='center', va='top')
+        return dict(
+            x=0.5, y=self._label_padding, ha='center', va='bottom')
 
     @property
     def YLABEL(self) -> Dict[str, Any]:
         """Keyword arguments for Figure.text method used to add a 
         centered xlabel."""
-        return dict(x=0, y=0.5, ha='right', va='center', rotation=90)
+        return dict(
+            x=self._label_padding, y=0.5, ha='left', va='center', rotation=90)
 
     @property
     def ROW_LABEL(self) -> Dict[str, Any]:
         """Keyword Arguments for the Axes.text method used to add a 
         row label to each axes as text on LabelFacets."""
-        return dict(x=1, y=0.5, ha='left', va='center', rotation=-90)
+        return dict(
+            x=1, y=0.5, ha='left', va='center', rotation=-90)
 
     @property
     def ROW_TITLE(self) -> Dict[str, Any]:
         """Keyword Arguments for the Axes.text method used to add a 
         row title to ax as text on LabelFacets."""
-        return self.ROW_LABEL | {'x': 1}
+        return self.ROW_LABEL | dict(x=1 - self._label_padding, ha='right')
 
     @property
     def COL_LABEL(self) -> Dict[str, Any]:
@@ -119,13 +125,15 @@ class _Kw_:
     def COL_TITLE(self) -> Dict[str, Any]:
         """Keyword Arguments for the Figure.text method used to add a 
         column title to each plot axis as text on LabelFacets."""
-        return self.COL_LABEL | {'y': 1}
+        return self.COL_LABEL | dict(y=1 - self._label_padding, va='top')
 
     @property
     def FIG_TITLE(self) -> Dict[str, Any]:
         """Keyword arguments for Figure.text method used for adding
         figure title on LabelFacets."""
-        return dict(x=self._x, y=1, ha='left', size='x-large', va='bottom')
+        return dict(
+            x=self._x, y=1 - self._label_padding, ha='left', va='top',
+            size='x-large', in_layout=True)
 
     @property
     def SUB_TITLE(self) -> Dict[str, Any]:
@@ -136,7 +144,9 @@ class _Kw_:
     @property
     def INFO(self) -> Dict[str, Any]:
         """Adding info text at bottom left of figure."""
-        return dict(x=self._x, y=0, ha='left', va='top', size='x-small')
+        return dict(
+            x=self._x, y=self._label_padding, ha='left', va='bottom',
+            size='x-small', in_layout=True)
 
     @property
     def ERROR_BAR(self) -> Dict[str, Any]:
@@ -226,7 +236,7 @@ KW = _Kw_()
 @dataclass(frozen=True)
 class _Regex_:
 
-    ENCODED_NAME: Pattern = re.compile(r'(.+)\[[T.]?.+\]')
+    ENCODED_NAME: Pattern = re.compile(r'(.+)\[[T.]?\S+\]')
     """Patsy encoded column name."""
     ENCODED_VALUE: Pattern = re.compile(r'\[T.(.+)]')
     """Patsy encoded value shown in parameter name."""
@@ -288,13 +298,14 @@ COLOR = _Color_()
 @dataclass(frozen=True)
 class _Label_:
 
-    SHIFT_BASE: float = 0.25
-    """Bases shift factor for labels."""
-    AXES_PADDING: float = 0.2
-    """Additional padding factor between labels and axes."""
-    LABEL_PADDING: float = 0.2
-    """Additional padding factor between labels e.g. title and subtitle."""
-
+    PPI: float = 1/72
+    """Font size points per inch."""
+    PADDING: int = 6
+    """Additional padding in pixels between labels e.g. title and
+    subtitle."""
+    X_ALIGNEMENT: int = 20
+    """Horizontal alignment of labels (fig title, sub title and info)."""
+    
 LABEL = _Label_()
 
 

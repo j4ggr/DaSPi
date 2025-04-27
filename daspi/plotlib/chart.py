@@ -1094,7 +1094,6 @@ class SingleChart(Chart):
         xlabel, ylabel = self.axis_labels(feature_label, target_label)
 
         self.label_facets = LabelFacets(
-            figure=self.figure,
             axes=self.axes,
             fig_title=fig_title,
             sub_title=sub_title,
@@ -1742,7 +1741,6 @@ class JointChart(Chart):
         xlabel, ylabel = self.axis_labels(feature_label, target_label)
 
         self.label_facets = LabelFacets(
-            figure=self.figure,
             axes=self.axes,
             fig_title=fig_title,
             sub_title=sub_title,
@@ -2162,7 +2160,6 @@ class MultivariateChart(SingleChart):
         xlabel, ylabel = self.axis_labels(feature_label, target_label)
 
         self.label_facets = LabelFacets(
-            figure=self.figure,
             axes=self.axes,
             fig_title=fig_title,
             sub_title=sub_title,

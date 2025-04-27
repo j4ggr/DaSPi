@@ -180,15 +180,13 @@ class TestSingleChart:
         legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert len(legend_artists) == 2
         assert legend_artists[0].get_children()[0].get_text() == self.cat1 # type: ignore
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
-        assert texts[2].get_text() == self.target
-        assert texts[3].get_text() == self.feature
-        assert STR.TODAY in texts[4].get_text()
-        assert STR.USERNAME in texts[4].get_text()
+        assert STR.TODAY in texts[2].get_text()
+        assert STR.USERNAME in texts[2].get_text()
         assert self.info_msg not in info_msg
 
         self.kind = 'hue_size'
@@ -213,16 +211,14 @@ class TestSingleChart:
         legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert len(legend_artists) == 4
         assert legend_artists[0].get_children()[0].get_text() == self.cat1 # type: ignore
         assert legend_artists[2].get_children()[0].get_text() == self.size # type: ignore
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
-        assert texts[2].get_text() == self.target_label
-        assert texts[3].get_text() == self.feature_label
-        assert STR.TODAY in texts[4].get_text()
-        assert STR.USERNAME in texts[4].get_text()
+        assert STR.TODAY in texts[2].get_text()
+        assert STR.USERNAME in texts[2].get_text()
         assert self.info_msg in info_msg
     
 
@@ -322,11 +318,9 @@ class TestSingleChart:
             ).close()
         texts = get_texts(chart)
         assert self.file_name.is_file()
-        assert len(texts) == 3
+        assert len(texts) == 1
         assert chart.label_facets.legend is None
         assert texts[0].get_text() == self.sub_title
-        assert texts[1].get_text() == self.feature
-        assert texts[2].get_text() == self.target
 
 
         self.kind = 'hue'
@@ -347,12 +341,10 @@ class TestSingleChart:
         legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 4
+        assert len(texts) == 2
         assert len(legend_artists) == 2
         assert legend_artists[0].get_children()[0].get_text() == self.cat1 # type: ignore
         assert texts[0].get_text() == self.sub_title
-        assert texts[1].get_text() == self.target_label
-        assert texts[2].get_text() == self.feature_label
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg not in info_msg
@@ -376,12 +368,10 @@ class TestSingleChart:
         legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 4
+        assert len(texts) == 2
         assert len(legend_artists) == 2
         assert legend_artists[0].get_children()[0].get_text() == self.cat2 # type: ignore
         assert texts[0].get_text() == self.sub_title
-        assert texts[1].get_text() == self.target_label
-        assert texts[2].get_text() == self.feature_label
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg not in info_msg
@@ -405,12 +395,10 @@ class TestSingleChart:
         legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 4
+        assert len(texts) == 2
         assert len(legend_artists) == 2
         assert legend_artists[0].get_children()[0].get_text() == self.size # type: ignore
         assert texts[0].get_text() == self.sub_title
-        assert texts[1].get_text() == self.target_label
-        assert texts[2].get_text() == self.feature_label
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg not in info_msg
@@ -436,14 +424,12 @@ class TestSingleChart:
         legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert len(legend_artists) == 4
         assert legend_artists[0].get_children()[0].get_text() == self.cat1 # type: ignore
         assert legend_artists[2].get_children()[0].get_text() == self.size # type: ignore
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
-        assert texts[2].get_text() == self.target_label
-        assert texts[3].get_text() == self.feature_label
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg not in info_msg
@@ -468,14 +454,12 @@ class TestSingleChart:
         legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert len(legend_artists) == 4
         assert legend_artists[0].get_children()[0].get_text() == self.cat1 # type: ignore
         assert legend_artists[2].get_children()[0].get_text() == self.cat2 # type: ignore
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
-        assert texts[2].get_text() == self.target_label
-        assert texts[3].get_text() == self.feature_label
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg not in info_msg
@@ -500,14 +484,12 @@ class TestSingleChart:
         legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert len(legend_artists) == 4
         assert legend_artists[0].get_children()[0].get_text() == self.cat2 # type: ignore
         assert legend_artists[2].get_children()[0].get_text() == self.size # type: ignore
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
-        assert texts[2].get_text() == self.target_label
-        assert texts[3].get_text() == self.feature_label
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg not in info_msg
@@ -533,15 +515,13 @@ class TestSingleChart:
         legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert len(legend_artists) == 6
         assert legend_artists[0].get_children()[0].get_text() == self.cat1 # type: ignore
         assert legend_artists[2].get_children()[0].get_text() == self.cat2 # type: ignore
         assert legend_artists[4].get_children()[0].get_text() == self.size # type: ignore
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
-        assert texts[2].get_text() == self.target_label
-        assert texts[3].get_text() == self.feature_label
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -576,12 +556,10 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert chart.label_facets.legend is None
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
-        assert texts[2].get_text() == self.target_label
-        assert texts[3].get_text() == self.cat1
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -605,12 +583,10 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert chart.label_facets.legend is None
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
-        assert texts[2].get_text() == self.cat1
-        assert texts[3].get_text() == self.target_label
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -635,10 +611,9 @@ class TestSingleChart:
             ).close()
         texts = get_texts(chart)
         assert self.file_name.is_file()
-        assert len(texts) == 2 # feature label should not appear
+        assert len(texts) == 1
         assert chart.label_facets.legend is None
         assert texts[0].get_text() == self.sub_title
-        assert texts[1].get_text() == self.target
 
         self.kind = 'multiple'
         chart = SingleChart(
@@ -663,11 +638,10 @@ class TestSingleChart:
         legend_artists = chart.label_facets.legend_artists
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 4 # feature label should not appear
+        assert len(texts) == 3
         assert legend_artists[0].get_children()[0].get_text() == self.cat1 # type: ignore
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
-        assert texts[2].get_text() == self.target
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg not in info_msg
@@ -697,7 +671,7 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -726,7 +700,7 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -758,7 +732,7 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -792,7 +766,7 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -819,7 +793,7 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -845,7 +819,7 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -870,7 +844,7 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 4 # feature label should not appear
+        assert len(texts) == 3
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -892,7 +866,7 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -916,7 +890,7 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -945,7 +919,7 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -971,7 +945,7 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -999,7 +973,7 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -1028,7 +1002,7 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -1060,11 +1034,9 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == sub_title
-        assert texts[2].get_text() == target_label
-        assert texts[3].get_text() == feature_label
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -1097,11 +1069,9 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == sub_title
-        assert texts[2].get_text() == feature_label
-        assert texts[3].get_text() == target_label
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -1128,7 +1098,7 @@ class TestSingleChart:
         texts = get_texts(chart)
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
-        assert len(texts) == 5
+        assert len(texts) == 3
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
@@ -1406,7 +1376,7 @@ class TestJointChart:
             ).label(
                 fig_title = self.fig_title,
                 sub_title = self.sub_title,
-                feature_label = feature_label, 
+                feature_label = self.cat2, 
                 target_label = target_labels,
                 info = self.info_msg
             ).save(self.file_name
@@ -1420,7 +1390,7 @@ class TestJointChart:
             assert ax.get_ylabel() == ''
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
-        assert texts[2].get_text() == feature_label
+        assert texts[2].get_text() == self.cat2
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
