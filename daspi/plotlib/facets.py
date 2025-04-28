@@ -861,14 +861,11 @@ class LabelFacets:
 
         if self.ylabel:
             if isinstance(self.ylabel, str):
-                if self.axes.shape[0] == 1:
-                    self.axes[0, -1].set(ylabel=self.ylabel)
-                else:
-                    _kwds = KW.YLABEL
-                    _kwds['x'] += self._margin['left'] / self._size[0]
-                    _text = self.figure.text(s=self.ylabel, **_kwds)
-                    self._margin['left'] += self.estimate_height(_text)
-                    self.labels['ylabel'] = _text
+                _kwds = KW.YLABEL
+                _kwds['x'] += self._margin['left'] / self._size[0]
+                _text = self.figure.text(s=self.ylabel, **_kwds)
+                self._margin['left'] += self.estimate_height(_text)
+                self.labels['ylabel'] = _text
             else:
                 for ax, ylabel in zip(self.axes.flat, self.ylabel):
                     if self.not_shared(ax.yaxis) or ax in self.axes[:, 0]:
@@ -895,14 +892,11 @@ class LabelFacets:
         
         if self.xlabel:
             if isinstance(self.xlabel, str):
-                if self.axes.shape[1] == 1:
-                    self.axes[-1, 0].set(xlabel=self.xlabel)
-                else:
-                    _kwds = KW.XLABEL
-                    _kwds['y'] += self._margin['bottom'] / self._size[1]
-                    _text = self.figure.text(s=self.xlabel, **_kwds)
-                    self._margin['bottom'] += self.estimate_height(_text)
-                    self.labels['xlabel'] = _text
+                _kwds = KW.XLABEL
+                _kwds['y'] += self._margin['bottom'] / self._size[1]
+                _text = self.figure.text(s=self.xlabel, **_kwds)
+                self._margin['bottom'] += self.estimate_height(_text)
+                self.labels['xlabel'] = _text
             else:
                 for ax, xlabel in zip(self.axes.flat, self.xlabel):
                     if self.not_shared(ax.xaxis) or ax in self.axes[-1, :]: 
@@ -913,7 +907,7 @@ class LabelFacets:
         added to figure object, the rows to the axes objects."""
         self._margin['right'] = self.legend_width
         if self.legend_width > 0:
-            self._margin['right'] += LABEL.PADDING
+            self._margin['right'] += 2 * LABEL.PADDING
 
         if self.row_title:
             _kwds = KW.ROW_TITLE
@@ -960,28 +954,15 @@ class LabelFacets:
                 _text = ax.text(s=label, **_kwds)
                 self.labels[f'col_{label}'] = _text
     
-    def clear(self) -> None:
-        """Remove all the label facets."""
-        for label in self.labels.values():
-            label.remove()
-        self.labels = {}
-
-        if self.legend:
-            self.legend.remove()
-            self._legend = None
+    def _remove_last_labelpad(self) -> None:
+        """Remove the padding added for last added labels."""
+        for pos, margin in self._margin.items():
+            if margin > LABEL.PADDING:
+                self._margin[pos] = margin - LABEL.PADDING
     
-    def draw(self) -> None:
-        """Draw all the label facets to the figure."""
-        self.clear()
-
-        self._add_axes_titles()
-        for title, (handles, labels) in self.legend_data.items():
-            self._add_legend(handles, labels, title)
-        self._add_left_labels()
-        self._add_bottom_labels()
-        self._add_right_labels()
-        self._add_top_labels()
-
+    def _adjust_centered_labels(self) -> None:
+        """Adjust the position of all centered labels according to the 
+        current margin settings."""
         lr_adjustment = (
             (self._margin['left'] - self._margin['right']) / self._size[0] / 2)
         bt_adjustment = (
@@ -999,6 +980,39 @@ class LabelFacets:
             self.legend.set_bbox_to_anchor((
                 bbox.x1 / self._size[0],
                 (bbox.y1 - self._margin['top']) / self._size[1]))
+    
+    # TODO: this does not work as expected
+    def clear(self) -> None:
+        """Remove all the label facets."""
+        for label in self.labels.values():
+            label.remove()
+            if label in self.figure.texts:
+                self.figure.texts.remove(label)
+            del(label)
+        self.labels = {}
+
+        if self.legend:
+            self.legend.remove()
+            if self.legend in self.figure.legends:
+                self.figure.legends.remove(self.legend)
+            self._legend = None
+        
+        self._margin = dict(left=0, bottom=0, right=0, top=0)
+    
+    def draw(self) -> None:
+        """Draw all the label facets to the figure."""
+        self.clear()
+
+        self._add_axes_titles()
+        for title, (handles, labels) in self.legend_data.items():
+            self._add_legend(handles, labels, title)
+        self._add_left_labels()
+        self._add_bottom_labels()
+        self._add_right_labels()
+        self._add_top_labels()
+
+        self._remove_last_labelpad()
+        self._adjust_centered_labels()
             
         self.figure.tight_layout(rect=self.margin_rectangle)
 
