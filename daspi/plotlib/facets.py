@@ -745,6 +745,12 @@ class LabelFacets:
         self.labels = {}
     
     @property
+    def x_aligned(self) -> float:
+        """Get aligned x position as fraction of figure width. This is
+        used for title, subtitle and info (read-only)."""
+        return KW._margin + LABEL.X_ALIGNEMENT / self._size[0]
+
+    @property
     def margin_rectangle(self) -> Tuple[float, float, float, float]:
         """Get rectangle of margins around the subplots used for the
         additional labels as fraction of figure size (read-only)."""
@@ -879,10 +885,11 @@ class LabelFacets:
         self._margin['bottom'] = 0
 
         if self.info:
+            _kwds = KW.INFO | dict(x=self.x_aligned)
             info_text = f'{STR.TODAY} {STR.USERNAME}'
             if isinstance(self.info, str):
                 info_text = f'{info_text}, {self.info}'
-            _text = self.figure.text(s=info_text, **KW.INFO)
+            _text = self.figure.text(s=info_text, **_kwds)
             self._margin['bottom'] += self.estimate_height(_text)
             self.labels['info'] = _text
         
@@ -928,12 +935,13 @@ class LabelFacets:
         self._margin['top'] = 0
 
         if self.fig_title:
-            _text = self.figure.text(s=self.fig_title, **KW.FIG_TITLE)
+            _kwds = KW.FIG_TITLE | dict(x=self.x_aligned)
+            _text = self.figure.text(s=self.fig_title, **_kwds)
             self._margin['top'] += self.estimate_height(_text) + LABEL.PADDING
             self.labels['fig_title'] = _text
 
         if self.sub_title:
-            _kwds = KW.SUB_TITLE
+            _kwds = KW.SUB_TITLE | dict(x=self.x_aligned)
             _kwds['y'] -= self._margin['top'] / self._size[1]
             _text = self.figure.text(s=self.sub_title, **_kwds)
             self._margin['top'] += self.estimate_height(_text) + LABEL.PADDING

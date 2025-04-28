@@ -41,10 +41,8 @@ LINE = _Line_()
 @dataclass(frozen=True)
 class _Kw_:
 
-    _x: float = 0.035
-    """X position for fig title, subtitle and info."""
-    _label_padding: float = 0.01
-    """Padding between label and figure border."""
+    _margin: float = 0.01
+    """Margin between label and figure border."""
 
     @property
     def LINE(self) -> Dict[str, Any]:
@@ -81,7 +79,7 @@ class _Kw_:
         """Figure legend at right side of figure."""
         return dict(
             loc='upper right', alignment='left',
-            bbox_to_anchor=(1 - self._label_padding, 1 - self._label_padding))
+            bbox_to_anchor=(1 - self._margin, 1 - self._margin))
 
     @property
     def SAVE_CHART(self) -> Dict[str, Any]:
@@ -93,14 +91,14 @@ class _Kw_:
         """Keyword arguments for Figure.text method used to add a 
         centered xlabel."""
         return dict(
-            x=0.5, y=self._label_padding, ha='center', va='bottom')
+            x=0.5, y=self._margin, ha='center', va='bottom')
 
     @property
     def YLABEL(self) -> Dict[str, Any]:
         """Keyword arguments for Figure.text method used to add a 
         centered xlabel."""
         return dict(
-            x=self._label_padding, y=0.5, ha='left', va='center', rotation=90)
+            x=self._margin, y=0.5, ha='left', va='center', rotation=90)
 
     @property
     def ROW_LABEL(self) -> Dict[str, Any]:
@@ -113,7 +111,7 @@ class _Kw_:
     def ROW_TITLE(self) -> Dict[str, Any]:
         """Keyword Arguments for the Axes.text method used to add a 
         row title to ax as text on LabelFacets."""
-        return self.ROW_LABEL | dict(x=1 - self._label_padding, ha='right')
+        return self.ROW_LABEL | dict(x=1 - self._margin, ha='right')
 
     @property
     def COL_LABEL(self) -> Dict[str, Any]:
@@ -125,14 +123,14 @@ class _Kw_:
     def COL_TITLE(self) -> Dict[str, Any]:
         """Keyword Arguments for the Figure.text method used to add a 
         column title to each plot axis as text on LabelFacets."""
-        return self.COL_LABEL | dict(y=1 - self._label_padding, va='top')
+        return self.COL_LABEL | dict(y=1 - self._margin, va='top')
 
     @property
     def FIG_TITLE(self) -> Dict[str, Any]:
         """Keyword arguments for Figure.text method used for adding
         figure title on LabelFacets."""
         return dict(
-            x=self._x, y=1 - self._label_padding, ha='left', va='top',
+            x=self._margin, y=1 - self._margin, ha='left', va='top',
             size='x-large', in_layout=True)
 
     @property
@@ -145,7 +143,7 @@ class _Kw_:
     def INFO(self) -> Dict[str, Any]:
         """Adding info text at bottom left of figure."""
         return dict(
-            x=self._x, y=self._label_padding, ha='left', va='bottom',
+            x=self._margin, y=self._margin, ha='left', va='bottom',
             size='x-small', in_layout=True)
 
     @property
@@ -303,7 +301,7 @@ class _Label_:
     PADDING: int = 6
     """Additional padding in pixels between labels e.g. title and
     subtitle."""
-    X_ALIGNEMENT: int = 20
+    X_ALIGNEMENT: int = 35
     """Horizontal alignment of labels (fig title, sub title and info)."""
     
 LABEL = _Label_()
