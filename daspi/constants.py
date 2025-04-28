@@ -80,8 +80,8 @@ class _Kw_:
     def LEGEND(self) -> Dict[str, Any]:
         """Figure legend at right side of figure."""
         return dict(
-            loc='center right', bbox_to_anchor=(1 - self._label_padding, 0.5),
-            alignment='left')
+            loc='upper right', alignment='left',
+            bbox_to_anchor=(1 - self._label_padding, 1 - self._label_padding))
 
     @property
     def SAVE_CHART(self) -> Dict[str, Any]:

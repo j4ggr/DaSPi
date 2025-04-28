@@ -763,8 +763,8 @@ class LabelFacets:
     @staticmethod
     def estimate_height(text: Text) -> int:
         """Get the estimated size of the text in the figure in pixels."""
-        pixel_size = int(int(text.get_fontsize()) * LABEL.PPI * text.figure.dpi)
-        return pixel_size + LABEL.PADDING
+        dpi = text.figure.dpi if text.figure else plt.rcParams['figure.dpi']
+        return int(int(text.get_fontsize()) * LABEL.PPI * dpi) + LABEL.PADDING
     
     @staticmethod
     def get_legend_artists(legend: Legend) -> List[Artist]:
@@ -819,9 +819,8 @@ class LabelFacets:
         title : str
             Title for the given handles and labels. 
         """
-        kw = KW.LEGEND
         legend = Legend(
-            self.figure, handles, labels, title=title, **kw)
+            self.figure, handles, labels, title=title, **KW.LEGEND)
         
         if not self.legend:
             self.figure.legends.append(legend) # type: ignore
@@ -987,6 +986,11 @@ class LabelFacets:
             self.labels['col_title'].set_x(KW.COL_TITLE['x'] + lr_adjustment)
         if 'row_title' in self.labels:
             self.labels['row_title'].set_y(KW.ROW_TITLE['y'] + bt_adjustment)
+        if self.legend:
+            bbox = self.legend.get_bbox_to_anchor()
+            self.legend.set_bbox_to_anchor((
+                bbox.x1 / self._size[0],
+                (bbox.y1 - self._margin['top']) / self._size[1]))
             
         self.figure.tight_layout(rect=self.margin_rectangle)
 
