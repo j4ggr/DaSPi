@@ -209,7 +209,7 @@ class AxesFacets:
             figsize=self.figsize,
             width_ratios=width_ratios,
             height_ratios=height_ratios,
-            layout='compressed',
+            layout='tight',
             ) | kwds
         if self.mosaic:
             self.figure, axes = plt.subplot_mosaic(mosaic=self.mosaic, **_kwds)
