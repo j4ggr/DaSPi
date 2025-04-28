@@ -14,6 +14,16 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.5.0] - 2025-04-29
+
+### Changed
+
+- LabelAxes draws all labels within the figure and adjusts then the subplots. This ensures that all labels are allways rendered.
+
+### Fixed
+
+- Term names for VIF and ANOVA tables are now converted correctly even if there are spaces in the factor levels
+
 ## [1.4.5] - 2025-04-10
 
 ### Fixed
