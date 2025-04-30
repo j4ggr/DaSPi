@@ -265,13 +265,14 @@ class RandomProcessValue:
     ```
     """
 
-    _allowed_dists: Tuple[str, ...] = ('normal', 'uniform', 'circular')
+    _allowed_dists: Tuple[str, ...] = (
+        'normal', 'uniform', 'circular', 'coaxial', 'perpendicular')
     """Allowed distributions for the RandomProcessValue class."""
 
     def __init__(
             self,
             parameter: Parameter,
-            dist: Literal['normal', 'uniform', 'circular'],
+            dist: Literal['normal', 'uniform', 'circular', 'coaxial', 'perpendicular'],
             clip: bool = False,
             ) -> None:
         assert dist in self._allowed_dists, (
@@ -372,6 +373,48 @@ class RandomProcessValue:
             The modified value after applying the random circular offset.
         """
         return self.parameter.TOLERANCE * sin(random.uniform(0, 2 * pi))
+    
+    def coaxial(self) -> float:
+        """Generate a random coaxiality value.
+        
+        This method generates a random coaxiality value by applying a 
+        circular distribution to the tolerance range. The amplitude of 
+        the coaxiality is determined by a normal distribution within 
+        the tolerance range, and the direction is randomized using a 
+        uniform distribution between 0 and 2π radians.
+        
+        Returns
+        -------
+        float
+            The generated random coaxiality value.
+        """
+        return self.normal() * sin(random.uniform(0, 2 * pi))
+    
+    def perpendicular(self) -> float:
+        """Generate a random perpendicularity value.
+        
+        This method generates a random perpendicularity value by applying 
+        a circular distribution to the tolerance range. The amplitude of 
+        the perpendicularity is determined by a normal distribution 
+        within the tolerance range, and the direction is randomized 
+        using a uniform distribution between 0 and 2π radians. In 
+        principle, this is exactly the same as coaxiality.
+        
+        Returns
+        -------
+        float
+            The generated random perpendicularity value.
+        
+        Notes
+        -----
+        The returned value is in the same unit as the specified 
+        tolerance (usually mm). When specifying tolerances according to 
+        GPS, a protractor is held against the measuring object, and the 
+        maximum gap must not be larger than the specified tolerance.
+        For further information, see:
+        https://www.keyence.de/ss/products/measure-sys/gd-and-t/orientation-tolerance/perpendicularity.jsp
+        """
+        return self.normal() * sin(random.uniform(0, 2 * pi))
     
     def __call__(self) -> float:
         """Generate a random value within the specified tolerance range.
@@ -626,10 +669,37 @@ def round_to_nearest(
     factor = 10**digit
     return np.round(x / nearest * factor) / factor * nearest
 
+def inclination_displacement(
+        perpendicularity: FloatOrArray,
+        height: float,
+        distance: float
+        ) -> FloatOrArray:
+    """Calculate the displacement from a distant point due to 
+    perpendicularity deviation. Perpendicularity is measured in mm. To 
+    calculate the angle, the height at which perpendicularity is 
+    measured is required as the maximum distance in the drawing.
+
+    $$ displacement = distance * sin(arctan(perpendicularity/height)) $$
+    
+    Parameters
+    ----------
+    perpendicularity : float | NDArray[np.float64] | Series
+        The perpendicularity of the surface.
+    distance : float
+        The distance from the point to the surface.
+
+    Returns
+    -------
+    float | NDArray[np.float64] | Series
+        The displacement of the point.
+    """
+    displacement = distance * np.tan(np.arctan(perpendicularity/height))
+    return displacement # type: ignore
 
 __all__ = [
     'SpecLimits',
     'Parameter',
     'RandomProcessValue',
     'Binning',
-    'round_to_nearest',]
+    'round_to_nearest',
+    'inclination_displacement']

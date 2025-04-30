@@ -228,6 +228,7 @@ from .statistics.montecarlo import Parameter
 from .statistics.montecarlo import SpecLimits
 from .statistics.montecarlo import round_to_nearest
 from .statistics.montecarlo import RandomProcessValue
+from .statistics.montecarlo import inclination_displacement
 
 from .statistics.confidence import sem
 from .statistics.confidence import cp_ci
