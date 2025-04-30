@@ -344,6 +344,8 @@ class StripesFacets:
     ----------
     target : ArrayLike
         The target data for the estimation.
+    target_on_y : bool
+        Whether the target data is on the y-axis or not.
     single_axes : bool
         Whether a single axis is used for the chart or whether the 
         stripes are used on multiple axes. This affects how the 

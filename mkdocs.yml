@@ -75,11 +75,11 @@ nav:
     - DaSPi: index.md
     - Changelog: CHANGELOG.md
   - User Guide:
-    - guides/index.md
+    # - guides/index.md
     - guides/installing.md
     - guides/anova.md
     - guides/process_improvement.md
-    # - guides/plotting.md
+    - guides/plotting.md
     # - guides/hypothesis-testing.md
   - API:
     - Anova:

@@ -1,4 +1,4 @@
-# Plotting
+# Plotting Guide
 
 ## Facets
 
@@ -47,6 +47,55 @@ axes[-1, 0]
 
 The AxesFacets object also serves as an iterator. Like indexing, iterates over the Axes objects from top left to bottom right.
 
+### StripesFacets
+
+This class is used to create lines and areas (horizontal or vertical) that are placed within the subplots. The lines are used to visualize specification limits, control limits or the global mean or median. The areas are used to visualize the confidence interval of a line. The stripes are added to the Axes object as matplotlib.Line2D and matplotlib.Patch objects. These stripes are always straight lines that run parallel to an axis.
+
+Imagine you're plotting data in some way on a series of subplots. Each subplot contains the same representation with similar data, but from a different category. Now you want to know if the mean values ​​of these split categories differ. This is where these stripes come into play.
+Here's an example using the dataset with the dissolution time of aspirin. On the x-axis, we have the temperature, on the y-axis the dissolution time, and between the subplots, we divide by employee: **Important**, set `sharey` to `True`!
+
+``` py
+import daspi as dsp
+import matplotlib.pyplot as plt
+
+df = dsp.load_dataset('aspirin-dissolution')
+
+fig, axes = plt.subplots(
+    nrows=1, ncols=df['employee'].nunique(), sharex=True, sharey=True)
+
+for ax, (name, group) in zip(axes, df.groupby('employee')):
+    ax.scatter(group['temperature'], group['dissolution'])
+    ax.set_title(str(name))
+```
+
+![Stripes](../img/facets_stripes-missing.png)
+
+As we can see, it's difficult to say whether the mean value changes between the individual subplots. Now we want to know if the dissolution times differ between the employees and we also plot the upper specification limit of 25 s to show which employee's tablets took too long to dissolve. To achieve this, we create a `StripesFacets` object within the for loop and initialize it with the target data.
+
+``` py
+import daspi as dsp
+import matplotlib.pyplot as plt
+
+df = dsp.load_dataset('aspirin-dissolution')
+
+fig, axes = plt.subplots(
+    nrows=1, ncols=df['employee'].nunique(), sharex=True, sharey=True)
+
+for ax, (name, group) in zip(axes, df.groupby('employee')):
+    stripes = dsp.StripesFacets(
+        group['dissolution'],
+        target_on_y=True,
+        single_axes=False,
+        mean=True,
+        confidence=0.95,
+        spec_limits=dsp.SpecLimits(upper=25))
+    ax.scatter(group['temperature'], group['dissolution'])
+    ax.set_title(str(name))
+    stripes.draw(ax)
+```
+
+![Stripes](../img/facets_stripes-drawn.png)
+
 ### LabelFacets
 
 With this class you can add figure titles, subtitles, axis labels, column and row labels, a figure legend outside the axes or an info text at the bottom left of the diagram.
@@ -83,6 +132,49 @@ labels.draw()
 ```
 
 ![Label Facets](../img/facets_labels.png)
+
+### Combine facets
+
+As a brief review, we combine these three classes AxesFacets, StripesFacets and LabelFacets in one figure using the example of aspirin dissolution time.
+
+``` py
+import daspi as dsp
+
+df = dsp.load_dataset('aspirin-dissolution')
+
+# Create the subplots layout
+axes = dsp.AxesFacets(
+    nrows=1, ncols=df['employee'].nunique(), sharex=True, sharey=True)
+
+# Draw the stripes and plot data
+for ax, (name, group) in zip(axes, df.groupby('employee')):
+    stripes = dsp.StripesFacets(
+        group['dissolution'],
+        target_on_y=True,
+        single_axes=False,
+        mean=True,
+        confidence=0.95,
+        spec_limits=dsp.SpecLimits(upper=25))
+    ax.scatter(group['temperature'], group['dissolution'])
+    stripes.draw(ax)
+
+# Label to create clarity
+legend_data = {'Lines': stripes.handles_labels()}
+
+labels = dsp.LabelFacets(
+    axes,
+    fig_title='Aspirin Dissolution Analysis',
+    sub_title='Dissolution time ~ temperature + employee',
+    xlabel='Temperature (°C)',
+    ylabel='Dissolution time (s)',
+    info='Mini-project from the Six Sigma Black Belt training',
+    cols=tuple(df['employee'].unique()),
+    col_title='Employee',
+    legend_data=legend_data)
+labels.draw()
+```
+
+![Aspirin Dissolution](../img/facets_combined.png)
 
 ## Plotters
 
