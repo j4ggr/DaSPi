@@ -1124,10 +1124,10 @@ class Probability(LinearRegressionLine):
     dist : scipy stats rv_continuous
         The probability distribution use for creating feature data
         (the theoretical values).
-    kind : Literal['qq', 'pp', 'sq', 'sp']:
+    kind : Literal['qq', 'pp', 'sq', 'sp'], optional
         The type of probability plot to create. The first letter
         corresponds to the target, the second to the feature.
-        Defaults to 'sq'.
+        Defaults to 'sq':
         - qq: target = sample quantile; feature = theoretical
             quantile
         - pp: target = sample percentile; feature = theoretical 
@@ -3781,14 +3781,14 @@ class ConfidenceInterval(Errorbar):
         plot.
     target : str
         Column name of the target variable for the plot.
-    n_groups : int
+    n_groups : int, optional
         Number of groups (variable combinations) for the Bonferroni 
         adjustment. A good way to do this is to pass 
         `df.groupby(list_of_variates).ngroups`, where `list_of_variates` 
         is a list containing all the categorical columns in the source 
         that will be used for the chart to split the data into groups 
         (hue, categorical features, etc.). Specify 1 to not do a 
-        Bonferroni adjustment.
+        Bonferroni adjustment. Default is 1
     feature : str, optional
         Column name of the feature variable for the plot,
         by default ''.
@@ -3854,7 +3854,7 @@ class ConfidenceInterval(Errorbar):
             self,
             source: DataFrame,
             target: str,
-            n_groups: int,
+            n_groups: int = 1,
             feature: str = '',
             show_center: bool = True,
             bars_same_color: bool = False,
@@ -3937,14 +3937,14 @@ class MeanTest(ConfidenceInterval):
         plot.
     target : str
         Column name of the target variable for the plot.
-    n_groups : int
+    n_groups : int, optional
         Number of groups (variable combinations) for the Bonferroni 
         adjustment. A good way to do this is to pass 
         `df.groupby(list_of_variates).ngroups`, where `list_of_variates` 
         is a list containing all the categorical columns in the source 
         that will be used for the chart to split the data into groups 
         (hue, categorical features, etc.). Specify 1 to not do a 
-        Bonferroni adjustment.
+        Bonferroni adjustment. Default is 1
     feature : str, optional
         Column name of the feature variable for the plot,
         by default ''.
@@ -3988,7 +3988,7 @@ class MeanTest(ConfidenceInterval):
             self,
             source: DataFrame,
             target: str,
-            n_groups: int,
+            n_groups: int = 1,
             feature: str = '',
             show_center: bool = True,
             bars_same_color: bool = False,
@@ -4035,14 +4035,14 @@ class VariationTest(ConfidenceInterval):
         plot.
     target : str
         Column name of the target variable for the plot.
-    n_groups : int
+    n_groups : int, optional
         Number of groups (variable combinations) for the Bonferroni 
         adjustment. A good way to do this is to pass 
         `df.groupby(list_of_variates).ngroups`, where `list_of_variates` 
         is a list containing all the categorical columns in the source 
         that will be used for the chart to split the data into groups 
         (hue, categorical features, etc.). Specify 1 to not do a 
-        Bonferroni adjustment.
+        Bonferroni adjustment. Default is 1
     feature : str, optional
         Column name of the feature variable for the plot,
         by default ''.
@@ -4088,7 +4088,7 @@ class VariationTest(ConfidenceInterval):
             self,
             source: DataFrame,
             target: str,
-            n_groups: int,
+            n_groups: int = 1,
             feature: str = '',
             show_center: bool = True,
             bars_same_color: bool = False,
@@ -4138,14 +4138,14 @@ class ProportionTest(ConfidenceInterval):
         Column name to use for the target variable. If falsy, the name
         will be formed from the specified `events` and `observations` 
         with a "/" character in between.
-    n_groups : int
+    n_groups : int, optional
         Number of groups (variable combinations) for the Bonferroni 
         adjustment. A good way to do this is to pass 
         `df.groupby(list_of_variates).ngroups`, where `list_of_variates` 
         is a list containing all the categorical columns in the source 
         that will be used for the chart to split the data into groups 
         (hue, categorical features, etc.). Specify 1 to not do a 
-        Bonferroni adjustment.
+        Bonferroni adjustment. Default is 1
     events : str
         Column name containing the values of counted events for each
         feature.
@@ -4216,7 +4216,7 @@ class ProportionTest(ConfidenceInterval):
             target: str,
             events: str,
             observations: str,
-            n_groups: int,
+            n_groups: int = 1,
             feature: str = '',
             method: Literal['sum', 'mean', 'median'] = 'sum',
             show_center: bool = True,
@@ -4289,8 +4289,8 @@ class ProportionTest(ConfidenceInterval):
         return data
 
 class CapabilityConfidenceInterval(ConfidenceInterval):
-    """Class for creating plotters with error bars as confidence interval
-    for the process capability values Cp or Cpk.
+    """Class for creating plotters with error bars as confidence 
+    interval for the process capability values Cp or Cpk.
     
     Parameters
     ----------
@@ -4299,14 +4299,22 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
         plot.
     target : str
         Column name of the target variable for the plot.
-    n_groups : int
+    spec_limits : SpecLimits
+        Specification limits for the target variable. This can be
+        created using the `SpecLimits` class.
+    kind : {'cp', 'cpk'}, optional
+        The capability index to be calculated. Cp can be used to compare 
+        the process variability to a specification width, while Cpk 
+        also considers the process mean. The Cp can only be calculated 
+        if both specification limits are given.
+    n_groups : int, optional
         Number of groups (variable combinations) for the Bonferroni 
         adjustment. A good way to do this is to pass 
         `df.groupby(list_of_variates).ngroups`, where `list_of_variates` 
         is a list containing all the categorical columns in the source 
         that will be used for the chart to split the data into groups 
         (hue, categorical features, etc.). Specify 1 to not do a 
-        Bonferroni adjustment.
+        Bonferroni adjustment. Default is 1
     feature : str, optional
         Column name of the feature variable for the plot,
         by default ''.
@@ -4360,15 +4368,15 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
     """Spec limits used for calculating the capability values."""
     kind: Literal['cp', 'cpk']
     """whether to calculate the confidence interval for Cp or Cpk 
-    ('cp' or 'cpk').."""
+    ('cp' or 'cpk')."""
 
     def __init__(
             self,
             source: DataFrame,
             target: str,
             spec_limits: SpecLimits,
-            n_groups: int,
             kind: Literal['cp', 'cpk'],
+            n_groups: int = 1,
             feature: str = '',
             show_center: bool = True,
             bars_same_color: bool = False,

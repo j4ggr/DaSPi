@@ -214,7 +214,7 @@ class AxesFacets:
         if self.mosaic:
             self.figure, axes = plt.subplot_mosaic(mosaic=self.mosaic, **_kwds)
             self.axes = np.array(
-                [[axes[key] for key in row] for row in self.mosaic])
+                [[axes.get(key, None) for key in row] for row in self.mosaic])
         else:
             self.figure, self.axes = plt.subplots(
                 nrows=self._nrows, ncols=self._ncols, squeeze=False, **_kwds)
@@ -256,7 +256,14 @@ class AxesFacets:
     
     @property
     def flat(self) -> List[Axes]:
-        return flat_unique(self.axes)
+        """Get a list of all the Axes in the grid.
+
+        Returns
+        -------
+        List[Axes]
+            A list of all the Axes in the grid.
+        """
+        return [ax for ax in flat_unique(self.axes) if isinstance(ax, Axes)]
     
     def __iter__(self) -> Generator[Axes, Self, None]:
         """Iterate over the axes in the grid.

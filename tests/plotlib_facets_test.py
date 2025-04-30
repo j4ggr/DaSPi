@@ -64,7 +64,7 @@ class TestAxesFacets:
     @pytest.fixture
     def l_mosaic(self) -> AxesFacets:
         mosaic=[
-            ['Horizontal', 'Horizontal', 'Qubic small'],
+            ['Horizontal', 'Horizontal', '.'],
             ['Vertical', 'Qubic big', 'Qubic big'],
             ['Vertical', 'Qubic big', 'Qubic big']]
         axes = AxesFacets(
@@ -93,13 +93,14 @@ class TestAxesFacets:
         assert l_mosaic.shape == (3, 3)
         assert l_mosaic.nrows == 3
         assert l_mosaic.ncols == 3
-        assert len(l_mosaic) == 4
+        assert l_mosaic[0, -1] is None
+        assert len(l_mosaic) == 3
         assert all(l_mosaic[0] == a for a in l_mosaic[0, :2])
         assert l_mosaic[0] != l_mosaic[0, -1]
         assert l_mosaic[0] not in l_mosaic[1:, :].flat
-        assert all(l_mosaic[2] == a for a in l_mosaic[1:, 0])
-        assert l_mosaic[2] not in l_mosaic[1:, 1:].flat
-        assert all(l_mosaic[3] == a for a in l_mosaic[1:, 1:].flat)
+        assert all(l_mosaic[1] == a for a in l_mosaic[1:, 0])
+        assert l_mosaic[1] not in l_mosaic[1:, 1:].flat
+        assert all(l_mosaic[2] == a for a in l_mosaic[1:, 1:].flat)
 
     def test_iteration(self, l_mosaic: AxesFacets) -> None:
         assert l_mosaic.ax is None
