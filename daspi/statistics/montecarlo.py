@@ -49,9 +49,15 @@ class SpecLimits:
         return self.lower == float('-inf') and self.upper == float('inf')
     
     @property
-    def range(self) -> float:
-        """Returns the difference between upper and lower limits."""
+    def tolerance(self) -> float:
+        """Tolerance range, returns the difference between upper and 
+        lower limits."""
         return self.upper - self.lower
+    
+    @property
+    def nominal(self) -> float:
+        """Nominal value, returns the average of upper and lower limits."""
+        return (self.upper + self.lower) / 2
     
     def to_tuple(self) -> Tuple[float, float]:
         """Returns the lower and upper limits as a tuple.

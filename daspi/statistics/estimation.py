@@ -1,4 +1,5 @@
 # source for ci: https://aegis4048.github.io/comprehensive_confidence_intervals_for_python_developers#conf_int_of_var
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -96,7 +97,7 @@ class Estimator:
     """
     __slots__ = (
         '_samples', '_filtered', '_n_samples', '_n_missing', '_min', '_max', 
-        '_mean', '_median', '_std', '_sem', '_lcl', '_ucl', '_strategy',
+        '_R', '_mean', '_median', '_std', '_sem', '_lcl', '_ucl', '_strategy',
         '_agreement', '_excess', '_p_excess', '_skew', '_p_skew', '_dist',
         '_p_dist', '_p_ad', '_dist_params', 'possible_dists', '_k', '_evaluate',
         '_q_low', '_q_upp')
@@ -107,6 +108,7 @@ class Estimator:
     _n_missing: int
     _min: float | None
     _max: float | None
+    _R: float | None
     _mean: float | None
     _median: float | None
     _std: float | None
@@ -141,6 +143,7 @@ class Estimator:
             ) -> None:
         self._min = None
         self._max = None
+        self._R = None
         self._mean = None
         self._median = None
         self._std = None
@@ -174,9 +177,9 @@ class Estimator:
     def _descriptive_statistic_attrs_(self) -> Tuple[str, ...]:
         """Get attribute names used for `describe` method."""
         attrs = (
-            'n_samples', 'n_missing', 'min', 'max', 'mean', 'median', 'std',
-            'sem', 'excess', 'p_excess', 'skew', 'p_skew', 'p_ad', 'dist',
-            'p_dist', 'strategy', 'lcl', 'ucl')
+            'n_samples', 'n_missing', 'min', 'max', 'R', 'mean', 'median',
+            'std', 'sem', 'excess', 'p_excess', 'skew', 'p_skew', 'p_ad',
+            'dist', 'p_dist', 'strategy', 'lcl', 'ucl')
         return attrs
 
     @property
@@ -221,6 +224,13 @@ class Estimator:
         if self._max is None:
             self._max = float(self.filtered.max())
         return self._max
+    
+    @property
+    def R(self) -> float:
+        """Get range of filtered samples (read-only)."""
+        if self._R is None:
+            self._R = self.max - self.min
+        return self._R
 
     @property
     def mean(self) -> float:
@@ -925,10 +935,15 @@ class ProcessEstimator(Estimator):
         return (self.lcl, self.ucl)
     
     @property
-    def tolerance_range(self) -> float:
+    def control_range(self) -> float:
+        """Get the range (span) of the control limits (read-only)."""
+        return self.ucl - self.lcl
+    
+    @property
+    def tolerance(self) -> float:
         """Get tolerance range. If one of the specification limits is 
         not specified, inf is returned (read-only)."""
-        return self.usl - self.lsl
+        return self.spec_limits.tolerance
     
     @property
     def cp(self) -> float | None:
@@ -943,7 +958,7 @@ class ProcessEstimator(Estimator):
             return None
         
         if self._cp is None:
-            self._cp = self.tolerance_range / (self.agreement * self.std)
+            self._cp = self.tolerance / (self.agreement * self.std)
         return self._cp
     
     @property
@@ -1012,6 +1027,332 @@ class ProcessEstimator(Estimator):
         self._cpk = None
         self._Z = None
         self._Z_lt = None
+
+
+class GageEstimator(Estimator):
+    """Estimates the process capability of a single measurement system
+    using the Gage Repeatability and Reproducibility (Gage R&R) method.
+
+    Parameters
+    ----------
+    samples : NumericSample1D
+        The samples used to estimate the process capability.
+    spec_limits : SpecLimits
+        The specification limits of the process.
+    x_cal : float | None
+        The calibrated value of the sample under test.
+    U_cal : float | None
+        The expanded uncertainty of the calibration.
+    resolution : float
+        The resolution of the measurement system.
+    cg_limit : float, optional
+        The limit of the capability index, by default 1.33.
+    cgk_limit : float, optional
+        The limit of the capability index, by default 1.33.
+    tolerance_proportion : float, optional
+        The proportion of the tolerance range that is used to calculate
+        the adjusted limits, by default 0.2.
+    resolution_proportion_limit : float, optional
+        The limit of the resolution proportion, by default 0.05.
+    n_samples_min : int, optional
+        The minimum samples needed to perform a Measurement System 
+        Analysis Typ 1, by default 50
+    """
+    __slots__ = (
+        '_spec_limits', '_x_cal', '_U_cal', '_resolution', '_cg_limit', 
+        '_cgk_limit', '_tolerance_proportion', '_resolution_proportion_limit',
+        '_n_samples_min', '_cg', '_cgk', '_spec_limits_adj',
+        '_resolution_proportion', '_bias', '_T_min_cg', '_T_min_cgk',
+        '_T_min_res', '_process')
+    _spec_limits: SpecLimits
+    _x_cal: float
+    _U_cal: float
+    _resolution: float
+    _cg_limit: float
+    _cgk_limit: float
+    _tolerance_proportion: float
+    _resolution_proportion_limit: float
+    _n_samples_min: int
+    _cg: float | None
+    _cgk: float | None
+    _spec_limits_adj: SpecLimits | None
+    _resolution_proportion: float | None
+    _bias: float | None
+    _T_min_cg: float | None
+    _T_min_cgk: float | None
+    _T_min_res: float | None
+    _process: ProcessEstimator | None
+
+    def __init__(self,
+            samples: NumericSample1D,
+            spec_limits: SpecLimits,
+            x_cal: float | None,
+            U_cal: float | None,
+            resolution: float | None,
+            cg_limit: float = 1.33,
+            cgk_limit: float = 1.33,
+            tolerance_proportion: float = 0.2,
+            resolution_proportion_limit: float = 0.05,
+            n_samples_min: int = 50
+            ) -> None:
+        super().__init__(
+            samples=samples,
+            strategy='norm',
+            agreement=6,
+            possible_dists=DIST.COMMON,
+            evaluate=None)
+        self._spec_limits = spec_limits
+        self.x_cal = x_cal
+        self.resolution = resolution
+        self.U_cal = U_cal
+        self._cg_limit = cg_limit
+        self._cgk_limit = cgk_limit
+        self._tolerance_proportion = tolerance_proportion
+        self._resolution_proportion_limit = resolution_proportion_limit
+        self._n_samples_min = n_samples_min
+        if self.n_samples < self._n_samples_min:
+            warnings.warn(
+                f'The number of samples is too small ({self.n_samples}). '
+                f'The minimum number of samples is {self._n_samples_min}.')
+        self._reset_values_()
+
+    @property
+    def _descriptive_statistic_attrs_(self) -> Tuple[str, ...]:
+        """Get attribute names used for `describe` method (read-only)."""
+        _attrs = super()._descriptive_statistic_attrs_
+        attrs = (_attrs[:4]
+                 + ('n_outlier', )
+                 + _attrs[4:]
+                 + ('lsl', 'usl', 'lsl_adj', 'usl_adj', 'cg', 'cgk', 'bias',
+                    'T_min_cg', 'T_min_cgk', 'T_min_res', 'resolution_proportion'))
+        return tuple(a for a in attrs if a not in ('dist', 'p_dist', 'strategy'))
+    
+    @property
+    def spec_limits(self) -> SpecLimits:
+        """The specification limits of the process."""
+        return self._spec_limits
+    @spec_limits.setter
+    def spec_limits(self, spec_limits: SpecLimits) -> None:
+        self._spec_limits = spec_limits
+        self._reset_values_()
+    
+    @property
+    def resolution(self) -> float:
+        """The resolution of the measurement."""
+        return self._resolution
+    @resolution.setter
+    def resolution(self, resolution: float | None) -> None:
+        if resolution is None:
+            resolution = self.estimate_resolution()
+        self._resolution = resolution
+        self._reset_values_()
+    
+    @property
+    def x_cal(self) -> float:
+        """The calibrated value of the sample under test."""
+        return self._x_cal
+    @x_cal.setter
+    def x_cal(self, x_cal: float | None) -> None:
+        self._x_cal = self.median if x_cal is None else x_cal
+        self._reset_values_()
+    
+    @property
+    def U_cal(self) -> float:
+        """The expanded uncertainty of the calibration."""
+        return self._U_cal
+    @U_cal.setter
+    def U_cal(self, U_cal: float | None) -> None:
+        self._U_cal = 2 * self.resolution if U_cal is None else U_cal
+        self._reset_values_()
+    
+    @property
+    def tolerance_proportion(self) -> float:
+        """The proportion of the tolerance range that is used to calculate
+        the adjusted limits."""
+        return self._tolerance_proportion
+    @tolerance_proportion.setter
+    def tolerance_proportion(self, tolerance_proportion: float) -> None:
+        self._tolerance_proportion = tolerance_proportion
+        self._reset_values_()
+    
+    @property
+    def resolution_proportion_limit(self) -> float:
+        """The limit of the resolution proportion."""
+        return self._resolution_proportion_limit
+    @resolution_proportion_limit.setter
+    def resolution_proportion_limit(
+            self, resolution_proportion_limit: float) -> None:
+        self._resolution_proportion_limit = resolution_proportion_limit
+        self._reset_values_()
+    
+    @property
+    def spec_limits_adj(self) -> SpecLimits:
+        """The adjusted specification limits of the process (read-only)."""
+        if self._spec_limits_adj is None:
+            self._spec_limits_adj = SpecLimits(
+                self.nominal - self.tolerance_proportion / 2 * self.tolerance,
+                self.nominal + self.tolerance_proportion / 2 * self.tolerance)
+        return self._spec_limits_adj
+    
+    @property
+    def lsl_adj(self) -> float:
+        """The adjusted lower specification limit (read-only)."""
+        return self.spec_limits_adj.lower
+    
+    @property
+    def usl_adj(self) -> float:
+        """The adjusted upper specification limit (read-only)."""
+        return self.spec_limits_adj.upper
+    
+    @property
+    def cg_limit(self) -> float:
+        """The limit of the capability index (read-only)."""
+        return self._cg_limit
+    
+    @property
+    def cgk_limit(self) -> float:
+        """The limit of the capability index (read-only)."""
+        return self._cgk_limit
+
+    @property
+    def process(self) -> ProcessEstimator:
+        """The process for which the measurement system is to be 
+        evaluated (read-only)."""
+        if self._process is None:
+            self._process = ProcessEstimator(
+                samples=self.samples,
+                spec_limits=self.spec_limits_adj,
+                strategy=self.strategy,
+                agreement=self.agreement,
+                possible_dists=self.possible_dists)
+        return self._process
+    
+    @property
+    def nominal(self) -> float:
+        """The nominal value of the process (read-only)."""
+        return self.spec_limits.nominal
+    
+    @property
+    def tolerance(self) -> float:
+        """The tolerance of the process (read-only)."""
+        return self.spec_limits.tolerance
+
+    @property
+    def tolerance_adj(self) -> float:
+        """The adjusted tolerance of the process (read-only)."""
+        return self.spec_limits_adj.tolerance
+
+    @property
+    def n_outlier(self) -> int:
+        """The number of outliers in the process (read-only)."""
+        return self.process.n_nok
+    
+    @property
+    def cg(self) -> float | None:
+        """The repeatability of the measuring system without taking bias
+        into account (read-only)."""
+        if self._cg is None:
+            self._cg = self.process.cp
+        return self._cg
+    
+    @property
+    def cgk(self) -> float | None:
+        """The repeatability of the measuring system taking into account 
+        the bias(read-only)."""
+        if self._cgk is None:
+            self._cgk = (
+                (self.tolerance_adj / 2 - abs(self.bias)) 
+                / (self.control_range / 2))
+        return self._cgk
+    
+    @property
+    def control_range(self) -> float:
+        return self.process.control_range
+    
+    @property
+    def resolution_proportion(self) -> float:
+        if self._resolution_proportion is None:
+            self._resolution_proportion = self.resolution / self.tolerance
+        return self._resolution_proportion
+    
+    @property
+    def bias(self) -> float:
+        """The bias of the process (read-only)."""
+        if self._bias is None:
+            self._bias = self.mean - self.x_cal
+        return self._bias
+    
+    @property
+    def T_min_cg(self) -> float | None:
+        """The minimum tolerance to capability ratio (read-only)."""
+        if self.cg is None:
+            return None
+        
+        if self._T_min_cg is None:
+            self._T_min_cg = (
+                self.cg_limit * self.control_range / self.tolerance_proportion)
+        return self._T_min_cg
+    
+    @property
+    def T_min_cgk(self) -> float | None:
+        """The minimum tolerance to capability ratio (read-only)."""
+        if self.cgk is None:
+            return None
+        
+        if self._T_min_cgk is None:
+            self._T_min_cgk = (
+                (self.cgk_limit * self.control_range / 2 + abs(self.bias))
+                / (self.tolerance_proportion / 2))
+        return self._T_min_cgk
+    
+    @property
+    def T_min_res(self) -> float:
+        """The minimum tolerance to resolution ratio (read-only)."""
+        if self._T_min_res is None:
+            self._T_min_res = (
+                self.resolution / self.resolution_proportion_limit)
+        return self._T_min_res
+    
+    def check(self) -> Dict[str, bool]:
+        """Perform a few checks to determine if the testing system is 
+        capable of measuring the process."""
+        checks = dict(
+            n_samples=self.n_samples >= 50,
+            U_cal=self.U_cal <= self.tolerance * self.tolerance_proportion / 2,
+            resolution=self.resolution_proportion <= self.resolution_proportion_limit,
+            cg=True if self.cg is None else self.cg >= self.cg_limit,
+            cgk=True if self.cgk is None else self.cgk >= self.cgk_limit,)
+        return checks
+    
+    def estimate_resolution(self) -> float:
+        """Estimate the resolution of the testing system."""
+        digits = 0
+        for value in self.samples.astype(str, copy=False):
+            _split = value.split('.')
+            if len(_split) != 2:
+                continue
+            _digits = len(_split[1])
+            if _digits > digits:
+                digits = _digits
+        return 1 if digits == 0 else float(f'0.{"0"*(digits-1)}1')
+    
+    def _reset_values_(self) -> None:
+        """Set all values relevant to process capability to None. This 
+        function is called when one of the values relevant to the 
+        calculation of capability values is adjusted (specification 
+        limits or agreement for the control limits). This ensures that 
+        the process capability values are recalculated."""
+        super()._reset_values_()
+        self._spec_limits_adj = None
+        self._resolution_proportion = None
+        self._bias = None
+        self._cg = None
+        self._cgk = None
+        self._T_min_cg = None
+        self._T_min_cgk = None
+        self._T_min_res = None
+        self._process = None
+
 
 def estimate_distribution(
         data: NumericSample1D,
@@ -2003,6 +2344,7 @@ class Lowess(Loess):
 __all__ = [
     'Estimator',
     'ProcessEstimator',
+    'GageEstimator',
     'estimate_distribution',
     'estimate_kernel_density',
     'estimate_kernel_density_2d',

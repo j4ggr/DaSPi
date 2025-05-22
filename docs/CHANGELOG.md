@@ -177,7 +177,7 @@ __Types of changes__:
 
 ### Added
 
-- ProcessEstimator z_transform method and tolerance_range property.
+- ProcessEstimator z_transform method and tolerance property.
 - GaussianKDE ignore_feature option for plotting all at same axis base or not.
 - GaussianKDE fill option for filling in the curves.
 - SpreadWidth center calculation option kind.

@@ -262,6 +262,7 @@ from .statistics.hypothesis import variance_stability_test
 from .statistics.estimation import Loess
 from .statistics.estimation import Lowess
 from .statistics.estimation import Estimator
+from .statistics.estimation import GageEstimator
 from .statistics.estimation import ProcessEstimator
 from .statistics.estimation import estimate_distribution
 from .statistics.estimation import estimate_kernel_density

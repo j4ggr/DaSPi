@@ -53,13 +53,13 @@ class TestSpecLimits:
 
     def test_range(self) -> None:
         limits = SpecLimits(lower=10, upper=20)
-        assert limits.range == 10
+        assert limits.tolerance == 10
 
         limits = SpecLimits(lower=5, upper=5)
-        assert limits.range == 0
+        assert limits.tolerance == 0
 
         limits = SpecLimits()
-        assert limits.range == float('inf')
+        assert limits.tolerance == float('inf')
 
     def test_contains(self) -> None:
         limits = SpecLimits(lower=10, upper=20)

@@ -11,6 +11,8 @@ from pytest import approx
 from pathlib import Path
 from pandas.core.frame import DataFrame
 
+from daspi.statistics.estimation import GageEstimator
+
 sys.path.append(Path(__file__).parent.resolve()) # type: ignore
 
 from daspi import SpecLimits
@@ -397,3 +399,89 @@ class TestProcessEstimator:
         estimator_norm.nok_norm
         assert estimator_norm._nok_fit < estimator_norm._nok
         assert estimator_norm._nok_fit < estimator_norm._nok_norm
+
+
+class TestGageEstimator:
+
+    @pytest.fixture
+    def sample_data(self) -> np.ndarray:
+        data = np.array([
+            20.303, 20.301, 20.304, 20.303, 20.306, 20.296, 20.301, 20.300,
+            20.307, 20.305, 20.311, 20.297, 20.295, 20.302, 20.304, 20.298,
+            20.295, 20.301, 20.307, 20.312, 20.311, 20.309, 20.308, 20.304,
+            20.298, 20.308, 20.302, 20.294, 20.302, 20.304, 20.313, 20.303,
+            20.308, 20.298, 20.306, 20.303, 20.310, 20.304, 20.309, 20.305,
+            20.306, 20.296, 20.306, 20.299, 20.300, 20.302, 20.303, 20.307,
+            20.303, 20.305])
+        return data
+
+    @pytest.fixture
+    def estimator_gage(self, sample_data) -> GageEstimator:
+        estimator = GageEstimator(
+            sample_data,
+            x_cal=20.302,
+            U_cal=0.0002,
+            spec_limits=SpecLimits(lower=20.15, upper=20.45),
+            resolution=0.001)
+        return estimator
+
+    def test_specification_values(self, estimator_gage: GageEstimator) -> None:
+        assert estimator_gage.nominal == pytest.approx(20.30)
+        assert estimator_gage.tolerance == pytest.approx(0.3)
+        assert estimator_gage.lsl_adj == pytest.approx(20.27)
+        assert estimator_gage.usl_adj == pytest.approx(20.33)
+        assert estimator_gage.tolerance_adj == pytest.approx(0.06)
+
+    def test_measured_values(self, estimator_gage: GageEstimator) -> None:
+        assert estimator_gage.min == pytest.approx(20.2940)
+        assert estimator_gage.max == pytest.approx(20.3130)
+        assert estimator_gage.R == pytest.approx(0.0190)
+        assert estimator_gage.n_samples == 50
+    
+    def test_statistic_values(self, estimator_gage: GageEstimator) -> None:
+        assert estimator_gage.mean == pytest.approx(20.3035)
+        assert estimator_gage.std == pytest.approx(0.004656, rel=1e-3)
+        assert estimator_gage.lcl == pytest.approx(20.2895, rel=1e-3)
+        assert estimator_gage.ucl == pytest.approx(20.3174, rel=1e-3)
+        assert estimator_gage.bias == pytest.approx(0.00148)
+    
+    def test_capable_values(self, estimator_gage: GageEstimator) -> None:
+        assert estimator_gage.cg == pytest.approx(2.1475, rel=1e-3)
+        assert estimator_gage.cgk == pytest.approx(2.0416, rel=1e-3)
+        assert estimator_gage.resolution_proportion == pytest.approx(1/300)
+        assert estimator_gage.T_min_cg == pytest.approx(0.1858, rel=1e-3)
+        assert estimator_gage.T_min_cgk == pytest.approx(0.2006, rel=1e-3)
+        assert estimator_gage.T_min_res == pytest.approx(0.0200, rel=1e-3)
+    
+    def test_check(self, estimator_gage: GageEstimator) -> None:
+        assert estimator_gage.check() == {
+            'n_samples': True,
+            'U_cal': True,
+            'resolution': True,
+            'cg': True,
+            'cgk': True,}
+
+    def test_estimate_resolution(self, sample_data) -> None:
+        estimator = GageEstimator(
+            sample_data,
+            x_cal=20.302,
+            U_cal=0.0002,
+            spec_limits=SpecLimits(lower=20.15, upper=20.45),
+            resolution=None)
+        assert estimator.resolution == 0.001
+
+        estimator = GageEstimator(
+            [1.0, 1.01, 1.002, 1.0003],
+            x_cal=20.302,
+            U_cal=0.0002,
+            spec_limits=SpecLimits(lower=20.15, upper=20.45),
+            resolution=None)
+        assert estimator.resolution == 0.0001
+
+        estimator = GageEstimator(
+            [1, 20, 300, 4000],
+            x_cal=20.302,
+            U_cal=0.0002,
+            spec_limits=SpecLimits(lower=20.15, upper=20.45),
+            resolution=None)
+        assert estimator.resolution == 1
