@@ -17,7 +17,7 @@ from .._typing import FloatOrArray
 
 @dataclass(frozen=True)
 class SpecLimits:
-    """Class to hold the specification limits of a parameter.
+    """Class to hold the limits of a parameter specification.
 
     Parameters
     ----------
@@ -51,12 +51,13 @@ class SpecLimits:
     @property
     def tolerance(self) -> float:
         """Tolerance range, returns the difference between upper and 
-        lower limits."""
+        lower limits. (read-only)"""
         return self.upper - self.lower
     
     @property
     def nominal(self) -> float:
-        """Nominal value, returns the average of upper and lower limits."""
+        """Nominal value, returns the average of upper and lower limits
+        (read-only)."""
         return (self.upper + self.lower) / 2
     
     def to_tuple(self) -> Tuple[float, float]:
@@ -106,21 +107,24 @@ class SpecLimits:
         return False
     
 
-class Parameter:
-    """Class to hold the limits, tolerance, and nominal of a parameter.
+class Specification:
+    """Class for defining the boundaries of a parameter specification. 
+    
+    This class is used to create constants. For this reason, all 
+    properties are uppercase.
 
     Parameters
     ----------
     limits : SpecLimits | Tuple[float, float] | None, optional
-        The limits of the parameter. The limits are automatically 
+        The limits of the specification. The limits are automatically 
         calculated if only tolerance is given. Default is None.
     tolerance : float or None, optional
-        The tolerance of the parameter. Default is None.
+        The tolerance range of the specification. Default is None.
     nominal : float or None, optional
-        The nominal value of the parameter. Default is None.
-    precision : int, optional
-        The precision to counteract the rounding error of floating-point
-        numbers. Default is 10.
+        The nominal value of the specification. Default is None.
+    n_digits : int, optional
+        The number of decimal places to counteract the rounding error 
+        of floating-point numbers. Default is 10.
 
     Notes
     -----
@@ -141,35 +145,38 @@ class Parameter:
 
     Examples
     --------
-    Create a parameter with limits:
+    Create a specification with limits:
     ``` python
-    Parameter(limits=(0, 1))
+    Specification(limits=(0, 1))
     ```
 
     ```
-    Parameter(limits=(0, 1), tolerance=1.0, nominal=0.5)
+    Specification(limits=(0, 1), tolerance=1.0, nominal=0.5)
     ```
     
-    Create a parameter with tolerance and nominal:
+    Create a specification with tolerance and nominal:
     ``` python
-    Parameter(tolerance=0.1, nominal=0.5)
+    Specification(tolerance=0.1, nominal=0.5)
     ```
     
     ```
-    Parameter(limits=(0.45, 0.55), tolerance=0.1, nominal=0.5)
+    Specification(limits=(0.45, 0.55), tolerance=0.1, nominal=0.5)
     ```
     """
 
-    __slots__ = ('_limits', '_tolerance', '_nominal')
+    __slots__ = ('_limits', '_tolerance', '_nominal', '_resolution')
 
     _limits: SpecLimits
-    """The limits of the parameter."""
+    """The limits of the specification parameter."""
 
     _tolerance: float
-    """The tolerance of the parameter."""
+    """The tolerance range of the specification."""
 
     _nominal: float
-    """The nominal value of the parameter."""
+    """The nominal value of the specification."""
+
+    _resolution: int
+    """The resolution as 1e-n_digits."""
 
     def __init__(
             self,
@@ -177,45 +184,63 @@ class Parameter:
             limits: SpecLimits | Tuple[float, float] | None = None, 
             tolerance: float | None = None,
             nominal: float | None = None,
-            precision: int = 10
+            n_digits: int = 10
             ) -> None:
+        assert n_digits > 0, 'n_digits must be greater than 0.'
+
         if isinstance(limits, tuple):
             limits = SpecLimits(*limits)
         elif limits is None:
             assert tolerance is not None and nominal is not None, (
                 'Either limits or tolerance and nominal must be provided.')
             limits = SpecLimits(
-                round(nominal - tolerance / 2, precision),
-                round(nominal + tolerance / 2, precision))
+                round(nominal - tolerance / 2, n_digits),
+                round(nominal + tolerance / 2, n_digits))
 
         if tolerance is None:
             assert limits.are_both_finite, (
                 'If tolerance is not provided, limits must be finite.')
-            tolerance = round(limits.upper - limits.lower, precision)
+            tolerance = round(limits.upper - limits.lower, n_digits)
         
         if nominal is None:
             assert limits.are_both_finite, (
                 'If nominal is not provided, limits must be finite.')
-            nominal = round(limits.lower + tolerance / 2, precision)
+            nominal = round(limits.lower + tolerance / 2, n_digits)
 
         self._limits = limits
         self._tolerance = tolerance
         self._nominal = nominal
+        self._resolution = 1 ** -n_digits
     
     @property
     def LIMITS(self) -> SpecLimits:
-        """The lower and upper limits of the parameter (read-only)."""
+        """The lower and upper limits of the specification (read-only)."""
         return self._limits
     
     @property
     def TOLERANCE(self) -> float:
-        """The tolerance of the parameter."""
+        """The tolerance range of the specification."""
         return self._tolerance
     
     @property
     def NOMINAL(self) -> float:
-        """The nominal value of the parameter."""
+        """The nominal value of the specification."""
         return self._nominal
+    
+    @property
+    def RESOLUTION(self) -> float:
+        """The resolution of the specification."""
+        return self._resolution
+    
+    @property
+    def LOWER(self) -> float:
+        """The lower limit of the specification."""
+        return self.LIMITS.lower
+    
+    @property
+    def UPPER(self) -> float:
+        """The upper limit of the specification."""
+        return self.LIMITS.upper
     
     def __repr__(self) -> str:
         return (
@@ -241,8 +266,8 @@ class RandomProcessValue:
     
     Parameters
     ----------
-    parameter : Parameter
-        The parameter for which the random value will be generated.
+    specification : Specification
+        The specification for which the random value will be generated.
     dist : {'normal', 'uniform', 'circular'}
         The distribution from which the random value will be generated.
     clip : bool, optional
@@ -256,8 +281,8 @@ class RandomProcessValue:
     ``` python
     import daspi as dsp
 
-    PARAM_I = dsp.Parameter(limits=(5, 10))
-    PARAM_II = dsp.Parameter(tolerance=0.1, nominal=3)
+    PARAM_I = dsp.Specification(limits=(5, 10))
+    PARAM_II = dsp.Specification(tolerance=0.1, nominal=3)
 
     rpv = RandomProcessValue(PARAM_I, 'uniform')
     value = rpv()
@@ -277,35 +302,35 @@ class RandomProcessValue:
 
     def __init__(
             self,
-            parameter: Parameter,
+            specification: Specification,
             dist: Literal['normal', 'uniform', 'circular', 'coaxial', 'perpendicular'],
             clip: bool = False,
             ) -> None:
         assert dist in self._allowed_dists, (
             f'Distribution must be one of {self._allowed_dists}, got {dist}.')
-        self.parameter = parameter
+        self.specification = specification
         self.dist = dist
         self.clip_within_tolerance = clip
     
     @property
     def scale(self) -> float:
         """Scale factor for the distribution (6 sigma rule)."""
-        return self.parameter.TOLERANCE / 6
+        return self.specification.TOLERANCE / 6
     
     @property
     def loc(self) -> float:
         """Location parameter of the distribution."""
-        return self.parameter.NOMINAL
+        return self.specification.NOMINAL
     
     @property
     def lower(self) -> float:
         """Lower bound of the distribution."""
-        return self.parameter.LIMITS.lower
+        return self.specification.LOWER
     
     @property
     def upper(self) -> float:
         """Upper bound of the distribution."""
-        return self.parameter.LIMITS.upper
+        return self.specification.UPPER
     
     @staticmethod
     def clip(value: float, min_value: float, max_value: float) -> float:
@@ -378,7 +403,7 @@ class RandomProcessValue:
         float
             The modified value after applying the random circular offset.
         """
-        return self.parameter.TOLERANCE * sin(random.uniform(0, 2 * pi))
+        return self.specification.TOLERANCE * sin(random.uniform(0, 2 * pi))
     
     def coaxial(self) -> float:
         """Generate a random coaxiality value.
@@ -704,7 +729,7 @@ def inclination_displacement(
 
 __all__ = [
     'SpecLimits',
-    'Parameter',
+    'Specification',
     'RandomProcessValue',
     'Binning',
     'round_to_nearest',

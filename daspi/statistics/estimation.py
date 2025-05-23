@@ -32,6 +32,7 @@ from ..constants import DEFAULT
 from ..constants import SIGMA_DIFFERENCE
 
 from .montecarlo import SpecLimits
+from .montecarlo import Specification
 
 from .confidence import cp_ci
 from .confidence import cpk_ci
@@ -804,7 +805,7 @@ class ProcessEstimator(Estimator):
     def __init__(
             self,
             samples: NumericSample1D, 
-            spec_limits: SpecLimits,
+            spec_limits: SpecLimits | Specification,
             error_values: Tuple[float, ...] = (),
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: float | int = 6, 
@@ -822,6 +823,8 @@ class ProcessEstimator(Estimator):
         self._Z = None
         self._Z_lt = None
         self._error_values = error_values
+        if isinstance(spec_limits, Specification):
+            spec_limits = spec_limits.LIMITS
         self._spec_limits = spec_limits
         self._reset_values_()
         super().__init__(samples, strategy, agreement, possible_dists)
@@ -912,22 +915,25 @@ class ProcessEstimator(Estimator):
     @property
     def lsl(self) -> float:
         """Get the lower specification limit (read-only)."""
-        return self._spec_limits.lower
+        return self.spec_limits.lower
 
     @property
     def usl(self) -> float:
         """Get the upper specification limit (rad-only)."""
-        return self._spec_limits.upper
+        return self.spec_limits.upper
 
     @property
     def spec_limits(self) -> SpecLimits:
         """Get and set the specification limits."""
         return self._spec_limits
     @spec_limits.setter
-    def spec_limits(self, spec_limits: SpecLimits) -> None:
-        if spec_limits.to_tuple() != self._spec_limits.to_tuple():
+    def spec_limits(self, spec_limits: SpecLimits | Specification) -> None:
+        if isinstance(spec_limits, Specification):
+            spec_limits = spec_limits.LIMITS
+        
+        if spec_limits.to_tuple() != self.spec_limits.to_tuple():
             self._reset_values_()
-        self._spec_limits = spec_limits
+        self.spec_limits = spec_limits
 
     @property
     def control_limits(self) -> Tuple[float, float]:
@@ -1037,7 +1043,7 @@ class GageEstimator(Estimator):
     ----------
     samples : NumericSample1D
         The samples used to estimate the process capability.
-    spec_limits : SpecLimits
+    specification : SpecLimits | Specification
         The specification limits of the process.
     x_cal : float | None
         The calibrated value of the sample under test.
@@ -1059,12 +1065,12 @@ class GageEstimator(Estimator):
         Analysis Typ 1, by default 50
     """
     __slots__ = (
-        '_spec_limits', '_x_cal', '_U_cal', '_resolution', '_cg_limit', 
+        '_specification', '_x_cal', '_U_cal', '_resolution', '_cg_limit', 
         '_cgk_limit', '_tolerance_proportion', '_resolution_proportion_limit',
-        '_n_samples_min', '_cg', '_cgk', '_spec_limits_adj',
+        '_n_samples_min', '_cg', '_cgk', '_limits',
         '_resolution_proportion', '_bias', '_T_min_cg', '_T_min_cgk',
         '_T_min_res', '_process')
-    _spec_limits: SpecLimits
+    _specification: Specification
     _x_cal: float
     _U_cal: float
     _resolution: float
@@ -1075,7 +1081,7 @@ class GageEstimator(Estimator):
     _n_samples_min: int
     _cg: float | None
     _cgk: float | None
-    _spec_limits_adj: SpecLimits | None
+    _limits: SpecLimits | None
     _resolution_proportion: float | None
     _bias: float | None
     _T_min_cg: float | None
@@ -1085,7 +1091,7 @@ class GageEstimator(Estimator):
 
     def __init__(self,
             samples: NumericSample1D,
-            spec_limits: SpecLimits,
+            specification: Specification | SpecLimits,
             x_cal: float | None,
             U_cal: float | None,
             resolution: float | None,
@@ -1101,9 +1107,9 @@ class GageEstimator(Estimator):
             agreement=6,
             possible_dists=DIST.COMMON,
             evaluate=None)
-        self._spec_limits = spec_limits
-        self.x_cal = x_cal
         self.resolution = resolution
+        self.specification = specification
+        self.x_cal = x_cal
         self.U_cal = U_cal
         self._cg_limit = cg_limit
         self._cgk_limit = cgk_limit
@@ -1123,18 +1129,9 @@ class GageEstimator(Estimator):
         attrs = (_attrs[:4]
                  + ('n_outlier', )
                  + _attrs[4:]
-                 + ('lsl', 'usl', 'lsl_adj', 'usl_adj', 'cg', 'cgk', 'bias',
+                 + ('lsl', 'usl', 'lower', 'upper', 'cg', 'cgk', 'bias',
                     'T_min_cg', 'T_min_cgk', 'T_min_res', 'resolution_proportion'))
         return tuple(a for a in attrs if a not in ('dist', 'p_dist', 'strategy'))
-    
-    @property
-    def spec_limits(self) -> SpecLimits:
-        """The specification limits of the process."""
-        return self._spec_limits
-    @spec_limits.setter
-    def spec_limits(self, spec_limits: SpecLimits) -> None:
-        self._spec_limits = spec_limits
-        self._reset_values_()
     
     @property
     def resolution(self) -> float:
@@ -1145,6 +1142,19 @@ class GageEstimator(Estimator):
         if resolution is None:
             resolution = self.estimate_resolution()
         self._resolution = resolution
+        self._reset_values_()
+
+    @property
+    def specification(self) -> Specification:
+        """The specification holding the limits, nominal and tolerance 
+        of the process."""
+        return self._specification
+    @specification.setter
+    def specification(self, specification: SpecLimits | Specification) -> None:
+        if isinstance(specification, SpecLimits):
+            specification = Specification(limits=specification)
+
+        self._specification = specification
         self._reset_values_()
     
     @property
@@ -1186,23 +1196,23 @@ class GageEstimator(Estimator):
         self._reset_values_()
     
     @property
-    def spec_limits_adj(self) -> SpecLimits:
+    def limits(self) -> SpecLimits:
         """The adjusted specification limits of the process (read-only)."""
-        if self._spec_limits_adj is None:
-            self._spec_limits_adj = SpecLimits(
+        if self._limits is None:
+            self._limits = SpecLimits(
                 self.nominal - self.tolerance_proportion / 2 * self.tolerance,
                 self.nominal + self.tolerance_proportion / 2 * self.tolerance)
-        return self._spec_limits_adj
+        return self._limits
     
     @property
-    def lsl_adj(self) -> float:
+    def lower(self) -> float:
         """The adjusted lower specification limit (read-only)."""
-        return self.spec_limits_adj.lower
+        return self.limits.lower
     
     @property
-    def usl_adj(self) -> float:
+    def upper(self) -> float:
         """The adjusted upper specification limit (read-only)."""
-        return self.spec_limits_adj.upper
+        return self.limits.upper
     
     @property
     def cg_limit(self) -> float:
@@ -1221,7 +1231,7 @@ class GageEstimator(Estimator):
         if self._process is None:
             self._process = ProcessEstimator(
                 samples=self.samples,
-                spec_limits=self.spec_limits_adj,
+                spec_limits=self.limits,
                 strategy=self.strategy,
                 agreement=self.agreement,
                 possible_dists=self.possible_dists)
@@ -1229,22 +1239,23 @@ class GageEstimator(Estimator):
     
     @property
     def nominal(self) -> float:
-        """The nominal value of the process (read-only)."""
-        return self.spec_limits.nominal
+        """The nominal value of the specification (read-only)."""
+        return self.specification.NOMINAL
     
     @property
     def tolerance(self) -> float:
-        """The tolerance of the process (read-only)."""
-        return self.spec_limits.tolerance
+        """The tolerance of the specification (read-only)."""
+        return self.specification.TOLERANCE
 
     @property
     def tolerance_adj(self) -> float:
-        """The adjusted tolerance of the process (read-only)."""
-        return self.spec_limits_adj.tolerance
+        """The adjusted (proportion) tolerance of the specification 
+        (read-only)."""
+        return self.limits.tolerance
 
     @property
     def n_outlier(self) -> int:
-        """The number of outliers in the process (read-only)."""
+        """The number of outliers in the measurement process (read-only)."""
         return self.process.n_nok
     
     @property
@@ -1326,15 +1337,15 @@ class GageEstimator(Estimator):
     
     def estimate_resolution(self) -> float:
         """Estimate the resolution of the testing system."""
-        digits = 0
+        n_digits = 0
         for value in self.samples.astype(str, copy=False):
             _split = value.split('.')
             if len(_split) != 2:
                 continue
-            _digits = len(_split[1])
-            if _digits > digits:
-                digits = _digits
-        return 1 if digits == 0 else float(f'0.{"0"*(digits-1)}1')
+            _n_digits = len(_split[1])
+            if _n_digits > n_digits:
+                n_digits = _n_digits
+        return 1 if n_digits == 0 else float(f'0.{"0"*(n_digits-1)}1')
     
     def _reset_values_(self) -> None:
         """Set all values relevant to process capability to None. This 
@@ -1343,7 +1354,7 @@ class GageEstimator(Estimator):
         limits or agreement for the control limits). This ensures that 
         the process capability values are recalculated."""
         super()._reset_values_()
-        self._spec_limits_adj = None
+        self._limits = None
         self._resolution_proportion = None
         self._bias = None
         self._cg = None

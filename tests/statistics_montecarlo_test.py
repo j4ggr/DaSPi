@@ -6,7 +6,7 @@ import numpy as np
 from pathlib import Path
 from pandas.core.frame import DataFrame
 
-from daspi.statistics.montecarlo import Parameter
+from daspi.statistics.montecarlo import Specification
 
 sys.path.append(Path(__file__).parent.resolve()) # type: ignore
 
@@ -78,108 +78,108 @@ class TestSpecLimits:
         assert limits_unbounded.to_tuple() == (float('-inf'), float('inf'))
 
 
-class TestParameter:
+class TestSpecification:
 
-    def test_parameter_with_limits_only(self) -> None:
-        param = Parameter(limits=(0, 1))
-        assert param.LIMITS == (0, 1)
-        assert param.TOLERANCE == 1.0
-        assert param.NOMINAL == 0.5
+    def test_specification_with_limits_only(self) -> None:
+        spec = Specification(limits=(0, 1))
+        assert spec.LIMITS == (0, 1)
+        assert spec.TOLERANCE == 1.0
+        assert spec.NOMINAL == 0.5
     
-    def test_parameter_with_tolerance_and_nominal(self) -> None:
-        param = Parameter(tolerance=0.1, nominal=0.5)
-        assert param.LIMITS == (0.45, 0.55)
-        assert param.TOLERANCE == 0.1
-        assert param.NOMINAL == 0.5
+    def test_specification_with_tolerance_and_nominal(self) -> None:
+        spec = Specification(tolerance=0.1, nominal=0.5)
+        assert spec.LIMITS == (0.45, 0.55)
+        assert spec.TOLERANCE == 0.1
+        assert spec.NOMINAL == 0.5
     
-    def test_parameter_with_all_values(self) -> None:
-        param = Parameter(limits=(0, 1), tolerance=1.0, nominal=0.5)
-        assert param.LIMITS == (0, 1)
-        assert param.TOLERANCE == 1.0
-        assert param.NOMINAL == 0.5
+    def test_specification_with_all_values(self) -> None:
+        spec = Specification(limits=(0, 1), tolerance=1.0, nominal=0.5)
+        assert spec.LIMITS == (0, 1)
+        assert spec.TOLERANCE == 1.0
+        assert spec.NOMINAL == 0.5
     
-    def test_parameter_with_negative_values(self) -> None:
-        param = Parameter(limits=(-10, -5))
-        assert param.LIMITS == (-10, -5)
-        assert param.TOLERANCE == 5.0
-        assert param.NOMINAL == -7.5
+    def test_specification_with_negative_values(self) -> None:
+        spec = Specification(limits=(-10, -5))
+        assert spec.LIMITS == (-10, -5)
+        assert spec.TOLERANCE == 5.0
+        assert spec.NOMINAL == -7.5
     
-    def test_parameter_with_same_limits(self) -> None:
-        param = Parameter(limits=(5, 5))
-        assert param.LIMITS == (5, 5)
-        assert param.TOLERANCE == 0.0
-        assert param.NOMINAL == 5.0
+    def test_specification_with_same_limits(self) -> None:
+        spec = Specification(limits=(5, 5))
+        assert spec.LIMITS == (5, 5)
+        assert spec.TOLERANCE == 0.0
+        assert spec.NOMINAL == 5.0
     
-    def test_parameter_with_decimal_values(self) -> None:
-        param = Parameter(limits=(0.25, 0.75))
-        assert param.LIMITS == (0.25, 0.75)
-        assert param.TOLERANCE == 0.5
-        assert param.NOMINAL == 0.5
+    def test_specification_with_decimal_values(self) -> None:
+        spec = Specification(limits=(0.25, 0.75))
+        assert spec.LIMITS == (0.25, 0.75)
+        assert spec.TOLERANCE == 0.5
+        assert spec.NOMINAL == 0.5
     
-    def test_parameter_repr_and_str(self) -> None:
-        param = Parameter(limits=(0, 1))
-        repr_str = repr(param)
-        str_str = str(param)
+    def test_specification_repr_and_str(self) -> None:
+        spec = Specification(limits=(0, 1))
+        repr_str = repr(spec)
+        str_str = str(spec)
         
-        assert "Parameter(limits=(0, 1), tolerance=1, nominal=0.5)" == repr_str
-        assert "Parameter(limits=(0, 1), tolerance=1, nominal=0.5)" == str_str
+        assert "Specification(limits=(0, 1), tolerance=1, nominal=0.5)" == repr_str
+        assert "Specification(limits=(0, 1), tolerance=1, nominal=0.5)" == str_str
     
-    def test_parameter_invalid_limits(self) -> None:
+    def test_specification_invalid_limits(self) -> None:
         with pytest.raises(AssertionError):
-            Parameter(limits=(1, 0))  # Lower limit greater than upper limit
+            Specification(limits=(1, 0))  # Lower limit greater than upper limit
     
-    def test_parameter_missing_required_params(self) -> None:
+    def test_specification_missing_required_specs(self) -> None:
         with pytest.raises(AssertionError):
-            Parameter()  # No parameters provided
-        
-        with pytest.raises(AssertionError):
-            Parameter(tolerance=0.1)  # Missing nominal
+            Specification()  # No specifications provided
         
         with pytest.raises(AssertionError):
-            Parameter(nominal=0.5)  # Missing tolerance
+            Specification(tolerance=0.1)  # Missing nominal
+        
+        with pytest.raises(AssertionError):
+            Specification(nominal=0.5)  # Missing tolerance
     
-    def test_parameter_properties_read_only(self) -> None:
-        param = Parameter(limits=(0, 1))
+    def test_specification_properties_read_only(self) -> None:
+        spec = Specification(limits=(0, 1))
         
         # Verify properties are read-only by attempting to set them
         with pytest.raises(AttributeError):
-            param.LIMITS = (1, 2) # type: ignore
+            spec.LIMITS = (1, 2) # type: ignore
         
         with pytest.raises(AttributeError):
-            param.TOLERANCE = 2.0 # type: ignore
+            spec.TOLERANCE = 2.0 # type: ignore
         
         with pytest.raises(AttributeError):
-            param.NOMINAL = 1.5 # type: ignore
+            spec.NOMINAL = 1.5 # type: ignore
 
 
 class TestRandomProcessValue:
     
     @pytest.fixture
-    def PARAM(self) -> Parameter:
-        # Setup a parameter with limits and tolerance
-        return Parameter(limits=(5, 10))
+    def SPEC(self) -> Specification:
+        # Setup a specification with limits and tolerance
+        return Specification(limits=(5, 10))
     
-    def test_initialization_with_invalid_distribution(self, PARAM: Parameter) -> None:
+    def test_initialization_with_invalid_distribution(self, SPEC: Specification) -> None:
         with pytest.raises(AssertionError):
-            RandomProcessValue(PARAM, 'invalid_distribution') # type: ignore
+            RandomProcessValue(SPEC, 'invalid_distribution') # type: ignore
 
-    def test_normal_distribution(self, PARAM: Parameter) -> None:
-        rpv = RandomProcessValue(PARAM, 'normal')
+    def test_normal_distribution(self, SPEC: Specification) -> None:
+        rpv = RandomProcessValue(SPEC, 'normal')
         value = rpv()
         assert rpv.lower <= value <= rpv.upper, "Value not within limits"
 
-    def test_uniform_distribution(self, PARAM: Parameter) -> None:
-        rpv = RandomProcessValue(PARAM, 'uniform')
+    def test_uniform_distribution(self, SPEC: Specification) -> None:
+        rpv = RandomProcessValue(SPEC, 'uniform')
         value = rpv()
         assert rpv.lower <= value <= rpv.upper, "Value not within limits"
 
-    def test_circular_distribution(self, PARAM: Parameter) -> None:
-        rpv = RandomProcessValue(PARAM, 'circular')
+    def test_circular_distribution(self, SPEC: Specification) -> None:
+        rpv = RandomProcessValue(SPEC, 'circular')
         value = rpv()
-        assert -rpv.parameter.TOLERANCE <= value <= rpv.parameter.TOLERANCE, "Value not within circular tolerance"
+        assert -rpv.specification.TOLERANCE <= value <= rpv.specification.TOLERANCE, "Value not within circular tolerance"
 
-    def test_clipping_function(self, PARAM: Parameter) -> None:
-        rpv = RandomProcessValue(PARAM, 'normal', clip=True)
+    def test_clipping_function(self, SPEC: Specification) -> None:
+        rpv = RandomProcessValue(SPEC, 'normal', clip=True)
         # Generate a value outside the limits
         random.seed(0)  # For reproducibility
         value = rpv.clip(15, rpv.lower, rpv.upper)
@@ -188,8 +188,8 @@ class TestRandomProcessValue:
         value = rpv.clip(-5, rpv.lower, rpv.upper)
         assert value == rpv.lower, "Clipping failed for lower limit"
 
-    def test_generate_method(self, PARAM: Parameter) -> None:
-        rpv = RandomProcessValue(PARAM, 'normal', clip=True)
+    def test_generate_method(self, SPEC: Specification) -> None:
+        rpv = RandomProcessValue(SPEC, 'normal', clip=True)
         values = rpv.generate(1000)
         assert len(values) == 1000, "Generated array length mismatch"
         assert all(rpv.lower <= v <= rpv.upper for v in values), "Generated values out of bounds"

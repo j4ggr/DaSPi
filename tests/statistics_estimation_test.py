@@ -16,6 +16,7 @@ from daspi.statistics.estimation import GageEstimator
 sys.path.append(Path(__file__).parent.resolve()) # type: ignore
 
 from daspi import SpecLimits
+from daspi import Specification
 from daspi.statistics.estimation import *
 
 
@@ -421,15 +422,15 @@ class TestGageEstimator:
             sample_data,
             x_cal=20.302,
             U_cal=0.0002,
-            spec_limits=SpecLimits(lower=20.15, upper=20.45),
+            specification=Specification(limits=(20.15, 20.45)),
             resolution=0.001)
         return estimator
 
     def test_specification_values(self, estimator_gage: GageEstimator) -> None:
         assert estimator_gage.nominal == pytest.approx(20.30)
         assert estimator_gage.tolerance == pytest.approx(0.3)
-        assert estimator_gage.lsl_adj == pytest.approx(20.27)
-        assert estimator_gage.usl_adj == pytest.approx(20.33)
+        assert estimator_gage.lower == pytest.approx(20.27)
+        assert estimator_gage.upper == pytest.approx(20.33)
         assert estimator_gage.tolerance_adj == pytest.approx(0.06)
 
     def test_measured_values(self, estimator_gage: GageEstimator) -> None:
@@ -462,11 +463,12 @@ class TestGageEstimator:
             'cgk': True,}
 
     def test_estimate_resolution(self, sample_data) -> None:
+        specification=SpecLimits(lower=20.15, upper=20.45)
         estimator = GageEstimator(
             sample_data,
             x_cal=20.302,
             U_cal=0.0002,
-            spec_limits=SpecLimits(lower=20.15, upper=20.45),
+            specification=specification,
             resolution=None)
         assert estimator.resolution == 0.001
 
@@ -474,7 +476,7 @@ class TestGageEstimator:
             [1.0, 1.01, 1.002, 1.0003],
             x_cal=20.302,
             U_cal=0.0002,
-            spec_limits=SpecLimits(lower=20.15, upper=20.45),
+            specification=specification,
             resolution=None)
         assert estimator.resolution == 0.0001
 
@@ -482,6 +484,6 @@ class TestGageEstimator:
             [1, 20, 300, 4000],
             x_cal=20.302,
             U_cal=0.0002,
-            spec_limits=SpecLimits(lower=20.15, upper=20.45),
+            specification=specification,
             resolution=None)
         assert estimator.resolution == 1

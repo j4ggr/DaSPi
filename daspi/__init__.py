@@ -224,8 +224,8 @@ from .constants import SIGMA_DIFFERENCE
 
 
 from .statistics.montecarlo import Binning
-from .statistics.montecarlo import Parameter
 from .statistics.montecarlo import SpecLimits
+from .statistics.montecarlo import Specification
 from .statistics.montecarlo import round_to_nearest
 from .statistics.montecarlo import RandomProcessValue
 from .statistics.montecarlo import inclination_displacement
