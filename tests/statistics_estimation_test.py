@@ -11,13 +11,12 @@ from pytest import approx
 from pathlib import Path
 from pandas.core.frame import DataFrame
 
-from daspi.statistics.estimation import GageEstimator
-
 sys.path.append(Path(__file__).parent.resolve()) # type: ignore
 
 from daspi import SpecLimits
 from daspi import Specification
 from daspi.statistics.estimation import *
+from daspi import load_dataset
 
 
 source = Path(__file__).parent/'data'
@@ -403,34 +402,23 @@ class TestProcessEstimator:
 
 
 class TestGageEstimator:
+    df = load_dataset('gage_study1')
 
     @pytest.fixture
-    def sample_data(self) -> np.ndarray:
-        data = np.array([
-            20.303, 20.301, 20.304, 20.303, 20.306, 20.296, 20.301, 20.300,
-            20.307, 20.305, 20.311, 20.297, 20.295, 20.302, 20.304, 20.298,
-            20.295, 20.301, 20.307, 20.312, 20.311, 20.309, 20.308, 20.304,
-            20.298, 20.308, 20.302, 20.294, 20.302, 20.304, 20.313, 20.303,
-            20.308, 20.298, 20.306, 20.303, 20.310, 20.304, 20.309, 20.305,
-            20.306, 20.296, 20.306, 20.299, 20.300, 20.302, 20.303, 20.307,
-            20.303, 20.305])
-        return data
-
-    @pytest.fixture
-    def estimator_gage(self, sample_data) -> GageEstimator:
+    def estimator_gage(self) -> GageEstimator:
         estimator = GageEstimator(
-            sample_data,
-            x_cal=20.302,
+            self.df['result'],
+            reference=20.302,
             U_cal=0.0002,
-            specification=Specification(limits=(20.15, 20.45)),
+            tolerance=Specification(limits=(20.15, 20.45)),
             resolution=0.001)
         return estimator
 
     def test_specification_values(self, estimator_gage: GageEstimator) -> None:
-        assert estimator_gage.nominal == pytest.approx(20.30)
+        assert estimator_gage.nominal == pytest.approx(20.302)
         assert estimator_gage.tolerance == pytest.approx(0.3)
-        assert estimator_gage.lower == pytest.approx(20.27)
-        assert estimator_gage.upper == pytest.approx(20.33)
+        assert estimator_gage.lower == pytest.approx(20.272)
+        assert estimator_gage.upper == pytest.approx(20.332)
         assert estimator_gage.tolerance_adj == pytest.approx(0.06)
 
     def test_measured_values(self, estimator_gage: GageEstimator) -> None:
@@ -462,28 +450,28 @@ class TestGageEstimator:
             'cg': True,
             'cgk': True,}
 
-    def test_estimate_resolution(self, sample_data) -> None:
+    def test_estimate_resolution(self) -> None:
         specification=SpecLimits(lower=20.15, upper=20.45)
         estimator = GageEstimator(
-            sample_data,
-            x_cal=20.302,
+            self.df['result'],
+            reference=20.302,
             U_cal=0.0002,
-            specification=specification,
+            tolerance=specification,
             resolution=None)
         assert estimator.resolution == 0.001
 
         estimator = GageEstimator(
             [1.0, 1.01, 1.002, 1.0003],
-            x_cal=20.302,
+            reference=20.302,
             U_cal=0.0002,
-            specification=specification,
+            tolerance=specification,
             resolution=None)
         assert estimator.resolution == 0.0001
 
         estimator = GageEstimator(
             [1, 20, 300, 4000],
-            x_cal=20.302,
+            reference=20.302,
             U_cal=0.0002,
-            specification=specification,
+            tolerance=specification,
             resolution=None)
         assert estimator.resolution == 1

@@ -1043,12 +1043,13 @@ class GageEstimator(Estimator):
     ----------
     samples : NumericSample1D
         The samples used to estimate the process capability.
-    specification : SpecLimits | Specification
-        The specification limits of the process.
-    x_cal : float | None
-        The calibrated value of the sample under test.
+    reference : float | None
+        The reference value of the sample under test.
     U_cal : float | None
-        The expanded uncertainty of the calibration.
+        The expanded measurement uncertainty of the gage used to 
+        measure the reference value.
+    tolerance : float
+        The tolerance range for the measurement.
     resolution : float
         The resolution of the measurement system.
     cg_limit : float, optional
@@ -1065,13 +1066,13 @@ class GageEstimator(Estimator):
         Analysis Typ 1, by default 50
     """
     __slots__ = (
-        '_specification', '_x_cal', '_U_cal', '_resolution', '_cg_limit', 
+        '_specification', '_reference', '_U_cal', '_resolution', '_cg_limit', 
         '_cgk_limit', '_tolerance_proportion', '_resolution_proportion_limit',
         '_n_samples_min', '_cg', '_cgk', '_limits',
         '_resolution_proportion', '_bias', '_T_min_cg', '_T_min_cgk',
         '_T_min_res', '_process')
     _specification: Specification
-    _x_cal: float
+    _reference: float
     _U_cal: float
     _resolution: float
     _cg_limit: float
@@ -1091,9 +1092,9 @@ class GageEstimator(Estimator):
 
     def __init__(self,
             samples: NumericSample1D,
-            specification: Specification | SpecLimits,
-            x_cal: float | None,
+            reference: float | None,
             U_cal: float | None,
+            tolerance: float | SpecLimits | Specification,
             resolution: float | None,
             cg_limit: float = 1.33,
             cgk_limit: float = 1.33,
@@ -1108,9 +1109,9 @@ class GageEstimator(Estimator):
             possible_dists=DIST.COMMON,
             evaluate=None)
         self.resolution = resolution
-        self.specification = specification
-        self.x_cal = x_cal
+        self.reference = reference
         self.U_cal = U_cal
+        self.specification = tolerance
         self._cg_limit = cg_limit
         self._cgk_limit = cgk_limit
         self._tolerance_proportion = tolerance_proportion
@@ -1143,27 +1144,14 @@ class GageEstimator(Estimator):
             resolution = self.estimate_resolution()
         self._resolution = resolution
         self._reset_values_()
-
-    @property
-    def specification(self) -> Specification:
-        """The specification holding the limits, nominal and tolerance 
-        of the process."""
-        return self._specification
-    @specification.setter
-    def specification(self, specification: SpecLimits | Specification) -> None:
-        if isinstance(specification, SpecLimits):
-            specification = Specification(limits=specification)
-
-        self._specification = specification
-        self._reset_values_()
     
     @property
-    def x_cal(self) -> float:
+    def reference(self) -> float:
         """The calibrated value of the sample under test."""
-        return self._x_cal
-    @x_cal.setter
-    def x_cal(self, x_cal: float | None) -> None:
-        self._x_cal = self.median if x_cal is None else x_cal
+        return self._reference
+    @reference.setter
+    def reference(self, reference: float | None) -> None:
+        self._reference = self.median if reference is None else reference
         self._reset_values_()
     
     @property
@@ -1173,6 +1161,26 @@ class GageEstimator(Estimator):
     @U_cal.setter
     def U_cal(self, U_cal: float | None) -> None:
         self._U_cal = 2 * self.resolution if U_cal is None else U_cal
+        self._reset_values_()
+
+    @property
+    def specification(self) -> Specification:
+        """The specification holding the limits, nominal and tolerance 
+        of the process."""
+        return self._specification
+    @specification.setter
+    def specification(
+            self, specification: float | SpecLimits | Specification) -> None:
+        nominal = self.reference
+
+        if isinstance(specification, Specification):
+            tolerance = specification.TOLERANCE
+        elif isinstance(specification, SpecLimits):
+            tolerance = specification.tolerance
+        else:
+            tolerance = specification
+
+        self._specification = Specification(nominal=nominal, tolerance=tolerance)
         self._reset_values_()
     
     @property
@@ -1290,7 +1298,7 @@ class GageEstimator(Estimator):
     def bias(self) -> float:
         """The bias of the process (read-only)."""
         if self._bias is None:
-            self._bias = self.mean - self.x_cal
+            self._bias = self.mean - self.reference
         return self._bias
     
     @property

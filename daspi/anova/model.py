@@ -1400,3 +1400,43 @@ class LinearModel:
             _name = '' if name == ANOVA.INTERCEPT else f'*{name}'
             formula += f' {sign}{abs(coef):.4f}{_name}'
         return formula
+
+
+class GageRnRModel(LinearModel):
+    """A linear regression model for Gage Repeatability and 
+    Reproducibility (Gage R&R) analysis.
+    
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas DataFrame as tabular data in a long format used for the
+        model.
+    target : str
+        Column name for source data holding the measurement values.
+    part : str
+        Column name of the part (unit under test) variable.
+    operator : str
+        Column name of the operator (or block for type 3 Gage R&R)
+        variable.
+    """
+
+    __slots__ = ('part', 'operator')
+    part: str
+    """Column name of the part (unit under test) variable."""
+    operator: str
+    """Column name of the operator (or block for type 3 Gage R&R)
+    variable."""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            part: str,
+            operator: str) -> None:
+        self.part = part
+        self.operator = operator
+        super().__init__(
+            source=source,
+            target=target,
+            features=[part, operator],
+            order=2)
