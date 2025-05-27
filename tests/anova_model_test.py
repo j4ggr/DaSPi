@@ -502,7 +502,7 @@ class TestGageRnRModel:
             source=self.df,
             target='result',
             part='part',
-            operator='operator',
+            reproducer='operator',
             tolerance=15)
         return model
 

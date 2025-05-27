@@ -502,7 +502,7 @@ class _Anova_:
     """Name in anova table for reproducibility values."""
     INTERACTION: Literal['Interaction'] = 'Interaction'
     """Name in anova table for interaction values."""
-    RNR_TOTAL: Literal['R&R_sum'] = 'R&R_sum'
+    RNR_SUM: Literal['R&R_sum'] = 'R&R_sum'
     """Name in rnr table for sum of R&R."""
 
     @property
@@ -521,7 +521,7 @@ class _Anova_:
     def RNR_COLNAMES(self) -> List[str]:
         """Column names when crating the rnr table using the 
         `variance_inflation_factor` function."""
-        return ['MS', 'MS/Total', 's', '6s', '6s/Total', '6s/Tolerance']
+        return ['Variance', 'Variance/Total', 's', '6s', '6s/Total', '6s/Tolerance']
 
 ANOVA = _Anova_()
 

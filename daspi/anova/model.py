@@ -596,12 +596,14 @@ class LinearModel:
         except LinAlgError as linalg_err:
             warnings.warn(
                 f'Linear algebra error encountered: {linalg_err}. '
-                'Unable to compute R2_pred.')
+                'Unable to compute R2_pred.',
+                RuntimeWarning)
             return None
         except MemoryError as mem_err:
             warnings.warn(
                 f'Memory error encountered: {mem_err}. '
-                'Unable to compute R2_pred.')
+                'Unable to compute R2_pred.',
+                RuntimeWarning)
             return None
         
         ss_pred = np.sum(np.square(self.model.resid / (1 - np.diag(P))))
@@ -799,7 +801,8 @@ class LinearModel:
             parameter.split(ANOVA.SEP)))
         if term not in self.excluded:
             warnings.warn(
-                f'Given parameter {parameter} was not excluded from model')
+                f'Given parameter {parameter} was not excluded from model',
+                UserWarning)
         self.excluded.discard(term)
         return self
 
@@ -1420,47 +1423,93 @@ class GageRnRModel(LinearModel):
         Column name for source data holding the measurement values.
     part : str
         Column name of the part (unit under test) variable.
-    operator : str
-        Column name of the operator (or block for type 3 Gage R&R)
-        variable.
+    reproducer : str
+        Column name of the reproducer. That is, the variable that
+        identifies the operator for type 2 or the block for type 3 
+        Gage R&R.
     tolerance : float | SpecLimits | Specification
         The tolerance range for the measurement.
+    
+    References
+    ----------
+    The calculations are done based on the following references:
+    [1] https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-2/
+    [2] https://support.minitab.com/de-de/minitab/help-and-how-to/quality-and-process-improvement/measurement-system-analysis/how-to/gage-study/crossed-gage-r-r-study/methods-and-formulas/gage-r-r-table/
     """
 
-    __slots__ = ('part', 'operator', '_rnr', '_tolerance')
+    __slots__ = (
+        'part', 'reproducer', '_rnr', '_tolerance', '_n_replication', 
+        '_n_reproducer', '_n_parts')
     part: str
     """Column name of the part (unit under test) variable."""
-    operator: str
-    """Column name of the operator (or block for type 3 Gage R&R)
-    variable."""
+    
+    reproducer: str
+    """Column name of the reproducer. That is, the variable that
+    identifies the operator for type 2 or the block for type 3 
+    Gage R&R."""
+    
     _rnr: DataFrame
     """DataFrame holding the Gage R&R analysis results."""
+    
     _tolerance: float
     """The tolerance range for the measurement."""
+    
+    _n_replication: int
+    """Number of replications."""
+
+    _n_reproducer: int
+    """Number of reproducers."""
+
+    _n_parts: int
+    """Number of parts."""
 
     def __init__(
             self,
             source: DataFrame,
             target: str,
             part: str,
-            operator: str,
+            reproducer: str,
             tolerance: float | SpecLimits | Specification
             ) -> None:
         super().__init__(
             source=source,
             target=target,
-            features=[part, operator],
+            features=[part, reproducer],
             order=2)
         self.part = part
-        self.operator = operator
+        self.reproducer = reproducer
+        self.tolerance = tolerance
+        self._n_reproducer = source[self.reproducer].nunique()
+        self._n_parts = source[self.part].nunique()
+        self._n_replication = (
+            self.data.shape[0]
+            // (self._n_reproducer*self._n_parts))
         self._rnr = pd.DataFrame()
+    
+    @property
+    def interaction(self) -> str:
+        """Get the interaction parameter name if interaction is present 
+        in the fitted model.
+        """
+        interactions = [p for p in self.parameters if ANOVA.SEP in p]
+        return interactions[0] if interactions else ''
+
+    @property
+    def tolerance(self) -> float:
+        """The tolerance range for the measurement."""
+        return self._tolerance
+    @tolerance.setter
+    def tolerance(self, tolerance: float | SpecLimits | Specification) -> None:
+        if hasattr(self, 'tolerance'):
+            self._reset_tables_()
+
         if isinstance(tolerance, Specification):
             self._tolerance = tolerance.TOLERANCE
         elif isinstance(tolerance, SpecLimits):
             self._tolerance = tolerance.tolerance
         else:
             self._tolerance = tolerance
-    
+
     def anova(
             self,
             typ: Literal['', 'I', 'II', 'III'] = 'II',
@@ -1480,8 +1529,8 @@ class GageRnRModel(LinearModel):
 
         The table contains the following columns:
 
-        - MS: The mean square.
-        - MS/Total: The mean square divided by the total mean square.
+        - Variance: The variance.
+        - Variance/Total: The variance divided by the total variance.
         - s: The standard deviation.
         - 6s: The 6 times the standard deviation.
         - 6s/Total: The 6 times the standard deviation divided by the 
@@ -1493,31 +1542,71 @@ class GageRnRModel(LinearModel):
         -------
         DataFrame
             The Gage R&R analysis results as table.
+        
+        References
+        -------
         """
         if not self._rnr.empty:
             return self._rnr
         
-        anova = self.anova('II')
         index_map = {
             ANOVA.RESIDUAL: ANOVA.REPEATABILITY,
-            self.operator: ANOVA.REPRODUCIBILITY,
+            self.reproducer: ANOVA.REPRODUCIBILITY,
+            self.interaction: ANOVA.INTERACTION,
             self.part: ANOVA.PART}
+        indices_rnr_sum = [ANOVA.REPEATABILITY, ANOVA.REPRODUCIBILITY]
+        indices_order = [
+            ANOVA.RNR_SUM,
+            ANOVA.REPEATABILITY,
+            ANOVA.REPRODUCIBILITY,
+            ANOVA.PART,
+            ANOVA.TOTAL]
         columns = ANOVA.RNR_COLNAMES
-        rnr = (anova
+        significant_interactions = self.has_significant_interactions()
+        if significant_interactions:
+            indices_rnr_sum.append(ANOVA.INTERACTION)
+        else:
+            index_map.pop(self.interaction)
+            for parameter in self.parameters:
+                if ANOVA.SEP in parameter:
+                    self.eliminate(parameter)
+            if self.excluded:
+                self.fit()
+
+        ms = (self.anova('II')
             .copy()
-            .loc[list(index_map.keys()), ['MS']]
-            .rename(index=index_map)
-            .rename(columns={'MS': columns[0]}))
-        interactions = [p for p in self.parameters if ANOVA.SEP in p]
-        rnr.loc[ANOVA.REPEATABILITY, columns[0]] = anova.loc[
-             [ANOVA.RESIDUAL] + interactions, 'MS'].sum()
+            .loc[list(index_map.keys()), 'MS']
+            .rename(index=index_map))
+        if significant_interactions:
+            var_reproducer = (
+                    (ms[ANOVA.REPRODUCIBILITY] - ms[ANOVA.INTERACTION])
+                    / (self._n_parts * self._n_replication))
+            var_interaction = max(0, (
+                    (ms[ANOVA.INTERACTION] - ms[ANOVA.REPEATABILITY])
+                    / self._n_replication))
+            variation = pd.Series({
+                ANOVA.REPEATABILITY: ms[ANOVA.REPEATABILITY],
+                ANOVA.REPRODUCIBILITY: var_reproducer + var_interaction,
+                ANOVA.PART: (
+                    (ms[ANOVA.PART] - ms[ANOVA.INTERACTION])
+                    / (self._n_reproducer * self._n_replication))})
+        else:
+            variation = pd.Series({
+                ANOVA.REPEATABILITY: ms[ANOVA.REPEATABILITY],
+                ANOVA.REPRODUCIBILITY: (
+                    (ms[ANOVA.REPRODUCIBILITY] - ms[ANOVA.REPEATABILITY])
+                    / (self._n_parts * self._n_replication)),
+                ANOVA.PART: (
+                    (ms[ANOVA.PART] - ms[ANOVA.REPEATABILITY])
+                    / (self._n_reproducer * self._n_replication))})
+        
+        rnr = pd.DataFrame(
+            columns=ANOVA.RNR_COLNAMES,
+            index=list(index_map.values()))
+        rnr[columns[0]] = variation
         rnr.loc[ANOVA.TOTAL, :] = rnr.sum()
-        rnr.loc[ANOVA.RNR_TOTAL, :] = rnr.loc[
-            [ANOVA.REPEATABILITY, ANOVA.REPRODUCIBILITY], :].sum()
-        rnr = rnr.loc[
-            [ANOVA.RNR_TOTAL]
-            + list(index_map.values())
-            + [ANOVA.TOTAL]]
+        rnr.loc[ANOVA.RNR_SUM, :] = rnr.loc[indices_rnr_sum, :].sum()
+        rnr = rnr.loc[indices_order]
         rnr[columns[1]] = rnr[columns[0]] / rnr[columns[0]][ANOVA.TOTAL]
         rnr[columns[2]] = np.sqrt(rnr[columns[0]])
         rnr[columns[3]] = 6 * rnr[columns[2]]
