@@ -163,6 +163,7 @@ from ..statistics import variance_ci
 from ..statistics import prediction_ci
 from ..statistics import proportion_ci
 from ..statistics import ensure_generic
+from ..statistics import ProcessEstimator
 from ..statistics import estimate_kernel_density
 from ..statistics import estimate_kernel_density_2d
 from ..statistics import estimate_capability_confidence
@@ -4288,6 +4289,7 @@ class ProportionTest(ConfidenceInterval):
             self.upper: upper})
         return data
 
+
 class CapabilityConfidenceInterval(ConfidenceInterval):
     """Class for creating plotters with error bars as confidence 
     interval for the process capability values Cp or Cpk.
@@ -4356,19 +4358,33 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
     hide_axis : Literal['target', 'feature', 'both'] | None, optional
         Specifies which axes should be hidden. If None, both axes 
         are displayed. Defaults to None.
+    kw_estim : Dict[str, Any]
+        Additional keyword arguments that are passed to the 
+        `ProcessEstimator` class. Possible keword arguments are:
+        - error_values: Tuple[float, ...] = (),
+        - strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
+        - agreement: float | int = 6,
+        - possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON
+    
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
     """
 
-    __slots__ = ('spec_limits', 'kind', 'show_feature_axis')
+    __slots__ = (
+        'spec_limits', 'kind', 'show_feature_axis', 'processes', 'kw_estim')
 
     spec_limits: SpecLimits
     """Spec limits used for calculating the capability values."""
     kind: Literal['cp', 'cpk']
     """whether to calculate the confidence interval for Cp or Cpk 
     ('cp' or 'cpk')."""
+    processes: List[ProcessEstimator]
+    """ProcessEstimator classes used to calculate the cp and cpk values."""
+    kw_estim: Dict[str, Any]
+    """Additional keyword arguments that are passed to the 
+    `ProcessEstimator` classes."""
 
     def __init__(
             self,
@@ -4389,13 +4405,16 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
             ax: Axes | None = None,
             visible_spines: Literal['target', 'feature', 'none'] | None = None,
             hide_axis: Literal['target', 'feature', 'both'] | None = None,
+            kw_estim: Dict[str, Any] = {},
             **kwds) -> None:
 
+        self.processes = []
         self.spec_limits = spec_limits
         self.kind = kind
         if show_feature_axis is None:
             show_feature_axis = bool(feature)
         self.show_feature_axis = show_feature_axis
+        self.kw_estim = kw_estim
         
         super().__init__(
             source=source,
@@ -4441,9 +4460,12 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
         data : pandas DataFrame
             The transformed data source for the plot.
         """
-        center, lower, upper = self.ci_func(
+        process = ProcessEstimator(
             samples=target_data,
             spec_limits=self.spec_limits,
+            **self.kw_estim)
+        center, lower, upper = self.ci_func(
+            process=process,
             kind=self.kind,
             level=self.confidence_level,
             n_groups=self.n_groups)
@@ -4452,6 +4474,7 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
             self.feature: [feature_data],
             self.lower: [lower],
             self.upper: [upper]})
+        self.processes.append(process)
         return data 
     
     def __call__(self, kw_points: dict = {}, **kwds) -> None:

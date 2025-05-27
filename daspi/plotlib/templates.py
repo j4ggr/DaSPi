@@ -31,12 +31,13 @@ from .plotter import CapabilityConfidenceInterval
 
 from ..anova import LinearModel
 from ..strings import STR
-from ..constants import KW
+from ..constants import DIST
 from ..constants import COLOR
 from ..constants import ANOVA
 from ..constants import CATEGORY
 
 from ..statistics import SpecLimits
+from ..statistics import ProcessEstimator
 
 
 class ParameterRelevanceCharts(JointChart):
@@ -790,6 +791,44 @@ class ProcessCapabilityAnalysisCharts(JointChart):
     dist : scipy stats rv_continuous, optional
         The probability distribution use for creating feature data
         (the theoretical values). Default is 'norm'.
+    error_values : tuple of float, optional
+        If the process data may contain coded values for measurement 
+        errors or similar, they can be specified here, 
+        by default [].
+    strategy : {'eval', 'fit', 'norm', 'data'}, optional
+        Which strategy should be used to determine the control 
+        limits (process spread):
+        - `eval`: The strategy is determined according to the given 
+        evaluate function. If none is given, the internal `evaluate`
+        method is used.
+        - `fit`: First, the distribution that best represents the 
+        process data is searched for and then the agreed process 
+        spread is calculated
+        - norm: it is assumed that the data is subject to normal 
+        distribution. The variation tolerance is then calculated as 
+        agreement * standard deviation
+        - data: The quantiles for the process variation tolerance 
+        are read directly from the data.
+        by default 'norm'
+    agreement : float or int, optional
+        Specify the tolerated process variation for which the 
+        control limits are to be calculated. 
+        - If int, the spread is determined using the normal 
+        distribution agreement*σ, 
+        e.g. agreement = 6 -> 6*σ ~ covers 99.75 % of the data. 
+        The upper and lower permissible quantiles are then 
+        calculated from this.
+        - If float, the value must be between 0 and 1.This value is
+        then interpreted as the acceptable proportion for the 
+        spread, e.g. 0.9973 (which corresponds to ~ 6 σ)
+        by default 6
+    possible_dists : tuple of strings or rv_continous, optional
+        Distributions to which the data may be subject. Only 
+        continuous distributions of scipy.stats are allowed,
+        by default DIST.COMMON
+    stretch_figsize : bool, optional
+        Flag indicating whether figure size should be stretched to fill
+        the grid, by default False.
     
     Examples
     --------
@@ -815,7 +854,7 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             info=True)
     ``` 
     """
-    __slots__ = ('spec_limits', 'dist')
+    __slots__ = ('spec_limits', 'dist', 'kw_estim')
 
     spec_limits: SpecLimits
     """The specification limits for the process capability analysis."""
@@ -823,6 +862,10 @@ class ProcessCapabilityAnalysisCharts(JointChart):
     dist: rv_continuous | str
     """The probability distribution use for creating feature data
     (the theoretical values)."""
+
+    kw_estim: Dict[str, Any]
+    """Keyword arguments for the ProcessEstimator instances used for 
+    calculating the capability indices."""
 
     def __init__(
             self,
@@ -832,11 +875,21 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             spec_limits: SpecLimits,
             hue: str = '',
             dist: rv_continuous | str = 'norm',
+            error_values: Tuple[float, ...] = (),
+            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
+            agreement: float | int = 6, 
+            possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
+            stretch_figsize: bool = False,
             ) -> None:
         assert not spec_limits.both_unbounded, (
             'At least one specification limit must not be None')
         self.spec_limits = spec_limits
         self.dist = dist
+        self.kw_estim = dict(
+            error_values=error_values,
+            strategy=strategy,
+            agreement=agreement,
+            possible_dists=possible_dists)
         super().__init__(
             source=source,
             target=target,
@@ -846,7 +899,18 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             height_ratios=[3, 3, 1],
             sharex='row',
             dodge=(False, False, False, True, True),
-            target_on_y=(True, False, False, False, False))
+            target_on_y=(True, False, False, False, False),
+            stretch_figsize=stretch_figsize)
+    
+    @property
+    def processes(self) -> List[ProcessEstimator]:
+        """Returns a list of ProcessEstimator instances used for 
+        calculating the capability indices (read-only).
+        """
+        for plot in self.plots:
+            if isinstance(plot, CapabilityConfidenceInterval):
+                return plot.processes
+        return []
 
     def plot(self, **kwds_cpi) -> Self: # type: ignore
         """Plot the process capability analysis charts.
@@ -875,7 +939,8 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             show_center=True,
             bars_same_color=True,
             hide_axis='feature',
-            visible_spines='target') | kwds_cpi
+            visible_spines='target',
+            kw_estim=self.kw_estim) | kwds_cpi
         super().plot(Scatter)
         super().plot(Probability, dist=self.dist)
         super().plot(GaussianKDE, hide_axis='feature', visible_spines='target')

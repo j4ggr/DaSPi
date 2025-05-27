@@ -1066,8 +1066,8 @@ class GageEstimator(Estimator):
         The minimum samples needed to perform a Measurement System 
         Analysis Typ 1, by default 50
     
-    Sources
-    -------
+    References
+    ----------
     [1] https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-1/
     """
     __slots__ = (
@@ -1554,12 +1554,11 @@ def estimate_kernel_density_2d(
     return feature_seq, target_seq, estimation
 
 def estimate_capability_confidence(
-        samples: NumericSample1D, 
-        spec_limits: SpecLimits,
+        process: ProcessEstimator,
+        *,
         kind: Literal['cp', 'cpk'] = 'cpk',
         level: float = 0.95,
         n_groups: int = 1,
-        **kwds
         ) -> Tuple[float, float, float]:
     """Calculates the confidence interval for the process capability 
     index (Cp or Cpk) of a process.
@@ -1570,10 +1569,10 @@ def estimate_capability_confidence(
     
     Parameters
     ----------
-    samples : NumericSample1D
-        1D array of process data.
-    spec_limits: SpecLimits
-        Specification limits for the process data.
+    process : ProcessEstimator
+        Process Estimator instance, is required to get the necessary 
+        process information such as capability indices and number of 
+        samples.
     kind : Literal['cp', 'cpk], optional
         Specifies whether to calculate the confidence interval for Cp or 
         Cpk ('cp' or 'cpk'). Defaults is 'cpk'.
@@ -1599,26 +1598,25 @@ def estimate_capability_confidence(
         If no limit is provided or if only one limit is provided and 
         kind is set to 'cp'.
     """
-    estimator = ProcessEstimator(samples, spec_limits, **kwds)
     assert kind in ('cp', 'cpk'), f'Unkown value for {kind=}'
     
     if kind == 'cp':
-        if estimator.cp is None:
+        if process.cp is None:
             raise ValueError(
                 'To calculate the cp values, both limits must be provided')
         ci_values = cp_ci(
-            cp=estimator.cp,
-            n_samples=estimator.n_samples,
+            cp=process.cp,
+            n_samples=process.n_samples,
             level=level,
             n_groups=n_groups)
     
     elif kind == 'cpk':
-        if estimator.cpk is None:
+        if process.cpk is None:
             raise ValueError(
                 'At least one spec limit must be provided')
         ci_values = cpk_ci(
-            cpk=estimator.cpk,
-            n_samples=estimator.n_samples,
+            cpk=process.cpk,
+            n_samples=process.n_samples,
             level=level,
             n_groups=n_groups)
 
