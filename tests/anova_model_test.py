@@ -15,6 +15,7 @@ from daspi.anova.model import LinearModel
 
 sys.path.append(str(Path(__file__).parent.resolve()))
 
+from daspi import ANOVA
 from daspi import load_dataset
 from daspi.anova.model import *
 
@@ -489,4 +490,46 @@ class TestLinearModel:
         assert parameters == ['B:C', ANOVA.INTERCEPT, 'A', 'D']
         parameters = lm4.highest_parameters(features_only=True)
         assert parameters == ['B:C', 'A']
-            
+
+
+class TestGageRnRModel:
+
+    df = load_dataset('gage_rnr2')
+
+    @pytest.fixture
+    def rnr_model(self) -> GageRnRModel:
+        model = GageRnRModel(
+            source=self.df,
+            target='result',
+            part='part',
+            operator='operator',
+            tolerance=15)
+        return model
+
+    def test_anova_table(self, rnr_model: GageRnRModel) -> None:
+        rnr_model.fit()
+        anova = rnr_model.anova()
+
+        assert anova['DF']['part'] == 4
+        assert anova['DF']['operator'] == 2
+        assert anova['DF']['part:operator'] == 8
+        assert anova['DF'][ANOVA.RESIDUAL] == 30
+        
+        assert anova['SS']['part'] == pytest.approx(28.909, abs=1e-3)
+        assert anova['SS']['operator'] == pytest.approx(1.630, abs=1e-3)
+        assert anova['SS']['part:operator'] == pytest.approx(0.065, abs=1e-3)
+        assert anova['SS'][ANOVA.RESIDUAL] == pytest.approx(1.712, abs=1e-3)
+        
+        assert anova['MS']['part'] == pytest.approx(7.227, abs=1e-3)
+        assert anova['MS']['operator'] == pytest.approx(0.815, abs=1e-3)
+        assert anova['MS']['part:operator'] == pytest.approx(0.008, abs=1e-3)
+        assert anova['MS'][ANOVA.RESIDUAL] == pytest.approx(0.057, abs=1e-3)
+
+        assert anova['p']['part'] == pytest.approx(0.0000, abs=1e-4)
+        assert anova['p']['operator'] == pytest.approx(0.0000, abs=1e-4)
+        assert anova['p']['part:operator'] == pytest.approx(0.9964, abs=1e-4)
+
+    def test_rnr_table(self, rnr_model: GageRnRModel) -> None:
+        rnr_model.fit()
+        rnr = rnr_model.rnr()
+        assert not rnr.empty

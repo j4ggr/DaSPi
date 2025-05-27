@@ -104,6 +104,9 @@ from ..constants import ANOVA
 
 from ..strings import STR
 
+from ..statistics.montecarlo import SpecLimits
+from ..statistics.montecarlo import Specification
+
 
 def is_main_parameter(parameter: str) -> bool:
     """Check if given parameter is a main parameter (intercept is 
@@ -887,7 +890,9 @@ class LinearModel:
             yield self.gof_metrics(step)
     
     def anova(
-            self, typ: Literal['', 'I', 'II', 'III'] = '', vif: bool = False
+            self,
+            typ: Literal['', 'I', 'II', 'III'] = '',
+            vif: bool = False
             ) -> DataFrame:
         """Perform an analysis of variance (ANOVA) on the fitted model.
 
@@ -1328,8 +1333,8 @@ class LinearModel:
         dfs : List[pandas.DataFrame]
             A list containing the following DataFrames:
             - Goodness-of-fit metrics
-            - ANOVA table
             - Parameter statistics
+            - ANOVA table
             - VIF table (if possible)
         """
         if self.model is None:
@@ -1418,25 +1423,150 @@ class GageRnRModel(LinearModel):
     operator : str
         Column name of the operator (or block for type 3 Gage R&R)
         variable.
+    tolerance : float | SpecLimits | Specification
+        The tolerance range for the measurement.
     """
 
-    __slots__ = ('part', 'operator')
+    __slots__ = ('part', 'operator', '_rnr', '_tolerance')
     part: str
     """Column name of the part (unit under test) variable."""
     operator: str
     """Column name of the operator (or block for type 3 Gage R&R)
     variable."""
+    _rnr: DataFrame
+    """DataFrame holding the Gage R&R analysis results."""
+    _tolerance: float
+    """The tolerance range for the measurement."""
 
     def __init__(
             self,
             source: DataFrame,
             target: str,
             part: str,
-            operator: str) -> None:
-        self.part = part
-        self.operator = operator
+            operator: str,
+            tolerance: float | SpecLimits | Specification
+            ) -> None:
         super().__init__(
             source=source,
             target=target,
             features=[part, operator],
             order=2)
+        self.part = part
+        self.operator = operator
+        self._rnr = pd.DataFrame()
+        if isinstance(tolerance, Specification):
+            self._tolerance = tolerance.TOLERANCE
+        elif isinstance(tolerance, SpecLimits):
+            self._tolerance = tolerance.tolerance
+        else:
+            self._tolerance = tolerance
+    
+    def anova(
+            self,
+            typ: Literal['', 'I', 'II', 'III'] = 'II',
+            vif: bool = False) -> DataFrame:
+        return super().anova(typ, vif)
+
+    def rnr(self) -> DataFrame:
+        """Get the Gage R&R analysis results as table.
+        
+        The table contains the following rows:
+
+        - R&R_sum: The total repeatability and reproducibility.
+        - Repeatability: The repeatability component.
+        - Reproducibility: The reproducibility component.
+        - Part: The part-to-part component.
+        - Total: The sum of the repeatability, reproducibility, and part-to-part.
+
+        The table contains the following columns:
+
+        - MS: The mean square.
+        - MS/Total: The mean square divided by the total mean square.
+        - s: The standard deviation.
+        - 6s: The 6 times the standard deviation.
+        - 6s/Total: The 6 times the standard deviation divided by the 
+            total 6 times the standard deviation.
+        - 6s/Tolerance: The 6 times the standard deviation divided by 
+            the tolerance.
+
+        Returns
+        -------
+        DataFrame
+            The Gage R&R analysis results as table.
+        """
+        if not self._rnr.empty:
+            return self._rnr
+        
+        anova = self.anova('II')
+        index_map = {
+            ANOVA.RESIDUAL: ANOVA.REPEATABILITY,
+            self.operator: ANOVA.REPRODUCIBILITY,
+            self.part: ANOVA.PART}
+        columns = ANOVA.RNR_COLNAMES
+        rnr = (anova
+            .copy()
+            .loc[list(index_map.keys()), ['MS']]
+            .rename(index=index_map)
+            .rename(columns={'MS': columns[0]}))
+        interactions = [p for p in self.parameters if ANOVA.SEP in p]
+        rnr.loc[ANOVA.REPEATABILITY, columns[0]] = anova.loc[
+             [ANOVA.RESIDUAL] + interactions, 'MS'].sum()
+        rnr.loc[ANOVA.TOTAL, :] = rnr.sum()
+        rnr.loc[ANOVA.RNR_TOTAL, :] = rnr.loc[
+            [ANOVA.REPEATABILITY, ANOVA.REPRODUCIBILITY], :].sum()
+        rnr = rnr.loc[
+            [ANOVA.RNR_TOTAL]
+            + list(index_map.values())
+            + [ANOVA.TOTAL]]
+        rnr[columns[1]] = rnr[columns[0]] / rnr[columns[0]][ANOVA.TOTAL]
+        rnr[columns[2]] = np.sqrt(rnr[columns[0]])
+        rnr[columns[3]] = 6 * rnr[columns[2]]
+        rnr[columns[4]] = rnr[columns[3]] / rnr[columns[3]][ANOVA.TOTAL]
+        rnr[columns[5]] = rnr[columns[3]] / self._tolerance
+        self._rnr = rnr
+        return self._rnr
+
+    @property
+    def _repr_captions(self) -> Tuple[str, str, str, str]:
+        captions = (
+                STR['lm_table_caption_summary'],
+                STR['lm_table_caption_statistics'],
+                STR['lm_table_caption_anova'],
+                STR['lm_table_caption_rnr'])
+        return captions
+    
+    def _dfs_repr_(self) -> List[DataFrame]:
+        """Returns a list of DataFrames containing the goodness-of-fit 
+        metrics, ANOVA table, and parameter statistics for the fitted 
+        model.
+        
+        Returns
+        -------
+        dfs : List[pandas.DataFrame]
+            A list containing the following DataFrames:
+            - Goodness-of-fit metrics
+            - Parameter statistics
+            - ANOVA table
+            - R&R table
+        """
+        if self.model is None:
+            self.fit()
+        
+        dfs = [
+            self.gof_metrics().drop('formula', axis=1),
+            self.parameter_statistics(),
+            self.anova()]
+        return dfs
+    
+    def _reset_tables_(self) -> None:
+        """Reset the anova table, the p_values and the effects."""
+        super()._reset_tables_()
+        self._rnr = pd.DataFrame()
+
+
+__all__ = [
+    'is_main_parameter',
+    'get_order',
+    'hierarchical',
+    'LinearModel',
+    'GageRnRModel']

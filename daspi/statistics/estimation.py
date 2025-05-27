@@ -41,6 +41,7 @@ from .confidence import stdev_ci
 from .confidence import median_ci
 from .confidence import confidence_to_alpha
 
+from .hypothesis import t_test
 from .hypothesis import skew_test
 from .hypothesis import kurtosis_test
 from .hypothesis import ensure_generic
@@ -1037,7 +1038,7 @@ class ProcessEstimator(Estimator):
 
 class GageEstimator(Estimator):
     """Estimates the process capability of a single measurement system
-    using the Gage Repeatability and Reproducibility (Gage R&R) method.
+    using the Gage Study Type 1 method.
 
     Parameters
     ----------
@@ -1048,7 +1049,7 @@ class GageEstimator(Estimator):
     U_cal : float | None
         The expanded measurement uncertainty of the gage used to 
         measure the reference value.
-    tolerance : float
+    tolerance : float | SpecLimits | Specification
         The tolerance range for the measurement.
     resolution : float
         The resolution of the measurement system.
@@ -1064,13 +1065,17 @@ class GageEstimator(Estimator):
     n_samples_min : int, optional
         The minimum samples needed to perform a Measurement System 
         Analysis Typ 1, by default 50
+    
+    Sources
+    -------
+    [1] https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-1/
     """
     __slots__ = (
         '_specification', '_reference', '_U_cal', '_resolution', '_cg_limit', 
         '_cgk_limit', '_tolerance_proportion', '_resolution_proportion_limit',
         '_n_samples_min', '_cg', '_cgk', '_limits',
-        '_resolution_proportion', '_bias', '_T_min_cg', '_T_min_cgk',
-        '_T_min_res', '_process')
+        '_resolution_proportion', '_bias', '_p_bias', '_T_min_cg', 
+        '_T_min_cgk', '_T_min_res', '_process')
     _specification: Specification
     _reference: float
     _U_cal: float
@@ -1130,8 +1135,8 @@ class GageEstimator(Estimator):
         attrs = (_attrs[:4]
                  + ('n_outlier', )
                  + _attrs[4:]
-                 + ('lsl', 'usl', 'lower', 'upper', 'cg', 'cgk', 'bias',
-                    'T_min_cg', 'T_min_cgk', 'T_min_res', 'resolution_proportion'))
+                 + ('lsl', 'usl', 'lower', 'upper', 'cg', 'cgk', 'bias', 'p_bias',
+                    'T_min_cg', 'T_min_cgk', 'T_min_res', 'resolution_proportion',))
         return tuple(a for a in attrs if a not in ('dist', 'p_dist', 'strategy'))
     
     @property
@@ -1302,8 +1307,17 @@ class GageEstimator(Estimator):
         return self._bias
     
     @property
+    def p_bias(self) -> float | None:
+        """The probability of the bias being significant by performing
+        a t-test (read-only)."""
+        if self._p_bias is None:
+            self._p_bias = t_test(self.samples, self.reference)[1]
+        return self._p_bias
+
+    @property
     def T_min_cg(self) -> float | None:
-        """The minimum tolerance to capability ratio (read-only)."""
+        """The minimum allowed tolerance for this testing system based
+        on the capability cg of the process (read-only)."""
         if self.cg is None:
             return None
         
@@ -1314,7 +1328,8 @@ class GageEstimator(Estimator):
     
     @property
     def T_min_cgk(self) -> float | None:
-        """The minimum tolerance to capability ratio (read-only)."""
+        """The minimum allowed tolerance for this testing system based
+        on the capability cgk of the process (read-only)."""
         if self.cgk is None:
             return None
         
@@ -1326,7 +1341,8 @@ class GageEstimator(Estimator):
     
     @property
     def T_min_res(self) -> float:
-        """The minimum tolerance to resolution ratio (read-only)."""
+        """The minimum allowed tolerance for this testing system based
+        on the resolution of the testing system (read-only)."""
         if self._T_min_res is None:
             self._T_min_res = (
                 self.resolution / self.resolution_proportion_limit)
@@ -1365,6 +1381,7 @@ class GageEstimator(Estimator):
         self._limits = None
         self._resolution_proportion = None
         self._bias = None
+        self._p_bias = None
         self._cg = None
         self._cgk = None
         self._T_min_cg = None

@@ -16,7 +16,7 @@ carpet_full-factorial,Full factorial DOE of a process improvement project for ca
 drop_card,Experiment in which an attempt is made to drop a Jass card with an outstretched arm as precisely as possible onto a center with different initial orientations of the card to the ground: (vertical and parallel). Measurements were made with a ruler,process capability,Green Belt Training Experiment at Six Sigma TC GmbH 
 eeprom_full-factorial,Full factorial DOE of a process improvement project for eeproms,anova,Six Sigma TC GmbH
 eeprom_partial-factorial,Partial factorial DOE of a process improvement project for eeproms,anova,Six Sigma TC GmbH
-gage_rnr2,Gage R&R study with 3 operators and 5 parts,anova,https://www.spcforexcel.com/
+gage_rnr2,Gage R&R study with 3 operators and 5 parts,anova,https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-1/
 gage_study1,Gage study (MSA Type 1) data with 50 data points,anova,DaSPi
 iris,This is one of the earliest datasets used in the literature on classification methods and widely used in statistics and machine learning. Here it's in a long format., BivariateUnivariate Chart,https://archive.ics.uci.edu/ml/datasets/iris
 mpg,This dataset contains a subset of the fuel economy data that the EPA makes available on https://fueleconomy.gov/. It contains only models which had a new release every year between 1999 and 2008 - this was used as a proxy for the popularity of the car,anova,ggplot2 data https://ggplot2.tidyverse.org/reference/mpg.html

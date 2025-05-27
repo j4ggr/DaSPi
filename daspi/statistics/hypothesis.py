@@ -3,6 +3,7 @@ import numpy as np
 from math import exp
 from typing import Any
 from typing import Tuple
+from typing import Literal
 from typing import Sequence
 from typing import Generator
 from numpy.typing import NDArray
@@ -16,6 +17,7 @@ from scipy.stats import f_oneway
 from scipy.stats import anderson
 from scipy.stats import skewtest
 from scipy.stats import ttest_ind
+from scipy.stats import ttest_1samp
 from scipy.stats import kurtosistest
 from scipy.stats import fisher_exact
 from scipy.stats import mannwhitneyu
@@ -166,7 +168,8 @@ def all_normal(
 
 def kolmogorov_smirnov_test(
         sample: NumericSample1D,
-        dist: str | rv_continuous
+        dist: str | rv_continuous,
+        alternative: Literal['two-sided', 'less', 'greater'] = 'two-sided'
         ) -> Tuple[float, float, Tuple[float, ...]]:
     """Perform a one-sample Kolmogorov-Smirnov-Test. This hypothesis
     test compares the underlying distribution F(x) of a sample against a 
@@ -180,6 +183,14 @@ def kolmogorov_smirnov_test(
     dist : str or scipy.stats rv_continous
         If a string, it should be the name of a continous distribution 
         in scipy.stats, which will be used as the cdf function.
+    alternative : {'two-sided', 'less', 'greater'}, optional
+        The alternative hypothesis to use for the test.
+        'two-sided' : the cdf of the distribution is not the same as the 
+            cdf of the sample
+        'less' : the cdf of the distribution is the same as or less than 
+            the cdf of the sample
+        'greater' : the cdf of the distribution is the same as or greater 
+            than the cdf of the sample
     
     Returns
     -------
@@ -196,7 +207,7 @@ def kolmogorov_smirnov_test(
     dist = ensure_generic(dist)
     params = dist.fit(sample)
     D, p = ks_1samp(
-        sample, cdf=dist.cdf, args=params, alternative='two-sided')
+        sample, cdf=dist.cdf, args=params, alternative=alternative)
     return p, D, params # type: ignore
 
 def f_test(
@@ -227,6 +238,40 @@ def f_test(
     cumulated = float(f.cdf(F, df1, df2))
     p = 2 * min(cumulated, 1-cumulated)
     return p, F
+
+def t_test(
+        sample: NumericSample1D,
+        mu: float = 0,
+        alternative: Literal['two-sided', 'less', 'greater'] = 'two-sided'
+        ) -> Tuple[float, float, int]:
+    """Perform one sample t-test.
+    
+    The t-test tests the null hypothesis that the mean of a sample is
+    equal to a given population mean.
+    
+    Parameters
+    ----------
+    sample : NumericSample1D
+        A one-dimensional array-like object containing the sample.
+    mu : float, optional
+        The hypothesized mean of the population, by default 0
+    alternative : {'two-sided', 'less', 'greater'}, optional
+        The alternative hypothesis to use for the test.
+        'two-sided' : the mean of the population is not equal to mu
+        'less' : the mean of the population is less than mu
+        'greater' : the mean of the population is greater than mu
+    
+    Returns
+    -------
+    p : float
+        The p-value for the test
+    t : float
+        The t-test statistic
+    df : int
+        The degrees of freedom
+    """
+    t, p, df = ttest_1samp(sample, mu, alternative=alternative)
+    return p, t, df # type: ignore
 
 def levene_test(
         sample1: NumericSample1D,
@@ -534,6 +579,7 @@ __all__ = [
     'all_normal',
     'kolmogorov_smirnov_test',
     'f_test',
+    't_test',
     'levene_test',
     'variance_stability_test',
     'mean_stability_test',

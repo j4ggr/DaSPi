@@ -494,6 +494,16 @@ class _Anova_:
     """Name in residual table for predicted values."""
     TOTAL: Literal['Total'] = 'Total'
     """Name in anova table for total (sum of the others) values."""
+    PART: Literal['Part'] = 'Part'
+    """Name in anova table for part values."""
+    REPEATABILITY: Literal['Repeatability'] = 'Repeatability'
+    """Name in anova table for repeatability values."""
+    REPRODUCIBILITY: Literal['Reproducibility'] = 'Reproducibility'
+    """Name in anova table for reproducibility values."""
+    INTERACTION: Literal['Interaction'] = 'Interaction'
+    """Name in anova table for interaction values."""
+    RNR_TOTAL: Literal['R&R_sum'] = 'R&R_sum'
+    """Name in rnr table for sum of R&R."""
 
     @property
     def TABLE_COLNAMES(self) -> List[str]:
@@ -506,6 +516,12 @@ class _Anova_:
         """Column names when crating the vif table using the 
         `variance_inflation_factor` function."""
         return ['DF', self.VIF, 'GVIF', 'Threshold', 'Collinear', 'Method']
+    
+    @property
+    def RNR_COLNAMES(self) -> List[str]:
+        """Column names when crating the rnr table using the 
+        `variance_inflation_factor` function."""
+        return ['MS', 'MS/Total', 's', '6s', '6s/Total', '6s/Tolerance']
 
 ANOVA = _Anova_()
 
