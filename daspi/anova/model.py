@@ -1433,13 +1433,16 @@ class GageRnRModel(LinearModel):
     References
     ----------
     The calculations are done based on the following references:
-    [1] https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-2/
-    [2] https://support.minitab.com/de-de/minitab/help-and-how-to/quality-and-process-improvement/measurement-system-analysis/how-to/gage-study/crossed-gage-r-r-study/methods-and-formulas/gage-r-r-table/
+    
+    [1] Dr. Bill McNeese, BPI Consulting, LLC (09.2012)
+    https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-2/
+    
+    [2] Minitab, LLC (2025)
+    https://support.minitab.com/de-de/minitab/help-and-how-to/quality-and-process-improvement/measurement-system-analysis/how-to/gage-study/crossed-gage-r-r-study/methods-and-formulas/gage-r-r-table/
     """
 
     __slots__ = (
-        'part', 'reproducer', '_rnr', '_tolerance', '_n_replication', 
-        '_n_reproducer', '_n_parts')
+        'part', 'reproducer', '_rnr', '_tolerance')
     part: str
     """Column name of the part (unit under test) variable."""
     
@@ -1453,15 +1456,6 @@ class GageRnRModel(LinearModel):
     
     _tolerance: float
     """The tolerance range for the measurement."""
-    
-    _n_replication: int
-    """Number of replications."""
-
-    _n_reproducer: int
-    """Number of reproducers."""
-
-    _n_parts: int
-    """Number of parts."""
 
     def __init__(
             self,
@@ -1479,11 +1473,6 @@ class GageRnRModel(LinearModel):
         self.part = part
         self.reproducer = reproducer
         self.tolerance = tolerance
-        self._n_reproducer = source[self.reproducer].nunique()
-        self._n_parts = source[self.part].nunique()
-        self._n_replication = (
-            self.data.shape[0]
-            // (self._n_reproducer*self._n_parts))
         self._rnr = pd.DataFrame()
     
     @property
@@ -1516,12 +1505,15 @@ class GageRnRModel(LinearModel):
             vif: bool = False) -> DataFrame:
         return super().anova(typ, vif)
 
-    def rnr(self) -> DataFrame:
+    def rnr(
+            self,
+            add_interaction_term: bool | Literal['auto'] = 'auto'
+            ) -> DataFrame:
         """Get the Gage R&R analysis results as table.
         
         The table contains the following rows:
 
-        - R&R_sum: The total repeatability and reproducibility.
+        - R&R_sum: The sum of repeatability and reproducibility.
         - Repeatability: The repeatability component.
         - Reproducibility: The reproducibility component.
         - Part: The part-to-part component.
@@ -1538,17 +1530,68 @@ class GageRnRModel(LinearModel):
         - 6s/Tolerance: The 6 times the standard deviation divided by 
             the tolerance.
 
+        Parameters
+        ----------
+        add_interaction_term: bool | Literal['auto'] = 'auto'
+            Whether to include the interaction term in the analysis.
+            If 'auto', the interaction term is included if it is 
+            significant. Otherwise, the interaction term is excluded and
+            the model is refit without the interaction term.
+
         Returns
         -------
         DataFrame
             The Gage R&R analysis results as table.
         
-        References
-        -------
+        Notes
+        -----
+        The interaction term is included if it is significant. Otherwise, 
+        the interaction term is excluded and the model is refit without 
+        the interaction term.
+
+        The mean squarse used for the calculation of the variances are
+        computed using the `anova` method. The variance components are 
+        then calculated as follows:
+
+        **With interaction term:**
+
+            $$s^2_{repeatability} = MS_{repeatability} = MS_{residual}$$
+
+            $$s^2_{reproducer} = \frac{MS_{reproducer} - MS_{interaction}}
+                {n_{parts} \cdot n_{replication}}$$
+
+            $$s^2_{interaction} = \frac{MS_{interaction} - MS_{repeatability}}
+                {n_{replication}}$$
+
+            $$s^2_{part} = \frac{MS_{part} - MS_{interaction}}
+                {n_{reproducer} \cdot n_{replication}}$$
+
+            $$s^2_{reproducibility} = s^2_{reproducer} + s^2_{interaction}$$
+
+        **Without interaction term:**
+
+            $$s^2_{repeatability} = MS_{repeatability} = MS_{residual}$$
+
+            $$s^2_{reproducer} = \frac{MS_{reproducer} - MS_{repeatability}}
+                {n_{parts} \cdot n_{replication}}$$
+
+            $$s^2_{part} = \frac{MS_{part} - MS_{repeatability}}
+                {n_{reproducer} \cdot n_{replication}}$$
+
+        **Variance summary:**
+
+            $$s^2_{RnR} = s^2_{repeatability} + s^2_{reproducibility}$$
+
+            $$s^2_{total} = s^2_{RnR} + s^2_{part}$$
         """
+        assert add_interaction_term in (True, False, 'auto'), (
+            'add_interaction_term must be True, False, or auto')
+        
         if not self._rnr.empty:
             return self._rnr
-        
+
+        if add_interaction_term == 'auto':
+            add_interaction_term = self.has_significant_interactions()
         index_map = {
             ANOVA.RESIDUAL: ANOVA.REPEATABILITY,
             self.reproducer: ANOVA.REPRODUCIBILITY,
@@ -1562,8 +1605,7 @@ class GageRnRModel(LinearModel):
             ANOVA.PART,
             ANOVA.TOTAL]
         columns = ANOVA.RNR_COLNAMES
-        significant_interactions = self.has_significant_interactions()
-        if significant_interactions:
+        if add_interaction_term:
             indices_rnr_sum.append(ANOVA.INTERACTION)
         else:
             index_map.pop(self.interaction)
@@ -1572,33 +1614,38 @@ class GageRnRModel(LinearModel):
                     self.eliminate(parameter)
             if self.excluded:
                 self.fit()
-
-        ms = (self.anova('II')
+        anova = (self.anova('II')
             .copy()
-            .loc[list(index_map.keys()), 'MS']
+            .loc[list(index_map.keys()), :]
             .rename(index=index_map))
-        if significant_interactions:
+        ms = anova['MS']
+        dof = anova['DF']
+        n_parts = dof[ANOVA.PART] + 1
+        n_reproducer = dof[ANOVA.REPRODUCIBILITY] + 1
+        n_replication = dof[ANOVA.REPEATABILITY] // (n_reproducer * n_parts) + 1
+        
+        if add_interaction_term:
             var_reproducer = (
                     (ms[ANOVA.REPRODUCIBILITY] - ms[ANOVA.INTERACTION])
-                    / (self._n_parts * self._n_replication))
+                    / (n_parts * n_replication))
             var_interaction = max(0, (
                     (ms[ANOVA.INTERACTION] - ms[ANOVA.REPEATABILITY])
-                    / self._n_replication))
+                    / n_replication))
             variation = pd.Series({
                 ANOVA.REPEATABILITY: ms[ANOVA.REPEATABILITY],
                 ANOVA.REPRODUCIBILITY: var_reproducer + var_interaction,
                 ANOVA.PART: (
                     (ms[ANOVA.PART] - ms[ANOVA.INTERACTION])
-                    / (self._n_reproducer * self._n_replication))})
+                    / (n_reproducer * n_replication))})
         else:
             variation = pd.Series({
                 ANOVA.REPEATABILITY: ms[ANOVA.REPEATABILITY],
                 ANOVA.REPRODUCIBILITY: (
                     (ms[ANOVA.REPRODUCIBILITY] - ms[ANOVA.REPEATABILITY])
-                    / (self._n_parts * self._n_replication)),
+                    / (n_parts * n_replication)),
                 ANOVA.PART: (
                     (ms[ANOVA.PART] - ms[ANOVA.REPEATABILITY])
-                    / (self._n_reproducer * self._n_replication))})
+                    / (n_reproducer * n_replication))})
         
         rnr = pd.DataFrame(
             columns=ANOVA.RNR_COLNAMES,

@@ -2,6 +2,7 @@ import sys
 import patsy.design_info
 import patsy.highlevel
 import pytest
+from pytest import approx
 
 import pandas as pd
 
@@ -493,7 +494,6 @@ class TestLinearModel:
 
 
 class TestGageRnRModel:
-
     df = load_dataset('gage_rnr2')
 
     @pytest.fixture
@@ -507,6 +507,9 @@ class TestGageRnRModel:
         return model
 
     def test_anova_table(self, rnr_model: GageRnRModel) -> None:
+        """Verification done with Minitab v22.2
+
+        Stat > Quality Tools > Gage Study > Gage R&R Study (Crossed)"""
         rnr_model.fit()
         anova = rnr_model.anova()
 
@@ -515,21 +518,78 @@ class TestGageRnRModel:
         assert anova['DF']['part:operator'] == 8
         assert anova['DF'][ANOVA.RESIDUAL] == 30
         
-        assert anova['SS']['part'] == pytest.approx(28.909, abs=1e-3)
-        assert anova['SS']['operator'] == pytest.approx(1.630, abs=1e-3)
-        assert anova['SS']['part:operator'] == pytest.approx(0.065, abs=1e-3)
-        assert anova['SS'][ANOVA.RESIDUAL] == pytest.approx(1.712, abs=1e-3)
+        assert anova['SS']['part'] == approx(28.909, abs=1e-3)
+        assert anova['SS']['operator'] == approx(1.630, abs=1e-3)
+        assert anova['SS']['part:operator'] == approx(0.065, abs=1e-3)
+        assert anova['SS'][ANOVA.RESIDUAL] == approx(1.712, abs=1e-3)
         
-        assert anova['MS']['part'] == pytest.approx(7.227, abs=1e-3)
-        assert anova['MS']['operator'] == pytest.approx(0.815, abs=1e-3)
-        assert anova['MS']['part:operator'] == pytest.approx(0.008, abs=1e-3)
-        assert anova['MS'][ANOVA.RESIDUAL] == pytest.approx(0.057, abs=1e-3)
+        assert anova['MS']['part'] == approx(7.227, abs=1e-3)
+        assert anova['MS']['operator'] == approx(0.815, abs=1e-3)
+        assert anova['MS']['part:operator'] == approx(0.008, abs=1e-3)
+        assert anova['MS'][ANOVA.RESIDUAL] == approx(0.057, abs=1e-3)
 
-        assert anova['p']['part'] == pytest.approx(0.0000, abs=1e-4)
-        assert anova['p']['operator'] == pytest.approx(0.0000, abs=1e-4)
-        assert anova['p']['part:operator'] == pytest.approx(0.9964, abs=1e-4)
+        assert anova['p']['part'] == approx(0.0000, abs=1e-4)
+        assert anova['p']['operator'] == approx(0.0000, abs=1e-4)
+        assert anova['p']['part:operator'] == approx(0.9964, abs=1e-4)
 
     def test_rnr_table(self, rnr_model: GageRnRModel) -> None:
+        """Verification done with Minitab v22.2
+        
+        Stat > Quality Tools > Gage Study > Gage R&R Study (Crossed)
+        
+        The verification values for 6s/Tolerance coming from the 
+        MSA Assistant."""
         rnr_model.fit()
         rnr = rnr_model.rnr()
-        assert not rnr.empty
+        
+        var = rnr['Variance']
+        assert var[ANOVA.RNR_SUM] == approx(0.097994, abs=1e-6)
+        assert var[ANOVA.REPEATABILITY] == approx(0.046767, abs=1e-6)
+        assert var[ANOVA.REPRODUCIBILITY] == approx(0.051227, abs=1e-6)
+        assert var[ANOVA.PART] == approx(0.797842, abs=1e-6)
+        assert var[ANOVA.TOTAL] == approx(0.895836, abs=1e-6)
+
+        var_tot = rnr['Variance/Total']
+        assert var_tot[ANOVA.RNR_SUM] == approx(0.109388, abs=1e-6)
+        assert var_tot[ANOVA.REPEATABILITY] == approx(0.052205, abs=1e-6)
+        assert var_tot[ANOVA.REPRODUCIBILITY] == approx(0.057184, abs=1e-6)
+        assert var_tot[ANOVA.PART] == approx(0.890612, abs=1e-6)
+        assert var_tot[ANOVA.TOTAL] == approx(1.000000, abs=1e-6)
+        
+        spread_tot = rnr['6s/Total']
+        assert spread_tot[ANOVA.RNR_SUM] == approx(0.330739, abs=1e-6)
+        assert spread_tot[ANOVA.REPEATABILITY] == approx(0.228483, abs=1e-6)
+        assert spread_tot[ANOVA.REPRODUCIBILITY] == approx(0.239131, abs=1e-6)
+        assert spread_tot[ANOVA.PART] == approx(0.943722, abs=1e-6)
+        assert spread_tot[ANOVA.TOTAL] == approx(1.000000, abs=1e-6)
+
+        spread_tol = rnr['6s/Tolerance']
+        assert spread_tol[ANOVA.RNR_SUM] == approx(0.1252, abs=1e-4)
+        assert spread_tol[ANOVA.REPEATABILITY] == approx(0.0865, abs=1e-4)
+        assert spread_tol[ANOVA.REPRODUCIBILITY] == approx(0.0905, abs=1e-4)
+        assert spread_tol[ANOVA.PART] == approx(0.3573, abs=1e-4)
+        assert spread_tol[ANOVA.TOTAL] == approx(0.3786, abs=1e-4)
+
+    def test_rnr_table_interaction(self, rnr_model: GageRnRModel) -> None:
+        """Verification done with:
+
+        Dr. Bill McNeese, BPI Consulting, LLC (09.2012)
+
+        https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-2/
+        """
+        rnr_model.fit()
+        rnr = rnr_model.rnr(add_interaction_term=True)
+        
+        var = rnr['Variance']
+        assert var[ANOVA.RNR_SUM] == approx(0.1109, abs=1e-4)
+        assert var[ANOVA.REPEATABILITY] == approx(0.0571, abs=1e-4)
+        assert var[ANOVA.REPRODUCIBILITY] == approx(0.0538, abs=1e-4)
+        assert var[ANOVA.PART] == approx(0.8021, abs=1e-4)
+        assert var[ANOVA.TOTAL] == approx(0.9130, abs=1e-4)
+
+        var_tot = rnr['Variance/Total']
+        assert var_tot[ANOVA.RNR_SUM] == approx(0.1214, abs=1e-4)
+        assert var_tot[ANOVA.REPEATABILITY] == approx(0.0625, abs=1e-4)
+        assert var_tot[ANOVA.REPRODUCIBILITY] == approx(0.0589, abs=1e-4)
+        assert var_tot[ANOVA.PART] == approx(0.8786, abs=1e-4)
+        assert var_tot[ANOVA.TOTAL] == approx(1.0000, abs=1e-4)

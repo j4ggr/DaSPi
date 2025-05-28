@@ -146,9 +146,9 @@ The group means are shown as blue dots and the overall mean as a gray dashed lin
 
 ### Uncertainty of the model
 
-So far we have determined the predicted values of the model. Since the predicted values were determined from samples, these values have an uncertainty. We can quantify this uncertainty by using the error term from the ANOVA table as the mean squares of the residuals $MS_{resid}$. The uncertainty $s$ is calculated as follows: [[3]](#3)
+So far we have determined the predicted values of the model. Since the predicted values were determined from samples, these values have an uncertainty. We can quantify this uncertainty by using the error term from the ANOVA table as the mean squares of the residuals $MS_{residual}$. The uncertainty $s$ is calculated as follows: [[3]](#3)
 
-$$s=\sqrt{MS_{resid}}$$
+$$s=\sqrt{MS_{residual}}$$
 
 ``` py
 print(model.uncertainty)
