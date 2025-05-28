@@ -1051,8 +1051,9 @@ class GageEstimator(Estimator):
         measure the reference value.
     tolerance : float | SpecLimits | Specification
         The tolerance range for the measurement.
-    resolution : float
-        The resolution of the measurement system.
+    resolution : float | None
+        The resolution of the measurement system. If None, the 
+        resolution is estimated from the samples.
     cg_limit : float, optional
         The limit of the capability index, by default 1.33.
     cgk_limit : float, optional

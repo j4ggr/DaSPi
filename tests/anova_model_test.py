@@ -503,7 +503,8 @@ class TestGageRnRModel:
             target='result',
             part='part',
             reproducer='operator',
-            tolerance=15)
+            tolerance=15,
+            resolution=0.01)
         return model
 
     def test_anova_table(self, rnr_model: GageRnRModel) -> None:
@@ -543,28 +544,28 @@ class TestGageRnRModel:
         rnr = rnr_model.rnr()
         
         var = rnr['Variance']
-        assert var[ANOVA.RNR_SUM] == approx(0.097994, abs=1e-6)
+        assert var[ANOVA.RNR] == approx(0.097994, abs=1e-6)
         assert var[ANOVA.REPEATABILITY] == approx(0.046767, abs=1e-6)
         assert var[ANOVA.REPRODUCIBILITY] == approx(0.051227, abs=1e-6)
         assert var[ANOVA.PART] == approx(0.797842, abs=1e-6)
         assert var[ANOVA.TOTAL] == approx(0.895836, abs=1e-6)
 
         var_tot = rnr['Variance/Total']
-        assert var_tot[ANOVA.RNR_SUM] == approx(0.109388, abs=1e-6)
+        assert var_tot[ANOVA.RNR] == approx(0.109388, abs=1e-6)
         assert var_tot[ANOVA.REPEATABILITY] == approx(0.052205, abs=1e-6)
         assert var_tot[ANOVA.REPRODUCIBILITY] == approx(0.057184, abs=1e-6)
         assert var_tot[ANOVA.PART] == approx(0.890612, abs=1e-6)
         assert var_tot[ANOVA.TOTAL] == approx(1.000000, abs=1e-6)
         
         spread_tot = rnr['6s/Total']
-        assert spread_tot[ANOVA.RNR_SUM] == approx(0.330739, abs=1e-6)
+        assert spread_tot[ANOVA.RNR] == approx(0.330739, abs=1e-6)
         assert spread_tot[ANOVA.REPEATABILITY] == approx(0.228483, abs=1e-6)
         assert spread_tot[ANOVA.REPRODUCIBILITY] == approx(0.239131, abs=1e-6)
         assert spread_tot[ANOVA.PART] == approx(0.943722, abs=1e-6)
         assert spread_tot[ANOVA.TOTAL] == approx(1.000000, abs=1e-6)
 
         spread_tol = rnr['6s/Tolerance']
-        assert spread_tol[ANOVA.RNR_SUM] == approx(0.1252, abs=1e-4)
+        assert spread_tol[ANOVA.RNR] == approx(0.1252, abs=1e-4)
         assert spread_tol[ANOVA.REPEATABILITY] == approx(0.0865, abs=1e-4)
         assert spread_tol[ANOVA.REPRODUCIBILITY] == approx(0.0905, abs=1e-4)
         assert spread_tol[ANOVA.PART] == approx(0.3573, abs=1e-4)
@@ -581,14 +582,14 @@ class TestGageRnRModel:
         rnr = rnr_model.rnr(add_interaction_term=True)
         
         var = rnr['Variance']
-        assert var[ANOVA.RNR_SUM] == approx(0.1109, abs=1e-4)
+        assert var[ANOVA.RNR] == approx(0.1109, abs=1e-4)
         assert var[ANOVA.REPEATABILITY] == approx(0.0571, abs=1e-4)
         assert var[ANOVA.REPRODUCIBILITY] == approx(0.0538, abs=1e-4)
         assert var[ANOVA.PART] == approx(0.8021, abs=1e-4)
         assert var[ANOVA.TOTAL] == approx(0.9130, abs=1e-4)
 
         var_tot = rnr['Variance/Total']
-        assert var_tot[ANOVA.RNR_SUM] == approx(0.1214, abs=1e-4)
+        assert var_tot[ANOVA.RNR] == approx(0.1214, abs=1e-4)
         assert var_tot[ANOVA.REPEATABILITY] == approx(0.0625, abs=1e-4)
         assert var_tot[ANOVA.REPRODUCIBILITY] == approx(0.0589, abs=1e-4)
         assert var_tot[ANOVA.PART] == approx(0.8786, abs=1e-4)
