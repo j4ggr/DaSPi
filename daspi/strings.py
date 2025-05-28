@@ -135,6 +135,14 @@ class _String_:
     lm_table_caption_vif: Dict[str, str] = {
         'en': 'Variance inflation factor',
         'de': 'Varianzinflationfaktor'}
+    
+    lm_table_caption_rnr: Dict[str, str] = {
+        'en': 'Repeatability and reproducibility (R&R)',
+        'de': 'Wiederholbarkeit und Reproduzierbarkeit (R&R)'}
+    
+    lm_table_caption_uncertainty: Dict[str, str] = {
+        'en': 'Measurement uncertainty',
+        'de': 'Messunsicherheit'}
 
     _language_: Literal['en', 'de'] = 'en'
     _username_: str = environ['USERNAME']

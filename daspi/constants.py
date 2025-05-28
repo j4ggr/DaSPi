@@ -504,6 +504,13 @@ class _Anova_:
     """Name in anova table for interaction values."""
     RNR: Literal['R&R'] = 'R&R'
     """Name in rnr table for sum of R&R."""
+    RESOLUTION_TO_UNCERTAINTY: float = 1 / 12**0.5
+    """Factor for calculating the measurement uncertainty component for 
+    the resolution. The uncertainty is assumed to be a rectangular 
+    (uniformly distributed) distribution. The standard deviation of a 
+    rectangular distribution is calculated using this factor. see:
+    - https://de.wikipedia.org/wiki/Stetige_Gleichverteilung
+    - https://www.versuchsmethoden.de/Mess-System-Analyse.pdf"""
 
     @property
     def TABLE_COLNAMES(self) -> List[str]:
@@ -522,6 +529,17 @@ class _Anova_:
         """Column names when crating the rnr table using the 
         `variance_inflation_factor` function."""
         return ['MS', 'MS/Total', 's', '6s', '6s/Total', '6s/Tolerance']
+
+    @property
+    def UNCERTAINTY_COLNAMES(self) -> List[str]:
+        """Column names when crating the uncertainty table using the 
+        `uncertainties` method of GageRnRModel."""
+        return ['u', 'U', 'Q']
+
+    @property
+    def UNCERTAINTY_ROWS(self) -> List[str]:
+        """Captions for the uncertainty table."""
+        return ['RE', 'Bi', 'EVR', 'MS', 'EVO', 'AV', 'IA', 'MP']
 
 ANOVA = _Anova_()
 

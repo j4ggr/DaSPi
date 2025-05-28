@@ -437,7 +437,7 @@ class TestGageEstimator:
     def test_capable_values(self, estimator_gage: GageEstimator) -> None:
         assert estimator_gage.cg == pytest.approx(2.1475, rel=1e-3)
         assert estimator_gage.cgk == pytest.approx(2.0416, rel=1e-3)
-        assert estimator_gage.resolution_proportion == pytest.approx(1/300)
+        assert estimator_gage.share_re == pytest.approx(1/300)
         assert estimator_gage.T_min_cg == pytest.approx(0.1858, rel=1e-3)
         assert estimator_gage.T_min_cgk == pytest.approx(0.2006, rel=1e-3)
         assert estimator_gage.T_min_res == pytest.approx(0.0200, rel=1e-3)

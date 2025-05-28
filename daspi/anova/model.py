@@ -105,6 +105,7 @@ from ..constants import ANOVA
 from ..strings import STR
 
 from ..statistics.montecarlo import SpecLimits
+from ..statistics.estimation import GageEstimator
 from ..statistics.montecarlo import Specification
 
 
@@ -348,6 +349,10 @@ class LinearModel:
         """Get uncertainty of the model as square root of MS_Residual
         (read-only)."""
         if self._anova.empty or 'MS' not in self._anova:
+            warnings.warn(
+                'Could not calculate uncertainty from ANOVA table. '
+                'ANOVA table is empty or MS_Residual not found.',
+                UserWarning)
             return np.nan
         else:
             return self._anova['MS']['Residual']**0.5
@@ -1439,9 +1444,33 @@ class GageRnRModel(LinearModel):
         resolution is estimated from the samples.
     k : int, optional
         The coverage factor for the expanded measurement uncertainty. 
-        Default is 2. Typical values ​​are:
+        Default is 2. Typical values are:
         - k=2 corresponds to a confidence interval of 95.45%
         - k=3 corresponds to a confidence interval of 99.73%
+    
+    Examples
+    --------
+    If you run the following code in a Jupyter Notebook cell, all tables
+    will be calculated and output in an HTML format:
+
+    ``` python
+    import daspi as dsp
+    df_gage = dsp.load_dataset('gage_study1')
+    df_rnr = dsp.load_dataset('grnr_layer_thickness')
+    gage = dsp.GageEstimator(
+        samples=df_gage['result'],
+        reference=df_gage.loc[0, 'reference'],
+        U_cal=df_gage.loc[0, 'U_cal'],
+        tolerance=df_gage.loc[0, 'tolerance'],
+        resolution=df_gage.loc[0, 'resolution'])
+    rnr_model = dsp.GageRnRModel(
+        source=df_rnr,
+        target='result',
+        part='part',
+        reproducer='operator',
+        gage=gage)
+    rnr_model.fit()
+    ```
     
     References
     ----------
@@ -1452,11 +1481,16 @@ class GageRnRModel(LinearModel):
     
     [2] Minitab, LLC (2025)
     https://support.minitab.com/de-de/minitab/help-and-how-to/quality-and-process-improvement/measurement-system-analysis/how-to/gage-study/crossed-gage-r-r-study/methods-and-formulas/gage-r-r-table/
+    
+    [3] Curt Ronniger, Software für Statistik, Schulungen und Consulting (2025)
+    https://www.versuchsmethoden.de/Mess-System-Analyse.pdf
+
+    [4] VDA Band 5, Mess- und Prüfprozesse. Eignung, Planung und Management
+    (Juli 2021) 3. überarbeitete Auflage
     """
 
     __slots__ = (
-        'part', 'reproducer', '_rnr', '_tolerance', '_uncertainties', 
-        '_resolution', '_k')
+        'part', 'reproducer', '_rnr', '_uncertainties', '_gage', '_k', '_u_ia')
     part: str
     """Column name of the part (unit under test) variable."""
     
@@ -1471,14 +1505,16 @@ class GageRnRModel(LinearModel):
     _uncertainties: DataFrame
     """The uncertainties of the measurement system."""
     
-    _resolution: float | None
-    """The resolution of the measurement."""
-
-    _tolerance: float
-    """The tolerance range for the measurement."""
+    _gage: GageEstimator
+    """The provided GageEstimator instance contains the measurement 
+    system's statistics. This class corresponds to measurement system 
+    analysis type 1."""
 
     _k: int
-    """The number of replicates."""
+    """The coverage factor for the expanded measurement uncertainty."""
+
+    _u_ia: float
+    """The uncertainty of the interaction term."""
 
     def __init__(
             self,
@@ -1486,8 +1522,7 @@ class GageRnRModel(LinearModel):
             target: str,
             part: str,
             reproducer: str,
-            tolerance: float | SpecLimits | Specification,
-            resolution: float | None,
+            gage: GageEstimator,
             k: int = 2
             ) -> None:
         super().__init__(
@@ -1497,40 +1532,21 @@ class GageRnRModel(LinearModel):
             order=2)
         self.part = part
         self.reproducer = reproducer
-        self.tolerance = tolerance
         self.k = k
+        self._gage = gage
         self._rnr = pd.DataFrame()
         self._uncertainties = pd.DataFrame()
-        self._resolution = resolution
     
     @property
-    def interaction(self) -> str:
-        """Get the interaction parameter name if interaction is present 
-        in the fitted model.
-        """
-        interactions = [p for p in self.parameters if ANOVA.SEP in p]
-        return interactions[0] if interactions else ''
-
-    @property
-    def tolerance(self) -> float:
-        """The tolerance range for the measurement."""
-        return self._tolerance
-    @tolerance.setter
-    def tolerance(self, tolerance: float | SpecLimits | Specification) -> None:
-        if hasattr(self, '_tolerance'):
-            self._reset_tables_()
-
-        if isinstance(tolerance, Specification):
-            self._tolerance = tolerance.TOLERANCE
-        elif isinstance(tolerance, SpecLimits):
-            self._tolerance = tolerance.tolerance
-        else:
-            self._tolerance = tolerance
-    
-    @property
-    def resolution(self) -> float | None:
-        """The resolution of the measurement system."""
-        return self._resolution
+    def gage(self) -> GageEstimator:
+        """The provided GageEstimator instance contains the measurement 
+        system's statistics. This class corresponds to measurement 
+        system analysis type 1."""
+        return self._gage
+    @gage.setter
+    def gage(self, gage: GageEstimator) -> None:
+        self._gage = gage
+        self._reset_tables_()
     
     @property
     def k(self) -> int:
@@ -1539,9 +1555,21 @@ class GageRnRModel(LinearModel):
     @k.setter
     def k(self, k: int) -> None:
         assert k > 0, f'k must be greater than 0, got {k}'
-        if hasattr(self, '_uncertainties'):
+        if hasattr(self, '_uncertainties') and k != getattr(self, '_k', 0):
             self._uncertainties = pd.DataFrame()
         self._k = k
+    
+    @property
+    def interaction(self) -> str:
+        """Get the interaction parameter name if interaction is present 
+        in the fitted model (read-only)."""
+        interactions = [p for p in self.parameters if ANOVA.SEP in p]
+        return interactions[0] if interactions else ''
+    
+    @property
+    def tolerance(self) -> float:
+        """The tolerance of the specification (read-only)."""
+        return self.gage.tolerance
     
     def anova(
             self,
@@ -1557,7 +1585,7 @@ class GageRnRModel(LinearModel):
         
         The table contains the following rows:
 
-        - R&R_sum: The sum of repeatability and reproducibility.
+        - R&R: The sum of repeatability and reproducibility.
         - EV: The repeatability component (Equipement Variation).
         - AV: The reproducibility component (Appriser Variation).
         - Part: The part-to-part component.
@@ -1592,25 +1620,31 @@ class GageRnRModel(LinearModel):
 
         ``` python
         import daspi as dsp
-        df = dsp.load_dataset('gage_rnr2')
+        df_gage = dsp.load_dataset('gage_study1')
+        df_rnr = dsp.load_dataset('grnr_layer_thickness')
+        gage = dsp.GageEstimator(
+            samples=df_gage['result'],
+            reference=df_gage.loc[0, 'reference'],
+            U_cal=df_gage.loc[0, 'U_cal'],
+            tolerance=df_gage.loc[0, 'tolerance'],
+            resolution=df_gage.loc[0, 'resolution'])
         rnr_model = dsp.GageRnRModel(
-            source=df,
+            source=df_rnr,
             target='result',
             part='part',
             reproducer='operator',
-            tolerance=15,
-            resolution=0.01)
+            gage=gage)
         rnr_model.fit()
         print(rnr_model.rnr())
         ```
 
         ```
-                     MS  MS/Total         s        6s  6s/Total  6s/Tolerance
-        R&R    0.097994  0.109388  0.313040  1.878240  0.330739      0.125216
-        EV     0.046767  0.052205  0.216256  1.297538  0.228483      0.086503
-        AV     0.051227  0.057184  0.226334  1.358006  0.239131      0.090534
-        Part   0.797842  0.890612  0.893220  5.359319  0.943722      0.357288
-        Total  0.895836  1.000000  0.946486  5.678916  1.000000      0.378594
+                         MS  MS/Total         s        6s  6s/Total  6s/Tolerance
+        R&R    6.736111e-07   0.02248  0.000821  0.004924  0.149932      0.164148
+        EV     6.736111e-07   0.02248  0.000821  0.004924  0.149932      0.164148
+        AV     0.000000e+00   0.00000  0.000000  0.000000  0.000000      0.000000
+        Part   2.929174e-05   0.97752  0.005412  0.032473  0.988696      1.082437
+        Total  2.996535e-05   1.00000  0.005474  0.032844  1.000000      1.094812
         ```
         
         Notes
@@ -1660,6 +1694,7 @@ class GageRnRModel(LinearModel):
         if not self._rnr.empty:
             return self._rnr
 
+        self._u_ia = self.anova('II')['MS'].get(self.interaction, 0)**0.5
         if add_interaction_term == 'auto':
             add_interaction_term = self.has_significant_interactions()
         index_map = {
@@ -1716,6 +1751,7 @@ class GageRnRModel(LinearModel):
                 ANOVA.PART: (
                     (ms[ANOVA.PART] - ms[ANOVA.REPEATABILITY])
                     / (n_reproducer * n_replication))})
+        variation = variation.clip(lower=0)
         
         rnr = pd.DataFrame(
             columns=ANOVA.RNR_COLNAMES,
@@ -1728,25 +1764,112 @@ class GageRnRModel(LinearModel):
         rnr[columns[2]] = np.sqrt(rnr[columns[0]])
         rnr[columns[3]] = 6 * rnr[columns[2]]
         rnr[columns[4]] = rnr[columns[3]] / rnr[columns[3]][ANOVA.TOTAL]
-        rnr[columns[5]] = rnr[columns[3]] / self._tolerance
+        rnr[columns[5]] = rnr[columns[3]] / self.tolerance
         self._rnr = rnr
         return self._rnr
     
     def uncertainties(self) -> DataFrame:
-        """The uncertainties of the measurement system."""
-        if self._rnr.empty:
-            self.rnr()
-            
-        u = pd.DataFrame()
-        return u
+        """The uncertainties of the measurement system.
+        
+        The table contains the following rows:
+
+        - RE: Resolution uncertainty
+        - Bi: Bias uncertainty
+        - EVR: Reference-based uncertainty
+          (Erweiterte Vergleichsmessung mit Referenz)
+        - MS: Measurement System uncertainty
+        - EVO: Internal comparison uncertainty
+          (Erweiterte Vergleichsmessung ohne Referenz)
+        - AV: Appraiser Variation uncertainty
+        - IA: Interaction uncertainty
+        - MP: Measurement Process (or Precision) uncertainty
+
+        The table contains the following columns:
+
+        - u: The measurement uncertainty for the respective components
+        - U: The expanded uncertainty as k * u
+
+        Returns
+        -------
+        u : pandas.DataFrame
+            The uncertainties of the measurement system.
+        
+        Examples
+        --------
+
+        ``` python
+        import daspi as dsp
+        df_gage = dsp.load_dataset('gage_study1')
+        df_rnr = dsp.load_dataset('grnr_layer_thickness')
+        gage = dsp.GageEstimator(
+            samples=df_gage['result'],
+            reference=df_gage.loc[0, 'reference'],
+            U_cal=df_gage.loc[0, 'U_cal'],
+            tolerance=df_gage.loc[0, 'tolerance'],
+            resolution=df_gage.loc[0, 'resolution'])
+        rnr_model = dsp.GageRnRModel(
+            source=df_rnr,
+            target='result',
+            part='part',
+            reproducer='operator',
+            gage=gage)
+        rnr_model.fit()
+        print(rnr_model.uncertainties())
+        ```
+
+        ```
+                    u         U         Q
+        RE   0.000289  0.000577  0.038490
+        Bi   0.000196  0.000393  0.026173
+        EVR  0.000688  0.001377  0.091785
+        MS   0.000716  0.001432  0.095444
+        EVO  0.000821  0.001641  0.109432
+        AV   0.000000  0.000000  0.000000
+        IA   0.000660  0.001319  0.087958
+        MP   0.001071  0.002142  0.142818
+        ```
+        """
+        if not self._uncertainties.empty:
+            return self._uncertainties
+        
+        if self.gage is None:
+            warnings.warn(
+                'The unsertainties of the measurement system is not available. '
+                'Please provide a GageEstimator (MSA 1) instance.',
+                UserWarning)
+            return self._uncertainties
+        
+        rnr = self.rnr() if self._rnr.empty else self._rnr
+
+        uncertainties = pd.DataFrame(
+            columns=ANOVA.UNCERTAINTY_COLNAMES,
+            index=ANOVA.UNCERTAINTY_ROWS)
+        u = pd.Series({            
+            'RE': self.gage.u_re,
+            'Bi': self.gage.u_bias,
+            'EVR': self.gage.u_evr,
+            'MS': self.gage.u_ms,
+            'EVO': rnr.loc[ANOVA.REPEATABILITY, 's'],
+            'AV': rnr.loc[ANOVA.REPRODUCIBILITY, 's'],
+            'IA': self._u_ia,
+            'MP': None})
+        u_equipement = max(u['RE'], u['EVR'], u['EVO'])
+        u['MP'] = sum(
+            map(np.square, (u['Bi'], u_equipement, u['AV'], u['IA']))
+            )**0.5
+        uncertainties['u'] = u
+        uncertainties['U'] = self.k * u
+        uncertainties['Q'] = uncertainties['U'] * 2 / self.tolerance
+        self._uncertainties = uncertainties
+        return self._uncertainties
 
     @property
     def _repr_captions(self) -> Tuple[str, str, str, str]:
         captions = (
                 STR['lm_table_caption_summary'],
-                STR['lm_table_caption_statistics'],
                 STR['lm_table_caption_anova'],
-                STR['lm_table_caption_rnr'])
+                STR['lm_table_caption_rnr'],
+                STR['lm_table_caption_uncertainty'])
         return captions
     
     def _dfs_repr_(self) -> List[DataFrame]:
@@ -1769,7 +1892,8 @@ class GageRnRModel(LinearModel):
         dfs = [
             self.gof_metrics().drop('formula', axis=1),
             self.anova(),
-            self.rnr()]
+            self.rnr(),
+            self.uncertainties()]
         return dfs
     
     def _reset_tables_(self) -> None:

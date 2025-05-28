@@ -28,6 +28,7 @@ from scipy.stats import kurtosis
 from .._typing import NumericSample1D
 
 from ..constants import DIST
+from ..constants import ANOVA
 from ..constants import DEFAULT
 from ..constants import SIGMA_DIFFERENCE
 
@@ -1058,43 +1059,56 @@ class GageEstimator(Estimator):
         The limit of the capability index, by default 1.33.
     cgk_limit : float, optional
         The limit of the capability index, by default 1.33.
-    tolerance_proportion : float, optional
-        The proportion of the tolerance range that is used to calculate
-        the adjusted limits, by default 0.2.
-    resolution_proportion_limit : float, optional
-        The limit of the resolution proportion, by default 0.05.
+    share_tol : float, optional
+        The share of the tolerance range as factor between 0 and 1, that 
+        is used to calculate the adjusted limits, by default 0.2 (20 %).
+    share_re_limit : float, optional
+        The share limit of the resolution proportion, by default 0.05.
     n_samples_min : int, optional
         The minimum samples needed to perform a Measurement System 
         Analysis Typ 1, by default 50
+    bias_corrected : bool, optional
+        Whether the bias is corrected for the Gage R&R study. If true, 
+        the bias itself is not included in the measurement uncertainty 
+        for the bias; otherwise, it is. Default is True
     
     References
     ----------
-    [1] https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-1/
+    [1]  Dr. Bill McNeese, BPI Consulting, LLC (09.2012)
+    https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-1/
+    
+    [2] VDA Band 5, Mess- und Prüfprozesse. Eignung, Planung und Management
+    (Juli 2021) 3. überarbeitete Auflage
     """
     __slots__ = (
         '_specification', '_reference', '_U_cal', '_resolution', '_cg_limit', 
-        '_cgk_limit', '_tolerance_proportion', '_resolution_proportion_limit',
-        '_n_samples_min', '_cg', '_cgk', '_limits',
-        '_resolution_proportion', '_bias', '_p_bias', '_T_min_cg', 
-        '_T_min_cgk', '_T_min_res', '_process')
+        '_cgk_limit', '_share_tol', '_share_re_limit', '_n_samples_min', '_cg', 
+        '_cgk', '_limits', '_share_re', '_bias', '_p_bias', '_T_min_cg', 
+        '_T_min_cgk', '_T_min_res', '_process', '_u_re', '_u_bias', '_u_evr',
+        '_u_ms', '_bias_corrected')
     _specification: Specification
     _reference: float
     _U_cal: float
     _resolution: float
     _cg_limit: float
     _cgk_limit: float
-    _tolerance_proportion: float
-    _resolution_proportion_limit: float
+    _share_tol: float
+    _share_re_limit: float
     _n_samples_min: int
     _cg: float | None
     _cgk: float | None
     _limits: SpecLimits | None
-    _resolution_proportion: float | None
+    _share_re: float | None
     _bias: float | None
     _T_min_cg: float | None
     _T_min_cgk: float | None
     _T_min_res: float | None
     _process: ProcessEstimator | None
+    _u_re: float | None
+    _u_bias: float | None
+    _u_evr: float | None
+    _u_ms: float | None
+    _bias_corrected: bool
 
     def __init__(self,
             samples: NumericSample1D,
@@ -1104,9 +1118,10 @@ class GageEstimator(Estimator):
             resolution: float | None,
             cg_limit: float = 1.33,
             cgk_limit: float = 1.33,
-            tolerance_proportion: float = 0.2,
-            resolution_proportion_limit: float = 0.05,
-            n_samples_min: int = 50
+            share_tol: float = 0.2,
+            share_re_limit: float = 0.05,
+            n_samples_min: int = 50,
+            bias_corrected: bool = True,
             ) -> None:
         super().__init__(
             samples=samples,
@@ -1120,9 +1135,10 @@ class GageEstimator(Estimator):
         self.specification = tolerance
         self._cg_limit = cg_limit
         self._cgk_limit = cgk_limit
-        self._tolerance_proportion = tolerance_proportion
-        self._resolution_proportion_limit = resolution_proportion_limit
+        self._share_tol = share_tol
+        self._share_re_limit = share_re_limit
         self._n_samples_min = n_samples_min
+        self._bias_corrected = bias_corrected
         if self.n_samples < self._n_samples_min:
             warnings.warn(
                 f'The number of samples is too small ({self.n_samples}). '
@@ -1132,13 +1148,12 @@ class GageEstimator(Estimator):
     @property
     def _descriptive_statistic_attrs_(self) -> Tuple[str, ...]:
         """Get attribute names used for `describe` method (read-only)."""
-        _attrs = super()._descriptive_statistic_attrs_
-        attrs = (_attrs[:4]
-                 + ('n_outlier', )
-                 + _attrs[4:]
-                 + ('lsl', 'usl', 'lower', 'upper', 'cg', 'cgk', 'bias', 'p_bias',
-                    'T_min_cg', 'T_min_cgk', 'T_min_res', 'resolution_proportion',))
-        return tuple(a for a in attrs if a not in ('dist', 'p_dist', 'strategy'))
+        attrs = (
+            'n_samples', 'n_missing', 'n_outlier', 'min', 'max', 'R', 'mean', 
+            'median', 'std', 'sem', 'p_ad', 'lower', 'upper', 'cg', 'cgk', 
+            'bias', 'p_bias', 'T_min_cg', 'T_min_cgk', 'T_min_res', 'share_re',
+            'u_re', 'u_bias', 'u_evr', 'u_ms')
+        return attrs
     
     @property
     def resolution(self) -> float:
@@ -1190,32 +1205,43 @@ class GageEstimator(Estimator):
         self._reset_values_()
     
     @property
-    def tolerance_proportion(self) -> float:
-        """The proportion of the tolerance range that is used to calculate
+    def share_tol(self) -> float:
+        """The share of the tolerance range that is used to calculate
         the adjusted limits."""
-        return self._tolerance_proportion
-    @tolerance_proportion.setter
-    def tolerance_proportion(self, tolerance_proportion: float) -> None:
-        self._tolerance_proportion = tolerance_proportion
+        return self._share_tol
+    @share_tol.setter
+    def share_tol(self, share_tol: float) -> None:
+        self._share_tol = share_tol
         self._reset_values_()
     
     @property
-    def resolution_proportion_limit(self) -> float:
-        """The limit of the resolution proportion."""
-        return self._resolution_proportion_limit
-    @resolution_proportion_limit.setter
-    def resolution_proportion_limit(
-            self, resolution_proportion_limit: float) -> None:
-        self._resolution_proportion_limit = resolution_proportion_limit
+    def share_re_limit(self) -> float:
+        """The limit of the resolution ratio."""
+        return self._share_re_limit
+    @share_re_limit.setter
+    def share_re_limit(
+            self, share_re_limit: float) -> None:
+        self._share_re_limit = share_re_limit
         self._reset_values_()
+    
+    @property
+    def bias_corrected(self) -> bool:
+        """Whether the bias is corrected for the Gage R&R study. If 
+        True, the bias itself is not included in the measurement 
+        uncertainty for the bias; otherwise, it is."""
+        return self._bias_corrected
+    @bias_corrected.setter
+    def bias_corrected(self, bias_corrected: bool) -> None:
+        self._bias_corrected = bias_corrected
+        self._u_bias = None
     
     @property
     def limits(self) -> SpecLimits:
         """The adjusted specification limits of the process (read-only)."""
         if self._limits is None:
             self._limits = SpecLimits(
-                self.nominal - self.tolerance_proportion / 2 * self.tolerance,
-                self.nominal + self.tolerance_proportion / 2 * self.tolerance)
+                self.nominal - self.share_tol / 2 * self.tolerance,
+                self.nominal + self.share_tol / 2 * self.tolerance)
         return self._limits
     
     @property
@@ -1263,7 +1289,7 @@ class GageEstimator(Estimator):
 
     @property
     def tolerance_adj(self) -> float:
-        """The adjusted (proportion) tolerance of the specification 
+        """The adjusted (0.2*T) tolerance of the specification 
         (read-only)."""
         return self.limits.tolerance
 
@@ -1295,10 +1321,10 @@ class GageEstimator(Estimator):
         return self.process.control_range
     
     @property
-    def resolution_proportion(self) -> float:
-        if self._resolution_proportion is None:
-            self._resolution_proportion = self.resolution / self.tolerance
-        return self._resolution_proportion
+    def share_re(self) -> float:
+        if self._share_re is None:
+            self._share_re = self.resolution / self.tolerance
+        return self._share_re
     
     @property
     def bias(self) -> float:
@@ -1324,7 +1350,7 @@ class GageEstimator(Estimator):
         
         if self._T_min_cg is None:
             self._T_min_cg = (
-                self.cg_limit * self.control_range / self.tolerance_proportion)
+                self.cg_limit * self.control_range / self.share_tol)
         return self._T_min_cg
     
     @property
@@ -1337,7 +1363,7 @@ class GageEstimator(Estimator):
         if self._T_min_cgk is None:
             self._T_min_cgk = (
                 (self.cgk_limit * self.control_range / 2 + abs(self.bias))
-                / (self.tolerance_proportion / 2))
+                / (self.share_tol / 2))
         return self._T_min_cgk
     
     @property
@@ -1346,31 +1372,59 @@ class GageEstimator(Estimator):
         on the resolution of the testing system (read-only)."""
         if self._T_min_res is None:
             self._T_min_res = (
-                self.resolution / self.resolution_proportion_limit)
+                self.resolution / self.share_re_limit)
         return self._T_min_res
+    
+    @property
+    def u_re(self) -> float:
+        """The uncertainty of the resolution of the testing system
+        (read-only)."""
+        if self._u_re is None:
+            self._u_re = self.resolution * ANOVA.RESOLUTION_TO_UNCERTAINTY
+        return self._u_re
+    
+    @property
+    def u_bias(self) -> float:
+        """The uncertainty of the bias of the testing system (read-only)."""
+        if self._u_bias is None:
+            bias = 0 if self.bias_corrected else self.bias
+            self._u_bias = sum(
+                map(np.square, (bias, self.U_cal/2, self.std/self.n_samples**0.5))
+                )**0.5
+        return self._u_bias # type: ignore
+    
+    @property
+    def u_evr(self) -> float:
+        """The uncertainty of the expanded variance ratio of the testing
+        system (read-only)."""
+        if self._u_evr is None:
+            self._u_evr = self.std
+        return self._u_evr
+    
+    @property
+    def u_ms(self) -> float:
+        """The uncertainty of the measurement system (read-only)."""
+        if self._u_ms is None:
+            u_equipement = max(self.u_re, self.u_evr)
+            self._u_ms = sum(
+                map(np.square, (self.u_bias, u_equipement))
+                )**0.5
+        return self._u_ms # type: ignore
     
     def check(self) -> Dict[str, bool]:
         """Perform a few checks to determine if the testing system is 
         capable of measuring the process."""
         checks = dict(
             n_samples=self.n_samples >= 50,
-            U_cal=self.U_cal <= self.tolerance * self.tolerance_proportion / 2,
-            resolution=self.resolution_proportion <= self.resolution_proportion_limit,
+            U_cal=self.U_cal <= self.tolerance * self.share_tol / 2,
+            resolution=self.share_re <= self.share_re_limit,
             cg=True if self.cg is None else self.cg >= self.cg_limit,
             cgk=True if self.cgk is None else self.cgk >= self.cgk_limit,)
         return checks
     
     def estimate_resolution(self) -> float:
         """Estimate the resolution of the testing system."""
-        n_digits = 0
-        for value in self.samples.astype(str, copy=False):
-            _split = value.split('.')
-            if len(_split) != 2:
-                continue
-            _n_digits = len(_split[1])
-            if _n_digits > n_digits:
-                n_digits = _n_digits
-        return 1 if n_digits == 0 else float(f'0.{"0"*(n_digits-1)}1')
+        return estimate_resolution(self.samples)
     
     def _reset_values_(self) -> None:
         """Set all values relevant to process capability to None. This 
@@ -1380,7 +1434,7 @@ class GageEstimator(Estimator):
         the process capability values are recalculated."""
         super()._reset_values_()
         self._limits = None
-        self._resolution_proportion = None
+        self._share_re = None
         self._bias = None
         self._p_bias = None
         self._cg = None
@@ -1389,6 +1443,10 @@ class GageEstimator(Estimator):
         self._T_min_cgk = None
         self._T_min_res = None
         self._process = None
+        self._u_re = None
+        self._u_bias = None
+        self._u_evr = None
+        self._u_ms = None
 
 
 def estimate_distribution(
@@ -1622,6 +1680,30 @@ def estimate_capability_confidence(
             n_groups=n_groups)
 
     return ci_values
+
+def estimate_resolution(data: NumericSample1D) -> float:
+    """Estimate the resolution based on the length of the samples 
+    digits.
+    
+    Parameters
+    ----------
+    data : NumericSample1D
+        1-D array of datapoints to estimate from.
+
+    Returns
+    -------
+    float
+        The estimated resolution.
+    """
+    n_digits = 0
+    for split in map(lambda x: str(x).split('.'), data):
+        try:
+            _n = len(split[1])
+            n_digits = _n if _n > n_digits else n_digits
+        except IndexError:
+            continue
+
+    return 1 if n_digits == 0 else float(f'0.{"0"*(n_digits-1)}1')
 
 
 class Kernel:
@@ -2384,5 +2466,6 @@ __all__ = [
     'estimate_kernel_density',
     'estimate_kernel_density_2d',
     'estimate_capability_confidence',
+    'estimate_resolution',
     'Loess',
     'Lowess']

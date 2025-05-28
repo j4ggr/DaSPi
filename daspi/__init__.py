@@ -265,6 +265,7 @@ from .statistics.estimation import Lowess
 from .statistics.estimation import Estimator
 from .statistics.estimation import GageEstimator
 from .statistics.estimation import ProcessEstimator
+from .statistics.estimation import estimate_resolution
 from .statistics.estimation import estimate_distribution
 from .statistics.estimation import estimate_kernel_density
 from .statistics.estimation import estimate_kernel_density_2d
