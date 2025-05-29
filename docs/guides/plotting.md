@@ -209,6 +209,40 @@ Here are some application-specific but still helpful plots.
 
 ![Special Plotters](../img/plotters_special.png)
 
+## Charts
+
+To combine all the great things from above, we have created a chart module. The classes in this module are:
+
+- SimpleChart
+- JointChart
+- MultiVariantChart
+  
+These classes are a wrapper around the classes AxesFacets, StripesFacets and LabelFacets. They also provide a simple interface to interact with the plotters. The chart classes are very flexible and can be used to create a wide variety of charts.The combination of plotters is up to you. Just call multiple times the `plot()' method and pass the desired plotter class as an argument.
+
+The AxesFacets class is instantiated when creating a Chart object. When calling the `stripes()` method, the StripesFacets class is instantiated and the LabellFacets class is instantiated when calling the `labels()` method. The order of the methods is not important except for the `labels()` method. The `labels()` method must be called last, but before the `save()` method. All other methods can be called in any order.
+The recommended order for calling the methods is as follows:
+
+1. `plot()`
+2. `stripes()`
+3. `labels()`
+4. `save()`
+
+All the methods are chainable, so you can call it up directly from the previous one. Here an example:
+
+``` py
+import daspi as dsp
+
+chart = dsp.SimpleChart(...
+    ).plot(...
+    ).stripes(...
+    ).labels(...
+    ).save(...)
+```
+
+### SimpleChart
+
+The SimpleChart class is used to create a chart with only one Axes, but with multiple plotters.
+
 Here an example of a loess line plot in combination with a scatter plot:
 
 ``` py
