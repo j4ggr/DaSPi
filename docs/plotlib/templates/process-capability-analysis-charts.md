@@ -1,1 +1,1 @@
-::: daspi.plotlib.templates.ProcessCapabilityAnalysisCharts
+::: daspi.plotlib.precast.ProcessCapabilityAnalysisCharts

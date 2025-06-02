@@ -1,4 +1,4 @@
-::: daspi.plotlib.templates
+::: daspi.plotlib.precast
     options:
         members: no
         

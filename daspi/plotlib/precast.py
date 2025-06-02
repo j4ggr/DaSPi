@@ -20,20 +20,24 @@ from .plotter import Plotter
 from .plotter import Scatter
 from .plotter import MeanTest
 from .plotter import StripeLine
+from .plotter import SpreadWidth
 from .plotter import SkipSubplot
 from .plotter import HideSubplot
 from .plotter import Probability
 from .plotter import GaussianKDE
 from .plotter import BlandAltman
 from .plotter import QuantileBoxes
+from .plotter import CenterLocation
 from .plotter import ParallelCoordinate
 from .plotter import CapabilityConfidenceInterval
 
 from ..anova import LinearModel
+from ..anova import GageRnRModel
 from ..strings import STR
 from ..constants import DIST
 from ..constants import COLOR
 from ..constants import ANOVA
+from ..constants import DEFAULT
 from ..constants import CATEGORY
 
 from ..statistics import SpecLimits
@@ -149,7 +153,7 @@ class ParameterRelevanceCharts(JointChart):
             label=STR['charts_label_alpha_th'].format(alpha=self.lm.alpha),
             position=self.lm.effect_threshold,
             orientation='vertical',
-            color=COLOR.PALETTE[0])
+            color=COLOR.SPECIAL_LINE)
         for chart in self.itercharts():
             if chart == self.charts[0]:
                 chart.stripes([threshold])
@@ -275,7 +279,7 @@ class ResidualsCharts(JointChart):
             label=STR['fit'],
             position=0,
             orientation='horizontal',
-            color=COLOR.PALETTE[0])
+            color=COLOR.SPECIAL_LINE)
         for chart in self.itercharts():
             if chart == self.charts[0]:
                 continue
@@ -1049,10 +1053,113 @@ class ProcessCapabilityAnalysisCharts(JointChart):
         return self
 
 
+class GageRnRCharts(JointChart):
+    """
+    A class for visualizing the parameters of a GageRnR model.
+
+    Parameters
+    ----------
+    rnr_model : GageRnRModel
+        The GageRnR model whose parameters will be visualized.
+    stretch_figsize : bool, optional
+        If True, stretch the figure height and width based on the number of
+        rows and columns, by default False.
+    """
+    
+    __slots__ = ('rnr_model')
+
+    rnr_model: GageRnRModel
+    """The GageRnR model whose parameters are visualized."""
+
+    def __init__(
+            self,
+            rnr_model: GageRnRModel,
+            stretch_figsize: bool = False
+            ) -> None:
+        self.rnr_model = rnr_model.fit()
+        super().__init__(
+            source=self.rnr_model.data,
+            target=self._target,
+            feature=(self._part, self._reproducer)*3,
+            hue=(self._reproducer, '')*3,
+            nrows=3,
+            ncols=2,
+            height_ratios=[3, 3, 2],
+            sharey='row',
+            stretch_figsize=stretch_figsize,
+            dodge=(True, False) * 3,
+            categorical_feature=(False, True) * 3,)
+    
+    @property
+    def _target(self) -> str:
+        """Encoded column name of the target variable 
+        (read-only)."""
+        return self.rnr_model.target_map[self.rnr_model.target]
+
+    @property
+    def _part(self) -> str:
+        """Encoded column name of the part (unit under test) variable 
+        (read-only)."""
+        return self.rnr_model.feature_map[self.rnr_model.part]
+    
+    @property
+    def _reproducer(self) -> str:
+        """Encoded column name of the reproducer. That is, the variable 
+        that identifies the operator for type 2 or the block for type 3 
+        Gage R&R (read-only)."""
+        return self.rnr_model.feature_map[self.rnr_model.reproducer]
+
+    def plot(self) -> Self:
+        """Plot the GageRnR charts."""
+        # Top Left
+        super().plot(
+            Scatter)
+        super().plot(
+            CenterLocation,
+            on_last_axes=True,
+            show_center=True,
+            show_line=True,
+            kw_call=dict(marker='_'))
+
+        #Top right
+        data = (self.rnr_model.data
+            .groupby([self._reproducer, self._part], observed=True)
+            [self._target]
+            .mean()
+            .to_frame()
+            .reset_index(drop=False))
+        ParallelCoordinate(
+            source=data,
+            target=self._target,
+            feature=self._reproducer,
+            identity=self._part,
+            ax=self.axes[1])(
+                color=DEFAULT.PLOTTING_COLOR,
+                alpha=COLOR.MARKER_ALPHA)
+        SpreadWidth(
+            source=data,
+            target=self._target,
+            feature=self._reproducer,
+            show_center=False,
+            ax=self.axes[1])(
+                color=DEFAULT.PLOTTING_COLOR)
+        CenterLocation(
+            source=data,
+            target=self._target,
+            feature=self._reproducer,
+            show_center=False,
+            show_line=True
+            ax=self.axes[1])(
+                color=DEFAULT.PLOTTING_COLOR)
+        super().plot(SkipSubplot)
+
+        return self
+
 __all__ = [
     'ResidualsCharts',
     'ParameterRelevanceCharts',
     'PairComparisonCharts',
     'BivariateUnivariateCharts',
     'ProcessCapabilityAnalysisCharts',
+    'GageRnRCharts',
     ]

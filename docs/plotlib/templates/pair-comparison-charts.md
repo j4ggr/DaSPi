@@ -1,1 +1,1 @@
-::: daspi.plotlib.templates.PairComparisonCharts
+::: daspi.plotlib.precast.PairComparisonCharts

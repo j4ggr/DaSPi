@@ -1,1 +1,1 @@
-::: daspi.plotlib.templates.BivariateUnivariateCharts
+::: daspi.plotlib.precast.BivariateUnivariateCharts

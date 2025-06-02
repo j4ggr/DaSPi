@@ -88,12 +88,12 @@ nav:
     - Plotlib: 
       - Plotting Library: plotlib/index.md
       - Templates:
-        - Templates Module: plotlib/templates/index.md
-        - plotlib/templates/residual-charts.md
-        - plotlib/templates/parameter-relevance-charts.md
-        - plotlib/templates/pair-comparison-charts.md
-        - plotlib/templates/bivariate-univariate-charts.md
-        - plotlib/templates/process-capability-analysis-charts.md
+        - Templates Module: plotlib/precast/index.md
+        - plotlib/precast/residual-charts.md
+        - plotlib/precast/parameter-relevance-charts.md
+        - plotlib/precast/pair-comparison-charts.md
+        - plotlib/precast/bivariate-univariate-charts.md
+        - plotlib/precast/process-capability-analysis-charts.md
       - Chart:
         - Chart Module: plotlib/chart/index.md
         - plotlib/chart/chart.md

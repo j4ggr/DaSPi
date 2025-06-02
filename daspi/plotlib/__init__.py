@@ -16,7 +16,7 @@ from .facets import *
 
 from .chart import *
 
-from .templates import *
+from .precast import *
 
 # TODO: some alpha fails for vspan when using daspi and ggplot2 styles
 style.use('daspi')

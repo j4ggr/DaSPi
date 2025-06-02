@@ -501,10 +501,10 @@ class TestGageRnRModel:
     def rnr_thick_model(self) -> GageRnRModel:
         gage = GageEstimator(
             samples=self.df_thick['result_gage'],
-            reference=self.df_thick.loc[0, 'reference'],
-            U_cal=self.df_thick.loc[0, 'U_cal'],
-            tolerance=self.df_thick.loc[0, 'tolerance'],
-            resolution=self.df_thick.loc[0, 'resolution'])
+            reference=self.df_thick['reference'][0],
+            U_cal=self.df_thick['U_cal'][0],
+            tolerance=self.df_thick['tolerance'][0],
+            resolution=self.df_thick['resolution'][0])
         model = GageRnRModel(
             source=self.df_thick,
             target='result_rnr',
@@ -517,10 +517,10 @@ class TestGageRnRModel:
     def rnr_adj_model(self) -> GageRnRModel:
         gage = GageEstimator(
             samples=self.df_adj['result_gage'],
-            reference=self.df_adj.loc[0, 'reference'],
-            U_cal=self.df_adj.loc[0, 'U_cal'],
-            tolerance=self.df_adj.loc[0, 'tolerance'],
-            resolution=self.df_adj.loc[0, 'resolution'])
+            reference=self.df_adj['reference'][0],
+            U_cal=self.df_adj['U_cal'][0],
+            tolerance=self.df_adj['tolerance'][0],
+            resolution=self.df_adj['resolution'][0])
         model = GageRnRModel(
             source=self.df_adj,
             target='result_rnr',
@@ -635,6 +635,6 @@ class TestGageRnRModel:
         assert var_tot[ANOVA.TOTAL] == approx(1.0000, abs=1e-4)
 
     def test_unsertainties(self, rnr_adj_model: GageRnRModel) -> None:
-
-        df_u = rnr_adj_model.uncertainties
+        rnr_adj_model.fit()
+        df_u = rnr_adj_model.uncertainties()
         assert not df_u.empty

@@ -120,7 +120,7 @@ __Types of changes__:
 - Method optimize() for LinearModel class to optimize the model.
 - Method predict() for LinearModel class to predict the response.
 - Examples for LinearModel class.
-- Example for chart templates.
+- Example for chart precast.
 
 ## [1.2.0] - 2025-02-12
 

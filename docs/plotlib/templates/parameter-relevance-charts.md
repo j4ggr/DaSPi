@@ -1,1 +1,1 @@
-::: daspi.plotlib.templates.ParameterRelevanceCharts
+::: daspi.plotlib.precast.ParameterRelevanceCharts

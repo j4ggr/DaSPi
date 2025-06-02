@@ -1,1 +1,1 @@
-::: daspi.plotlib.templates.ResidualsCharts
+::: daspi.plotlib.precast.ResidualsCharts
