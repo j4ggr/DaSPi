@@ -1793,7 +1793,7 @@ class TransformPlotter(Plotter):
         """
         if self.feature and self.feature != PLOTTER.TRANSFORMED_FEATURE:
             for i, (f_value, group) in enumerate(
-                    source.groupby(self.feature, sort=True),
+                    source.groupby(self.feature, sort=True, observed=True),
                     start=DEFAULT.FEATURE_BASE):
                 target_data = group[self.target]
                 if self.skip_na and getattr(target_data.isna(), self.skip_na)():
@@ -3386,7 +3386,7 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
             Additional keyword arguments to be passed to the Axes 
             `fill_between` method.
         """
-        for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME):
+        for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME, observed=True):
             quantiles = group[self.target]
             lower = group[PLOTTER.LOWER]
             upper = group[PLOTTER.UPPER]
@@ -3702,7 +3702,7 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
             method, by default {}.
         """
         _kw_line = self.kw_default | kw_line
-        for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME):
+        for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME, observed=True):
             estim_upp = group[self.feature]
             estim_low = self._get_lower_estimation_(f_base, estim_upp) # type: ignore
             sequence = group[self.target]

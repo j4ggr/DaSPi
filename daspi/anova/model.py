@@ -1455,17 +1455,16 @@ class GageRnRModel(LinearModel):
 
     ``` python
     import daspi as dsp
-    df_gage = dsp.load_dataset('gage_study1')
-    df_rnr = dsp.load_dataset('grnr_layer_thickness')
+    df = dsp.load_dataset('grnr_layer_thickness')
     gage = dsp.GageEstimator(
-        samples=df_gage['result'],
-        reference=df_gage.loc[0, 'reference'],
-        U_cal=df_gage.loc[0, 'U_cal'],
-        tolerance=df_gage.loc[0, 'tolerance'],
-        resolution=df_gage.loc[0, 'resolution'])
+        samples=df['result_gage'],
+        reference=df['reference'][0],
+        U_cal=df['U_cal'][0],
+        tolerance=df['tolerance'][0],
+        resolution=df['resolution'][0])
     rnr_model = dsp.GageRnRModel(
-        source=df_rnr,
-        target='result',
+        source=df,
+        target='result_rnr',
         part='part',
         reproducer='operator',
         gage=gage)
@@ -1620,17 +1619,16 @@ class GageRnRModel(LinearModel):
 
         ``` python
         import daspi as dsp
-        df_gage = dsp.load_dataset('gage_study1')
-        df_rnr = dsp.load_dataset('grnr_layer_thickness')
+        df = dsp.load_dataset('grnr_layer_thickness')
         gage = dsp.GageEstimator(
-            samples=df_gage['result'],
-            reference=df_gage.loc[0, 'reference'],
-            U_cal=df_gage.loc[0, 'U_cal'],
-            tolerance=df_gage.loc[0, 'tolerance'],
-            resolution=df_gage.loc[0, 'resolution'])
+            samples=df['result_gage'],
+            reference=df['reference'][0],
+            U_cal=df['U_cal'][0],
+            tolerance=df['tolerance'][0],
+            resolution=df['resolution'][0])
         rnr_model = dsp.GageRnRModel(
-            source=df_rnr,
-            target='result',
+            source=df,
+            target='result_rnr',
             part='part',
             reproducer='operator',
             gage=gage)
@@ -1799,17 +1797,16 @@ class GageRnRModel(LinearModel):
 
         ``` python
         import daspi as dsp
-        df_gage = dsp.load_dataset('gage_study1')
-        df_rnr = dsp.load_dataset('grnr_layer_thickness')
+        df = dsp.load_dataset('grnr_layer_thickness')
         gage = dsp.GageEstimator(
-            samples=df_gage['result'],
-            reference=df_gage.loc[0, 'reference'],
-            U_cal=df_gage.loc[0, 'U_cal'],
-            tolerance=df_gage.loc[0, 'tolerance'],
-            resolution=df_gage.loc[0, 'resolution'])
+            samples=df['result_gage'],
+            reference=df['reference'][0],
+            U_cal=df['U_cal'][0],
+            tolerance=df['tolerance'][0],
+            resolution=df['resolution'][0])
         rnr_model = dsp.GageRnRModel(
-            source=df_rnr,
-            target='result',
+            source=df,
+            target='result_rnr',
             part='part',
             reproducer='operator',
             gage=gage)

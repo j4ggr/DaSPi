@@ -1928,7 +1928,10 @@ class MultivariateChart(SingleChart):
             Containing all target data for each axes.
         """
         names = [c for c in (self.row, self.col) if c]
-        grouper = self.source.groupby(names) if names else [('', self.source)]
+        if names:
+            grouper = self.source.groupby(names, observed=True)
+        else:
+            grouper = [('', self.source)] 
         for ax, (_, data) in zip(self.axes, grouper):
             self._ax = ax
             axes_data = data[self.target]
