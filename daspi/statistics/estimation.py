@@ -1056,49 +1056,51 @@ class GageEstimator(Estimator):
         The resolution of the measurement system. If None, the 
         resolution is estimated from the samples.
     cg_limit : float, optional
-        The limit of the capability index, by default 1.33.
+        The limit for the capability index, default is 1.33.
     cgk_limit : float, optional
-        The limit of the capability index, by default 1.33.
-    share_tol : float, optional
-        The share of the tolerance range as factor between 0 and 1, that 
-        is used to calculate the adjusted limits, by default 0.2 (20 %).
-    share_re_limit : float, optional
-        The share limit of the resolution proportion, by default 0.05.
+        The limit for the capability index, default is 1.33.
+    tolerance_ratio : float, optional
+        The proportion of the tolerance range (between 0 and 1) used 
+        to calculate the adjusted limits, default is 0.2 (20%).
+    resolution_ratio_limit : float, optional
+        The limit for the resolution proportion, default is 0.05.
     n_samples_min : int, optional
-        The minimum samples needed to perform a Measurement System 
-        Analysis Typ 1, by default 50
+        The minimum number of samples required to perform a 
+        Measurement System Analysis Type 1, default is 50.
     bias_corrected : bool, optional
-        Whether the bias is corrected for the Gage R&R study. If true, 
-        the bias itself is not included in the measurement uncertainty 
-        for the bias; otherwise, it is. Default is True
-    
+        Indicates whether the bias is corrected for the Gage R&R study. 
+        If True, the bias is not included in the measurement uncertainty; 
+        otherwise, it is included. Default is True.
+
     References
     ----------
-    [1]  Dr. Bill McNeese, BPI Consulting, LLC (09.2012)
-    https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-1/
+    [1] Dr. Bill McNeese, BPI Consulting, LLC (09.2012)
+        https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-1/
     
     [2] VDA Band 5, Mess- und Prüfprozesse. Eignung, Planung und Management
-    (Juli 2021) 3. überarbeitete Auflage
+        (Juli 2021) 3. überarbeitete Auflage
     """
+
+
     __slots__ = (
         '_specification', '_reference', '_U_cal', '_resolution', '_cg_limit', 
-        '_cgk_limit', '_share_tol', '_share_re_limit', '_n_samples_min', '_cg', 
-        '_cgk', '_limits', '_share_re', '_bias', '_p_bias', '_T_min_cg', 
-        '_T_min_cgk', '_T_min_res', '_process', '_u_re', '_u_bias', '_u_evr',
-        '_u_ms', '_bias_corrected')
+        '_cgk_limit', '_tolerance_ratio', '_resolution_ratio_limit', 
+        '_n_samples_min', '_cg',  '_cgk', '_limits', '_resolution_ratio', 
+        '_bias', '_p_bias', '_T_min_cg', '_T_min_cgk', '_T_min_res', 
+        '_process', '_u_re', '_u_bias', '_u_evr', '_u_ms', '_bias_corrected')
     _specification: Specification
     _reference: float
     _U_cal: float
     _resolution: float
     _cg_limit: float
     _cgk_limit: float
-    _share_tol: float
-    _share_re_limit: float
+    _tolerance_ratio: float
+    _resolution_ratio_limit: float
     _n_samples_min: int
     _cg: float | None
     _cgk: float | None
     _limits: SpecLimits | None
-    _share_re: float | None
+    _resolution_ratio: float | None
     _bias: float | None
     _T_min_cg: float | None
     _T_min_cgk: float | None
@@ -1118,8 +1120,8 @@ class GageEstimator(Estimator):
             resolution: float | None,
             cg_limit: float = 1.33,
             cgk_limit: float = 1.33,
-            share_tol: float = 0.2,
-            share_re_limit: float = 0.05,
+            tolerance_ratio: float = 0.2,
+            resolution_ratio_limit: float = 0.05,
             n_samples_min: int = 50,
             bias_corrected: bool = True,
             ) -> None:
@@ -1135,8 +1137,8 @@ class GageEstimator(Estimator):
         self.specification = tolerance
         self._cg_limit = cg_limit
         self._cgk_limit = cgk_limit
-        self._share_tol = share_tol
-        self._share_re_limit = share_re_limit
+        self._tolerance_ratio = tolerance_ratio
+        self._resolution_ratio_limit = resolution_ratio_limit
         self._n_samples_min = n_samples_min
         self._bias_corrected = bias_corrected
         if self.n_samples < self._n_samples_min:
@@ -1151,7 +1153,7 @@ class GageEstimator(Estimator):
         attrs = (
             'n_samples', 'n_missing', 'n_outlier', 'min', 'max', 'R', 'mean', 
             'median', 'std', 'sem', 'p_ad', 'lower', 'upper', 'cg', 'cgk', 
-            'bias', 'p_bias', 'T_min_cg', 'T_min_cgk', 'T_min_res', 'share_re',
+            'bias', 'p_bias', 'T_min_cg', 'T_min_cgk', 'T_min_res', 'resolution_ratio',
             'u_re', 'u_bias', 'u_evr', 'u_ms')
         return attrs
     
@@ -1205,23 +1207,24 @@ class GageEstimator(Estimator):
         self._reset_values_()
     
     @property
-    def share_tol(self) -> float:
-        """The share of the tolerance range that is used to calculate
-        the adjusted limits."""
-        return self._share_tol
-    @share_tol.setter
-    def share_tol(self, share_tol: float) -> None:
-        self._share_tol = share_tol
+    def tolerance_ratio(self) -> float:
+        """Gets the ratio of the tolerance range used in the calculation 
+        of adjusted limits. This value represents the proportion of the 
+        total tolerance that is allocated for adjustments."""
+        return self._tolerance_ratio
+    @tolerance_ratio.setter
+    def tolerance_ratio(self, tolerance_ratio: float) -> None:
+        self._tolerance_ratio = tolerance_ratio
         self._reset_values_()
     
     @property
-    def share_re_limit(self) -> float:
+    def resolution_ratio_limit(self) -> float:
         """The limit of the resolution ratio."""
-        return self._share_re_limit
-    @share_re_limit.setter
-    def share_re_limit(
-            self, share_re_limit: float) -> None:
-        self._share_re_limit = share_re_limit
+        return self._resolution_ratio_limit
+    @resolution_ratio_limit.setter
+    def resolution_ratio_limit(
+            self, resolution_ratio_limit: float) -> None:
+        self._resolution_ratio_limit = resolution_ratio_limit
         self._reset_values_()
     
     @property
@@ -1240,8 +1243,8 @@ class GageEstimator(Estimator):
         """The adjusted specification limits of the process (read-only)."""
         if self._limits is None:
             self._limits = SpecLimits(
-                self.nominal - self.share_tol / 2 * self.tolerance,
-                self.nominal + self.share_tol / 2 * self.tolerance)
+                self.nominal - self.tolerance_ratio * self.tolerance / 2,
+                self.nominal + self.tolerance_ratio * self.tolerance / 2)
         return self._limits
     
     @property
@@ -1321,10 +1324,10 @@ class GageEstimator(Estimator):
         return self.process.control_range
     
     @property
-    def share_re(self) -> float:
-        if self._share_re is None:
-            self._share_re = self.resolution / self.tolerance
-        return self._share_re
+    def resolution_ratio(self) -> float:
+        if self._resolution_ratio is None:
+            self._resolution_ratio = self.resolution / self.tolerance
+        return self._resolution_ratio
     
     @property
     def bias(self) -> float:
@@ -1350,7 +1353,7 @@ class GageEstimator(Estimator):
         
         if self._T_min_cg is None:
             self._T_min_cg = (
-                self.cg_limit * self.control_range / self.share_tol)
+                self.cg_limit * self.control_range / self.tolerance_ratio)
         return self._T_min_cg
     
     @property
@@ -1363,7 +1366,7 @@ class GageEstimator(Estimator):
         if self._T_min_cgk is None:
             self._T_min_cgk = (
                 (self.cgk_limit * self.control_range / 2 + abs(self.bias))
-                / (self.share_tol / 2))
+                / (self.tolerance_ratio / 2))
         return self._T_min_cgk
     
     @property
@@ -1372,7 +1375,7 @@ class GageEstimator(Estimator):
         on the resolution of the testing system (read-only)."""
         if self._T_min_res is None:
             self._T_min_res = (
-                self.resolution / self.share_re_limit)
+                self.resolution / self.resolution_ratio_limit)
         return self._T_min_res
     
     @property
@@ -1416,8 +1419,8 @@ class GageEstimator(Estimator):
         capable of measuring the process."""
         checks = dict(
             n_samples=self.n_samples >= 50,
-            U_cal=self.U_cal <= self.tolerance * self.share_tol / 2,
-            resolution=self.share_re <= self.share_re_limit,
+            U_cal=self.U_cal <= self.tolerance * self.tolerance_ratio / 2,
+            resolution=self.resolution_ratio <= self.resolution_ratio_limit,
             cg=True if self.cg is None else self.cg >= self.cg_limit,
             cgk=True if self.cgk is None else self.cgk >= self.cgk_limit,)
         return checks
@@ -1434,7 +1437,7 @@ class GageEstimator(Estimator):
         the process capability values are recalculated."""
         super()._reset_values_()
         self._limits = None
-        self._share_re = None
+        self._resolution_ratio = None
         self._bias = None
         self._p_bias = None
         self._cg = None
