@@ -1,27 +1,33 @@
 # Plotting Guide
 
+Welcome to the wonderful world of DaSPi plotting! 🎨 Think of this as your creative toolkit for turning boring numbers into beautiful, insightful visualizations. We've built a flexible system that lets you craft everything from simple scatter plots to complex multi-panel masterpieces.
+
 ## Facets
 
-The facet classes are used to place axes, labels and stripes (within the axes)  on the figure at the correct location and dimensions.
+Facets are like the stage crew of your visualization theater - they work behind the scenes to make sure everything appears in exactly the right place. They handle the layout, positioning, and all those fiddly details so you can focus on the story your data wants to tell.
 
 ### AxesFacets
 
-This class creates the layout for the subplots (axes) and the corresponding figure object. Initialization is heavily based on Matplotlib's `plt.subplots()` function (see [Matplotlib API](https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html)). This function is also called under the hood.
+Think of AxesFacets as your layout designer. This class creates the blueprint for where your subplots will live and builds the figure to house them. It's heavily inspired by Matplotlib's beloved `plt.subplots()` function (which it actually uses under the hood), but with some DaSPi magic sprinkled on top.
 
-The layout of the subplots can be determined using the `nrows`, `ncols`, `width_ratios`, and `height_ratios` arguments, or the `mosaic` argument. You can find out more about the mosaic layout [here](https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplot_mosaic.html).
+You have two ways to design your layout:
 
-Here is an example of how to use the `AxesFacets` class:
+**Option 1: The Grid Approach** 📐
 
-``` py
+Use `nrows`, `ncols`, `width_ratios`, and `height_ratios` for clean, structured layouts:
+
+```py
 import daspi as dsp
 
 axes = dsp.AxesFacets(
     nrows=2, ncols=2, width_ratios=[3, 1], height_ratios=[1, 3])
 ```
 
-And the counterpart using the mosaic argument:
+**Option 2: The Mosaic Approach** 🧩
 
-``` py
+Use the `mosaic` argument for more creative, flexible layouts:
+
+```py
 axes = dsp.AxesFacets(mosaic=[
     'aaa.',
     'bbbc',
@@ -29,32 +35,36 @@ axes = dsp.AxesFacets(mosaic=[
     'bbbc'])
 ```
 
-For both, you'll get the following layout, with a difference being the subplot in the top right. In the mosaic, we have a '.' there. Matplotlib interprets this as empty space and does not create an Axes object at this location. This option isn't available with the first variant. Another difference is that in the mosaic notation above, the underlying matrix has the same size as the mosaic matrix. Therefore, we use row and column spans instead of width and height ratios. This means that in this example, the Axes object is present in 9 positions in the matrix. For this reason, it is also recommended to combine Mosaic with ratios:
+Both approaches give you the same basic layout, but mosaic has a cool trick up its sleeve - see that '.' in the top right? That tells Matplotlib to leave that space empty. It's like having a "skip this spot" instruction!
 
-``` py
+**Pro tip**: Combine mosaic with ratios for the best of both worlds:
+
+```py
 axes = dsp.AxesFacets(
     mosaic=['a.', 'bc'], width_ratios=[3, 1], height_ratios=[1, 3])
 ```
 
 ![Mosaic Layout](../img/facets_axes-mosaic.png)
 
-The individual axes can be retrieved using the getitem notation. Either a single number can be specified, which returns the unique Axes object in a flat list (from top left to bottom right) at the corresponding index. Alternatively, a tuple can also be specified, just like with numpy arrays. Using the example layout above, if you want the large Axes object, you have the following two options. Note that there is no Axes object in the top right corner.
+**Accessing Your Axes** 🎯
 
-``` py
-axes[1]
-axes[-1, 0]
-```
+Getting to your individual plots is super intuitive. You can use either:
+- A single number (like a flat list): `axes[1]`
+- Tuple notation (like numpy arrays): `axes[-1, 0]`
 
-The AxesFacets object also serves as an iterator. Like indexing, iterates over the Axes objects from top left to bottom right.
+Plus, AxesFacets works as an iterator, so you can loop through your axes from top-left to bottom-right. Neat!
 
 ### StripesFacets
 
-This class is used to create lines and areas (horizontal or vertical) that are placed within the subplots. The lines are used to visualize specification limits, control limits or the global mean or median. The areas are used to visualize the confidence interval of a line. The stripes are added to the Axes object as matplotlib.Line2D and matplotlib.Patch objects. These stripes are always straight lines that run parallel to an axis.
+Ever wanted to add reference lines or highlight important regions across your plots? That's where StripesFacets shines! ✨ This class adds horizontal or vertical lines and areas to your plots - perfect for showing specification limits, control limits, confidence intervals, or global statistics.
 
-Imagine you're plotting data in some way on a series of subplots. Each subplot contains the same representation with similar data, but from a different category. Now you want to know if the mean values ​​of these split categories differ. This is where these stripes come into play.
-Here's an example using the dataset with the dissolution time of aspirin. On the x-axis, we have the temperature, on the y-axis the dissolution time, and between the subplots, we divide by employee: **Important**, set `sharey` to `True`!
+**The Problem**: Imagine you're comparing data across multiple subplots. Each subplot shows the same type of analysis but for different categories. How do you quickly spot differences between groups?
 
-``` py
+**The Solution**: Reference lines and areas that make patterns jump out at you!
+
+Let's see this in action with aspirin dissolution data. First, the "before" picture:
+
+```py
 import daspi as dsp
 import matplotlib.pyplot as plt
 
@@ -70,9 +80,9 @@ for ax, (name, group) in zip(axes, df.groupby('employee')):
 
 ![Stripes](../img/facets_stripes-missing.png)
 
-As we can see, it's difficult to say whether the mean value changes between the individual subplots. Now we want to know if the dissolution times differ between the employees and we also plot the upper specification limit of 25 s to show which employee's tablets took too long to dissolve. To achieve this, we create a `StripesFacets` object within the for loop and initialize it with the target data.
+Hard to compare, right? Now watch the magic happen when we add stripes:
 
-``` py
+```py
 import daspi as dsp
 import matplotlib.pyplot as plt
 
@@ -96,13 +106,17 @@ for ax, (name, group) in zip(axes, df.groupby('employee')):
 
 ![Stripes](../img/facets_stripes-drawn.png)
 
+Now you can instantly see which employee's tablets are taking too long to dissolve! 🎯
+
+⚠️ **Important**: When using StripesFacets across multiple subplots, set `sharey=True` so the reference lines align properly.
+
 ### LabelFacets
 
-With this class you can add figure titles, subtitles, axis labels, column and row labels, a figure legend outside the axes or an info text at the bottom left of the diagram.
+LabelFacets is your typography and annotation specialist. 📝 This class handles all the text elements that make your plots publication-ready: titles, subtitles, axis labels, legends, and even info boxes.
 
-These facets are added to the Figure object as matplotlib.Text objects. The subplot area is automatically resized to prevent overlap.
+The best part? It automatically adjusts the subplot area to prevent text overlap. No more manually tweaking margins!
 
-``` py
+```py
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
@@ -133,11 +147,11 @@ labels.draw()
 
 ![Label Facets](../img/facets_labels.png)
 
-### Combine facets
+### Bringing It All Together
 
-As a brief review, we combine these three classes AxesFacets, StripesFacets and LabelFacets in one figure using the example of aspirin dissolution time.
+Let's create a complete, professional-looking analysis by combining all three facet classes. We'll revisit our aspirin dissolution example and make it publication-ready:
 
-``` py
+```py
 import daspi as dsp
 
 df = dsp.load_dataset('aspirin-dissolution')
@@ -158,7 +172,7 @@ for ax, (name, group) in zip(axes, df.groupby('employee')):
     ax.scatter(group['temperature'], group['dissolution'])
     stripes.draw(ax)
 
-# Label to create clarity
+# Add professional labeling
 legend_data = {'Lines': stripes.handles_labels()}
 
 labels = dsp.LabelFacets(
@@ -176,42 +190,95 @@ labels.draw()
 
 ![Aspirin Dissolution](../img/facets_combined.png)
 
+From scattered data points to a professional analysis in just a few lines of code! 🚀
+
 ## Plotters
 
-The plotting library within DaSPi offers a wide selection of different plotters. Here's an overview of the different types and what they look like in use.
+Welcome to the heart of DaSPi's visualization engine! 💖 Our plotter collection is like a Swiss Army knife for data visualization - we've got the right tool for every data story you want to tell.
 
 ### Bivariate (XY) Plots
 
-This is the most common type of plot, and it is used to visualize the relationship between two variables. The plotter uses the following parameters:
-- `source`: The source data frame.
-- `target`: The target variable (Y-axis).
-- `feature`: The feature variable (X-axis).
+These are your bread-and-butter relationship explorers. Perfect for answering "How does X relate to Y?" questions. The setup is always the same:
 
-The available plotters are:
+- `source`: Your DataFrame (the data buffet)
+- `target`: The Y-axis variable (what you're trying to understand)
+- `feature`: The X-axis variable (what might be influencing your target)
 
 ![XY Plotters](../img/plotters_xy.png)
 
-### Univariate (distribution) Plots
+### Univariate (Distribution) Plots
 
-These types of plots are used to show the location and/or spread of the data points. The target variable is always continuous and the features are either absent or categorical.
+When you want to get intimate with a single variable - understand its personality, quirks, and behavior patterns. These plots reveal the shape, center, and spread of your data.
 
 ![Univariate Plotters](../img/plotters_univariate.png)
 
-### Plots for differences
+### Plots for Differences
 
-These types of plots are used to show the difference between two or more variables. The target variable is always continuous and the features must be categorical.
+The "spot the difference" champions! 🔍 These plots excel at comparing groups and highlighting variations between categories. Perfect for answering "Are these groups really different?" questions.
 
 ![Difference Plotters](../img/plotters_differences.png)
 
 ### Special Plots
 
-Here are some application-specific but still helpful plots.
+Our collection of specialized tools for specific analytical needs. These are the plots that make you look like a data visualization wizard! ✨
 
 ![Special Plotters](../img/plotters_special.png)
 
-Here an example of a loess line plot in combination with a scatter plot:
+## Charts
 
-``` py
+Now for the grand finale! 🎭 We've built all these amazing components (facets and plotters), but wouldn't it be nice to have a simple way to orchestrate them all? Enter the chart classes - your new best friends for creating stunning visualizations without breaking a sweat.
+
+Think of charts as your personal plotting assistants. They handle all the tedious setup work while you focus on the fun part: telling your data's story.
+
+### The Chart Family
+
+Meet the three chart siblings, each with their own personality:
+
+- **SimpleChart** - The minimalist. One plot area, infinite possibilities.
+- **JointChart** - The collaborator. Loves showing relationships between variables.
+- **MultiVariantChart** - The overachiever. Handles complex multi-panel layouts like a boss.
+
+### How Charts Work Their Magic
+
+These chart classes are essentially smart wrappers around our facet classes (AxesFacets, StripesFacets, and LabelFacets). They also provide a dead-simple interface for working with plotters. Think of them as the conductors of your data visualization orchestra! 🎼
+
+The beauty is in their flexibility - you can mix and match plotters however you want. Just call the `plot()` method multiple times with different plotter classes. It's like building with LEGO blocks, but for data visualization!
+
+### The Chart Creation Recipe
+
+Here's the secret sauce for chart creation:
+
+1. **Create your chart** - The AxesFacets class gets instantiated automatically
+2. **Add your plots** - Call `plot()` as many times as you want with different plotters
+3. **Sprinkle in some stripes** - Call `stripes()` to add reference lines and areas
+4. **Label everything beautifully** - Call `labels()` to make it publication-ready
+5. **Save your masterpiece** - Call `save()` to preserve your work
+
+⚠️ **Pro tip**: The `labels()` method is a bit of a diva - it must be called last (but before `save()`). All other methods are more flexible and can be called in any order.
+
+### Method Chaining Magic ✨
+
+All methods are chainable, so you can create entire visualizations in one elegant flow:
+
+```py
+import daspi as dsp
+
+chart = dsp.SimpleChart(...
+    ).plot(...
+    ).stripes(...
+    ).labels(...
+    ).save(...)
+```
+
+It's like writing poetry, but with data! Each method flows naturally into the next, creating a readable narrative of your visualization process.
+
+### SimpleChart
+
+The SimpleChart class is perfect when you want to focus all attention on one plot area. It's like having a single spotlight on stage - everything else fades away, and your data becomes the star.
+
+Here's how to create a beautiful combination of a loess line with confidence intervals and a scatter plot:
+
+```py
 import daspi as dsp
 
 df = dsp.load_dataset('iris')
@@ -230,3 +297,5 @@ scatter_plot()
 ```
 
 ![XY Plot](../img/plotters_xy-example.png)
+
+The result? A professional-looking plot that would make any data scientist proud! 📊

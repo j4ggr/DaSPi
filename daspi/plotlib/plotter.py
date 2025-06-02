@@ -633,6 +633,43 @@ class Scatter(Plotter):
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
         used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import Scatter
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame({'x': list(x*np.pi/50 for x in range(100))})
+    df['y'] = np.cos(df['x'])
+    scatter = Scatter(source=df, target='y', feature='x', ax=ax)
+    scatter(color='red', s=20, marker='s', alpha=0.6)
+    ```
+
+    Apply using the plot method of a DaSPi Chart object
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame({'x': list(x*np.pi/50 for x in range(100))})
+    df['y'] = np.cos(df['x'])
+
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x'
+        ).plot(
+            dsp.Scatter,
+            kw_call=dict(color='red', s=20, marker='s', alpha=0.6))
+    ```
+    
     """
     __slots__ = ('size')
     size: Iterable[int] | None
@@ -667,7 +704,7 @@ class Scatter(Plotter):
     def kw_default(self) -> Dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
         kwds = dict(
-            c=self.color,
+            color=self.color,
             marker=self.marker,
             s=self.size,
             alpha=COLOR.MARKER_ALPHA)
@@ -720,6 +757,42 @@ class Line(Plotter):
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
         used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import Line
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame({'x': list(x*np.pi/50 for x in range(100))})
+    df['y'] = np.cos(df['x'])
+    line = Line(source=df, target='y', feature='x', ax=ax)
+    line(color='red', lw=2, alpha=0.6)
+    ```
+
+    Apply using the plot method of a DaSPi Chart object
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame({'x': list(x*np.pi/50 for x in range(100))})
+    df['y'] = np.cos(df['x'])
+
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x'
+        ).plot(
+            dsp.Line,
+            kw_call=dict(color='red', lw=2, alpha=0.6))
+    ```
     """
     def __init__(
             self,
@@ -746,7 +819,7 @@ class Line(Plotter):
     @property
     def kw_default(self) -> Dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(c=self._color)
+        kwds = dict(color=self._color)
         return kwds
     
     def __call__(self, marker: str | None = None, **kwds) -> None:
@@ -814,6 +887,58 @@ class LinearRegressionLine(Plotter):
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
         used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import LinearRegressionLine
+
+    fig, ax = plt.subplots()
+    x = np.linspace(0, 10, 100)
+    df = pd.DataFrame(dict(
+        x=x,
+        y=x + np.random.randn(100) - 0.05 * np.square(x)))
+    reg_line = LinearRegressionLine(
+        source=df, target='y', feature='x', ax=ax,
+        show_scatter=True, show_fit_ci=True, show_pred_ci=True)
+    reg_line(
+        kw_scatter=dict(color='black', s=10, alpha=0.5),
+        kw_fit_ci=dict(color='skyblue'),
+        kw_pred_ci=dict(color='steelblue', alpha=1),
+        color='deepskyblue')
+    ```
+
+    Apply using the plot method of a DaSPi Chart object
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    x = np.linspace(0, 10, 100)
+    df = pd.DataFrame(dict(
+        x=x,
+        y=x + np.random.randn(100) - 0.05 * np.square(x)))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x'
+        ).plot(
+            dsp.LinearRegressionLine,
+            show_scatter=True,
+            show_fit_ci=True,
+            show_pred_ci=True,
+            kw_call=dict(
+                kw_scatter=dict(color='black', s=10, alpha=0.5),
+                kw_fit_ci=dict(color='skyblue'),
+                kw_pred_ci=dict(color='steelblue', alpha=1),
+                color='deepskyblue'))
+    ```
     """
     __slots__ = (
         'model', 'fit', 'show_scatter', 'show_fit_ci', 'show_pred_ci')
@@ -838,7 +963,7 @@ class LinearRegressionLine(Plotter):
             target_on_y: bool = True,
             color: str | None = None,
             marker: str | None = None,
-            show_scatter: bool = True,
+            show_scatter: bool = False,
             show_fit_ci: bool = False,
             show_pred_ci: bool = False,
             ax: Axes | None = None,
@@ -948,7 +1073,7 @@ class LinearRegressionLine(Plotter):
             
 
 class LoessLine(Plotter):
-    """
+    """A class for plotting a loess line.
     
     Parameters
     ----------
@@ -970,7 +1095,10 @@ class LoessLine(Plotter):
         The marker style for the scatter plot. Available markers see:
         https://matplotlib.org/stable/api/markers_api.html, 
         by default None
-    show_ci : bool, optional
+    show_scatter : bool, optional
+        Flag indicating whether to show the individual points, 
+        by default False.
+    show_fit_ci : bool, optional
         Flag indicating whether to show the confidence interval for
         the lowess line as filled area, by default False.
     confidence_level: float, optional
@@ -1023,14 +1151,66 @@ class LoessLine(Plotter):
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
         used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import LoessLine
+
+    fig, ax = plt.subplots()
+    x = 5*np.random.random(100)
+    df = pd.DataFrame(dict(
+        x = x,
+        y = np.sin(x) * 3*np.exp(-x) + np.random.normal(0, 0.2, 100)))
+    loess_line = LoessLine(
+        source=df, target='y', feature='x',
+        show_scatter=True, show_fit_ci=True)
+    loess_line(
+        kw_scatter=dict(color='black', s=10, alpha=0.5),
+        kw_fit_ci=dict(color='skyblue'),
+        color='deepskyblue')
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    x = 5*np.random.random(100)
+    df = pd.DataFrame(dict(
+        x = x,
+        y = np.sin(x) * 3*np.exp(-x) + np.random.normal(0, 0.2, 100)))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x'
+        ).plot(
+            dsp.LoessLine,
+            show_scatter=True,
+            show_fit_ci=True,
+            kw_call=dict(
+                kw_scatter=dict(color='black', s=10, alpha=0.5),
+                kw_fit_ci=dict(color='skyblue'),
+                color='deepskyblue'))
+    ```
     """
     __slots__ = (
-        'model', 'show_ci')
+        'model', 'show_scatter', 'show_fit_ci')
     
     model: Loess | Lowess
     """The fitted results of the linear regression model."""
-    show_ci: bool
-    """Whether to show the confidence interval for the lowess line."""
+    show_scatter: bool
+    """Whether to show the individual points in the plot."""
+    show_fit_ci: bool
+    """Whether to show the confidence interval for the fitted lowess 
+    line."""
 
     def __init__(
             self,
@@ -1040,7 +1220,8 @@ class LoessLine(Plotter):
             target_on_y: bool = True,
             color: str | None = None,
             marker: str | None = None,
-            show_ci: bool = False,
+            show_scatter: bool = False,
+            show_fit_ci: bool = False,
             confidence_level: float = 0.95,
             fraction: float = 0.2,
             order: Literal[0, 1, 2, 3] = 3,
@@ -1051,7 +1232,8 @@ class LoessLine(Plotter):
             visible_spines: Literal['target', 'feature', 'none'] | None = None,
             hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
-        self.show_ci = show_ci
+        self.show_scatter = show_scatter
+        self.show_fit_ci = show_fit_ci
         source = source[[target, feature]].copy()
         Model_ = Loess if kind.upper() == 'LOESS' else Lowess
         self.model = Model_(source=source, target=target, feature=feature)
@@ -1083,14 +1265,18 @@ class LoessLine(Plotter):
     
     def __call__(
             self,
-            kw_ci: dict = {},
+            kw_scatter: dict = {},
+            kw_fit_ci: dict = {},
             **kwds) -> None:
         """
         Perform the linear regression plot operation.
 
         Parameters
         ----------
-        kw_ci : dict, optional
+        kw_scatter : dict, optional
+            Additional keyword arguments for the Axes `scatter` method,
+            by default {}.
+        kw_fit_ci : dict, optional
             Additional keyword arguments for the confidence interval of 
             the lowess line (Axes `fill_between` method), by default {}.
         **kwds:
@@ -1101,14 +1287,17 @@ class LoessLine(Plotter):
         _kwds = self.kw_default | kwds
         self.ax.plot(self.x, self.y, **_kwds)
         
-        if self.show_ci:
-            kw_fit_ci = KW.FIT_CI | color | kw_ci
+        if self.show_scatter:
+            kw_scatter = color | dict(marker=self.marker) | kw_scatter
+            self.ax.scatter(self.x, self.y, **kw_scatter)
+        if self.show_fit_ci:
+            _kw_fit_ci = KW.FIT_CI | color | kw_fit_ci
             lower = self.source[PLOTTER.LOWESS_LOW]
             upper = self.source[PLOTTER.LOWESS_UPP]
             if self.target_on_y:
-                self.ax.fill_between(self.x, lower, upper, **kw_fit_ci)
+                self.ax.fill_between(self.x, lower, upper, **_kw_fit_ci)
             else:
-                self.ax.fill_betweenx(self.y, lower, upper, **kw_fit_ci)
+                self.ax.fill_betweenx(self.y, lower, upper, **_kw_fit_ci)
 
 
 class Probability(LinearRegressionLine):
@@ -1170,6 +1359,52 @@ class Probability(LinearRegressionLine):
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
         used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import Probability
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        y = np.random.weibull(a=1, size=100)))
+    prob_line = Probability(
+        source=df, target='y', kind='pp', show_scatter=True, show_fit_ci=True)
+    prob_line(
+        kw_scatter=dict(color='black', s=10, alpha=0.5),
+        kw_fit_ci=dict(color='skyblue'),
+        color='deepskyblue')
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        y = np.random.weibull(a=1, size=100)))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x'
+        ).plot(
+            dsp.Probability,
+            kind='pp',
+            show_scatter=True,
+            show_fit_ci=True,
+            kw_call=dict(
+                kw_scatter=dict(color='black', s=10, alpha=0.5),
+                kw_fit_ci=dict(color='skyblue'),
+                color='deepskyblue')
+        )
+    ```
     
     Raises
     ------
@@ -1348,6 +1583,42 @@ class ParallelCoordinate(Plotter):
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
         used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import matplotlib.pyplot as plt
+    from daspi import ParallelCoordinate, load_dataset
+
+    fig, ax = plt.subplots()
+    df = load_dataset('shoe-sole')
+    prob_line = ParallelCoordinate(
+        source=df, target='wear', feature='status', identity='tester',
+        show_scatter=True)
+    prob_line()
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = dsp.load_dataset('shoe-sole')
+    chart = dsp.SingleChart(
+            source=df,
+            target='wear',
+            feature='status',
+            categorical_feature=True,
+        ).plot(
+            dsp.ParallelCoordinate,
+            identity='tester',
+            show_scatter=True,
+        ).label() # neded to label feature ticks
+    ```
     """
 
     __slots__ = ('identity', 'show_scatter')
@@ -1634,6 +1905,60 @@ class CenterLocation(TransformPlotter):
         arguments that have no use here (occurs when this class is 
         used within chart objects).
     
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import CenterLocation, Scatter
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    scatter=Scatter(source=df, target='y', feature='x')
+    prob_line = CenterLocation(
+        source=df, target='y', feature='x', kind='median',
+        show_center=True, show_line=True)
+    prob_line(marker='_', markersize=10)
+    scatter(color='black')
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x',
+            categorical_feature=True,
+        ).plot(
+            dsp.CenterLocation,
+            kind='median',
+            show_line=True,
+            show_center=True,
+            kw_call=dict(marker='_', markersize=10)
+        ).plot(
+            dsp.Scatter,
+        ).label() # neded to label feature ticks
+    ```
+    
     Note
     ----
     Be careful with the `show_center` and `show_line` flags. Either 
@@ -1666,6 +1991,8 @@ class CenterLocation(TransformPlotter):
             visible_spines: Literal['target', 'feature', 'none'] | None = None,
             hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
+        assert any((show_line, show_center)), (
+            'Either show_line or show_center must be True.')
         self._kind = 'mean'
         self.kind = kind
         self.show_line = show_line
@@ -1687,7 +2014,7 @@ class CenterLocation(TransformPlotter):
     def kw_default(self) -> Dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
         kwds = dict(
-            c=self.color,
+            color=self.color,
             marker=self.marker,
             linestyle=self.linestyle)
         if self.marker:
@@ -1822,6 +2149,91 @@ class Bar(TransformPlotter):
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
         used within chart objects).
+    
+    Examples
+    --------
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import Bar
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = list('abcdefghijklmno'),
+        y = list(100/x for x in range(1, 16))))
+    bar = Bar(
+        source=df, target='y', feature='x')
+    bar()
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = list('abcdefghijklmno'),
+        y = list(100/x for x in range(1, 16))))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x',
+            categorical_feature=True,
+        ).plot(
+            dsp.Bar,
+        ).label() # neded to label feature ticks
+    ```
+
+    You can also aggregate a function on the target column
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import Bar
+
+    limit = 3.5
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50) > limit)
+            + list(np.random.normal(loc=4, scale=1, size=50) > limit)
+            + list(np.random.normal(loc=2, scale=1, size=50) > limit))))
+    bar = Bar(
+        source=df, target='y', feature='x', method='sum')
+    bar()
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    limit = 3.5
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50) > limit)
+            + list(np.random.normal(loc=4, scale=1, size=50) > limit)
+            + list(np.random.normal(loc=2, scale=1, size=50) > limit))))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x',
+            categorical_feature=True,
+        ).plot(
+            dsp.Bar,
+            method='sum',
+        ).label() # neded to label feature ticks
+    ```
     """
     __slots__ = ('method', 'kw_method', 'stack', 'width')
 
@@ -2047,6 +2459,68 @@ class Pareto(Bar):
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is used
         within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import Pareto
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = list('abcdefghijklmno'),
+        y = list(100/x for x in range(1, 16))))
+    pareto = Pareto(
+        source=df, target='y', feature='x')
+    pareto()
+    ```
+
+    You can also combine and highlight small frequencies:
+
+    ```python
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import Pareto
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = list('abcdefghijklmno'),
+        y = list(100/x for x in range(1, 16))))
+    low_values = df.y <= 10
+    df2 = df[~low_values].copy()
+    df2.loc[len(df)-sum(low_values)] = ('rest', df[low_values].y.sum())
+    pareto = Pareto(
+        source=df2, target='y', feature='x', highlight='rest', 
+        highlight_color='#ff000090', highlighted_as_last=True)
+    pareto()
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = list('abcdefghijklmno'),
+        y = list(100/x for x in range(1, 16))))
+    low_values = df.y <= 10
+    df2 = df[~low_values].copy()
+    df2.loc[len(df)-sum(low_values)] = ('rest', df[low_values].y.sum())
+    chart = dsp.SingleChart(
+            source=df2,
+            target='y',
+            feature='x',
+        ).plot(
+            dsp.Pareto,
+            highlight='rest',
+            highlight_color=dsp.COLOR.BAD,
+            no_percentage_line=False
+        )
+    ```
     
     Raises
     ------
@@ -2280,6 +2754,51 @@ class Jitter(TransformPlotter):
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
         used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import Jitter
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    jitter = Jitter(
+        source=df, target='y', feature='x')
+    jitter()
+    ax.set(xticks=list(range(df.x.nunique())), xticklabels=df.x.unique())
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x',
+            categorical_feature=True # neded to label feature ticks
+        ).plot(
+            dsp.Jitter,
+        ).label() # neded to label feature ticks
+    ```
     """
     __slots__ = ('width')
 
@@ -2440,6 +2959,52 @@ class Beeswarm(TransformPlotter):
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
         used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import Beeswarm
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    beeswarm = Beeswarm(
+        source=df, target='y', feature='x')
+    beeswarm()
+    ax.set(xticks=list(range(df.x.nunique())), xticklabels=df.x.unique())
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x',
+            categorical_feature=True # neded to label feature ticks
+        ).plot(
+            dsp.Beeswarm,
+        ).label() # neded to label feature ticks
+    ```
     
     Source
     ------
@@ -2666,6 +3231,57 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
         Additional keyword arguments that are ignored in this context, 
         primarily serving to capture any extra arguments when this class 
         is used within chart objects.
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import QuantileBoxes
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    boxes = QuantileBoxes(
+        source=df, target='y', feature='x', strategy='norm',
+        agreements=(0.25, 0.5, 0.75, 0.95), vary_width=False, width=0.2)
+    boxes()
+    ax.set(xticks=list(range(df.x.nunique())), xticklabels=df.x.unique())
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x',
+            categorical_feature=True # neded to label feature ticks
+        ).plot(
+            dsp.QuantileBoxes,
+            strategy='norm',
+            agreements=(0.25, 0.5, 0.75, 0.95),
+            vary_width=False,
+            width=0.2
+        ).label() # neded to label feature ticks
+    ```
     """
     __slots__ = (
         'strategy', '_agreements', 'possible_dists', 'estimation', 
@@ -2817,6 +3433,10 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
         Flag indicating whether the feature axis should be ignored. If 
         True, all curves have base 0 on the feature axis,
         by default True
+    margin : float, optional
+        Margin for the sequence as factor of data range (max - min ). 
+        If margin is 0, The two ends of the estimated density curve then 
+        show the minimum and maximum value. Default is 0.
     fill : bool, optional
         Flag whether to fill in the curves, by default True
     agreements : Tuple[float, ...] or Tuple[int, ...], optional
@@ -2864,10 +3484,62 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import GaussianKDE
+
+    fig, ax = plt.subplots()
+    colors = ('#1f77b4', '#ff7f0e', '#2ca02c')
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    for color, (name, group) in zip(colors, df.groupby('x')):
+        kde = GaussianKDE(
+            source=group, target='y', strategy='norm', agreements=(2, 4, 6),
+            target_on_y=False, color=color)
+        kde()
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            hue='x',
+            target_on_y=False,
+        ).plot(
+            dsp.GaussianKDE,
+            strategy='norm',
+            agreements=(2, 4, 6), # std for area color opacities
+            visible_spines='target',
+            hide_axis='feature',
+        ).label() # neded to label feature ticks
+    ```
     """
     __slots__ = (
         'strategy', '_agreements', 'possible_dists', '_height', '_stretch', 
-        'fill', 'n_points')
+        'fill', 'n_points', 'margin')
 
     _height: float | None
     """Height of kde curve at its maximum."""
@@ -2877,6 +3549,10 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
     """Flag whether to fill in the curves"""
     n_points: int
     """Number of points that have the kde and its sequence."""
+    margin: float
+    """Margin for the sequence as factor of data range (max - min ). If
+    margin is 0, The two ends of the estimated density curve then show 
+    the minimum and maximum value."""
 
     def __init__(
             self,
@@ -2886,6 +3562,7 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
             height: float | None = None,
             skip_na: Literal['all', 'any'] | None = None,
             ignore_feature: bool = True,
+            margin: float = 0,
             fill: bool = True,
             agreements: Tuple[float, ...] | Tuple[int, ...] = DEFAULT.AGREEMENTS,
             target_on_y: bool = True,
@@ -2900,6 +3577,7 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
         self.possible_dists = DIST.COMMON
         self._stretch = stretch
         self.n_points = n_points
+        self.margin = margin
         self.fill = fill
         if not ignore_feature and kwds.get('feature', False):
             height = height if height else CATEGORY.FEATURE_SPACE
@@ -2976,7 +3654,8 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
                 stretch=self.stretch,
                 height=self.height,
                 base=feature_data,
-                n_points=self.n_points)
+                n_points=self.n_points,
+                margin=self.margin)
         
         ones = np.ones(len(sequence))
         if self.highlight_quantiles and not isinstance(sequence, list):
@@ -3074,6 +3753,8 @@ class GaussianKDEContour(Plotter):
         Note that the calculated points are equal to the square of the 
         given number (because the contour is two-dimensional).
         by default KD_SEQUENCE_LEN (defined in constants.py)
+    margin : float, optional
+        Margin for the sequence as factor of data range, by default 0.2.
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
         the y-axis. If False, all contour lines have the same color. 
@@ -3096,6 +3777,43 @@ class GaussianKDEContour(Plotter):
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
         used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import matplotlib.pyplot as plt
+    from daspi import GaussianKDEContour, load_dataset
+
+    fig, ax = plt.subplots()
+    colors = ('#1f77b4', '#ff7f0e', '#2ca02c')
+    df = load_dataset('iris')
+    for color, (name, group) in zip(colors, df.groupby('species')):
+        kde = GaussianKDEContour(
+            source=group, target='length', feature='width', color=color,
+            fill=False, fade_outers=False, margin=0.5)
+        kde()
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import daspi as dsp
+
+    df = load_dataset('iris')
+    chart = dsp.SingleChart(
+            source=df,
+            target='length',
+            feature='width',
+            hue='species',
+        ).plot(
+            dsp.GaussianKDEContour,
+            fill=False,
+            fade_outers=False,
+            margin=0.5
+        ).label() # neded to add legend
+    ```
     """
     __slots__ = ('cmap', 'shape', 'fill', 'n_points')
 
@@ -3114,6 +3832,7 @@ class GaussianKDEContour(Plotter):
             fill: bool = True,
             fade_outers: bool = True,
             n_points: int = DEFAULT.KD_SEQUENCE_LEN,
+            margin: float = 0.2,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -3123,7 +3842,8 @@ class GaussianKDEContour(Plotter):
         self.shape = (n_points, n_points)
         self.fill = fill
         feature_seq, target_seq, estimation = estimate_kernel_density_2d(
-            feature= source[feature], target=source[target], n_points=n_points)
+            feature= source[feature], target=source[target], n_points=n_points,
+            margin=margin)
         data = pd.DataFrame({
             feature: feature_seq.ravel(),
             target: target_seq.ravel(),
@@ -3182,6 +3902,10 @@ class Violine(GaussianKDE):
         by default ''.
     width : float, optional
         Width of the violine, by default CATEGORY.FEATURE_SPACE.
+    margin : float, optional
+        Margin for the sequence as factor of data range (max - min ). 
+        If margin is 0, The two ends of the estimated density curve then 
+        show the minimum and maximum value. Default is 0.
     fill : bool, optional
         Flag whether to fill in the curves, by default True
     agreements : Tuple[float, ...] or Tuple[int, ...], optional
@@ -3225,6 +3949,53 @@ class Violine(GaussianKDE):
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import Violine
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    violine = Violine(
+        source=df, target='y', feature='x', fill=True, margin=1, agreements=())
+    violine()
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x',
+            categorical_feature=True, # neded to label the feature tick labels
+        ).plot(
+            dsp.Violine,
+            fill=False,
+            margin=0.3
+        ).label() # neded to label the feature tick labels
+    ```
     """
 
     def __init__(
@@ -3233,6 +4004,7 @@ class Violine(GaussianKDE):
             target: str,
             feature: str = '',
             width: float = CATEGORY.FEATURE_SPACE,
+            margin: float = 0,
             fill: bool = True,
             agreements: Tuple[float, ...] | Tuple[int, ...] = DEFAULT.AGREEMENTS,
             target_on_y: bool = True,
@@ -3247,6 +4019,7 @@ class Violine(GaussianKDE):
             feature=feature,
             height=width/2,
             ignore_feature=False,
+            margin=margin,
             fill=fill,
             agreements=agreements,
             target_on_y=target_on_y,
@@ -3319,6 +4092,69 @@ class Errorbar(TransformPlotter):
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    from daspi import Errorbar
+    from collections import defaultdict
+
+    fig, ax = plt.subplots()
+    data = defaultdict(list)
+    data['x'] = ['first', 'second', 'third']
+    for loc in [3, 4, 2]:
+        temp = np.random.normal(loc=loc, scale=1, size=10)
+        x_bar = np.mean(temp)
+        sem = np.std(temp, ddof=1) / np.sqrt(len(temp))
+        data['x_bar'].append(x_bar)
+        data['lower'].append(x_bar - sem)
+        data['upper'].append(x_bar + sem)
+
+    df = pd.DataFrame(data)
+    errobar = Errorbar(
+        source=df, target='x_bar', feature='x', lower='lower', upper='upper',
+        show_center=True)
+    errobar(kw_points=dict(color='black', s=10, marker='_'))
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    from collections import defaultdict
+
+    data = defaultdict(list)
+    data['x'] = ['first', 'second', 'third']
+    for loc in [3, 4, 2]:
+        temp = np.random.normal(loc=loc, scale=1, size=10)
+        x_bar = np.mean(temp)
+        sem = np.std(temp, ddof=1) / np.sqrt(len(temp))
+        data['x_bar'].append(x_bar)
+        data['lower'].append(x_bar - sem)
+        data['upper'].append(x_bar + sem)
+
+    chart = dsp.SingleChart(
+            source=df,
+            target='x_bar',
+            hue='x',
+            dodge=True,
+        ).plot(
+            dsp.Errorbar,
+            lower='lower',
+            upper='upper',
+            bars_same_color=True,
+            kw_call={'kw_points': dict(color='black', s=10, marker='_')}
+        ).label() # neded to add legend
+    ```
     """
     __slots__ = ('lower', 'upper', 'show_center', 'bars_same_color')
 
@@ -3364,6 +4200,13 @@ class Errorbar(TransformPlotter):
             ax=ax,
             visible_spines=visible_spines,
             hide_axis=hide_axis)
+        
+        if self.lower not in self.source:
+            _source = source.set_index(self.feature).copy()
+            idx = list(self._original_f_values)
+            self.source[self.lower] = list(_source.loc[idx, self.lower])
+            self.source[self.upper] = list(_source.loc[idx, self.upper])
+
         self._marker = marker
 
     @property
@@ -3489,6 +4332,18 @@ class StandardErrorMean(Errorbar):
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    ```
     """
     def __init__(
             self,
@@ -3638,6 +4493,18 @@ class SpreadWidth(Errorbar):
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    ```
     """
     __slots__ = (
         'strategy', 'agreement', 'possible_dists', '_kind', 'estimation')
@@ -3841,6 +4708,18 @@ class ConfidenceInterval(Errorbar):
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    ```
     """
     __slots__ = ('confidence_level', 'ci_func', 'n_groups')
 
@@ -3984,6 +4863,18 @@ class MeanTest(ConfidenceInterval):
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    ```
     """
     def __init__(
             self,
@@ -4084,6 +4975,18 @@ class VariationTest(ConfidenceInterval):
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    ```
     """
     def __init__(
             self,
@@ -4197,6 +5100,18 @@ class ProportionTest(ConfidenceInterval):
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    ```
     
     Notes
     -----
@@ -4370,6 +5285,18 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    ```
     """
 
     __slots__ = (
@@ -4503,7 +5430,19 @@ class HideSubplot(Plotter):
     **kwds:
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
-        (occurs when this class is used within chart objects)."""
+        (occurs when this class is used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    ```"""
 
     def __init__(
             self,
@@ -4522,7 +5461,20 @@ class HideSubplot(Plotter):
 
 
 class SkipSubplot(Plotter):
-    """Class for skip plotting at current axes in a JointChart."""
+    """Class for skip plotting at current axes in a JointChart.
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    ```
+    """
 
     def __init__(self, *args, **kwds) -> None:
         """Initialize the class and store nothing."""
@@ -4744,6 +5696,18 @@ class StripeLine(Stripe):
         - Line width = `lw`, `linewidth`, `width`
         - Color = `c`, `color`
         - Style = `ls`, `linestyle`
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    ```
     """
 
     __slots__ = ('linestyle')
@@ -4860,6 +5824,18 @@ class StripeSpan(Stripe):
         - Line width = `lw`, `linewidth`, `width`
         - Color = `c`, `color`
         - Style = `ls`, `linestyle`
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    ```
     """
 
     __slots__ = ('lower_position', 'upper_position', 'border_linewidth')
@@ -5040,6 +6016,18 @@ class BlandAltman(Plotter):
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
         used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    ```
 
     Notes
     -----
@@ -5197,6 +6185,7 @@ __all__ = [
     'Scatter',
     'Line',
     'LinearRegressionLine',
+    'LoessLine',
     'Probability',
     'ParallelCoordinate',
     'TransformPlotter',

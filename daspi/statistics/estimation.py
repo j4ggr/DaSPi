@@ -1487,12 +1487,67 @@ def estimate_distribution(
     dist = ensure_generic(dist)
     return dist, p, params
 
+def _extended_range_(
+        data: NumericSample1D,
+        margin: float
+        ) -> Tuple[float, float]:
+    """Returns the extended range of the data. The extended range is
+    the range of the data plus a margin. The margin is a percentage
+    of the range of the data. The margin is added to the lower and
+    upper bound of the data. The formula is as follows:
+
+        $margin_{data} = margin \cdot (max(data) - min(dat))$
+
+        $extended_{min} = min(data) - margin_{data}$
+
+        $extended_{max} = max(data) + margin_{data}$
+    
+    Parameters
+    ----------
+    data : NumericSample1D
+        The data to be used to calculate the extended range
+    margin : float
+        The margin to be added to the range of the data.
+        - 0 returns the range of the data
+        - 1 returns 3 times the range: min - 1*range, max + 1*range
+    
+    Returns
+    -------
+    Tuple[float, float]
+        The extended range of the data
+    
+    Raises
+    ------
+    AssertionError:
+        If the margin is less than 0
+    AssertionError:
+        If the margin is too small, so that the extended_max is less or 
+        equal the extended_min
+    """
+    assert margin >= 0, (
+        f'Margin must be greater than or equal to 0, got {margin}')
+
+    data_min = min(data)
+    data_max = max(data)
+    if margin == 0:
+        return data_min, data_max
+    
+    margin_data = margin * (data_max - data_min)
+    extended_min = data_min - margin_data
+    extended_max = data_max + margin_data
+    assert extended_max > extended_min, (
+        f'Margin is too small: {margin}')
+    
+    return extended_min, extended_max
+
 def estimate_kernel_density(
         data: NumericSample1D,
+        *,
         stretch: float = 1,
         height: float | None = None, 
         base: float = 0,
-        n_points: int = DEFAULT.KD_SEQUENCE_LEN
+        n_points: int = DEFAULT.KD_SEQUENCE_LEN,
+        margin: float = 0.5,
         ) -> Tuple[NDArray, NDArray]:
     """Estimates the kernel density of data and returns values that are 
     useful for a plot. If those values are plotted in combination with 
@@ -1524,6 +1579,10 @@ def estimate_kernel_density(
     n_points : int, optional
         Number of points the estimation and sequence should have,
         by default KD_SEQUENCE_LEN (defined in constants.py)
+    margin : float, optional
+        Margin for the sequence as factor of data range (max - min ). 
+        If margin is 0, The two ends of the estimated density curve then 
+        show the minimum and maximum value. Default is 0.
 
     Returns
     -------
@@ -1536,7 +1595,8 @@ def estimate_kernel_density(
     data = np.array(data)[~np.isnan(data)]
     assert any(data), f'Provided data is empty or contains only zeros: {data}'
     assert any(data != data[0]), f'All provided data have the same value: {data}'
-    sequence = np.linspace(data.min(), data.max(), n_points)
+    seq_min, seq_max = _extended_range_(data, margin)
+    sequence = np.linspace(seq_min, seq_max, n_points)
     estimation = stats.gaussian_kde(data, bw_method='scott')(sequence)
     stretch = stretch if height is None else height/estimation.max()
     estimation = stretch*estimation + base
@@ -1545,6 +1605,7 @@ def estimate_kernel_density(
 def estimate_kernel_density_2d(
         feature: NumericSample1D,
         target: NumericSample1D,
+        *,
         n_points: int = DEFAULT.KD_SEQUENCE_LEN,
         margin: float = 0.5,
         ) -> Tuple[NDArray, NDArray, NDArray]:
@@ -1583,6 +1644,12 @@ def estimate_kernel_density_2d(
         maximum used for target data
     estimation : 2D array
         Data points of kernel density estimation
+    
+    Raises
+    ------
+    AssertionError:
+        If the provided data is empty, contains only zeros or all values
+        are identical.
     """
     feature = np.array(feature)
     target = np.array(target)
@@ -1597,15 +1664,12 @@ def estimate_kernel_density_2d(
         f'All provided target data have the same value: {target}')
     assert any(feature != feature[0]), (
         f'All provided feature data have the same value: {feature}')
-    f_min = feature.min()
-    f_max = feature.max()
-    f_margin = (f_max - f_min) * margin
-    t_min = target.min()
-    t_max = target.max()
-    t_margin = (t_max - t_min) * margin
+    
+    f_min, f_max = _extended_range_(feature, margin)
+    t_min, t_max = _extended_range_(target, margin)
     feature_seq, target_seq = np.meshgrid(
-        np.linspace(f_min - f_margin, f_max + f_margin, n_points),
-        np.linspace(t_min - t_margin, t_max + t_margin, n_points))
+        np.linspace(f_min, f_max, n_points),
+        np.linspace(t_min, t_max, n_points))
     _values = np.vstack([feature, target])
     _sequences = np.vstack([feature_seq.ravel(), target_seq.ravel()])
     estimation = stats.gaussian_kde(_values, bw_method='scott')(_sequences)

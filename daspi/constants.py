@@ -59,14 +59,14 @@ class _Kw_:
     def SHAPE_HANDLES(self) -> Dict[str, Any]:
         """Line2D keyword arguments for genereting handles on 
         SizeLabel."""
-        return dict(xdata=[], ydata=[], c=COLOR.HANDLES, lw=0)
+        return dict(xdata=[], ydata=[], color=COLOR.HANDLES, lw=0)
 
     @property
     def SIZE_HANDLES(self) -> Dict[str, Any]:
         """Line2D keyword arguments for genereting handles on 
         ShapeLabel."""
         return dict(
-            xdata=[], ydata=[], c=COLOR.HANDLES, marker='o', lw=0, 
+            xdata=[], ydata=[], color=COLOR.HANDLES, marker='o', lw=0, 
             alpha=COLOR.MARKER_ALPHA)
 
     @property
