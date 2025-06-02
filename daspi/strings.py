@@ -10,141 +10,175 @@ class _String_:
 
     anderson_darling: Dict[str, str] = {
         'en': 'Anderson-Darling',
-        'de': 'Anderson-Darling'}
-    
+        'de': 'Anderson-Darling',
+        'fr': 'Anderson-Darling'}
+
     lsl: Dict[str, str] = { 
         'en': 'LSL',
-        'de': 'USG'}
+        'de': 'USG',
+        'fr': 'LSL'}
     
     usl: Dict[str, str] = {
         'en': 'USL',
-        'de': 'OSG'}
+        'de': 'OSG',
+        'fr': 'USL'}
     
     lcl: Dict[str, str] = { 
         'en': 'LCL',
-        'de': 'UEG'}
+        'de': 'UEG',
+        'fr': 'LCL'}
     
     ucl: Dict[str, str] = {
         'en': 'UCL',
-        'de': 'OEG'}
+        'de': 'OEG',
+        'fr': 'UCL'}
     
     excess: Dict[str, str] = {
         'en': 'excess',
-        'de': 'Exzess'}
+        'de': 'Exzess',
+        'fr': 'excès'}
     
     skew: Dict[str, str] = {
         'en': 'skew',
-        'de': 'Schiefe'}
+        'de': 'Schiefe',
+        'fr': 'asymétrie'}
     
     kde_ax_label: Dict[str, str] = {
         'en': 'Estimated kernel density',
-        'de': 'Geschätzte Kerndichte'}
+        'de': 'Geschätzte Kerndichte',
+        'fr': 'Densité de noyau estimée'}
 
     stripes: Dict[str, str] = {
         'en': 'Lines',
-        'de': 'Linien'}
+        'de': 'Linien',
+        'fr': 'Lignes'}
 
     ci: Dict[str, str] = {
         'en': 'CI',
-        'de': 'KI'}
+        'de': 'KI',
+        'fr': 'IC'}
     
     formula: Dict[str, str] = {
         'en': 'formula',
-        'de': 'Formel'}
+        'de': 'Formel',
+        'fr': 'formule'}
     
     effects_label: Dict[str, str] = {
         'en': 'Standardized effect',
-        'de': 'Standardisierter Effekt'}
+        'de': 'Standardisierter Effekt',
+        'fr': 'Effet standardisé'}
     
     ss_label: Dict[str, str] = {
         'en': 'Sum of Squares',
-        'de': 'Summenquadrate'}
+        'de': 'Summenquadrate',
+        'fr': 'Somme des carrés'}
     
     paramcharts_fig_title: Dict[str, str] = {
         'en': 'Parameter Analysis',
-        'de': 'Parameter Analyse'}
+        'de': 'Parameter Analyse',
+        'fr': 'Analyse des paramètres'}
     
     paramcharts_sub_title: Dict[str, str] = {
         'en': 'Relative importance of parameters',
-        'de': 'Relative Wichtigkeit der Parameter'}
+        'de': 'Relative Wichtigkeit der Parameter',
+        'fr': 'Importance relative des paramètres'}
     
     paramcharts_feature_label: Dict[str, str] = {
         'en': 'Parameter',
-        'de': 'Parameter'}
+        'de': 'Parameter',
+        'fr': 'Paramètre'}
     
     residcharts_fig_title: Dict[str, str] = {
         'en': 'Residuals analysis',
-        'de': 'Residuen Analyse'}
+        'de': 'Residuen Analyse',
+        'fr': 'Analyse des résidus'}
     
     resid_name: Dict[str, str] = {
         'en': 'Residuals',
-        'de': 'Residuen'}
+        'de': 'Residuen',
+        'fr': 'Résidus'}
     
     fit: Dict[str, str] = {
         'en': 'Fit',
-        'de': 'Anpassung'}
+        'de': 'Anpassung',
+        'fr': 'Ajustement'}
     
-    charts_flabel_quantiles: Dict[str, str]= {
+    charts_flabel_quantiles: Dict[str, str] = {
         'en': 'Std. Normal Distribution quantiles',
-        'de': 'Standardnormalverteilung Quantile'}
+        'de': 'Standardnormalverteilung Quantile',
+        'fr': 'Quantiles de la distribution normale standard'}
     
     charts_flabel_density: Dict[str, str] = {
         'en': 'Estimated kernel density',
-        'de': 'Geschätzte Kerndichte'}
+        'de': 'Geschätzte Kerndichte',
+        'fr': 'Densité de noyau estimée'}
     
     charts_flabel_predicted: Dict[str, str] = {
         'en': 'Predicted values',
-        'de': 'Vorhersage'}
+        'de': 'Vorhersage',
+        'fr': 'Valeurs prédites'}
     
     charts_flabel_observed: Dict[str, str] = {
         'en': 'Observation order',
-        'de': 'Beobachtungsreihenfolge'}
+        'de': 'Beobachtungsreihenfolge',
+        'fr': 'Ordre d\'observation'}
     
     charts_label_alpha_th: Dict[str, str] = {
-        'en': 'Threshold (α={alpha})',
-        'de': 'Grenzwert (α={alpha})'}
+        'en': 'effect_α\;(α={alpha})',
+        'de': 'Effekt_α\;(α={alpha})',
+        'fr': 'effet_α\;(α={alpha})'}
     
     paircharts_fig_title: Dict[str, str] = {
         'en': 'Pairwise analysis',
-        'de': 'Paarweise Analyse'}
+        'de': 'Paarweise Analyse',
+        'fr': 'Analyse pair à pair'}
 
     cp: Dict[str, str] = {
-        'en': 'Pocess Capability index Cp',
-        'de': 'Prozessfähigkeitsindex Cp'}
+        'en': 'Process Capability index Cp',
+        'de': 'Prozessfähigkeitsindex Cp',
+        'fr': 'Indice de capacité de processus Cp'}
 
     cpk: Dict[str, str] = {
-        'en': 'Adjusted Pocess Capability index Cpk',
-        'de': 'Angepasster Prozessfähigkeitsindex Cpk'}
+        'en': 'Adjusted Process Capability index Cpk',
+        'de': 'Angepasster Prozessfähigkeitsindex Cpk',
+        'fr': 'Indice de capacité de processus ajusté Cpk'}
     
     paircharts_sub_title: Dict[str, str] = {
         'en': 'Bland-Altman 95 % CI and individual value comparison',
-        'de': 'Bland-Altman 95 %-KI und Einzelwertvergleich'}
+        'de': 'Bland-Altman 95 %-KI und Einzelwertvergleich',
+        'fr': 'Bland-Altman 95 % IC et comparaison des valeurs individuelles'}
     
     lm_table_caption_summary: Dict[str, str] = {
         'en': 'Model summary',
-        'de': 'Modellzusammenfassung'}
+        'de': 'Modellzusammenfassung',
+        'fr': 'Résumé du modèle'}
     
     lm_table_caption_statistics: Dict[str, str] = {
         'en': 'Parameter statistics',
-        'de':'Parameterstatistik'}
+        'de': 'Parameterstatistik',
+        'fr': 'Statistiques des paramètres'}
     
     lm_table_caption_anova: Dict[str, str] = {
         'en': 'Analysis of variance',
-        'de': 'Varianzanalyse'}
+        'de': 'Varianzanalyse',
+        'fr': 'Analyse de la variance'}
     
     lm_table_caption_vif: Dict[str, str] = {
         'en': 'Variance inflation factor',
-        'de': 'Varianzinflationfaktor'}
+        'de': 'Varianzinflationfaktor',
+        'fr': 'Facteur d\'inflation de la variance'}
     
     lm_table_caption_rnr: Dict[str, str] = {
         'en': 'Repeatability and reproducibility (R&R)',
-        'de': 'Wiederholbarkeit und Reproduzierbarkeit (R&R)'}
+        'de': 'Wiederholbarkeit und Reproduzierbarkeit (R&R)',
+        'fr': 'Répétabilité et reproductibilité (R&R)'}
     
     lm_table_caption_uncertainty: Dict[str, str] = {
         'en': 'Measurement uncertainty',
-        'de': 'Messunsicherheit'}
+        'de': 'Messunsicherheit',
+        'fr': 'Incertitude de mesure'}
 
-    _language_: Literal['en', 'de'] = 'en'
+    _language_: Literal['en', 'de', 'fr'] = 'en'
     _username_: str = environ['USERNAME']
 
     @property
@@ -152,13 +186,13 @@ class _String_:
         return date.today().strftime('%Y-%m-%d')
     
     @property
-    def LANGUAGE(self) -> Literal['en', 'de']:
+    def LANGUAGE(self) -> Literal['en', 'de', 'fr']:
         """Language (abbreviation) in which the strings should be
         rendered"""
         return self._language_
     @LANGUAGE.setter
-    def LANGUAGE(self, language: Literal['en', 'de']) -> None:
-        assert language in ('en', 'de')
+    def LANGUAGE(self, language: Literal['en', 'de', 'fr']) -> None:
+        assert language in ('en', 'de', 'fr')
         self._language_ = language
     
     @property
@@ -171,19 +205,15 @@ class _String_:
         self._username_ = username
     
     def __getitem__(self, item: str) -> str | Literal['']:
-        empty = ''
+        _string = ''
         try:
-            strings = getattr(self, item)
-            try:
-                return strings[self.LANGUAGE]
-            except KeyError:
-                if isinstance(strings, dict):
-                    return strings['en']
-                else:
-                    raise ArithmeticError
+            _string = getattr(self, item)[self.LANGUAGE]
         except AttributeError:
             warnings.warn(f'No string found for {item}!')
-            return empty
+        except KeyError:
+            warnings.warn(
+                f'No string found for {item} and language {self.LANGUAGE}!')
+        return _string
 STR = _String_()
 
 __all__ = ['STR']

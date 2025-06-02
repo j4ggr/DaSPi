@@ -249,6 +249,10 @@ class _Color_:
     """Color for things that should be represented as 'good'."""
     BAD: str = '#d627287f'
     """Color for things that should be represented as 'bad'."""
+    ANOMALY: str = '#ff7f0e7f'
+    """Color for anomalies."""
+    SPECIAL_LINE: str = "#0e8bff7e"
+    """Color for fitted lines or thresholds in precas charts."""
     MEAN: str = '#2F3333'
     """Color for mean line used for StripesFacets."""
     MEDIAN: str = '#626666'
