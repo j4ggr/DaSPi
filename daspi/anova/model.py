@@ -1579,7 +1579,7 @@ class GageRnRModel(LinearModel):
 
     def rnr(
             self,
-            add_interaction_term: bool | Literal['auto'] = 'auto'
+            keep_interaction: bool | Literal['auto'] = 'auto'
             ) -> DataFrame:
         """Get the Gage R&R analysis results as table.
         
@@ -1604,7 +1604,7 @@ class GageRnRModel(LinearModel):
 
         Parameters
         ----------
-        add_interaction_term: bool | Literal['auto'] = 'auto'
+        keep_interaction: bool | Literal['auto'] = 'auto'
             Whether to include the interaction term in the analysis.
             If 'auto', the interaction term is included if it is 
             significant. Otherwise, the interaction term is excluded and
@@ -1688,15 +1688,15 @@ class GageRnRModel(LinearModel):
 
             $$s^2_{total} = s^2_{RnR} + s^2_{part}$$
         """
-        assert add_interaction_term in (True, False, 'auto'), (
-            'add_interaction_term must be True, False, or auto')
+        assert keep_interaction in (True, False, 'auto'), (
+            'keep_interaction must be True, False, or auto')
         
         if not self._rnr.empty:
             return self._rnr
 
         self._u_ia = self.anova('II')['MS'].get(self.interaction, 0)**0.5
-        if add_interaction_term == 'auto':
-            add_interaction_term = self.has_significant_interactions()
+        if keep_interaction == 'auto':
+            keep_interaction = self.has_significant_interactions()
         index_map = {
             ANOVA.RESIDUAL: ANOVA.REPEATABILITY,
             self.reproducer: ANOVA.REPRODUCIBILITY,
@@ -1710,7 +1710,7 @@ class GageRnRModel(LinearModel):
             ANOVA.PART,
             ANOVA.TOTAL]
         columns = ANOVA.RNR_COLNAMES
-        if add_interaction_term:
+        if keep_interaction:
             indices_rnr_sum.append(ANOVA.INTERACTION)
         else:
             index_map.pop(self.interaction)
@@ -1729,7 +1729,7 @@ class GageRnRModel(LinearModel):
         n_reproducer = dof[ANOVA.REPRODUCIBILITY] + 1
         n_replication = dof[ANOVA.REPEATABILITY] // (n_reproducer * n_parts) + 1
         
-        if add_interaction_term:
+        if keep_interaction:
             var_reproducer = (
                     (ms[ANOVA.REPRODUCIBILITY] - ms[ANOVA.INTERACTION])
                     / (n_parts * n_replication))

@@ -18,7 +18,7 @@ eeprom_full-factorial,Full factorial DOE of a process improvement project for ee
 eeprom_partial-factorial,Partial factorial DOE of a process improvement project for eeproms,anova,Six Sigma TC GmbH
 grnr_spc,Gage R&R study with 3 operators and 5 parts and 3 replications,anova,https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-1/
 grnr_layer_thickness,Gage R&R study with 3 operators 10 parts and 2 replications,anova,Six Sigma TC GmbH
-gage_study1,Gage study (MSA Type 1) data with 50 data points used for grnr_layer_thickness,anova,DaSPi
+grnr_adjustment,Gage R&R study with 2 operators 10 parts and 3 replications,anova,DaSPi
 iris,This is one of the earliest datasets used in the literature on classification methods and widely used in statistics and machine learning. Here it's in a long format., BivariateUnivariate Chart,https://archive.ics.uci.edu/ml/datasets/iris
 mpg,This dataset contains a subset of the fuel economy data that the EPA makes available on https://fueleconomy.gov/. It contains only models which had a new release every year between 1999 and 2008 - this was used as a proxy for the popularity of the car,anova,ggplot2 data https://ggplot2.tidyverse.org/reference/mpg.html
 partial-factorial,Partial factorial DOE of a process improvement project,anova,Six Sigma TC GmbH

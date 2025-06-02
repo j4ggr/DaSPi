@@ -494,35 +494,47 @@ class TestLinearModel:
 
 
 class TestGageRnRModel:
-    df_rnr = load_dataset('grnr_layer_thickness')
-    df_gage = load_dataset('gage_study1')
+    df_thick = load_dataset('grnr_layer_thickness')
+    df_adj = load_dataset('grnr_adjustment')
 
     @pytest.fixture
-    def gage(self) -> GageEstimator:
+    def rnr_thick_model(self) -> GageRnRModel:
         gage = GageEstimator(
-            samples=self.df_gage['result'],
-            reference=self.df_gage.loc[0, 'reference'],
-            U_cal=self.df_gage.loc[0, 'U_cal'],
-            tolerance=self.df_gage.loc[0, 'tolerance'],
-            resolution=self.df_gage.loc[0, 'resolution'])
-        return gage
-
-    @pytest.fixture
-    def rnr_model(self, gage: GageEstimator) -> GageRnRModel:
+            samples=self.df_thick['result_gage'],
+            reference=self.df_thick.loc[0, 'reference'],
+            U_cal=self.df_thick.loc[0, 'U_cal'],
+            tolerance=self.df_thick.loc[0, 'tolerance'],
+            resolution=self.df_thick.loc[0, 'resolution'])
         model = GageRnRModel(
-            source=self.df_rnr,
-            target='result',
+            source=self.df_thick,
+            target='result_rnr',
             part='part',
             reproducer='operator',
             gage=gage)
         return model
 
-    def test_anova_table(self, rnr_model: GageRnRModel) -> None:
+    @pytest.fixture
+    def rnr_adj_model(self) -> GageRnRModel:
+        gage = GageEstimator(
+            samples=self.df_adj['result_gage'],
+            reference=self.df_adj.loc[0, 'reference'],
+            U_cal=self.df_adj.loc[0, 'U_cal'],
+            tolerance=self.df_adj.loc[0, 'tolerance'],
+            resolution=self.df_adj.loc[0, 'resolution'])
+        model = GageRnRModel(
+            source=self.df_adj,
+            target='result_rnr',
+            part='part',
+            reproducer='operator',
+            gage=gage)
+        return model
+
+    def test_anova_table(self, rnr_thick_model: GageRnRModel) -> None:
         """Verification done with Minitab v22.2
 
         Stat > Quality Tools > Gage Study > Gage R&R Study (Crossed)"""
-        rnr_model.fit()
-        anova = rnr_model.anova()
+        rnr_thick_model.fit()
+        anova = rnr_thick_model.anova()
 
         assert anova['DF']['part'] == 9
         assert anova['DF']['operator'] == 2
@@ -541,15 +553,15 @@ class TestGageRnRModel:
  
         assert anova['p']['part:operator'] == approx(0.9183453, abs=1e-7)
 
-    def test_rnr_table(self, rnr_model: GageRnRModel) -> None:
+    def test_rnr_table(self, rnr_thick_model: GageRnRModel) -> None:
         """Verification done with Minitab v22.2
         
         Stat > Quality Tools > Gage Study > Gage R&R Study (Crossed)
         
         The verification values for 6s/Tolerance coming from the 
         MSA Assistant."""
-        rnr_model.fit()
-        rnr = rnr_model.rnr()
+        rnr_thick_model.fit()
+        rnr = rnr_thick_model.rnr()
 
         var = rnr['MS']
         assert var[ANOVA.RNR] == approx(0.00000067, abs=1e-8)
@@ -564,6 +576,13 @@ class TestGageRnRModel:
         assert var_tot[ANOVA.REPRODUCIBILITY] == approx(0.00000000, abs=1e-8)
         assert var_tot[ANOVA.PART] == approx(0.97752034, abs=1e-8)
         assert var_tot[ANOVA.TOTAL] == approx(1.000000, abs=1e-8)
+
+        std = rnr['s']
+        assert std[ANOVA.RNR] == approx(0.00082074, abs=1e-8)
+        assert std[ANOVA.REPEATABILITY] == approx(0.00082074, abs=1e-8)
+        assert std[ANOVA.REPRODUCIBILITY] == approx(0.00000000, abs=1e-8)
+        assert std[ANOVA.PART] == approx(0.00541218, abs=1e-8)
+        assert std[ANOVA.TOTAL] == approx(0.00547406, abs=1e-8)
 
         spread_tot = rnr['6s/Total']
         assert spread_tot[ANOVA.RNR] == approx(0.14993220, abs=1e-8)
@@ -593,13 +612,13 @@ class TestGageRnRModel:
             U_cal=None,
             tolerance=15,
             resolution=None)
-        rnr_model = GageRnRModel(
+        rnr_thick_model = GageRnRModel(
             source=df,
             target='result',
             part='part',
             reproducer='operator',
             gage=gage).fit()
-        rnr = rnr_model.rnr(add_interaction_term=True)
+        rnr = rnr_thick_model.rnr(keep_interaction=True)
         
         var = rnr['MS']
         assert var[ANOVA.RNR] == approx(0.1109, abs=1e-4)
@@ -614,3 +633,8 @@ class TestGageRnRModel:
         assert var_tot[ANOVA.REPRODUCIBILITY] == approx(0.0589, abs=1e-4)
         assert var_tot[ANOVA.PART] == approx(0.8786, abs=1e-4)
         assert var_tot[ANOVA.TOTAL] == approx(1.0000, abs=1e-4)
+
+    def test_unsertainties(self, rnr_adj_model: GageRnRModel) -> None:
+
+        df_u = rnr_adj_model.uncertainties
+        assert not df_u.empty
