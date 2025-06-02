@@ -1673,7 +1673,7 @@ class ParallelCoordinate(Plotter):
         if not self.show_scatter:
             marker = None
         _kwds = self.kw_default | dict(marker=marker) | kwds
-        for i, group in self.source.groupby(self.identity):
+        for i, group in self.source.groupby(self.identity, observed=True):
             self.ax.plot(group[self.x_column], group[self.y_column], **_kwds)
 
 

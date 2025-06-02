@@ -305,7 +305,7 @@ class Chart(ABC):
     def variate_data(
             self,
             skip_variate: List[str] = []
-            ) -> Generator[DataFrame, Self, None]:
+            ) -> Generator[DataFrame, Any, None]:
         """Implement the data generator and add the currently yielded 
         data to self._data so that it can be used internally. Also 
         consider the `_kw_where` attribute to filter the data here for 
@@ -865,9 +865,9 @@ class SingleChart(Chart):
 
         variate_names = [v for v in self.variate_names if v not in skip_variate]
         if variate_names:
-            for combination, data in source.groupby(variate_names):
+            for combo, data in source.groupby(variate_names, observed=True):
                 self._data = data
-                self.update_variate(combination)
+                self.update_variate(combo)
                 self.dodge()
                 yield self._data
         else:
