@@ -281,6 +281,7 @@ from .plotlib.classify import ShapeLabel
 
 from .plotlib.plotter import Bar
 from .plotlib.plotter import Line
+from .plotlib.plotter import Stem
 from .plotlib.plotter import Pareto
 from .plotlib.plotter import Jitter
 from .plotlib.plotter import Plotter

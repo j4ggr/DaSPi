@@ -277,6 +277,10 @@ class _Color_:
     """The covering capacity of confidence intervals."""
     CI_STRIPES: str = '#D7DBDF'
     """Color for confidence interval stripes."""
+    SPECIAL_AREA1: str = '#3249497e'
+    """Color for special area 1."""
+    SPECIAL_AREA2: str = "#4947327b"
+    """Color for special area 2."""
 
     @property
     def PALETTE(self) -> List[str]:

@@ -25,7 +25,7 @@ There are great packages for data analysis and visualization in Python, such as 
 ## Features
 
 - **Ease of Use:** DaSPi is designed to be easy to use, even for beginners. It provides a simple and intuitive interface that makes it easy to get started with data analysis.
-- **Visualization:** DaSPi provides a wide range of visualization options, including multivariate charts, joint charts, and useful templates. This makes it easy to explore and understand your data in a visual way.
+- **Visualization:** DaSPi provides a wide range of visualization options, including multivariate charts, joint charts, and useful precast charts. This makes it easy to explore and understand your data in a visual way.
 - **Statistics:** DaSPi provides a wide range of statistical functions and tests, including hypothesis testing, confidence intervals, and regression analysis. This makes it easy to explore and understand your data in a statistical way.
 - **Open Source:** DaSPi is open source, which means that it is free to use and modify. This makes it a great option for users who want to customize the package to their specific needs.
 

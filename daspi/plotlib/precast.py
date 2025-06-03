@@ -10,17 +10,21 @@ from typing import Tuple
 from typing import Literal
 from typing import Generator
 from matplotlib.axes import Axes
+from matplotlib.ticker import PercentFormatter
 from pandas.core.frame import DataFrame
 from scipy.stats._distn_infrastructure import rv_continuous
 
 from .chart import JointChart
+from .plotter import Bar
 from .plotter import Line
+from .plotter import Stem
 from .plotter import Pareto
 from .plotter import Plotter
 from .plotter import Scatter
 from .plotter import MeanTest
+from .plotter import Beeswarm
 from .plotter import StripeLine
-from .plotter import SpreadWidth
+from .plotter import StripeSpan
 from .plotter import SkipSubplot
 from .plotter import HideSubplot
 from .plotter import Probability
@@ -1061,57 +1065,141 @@ class GageRnRCharts(JointChart):
     ----------
     rnr_model : GageRnRModel
         The GageRnR model whose parameters will be visualized.
+    spread_accepted_limit: float, optional
+        The maximum value for the the spread proportion where it is 
+        accepted. Default is 0.1 (10 %).
+    spread_rejected_limit: float, optional
+        The minimum limit where the spread proportion is rejected.
+        Default is 0.3 (30 %).
+    resolution_accepted_limit: float, optional
+        The maximum value for the the resolution proportion where it is 
+        accepted. Default is 0.1 (10 %).
+    u_accepted_limit: float, optional
+        The maximum value for the the u proportion where it is accepted.
+        Default is 0.15 (15 %).
     stretch_figsize : bool, optional
         If True, stretch the figure height and width based on the number of
         rows and columns, by default False.
     """
     
-    __slots__ = ('rnr_model')
+    __slots__ = (
+        'model', 
+        'spread_accepted_limit', 
+        'spread_rejected_limit',
+        'u_accepted_limit')
 
-    rnr_model: GageRnRModel
+    model: GageRnRModel
     """The GageRnR model whose parameters are visualized."""
+
+    spread_accepted_limit: float
+    """The maximum value for the the spread proportion where it is 
+    accepted (10 %)."""
+
+    spread_rejected_limit: float
+    """The minimum limit where the spread proportion is rejected (30 %)."""
+
+    u_accepted_limit: float
+    """The minimum limit where the measuremen unsertainty proportion
+     is rejected (15 %)."""
 
     def __init__(
             self,
             rnr_model: GageRnRModel,
-            stretch_figsize: bool = False
+            *,
+            spread_accepted_limit: float = 0.1,
+            spread_rejected_limit: float = 0.3,
+            u_accepted_limit: float = 0.15,
+            stretch_figsize: bool = False,
             ) -> None:
-        self.rnr_model = rnr_model.fit()
+        self.model = rnr_model
+        self.spread_accepted_limit = spread_accepted_limit
+        self.spread_rejected_limit = spread_rejected_limit
+        self.u_accepted_limit = u_accepted_limit
+
+        target = self.model.target
+        feature_spread = STR['lm_table_rnr_source']
+        hue_spread = STR['rnrcharts_spread_proportions']
+        columns_map = {
+            v: k for k, v in 
+            (self.model.target_map | self.model.feature_map).items()}
+        
+        df_model = (self.model.data
+            .copy()
+            .rename(columns=columns_map)
+            [list(columns_map.values())])
+        
+        df_mean = (df_model
+                .groupby([self.reproducer, self.part], observed=True)
+                [target]
+                .mean()
+                .to_frame()
+                .reset_index(drop=False))
+        
+        df_span = (df_model
+                .groupby([self.reproducer, self.part], observed=True)
+                [target]
+                .agg(['min', 'max'])
+                .diff(axis=1)
+                .drop(columns=['min'])
+                .rename(columns={'max': target})
+                .reset_index(drop=False))
+        
+        df_rnr = (self.model
+            .rnr()
+            .loc[[ANOVA.RNR, ANOVA.REPEATABILITY, ANOVA.REPRODUCIBILITY], :]
+            .reset_index(drop=False)
+            .rename(columns={'index':feature_spread}))
+        datas = []
+        for col in ANOVA.RNR_COLNAMES[-2:]:
+            data = df_rnr[[feature_spread, col]].rename(columns={col: target})
+            data[hue_spread] = col
+            datas.append(data)
+        df_rnr = pd.concat(datas, axis=0, ignore_index=True)
+
+        df_u = (self.model
+            .uncertainties()
+            .loc[['RE', 'MS', 'MP'], ['Q']]
+            .reset_index(drop=False)
+            .rename(columns={'index':feature_spread, 'Q': target}))
+            
         super().__init__(
-            source=self.rnr_model.data,
-            target=self._target,
-            feature=(self._part, self._reproducer)*3,
-            hue=(self._reproducer, '')*3,
-            nrows=3,
+            source=(df_model, df_mean, df_span, df_span, df_rnr, df_u),
+            target=target,
+            feature=(
+                self.part, self.reproducer, self.part, self.reproducer, 
+                feature_spread, feature_spread),
+            hue=(self.reproducer, '', self.reproducer, '', hue_spread, ''),
             ncols=2,
-            height_ratios=[3, 3, 2],
-            sharey='row',
+            nrows=3,
             stretch_figsize=stretch_figsize,
-            dodge=(True, False) * 3,
-            categorical_feature=(False, True) * 3,)
-    
-    @property
-    def _target(self) -> str:
-        """Encoded column name of the target variable 
-        (read-only)."""
-        return self.rnr_model.target_map[self.rnr_model.target]
+            dodge=(True, False, True, False, True, False),
+            target_on_y=(True, True, True, True, False, False),
+            categorical_feature=True)
+        
+        self.charts[-2].hueing._categories = (
+            COLOR.SPECIAL_AREA1, COLOR.SPECIAL_AREA2)
+        self.axes[0].sharey(self.axes[1])
+        self.axes[2].sharey(self.axes[3])
+
 
     @property
-    def _part(self) -> str:
-        """Encoded column name of the part (unit under test) variable 
+    def part(self) -> str:
+        """Column name of the part (unit under test) variable 
         (read-only)."""
-        return self.rnr_model.feature_map[self.rnr_model.part]
+        return self.model.part
     
     @property
-    def _reproducer(self) -> str:
-        """Encoded column name of the reproducer. That is, the variable 
+    def reproducer(self) -> str:
+        """Column name of the reproducer. That is, the variable 
         that identifies the operator for type 2 or the block for type 3 
         Gage R&R (read-only)."""
-        return self.rnr_model.feature_map[self.rnr_model.reproducer]
+        return self.model.reproducer
 
     def plot(self) -> Self:
         """Plot the GageRnR charts."""
-        # Top Left
+        target = self.model.target
+
+        # top Left
         super().plot(
             Scatter)
         super().plot(
@@ -1121,39 +1209,117 @@ class GageRnRCharts(JointChart):
             show_line=True,
             kw_call=dict(marker='_'))
 
-        #Top right
-        data = (self.rnr_model.data
-            .groupby([self._reproducer, self._part], observed=True)
-            [self._target]
-            .mean()
-            .to_frame()
-            .reset_index(drop=False))
-        ParallelCoordinate(
-            source=data,
-            target=self._target,
-            feature=self._reproducer,
-            identity=self._part,
-            ax=self.axes[1])(
-                color=DEFAULT.PLOTTING_COLOR,
-                alpha=COLOR.MARKER_ALPHA)
-        SpreadWidth(
-            source=data,
-            target=self._target,
-            feature=self._reproducer,
+        # top right
+        super().plot(
+            ParallelCoordinate,
+            identity=self.part,
+            kw_call=dict(color=DEFAULT.PLOTTING_COLOR, alpha=COLOR.MARKER_ALPHA))
+
+        # mid left
+        super().plot(
+            Stem,
+            bottom=0,
+            base_color=COLOR.TRANSPARENT)
+        
+        # mid right
+        super().plot(
+            Beeswarm)
+        super().plot(
+            CenterLocation,
+            show_line=True,
             show_center=False,
-            ax=self.axes[1])(
-                color=DEFAULT.PLOTTING_COLOR)
-        CenterLocation(
-            source=data,
-            target=self._target,
-            feature=self._reproducer,
-            show_center=False,
-            show_line=True
-            ax=self.axes[1])(
-                color=DEFAULT.PLOTTING_COLOR)
-        super().plot(SkipSubplot)
+            on_last_axes=True,
+            kw_call=dict(marker='_'))
+        super().plot(
+            MeanTest,
+            show_center=True,
+            on_last_axes=True,
+            kw_call=dict(kw_points=dict(marker='_', s=10)))
+        
+        # bottom left
+        super().plot(
+            Bar)
+        
+        # bottom right
+        super().plot(
+            Bar)
 
         return self
+    
+    def stripes(self) -> Self: # type: ignore
+        """Adds lines for the limits for the spread and uncertainties 
+        proportions."""
+        rnr_accepted = StripeSpan(
+            label=STR['accepted'],
+            lower_position=0,
+            upper_position=self.spread_accepted_limit,
+            orientation='vertical',
+            color=COLOR.GOOD,)
+        rnr_borderline = StripeSpan(
+            label=STR['borderline'],
+            lower_position=self.spread_accepted_limit,
+            upper_position=self.spread_rejected_limit,
+            orientation='vertical',
+            color=COLOR.ANOMALY,)
+        rnr_rejected = StripeSpan(
+            label=STR['rejected'],
+            lower_position=self.spread_rejected_limit,
+            upper_position=1,
+            orientation='vertical',
+            color=COLOR.BAD,)
+        self.charts[-2].stripes([rnr_accepted, rnr_borderline, rnr_rejected])
+        
+        u_accepted = StripeSpan(
+            label=STR['accepted'],
+            lower_position=0,
+            upper_position=self.u_accepted_limit,
+            orientation='vertical',
+            color=COLOR.GOOD,)
+        u_rejected = StripeSpan(
+            label=STR['rejected'],
+            lower_position=self.u_accepted_limit,
+            upper_position=1,
+            orientation='vertical',
+            color=COLOR.BAD,)
+        self.charts[-1].stripes([u_accepted, u_rejected])
+        return self
+
+    def label(self, info: bool | str = False, **kwds) -> Self: # type: ignore
+        """Adds titles and labels to the charts generated by the 
+        `plot()` method.
+        
+        Parameters
+        ----------
+        info : bool | str, optional
+            If `True`, the method will add an informative subtitle to 
+            the chart. If a string is provided, it will be used as the 
+            subtitle, by default False.
+        **kwds
+            Additional keyword arguments to be passed to the `label()`
+            method of the `JointChart` instance.
+        
+        Returns
+        -------
+        Self
+            The `ParameterRelevanceCharts` instance, for method chaining.
+        """      
+        labels: Dict[str, Any] = dict(
+                fig_title=STR['rnrcharts_fig_title'],
+                sub_title=STR['rnrcharts_sub_title'],
+                target_label=(
+                    self.model.target, '', STR['data_range'], '', 
+                    STR['rnrcharts_spread_proportions'], STR['rnrcharts_suitability']),
+                feature_label=(
+                    True, True, True, True, True, False),
+                info = info
+            ) | kwds
+        super().label(**labels)
+
+        for ax in (self.axes[-2], self.axes[-1]):
+            ax.xaxis.set_major_formatter(PercentFormatter(xmax=1))
+            ax.set(xlim=(0, 1))
+        return self
+
 
 __all__ = [
     'ResidualsCharts',

@@ -13,6 +13,31 @@ class _String_:
         'de': 'Anderson-Darling',
         'fr': 'Anderson-Darling'}
 
+    ok: Dict[str, str] = { 
+        'en': 'OK',
+        'de': 'IO',
+        'fr': 'OK'}
+
+    nok: Dict[str, str] = { 
+        'en': 'NOK',
+        'de': 'NIO',
+        'fr': 'NOK'}
+    
+    accepted: Dict[str, str] = {
+        'en': 'accepted',
+        'de': 'akzeptiert',
+        'fr': 'accepté'}
+    
+    rejected: Dict[str, str] = {
+        'en': 'rejected',
+        'de': 'abgelehnt',
+        'fr': 'rejeté'}
+    
+    borderline: Dict[str, str] = {
+        'en': 'borderline',
+        'de': 'grenzwertig',
+        'fr': 'limite'}
+
     lsl: Dict[str, str] = { 
         'en': 'LSL',
         'de': 'USG',
@@ -73,6 +98,11 @@ class _String_:
         'de': 'Summenquadrate',
         'fr': 'Somme des carrés'}
     
+    data_range: Dict[str, str] = {
+        'en': 'Range',
+        'de': 'Spannweite',
+        'fr': 'Plage des données'}
+    
     paramcharts_fig_title: Dict[str, str] = {
         'en': 'Parameter Analysis',
         'de': 'Parameter Analyse',
@@ -127,11 +157,6 @@ class _String_:
         'en': 'effect_α\;(α={alpha})',
         'de': 'Effekt_α\;(α={alpha})',
         'fr': 'effet_α\;(α={alpha})'}
-    
-    paircharts_fig_title: Dict[str, str] = {
-        'en': 'Pairwise analysis',
-        'de': 'Paarweise Analyse',
-        'fr': 'Analyse pair à pair'}
 
     cp: Dict[str, str] = {
         'en': 'Process Capability index Cp',
@@ -143,10 +168,35 @@ class _String_:
         'de': 'Angepasster Prozessfähigkeitsindex Cpk',
         'fr': 'Indice de capacité de processus ajusté Cpk'}
     
+    paircharts_fig_title: Dict[str, str] = {
+        'en': 'Pairwise analysis',
+        'de': 'Paarweise Analyse',
+        'fr': 'Analyse pair à pair'}
+    
     paircharts_sub_title: Dict[str, str] = {
         'en': 'Bland-Altman 95 % CI and individual value comparison',
         'de': 'Bland-Altman 95 %-KI und Einzelwertvergleich',
         'fr': 'Bland-Altman 95 % IC et comparaison des valeurs individuelles'}
+    
+    rnrcharts_fig_title: Dict[str, str] = {
+        'en': 'Measurement system analysis',
+        'de': 'Messsystemanalyse',
+        'fr': 'Analyse du système de mesure'}
+
+    rnrcharts_sub_title: Dict[str, str] = {
+        'en': 'Repeatability and reproducibility (Gage R&R)',
+        'de': 'Wiederholbarkeit und Reproduzierbarkeit (Gage R&R)',
+        'fr': 'Répétabilité et reproductibilité (Gage R&R)'}
+    
+    rnrcharts_spread_proportions: Dict[str, str] = {
+        'en': 'Spread proportions',
+        'de': 'Streuungsanteile',
+        'fr': 'Proportions de dispersion'}
+    
+    rnrcharts_suitability: Dict[str, str] = {
+        'en': 'Suitability index Q',
+        'de': 'Eignungskennwert Q',
+        'fr': 'Indice d\'adéquation Q'}
     
     lm_table_caption_summary: Dict[str, str] = {
         'en': 'Model summary',
@@ -177,6 +227,11 @@ class _String_:
         'en': 'Measurement uncertainty',
         'de': 'Messunsicherheit',
         'fr': 'Incertitude de mesure'}
+    
+    lm_table_rnr_source: Dict[str, str] = {
+        'en': 'Source',
+        'de': 'Quelle',
+        'fr': 'Source'}
 
     _language_: Literal['en', 'de', 'fr'] = 'en'
     _username_: str = environ['USERNAME']
