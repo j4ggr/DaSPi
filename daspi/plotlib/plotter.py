@@ -838,7 +838,202 @@ class Line(Plotter):
         alpha = COLOR.MARKER_ALPHA if marker is not None else None
         _kwds = self.kw_default | dict(marker=marker, alpha=alpha) | kwds
         self.ax.plot(self.x, self.y, **_kwds)
-            
+
+
+class Stem(Plotter):
+    """A stem plotter that extends the Plotter base class.
+    
+    This class is designed to create a stem plot using the data provided 
+    in the source DataFrame.
+
+    Parameters
+    ----------
+    source : pandas DataFrame
+        A long format DataFrame containing the data source for the plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str
+        Column name of the feature variable for the plot.
+    bottom : float, optional
+        The Y/X position of the baseline (depending on the orientation 
+        or `target_on_y`). Default is 0.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on the 
+        y-axis, by default True.
+    color : str | None, optional
+        Color to be used to draw the markers. If None, the first color 
+        is taken from the color cycle, by default None.
+    line_color: str | None, optional
+        Color to be used to draw the vertical lines. If None, the same
+        color is taken as the color of the markers. Default is None
+    base_color : str | None, optional
+        Color to be used to draw the base line. If None, the same color
+        is taken as the color of the markers. Default is None
+    marker : str | None, optional
+        The marker style for the stem plot. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn 
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, no changes are 
+        made, and the axes are displayed according to the stylesheet.
+        Defaults to None.
+    **kwds:
+        Additional keyword arguments that may be used for compatibility 
+        with other chart objects.
+
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from your_module import StemPlotter  # Replace with the actual module name
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame({'x': np.linspace(0, 10, 100)})
+    df['y'] = np.sin(df['x'])
+    stem_plotter = StemPlotter(source=df, target='y', feature='x', ax=ax)
+    stem_plotter(color='blue', marker='o', basefmt=' ')
+
+    plt.show()
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame({'x': list(x*np.pi/50 for x in range(100))})
+    df['y'] = np.cos(df['x'])
+
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x'
+        ).plot(
+            dsp.Stem,
+            bottom=1,
+            color='deepskyblue',
+            line_color='steelblue',
+            base_color='skyblue',
+            kw_call=dict(alpha=0.2, line_style='--', base_line_style='-.'))
+    ```
+
+    Notes
+    -----
+    To change the markers, vertical lines and base line when drawing
+    use the keword arguments `markerfmt`, `linefmt` and `basefmt`. For
+    further information see:
+    https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.stem.html
+    """
+    __slots__ = ('bottom', 'line_color', 'base_color')
+
+    bottom: float
+    """The Y/X position of the baseline (depending on the orientation or 
+    `target_on_y`)."""
+
+    line_color: str
+    """Color to be used to draw the vertical lines. If None, the same
+    color is taken as the color of the markers."""
+
+    base_color: str
+    """Color to be used to draw the base line. If None, the same color
+    is taken as the color of the markers."""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str = '',
+            bottom: float = 0,
+            target_on_y: bool = True,
+            color: str | None = None,
+            line_color: str | None = None,
+            base_color: str | None = None,
+            marker: str | None = None,
+            ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
+            **kwds) -> None:
+        super().__init__(
+            source=source,
+            target=target,
+            feature=feature,
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
+        self.bottom = bottom
+        self.line_color = line_color if line_color is not None else self.color
+        self.base_color = base_color if base_color is not None else self.color
+    
+    @property
+    def kw_default(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kw_default = dict(
+            markerfmt=f'{self.marker}',
+            linefmt=f'{self.line_color}',
+            basefmt=f'{self.base_color}',
+            orientation='vertical' if self.target_on_y else 'horizontal',
+            bottom=self.bottom)
+        return kw_default
+
+    def __call__(
+            self,
+            alpha=COLOR.MARKER_ALPHA,
+            line_style: str | None = None,
+            base_line_style: str | None = None,
+            **kwds) -> None:
+        """Perform the stem plot operation.
+
+        Parameters
+        ----------
+        alpha : float, optional
+            Transparency of the marker. Default is 
+            `COLOR.MARKER_ALPHA`.
+        line_style : str, optional
+            Style of the line connecting the marker to the baseline.
+            This option is ignored if it is None or `linefmt` is in 
+            `kwds`. Default is `None`.
+        base_line_style : str, optional
+            Style of the baseline. This option is ignored if it is 
+            None or `basefmt` is in `kwds`. Default is `None`.
+        **kwds : dict, optional
+            Additional keyword arguments to be passed to the Axes 
+            `stem` method.
+        """
+        _kwds = self.kw_default | kwds
+
+        # self.x and self.y do not work here.
+        # The stem function handles this internally with the `orientation` option.
+        x = self.source[self.feature]
+        y = self.source[self.target]
+        markerline, stemlines, baseline = self.ax.stem(x, y, **_kwds)
+
+        markerline.set(alpha=alpha)
+        if 'markerfmt' not in kwds:
+            markerline.set(markerfacecolor=self.color)
+        
+        if line_style is not None and 'linefmt' not in kwds:
+            stemlines.set_linestyle(line_style)
+        
+        if base_line_style is not None and 'basefmt' not in kwds:
+            baseline.set_linestyle(base_line_style)
+
 
 class LinearRegressionLine(Plotter):
     """A linear regression plotter that extends the Plotter base class.
@@ -6184,6 +6379,7 @@ __all__ = [
     'Plotter',
     'Scatter',
     'Line',
+    'Stem',
     'LinearRegressionLine',
     'LoessLine',
     'Probability',

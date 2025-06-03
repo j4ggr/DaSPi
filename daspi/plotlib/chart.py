@@ -1164,8 +1164,8 @@ class JointChart(Chart):
         Additional keyword arguments for Chart initialization.
     """
     __slots__ = (
-        'charts', '_last_chart', '_chart_iterator', 'targets', 'features', 
-        'hues', 'shapes', 'sizes', 'dodges', 'categorical_features',
+        'charts', '_last_chart', '_chart_iterator', 'sources', 'targets',
+        'features', 'hues', 'shapes', 'sizes', 'dodges', 'categorical_features',
         'target_on_ys')
 
     charts: List[SingleChart]
@@ -1175,6 +1175,8 @@ class JointChart(Chart):
     """Last SingleChart instance worked on."""
     _chart_iterator: Generator[SingleChart, Self, None]
     """Iterator over SingleChart instances."""
+    sources: Tuple[DataFrame, ...]
+    """The source data associated with each subplot"""
     targets: Tuple[str, ...]
     """Column names for the target variable to be visualized for each
     axes."""
@@ -1192,7 +1194,7 @@ class JointChart(Chart):
     each axes."""
     dodges: Tuple[bool, ...]
     """Flag indicating whether dodging is enabled for each axes."""
-    categorical_features: bool | Tuple[bool, ...]
+    categorical_features: Tuple[bool, ...]
     """Flags indicating if feature is categorical for each axes."""
     target_on_ys: Tuple[bool, ...]
     """Flags indicating whether target is on y-axis for each axes."""
@@ -1202,7 +1204,7 @@ class JointChart(Chart):
 
     def __init__(
             self,
-            source: DataFrame,
+            source: DataFrame | Tuple[DataFrame, ...],
             target: str | Tuple[str, ...],
             feature: str | Tuple[str, ...],
             *,
@@ -1229,7 +1231,7 @@ class JointChart(Chart):
         self._last_chart = None
 
         super().__init__(
-            source=source,
+            source=source if isinstance(source, DataFrame) else DataFrame(),
             target='',
             feature='', 
             sharex=sharex,
@@ -1244,6 +1246,7 @@ class JointChart(Chart):
             n_size_bins=n_size_bins,
             mosaic=mosaic,
             **kwds)
+        self.sources = self.normalize_to_tuple(source)
         self.targets = self.normalize_to_tuple(target)
         self.features = self.normalize_to_tuple(feature)
         self.hues = self.normalize_to_tuple(hue)
@@ -1264,7 +1267,7 @@ class JointChart(Chart):
         for i, _ in enumerate(self.axes):
             self.charts.append(
                 SingleChart(
-                    source=self.source,
+                    source=self.sources[i],
                     target=self.targets[i],
                     feature=self.features[i],
                     hue=self.hues[i],
@@ -1381,7 +1384,7 @@ class JointChart(Chart):
     
     def normalize_to_tuple(
             self,
-            attribute: str | float | int | bool | None | List[Any] | Tuple[Any, ...]
+            attribute: DataFrame | str | float | int | bool | None | List[Any] | Tuple[Any, ...]
             ) -> Tuple:
         """Normalize the input attribute to ensure it is a tuple with a length
         equal to the number of subplots (n_axes). If a single value is provided, 
@@ -1413,7 +1416,8 @@ class JointChart(Chart):
         - If attribute is (1, 2, 3), it will return (1, 2, 3).
         - If attribute is (1, 2), it will raise a ValueError.
         """
-        if isinstance(attribute, (str, float, int, bool, list, type(None))):
+        single_instances = (str, float, int, bool, list, type(None), DataFrame)
+        if isinstance(attribute, single_instances):
             normalized = (attribute,) * self.n_axes
         elif isinstance(attribute, tuple):
             normalized = attribute
