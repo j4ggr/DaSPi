@@ -85,7 +85,7 @@ def lm() -> LinearModel:
     alpha = 0.05
     return LinearModel(
         source, target, features, disturbances, alpha,
-        order=1, encode_features=False)
+        order=1, encode_features=False, fit_at_init=False)
 
 @pytest.fixture
 def lm2() -> LinearModel:
@@ -102,7 +102,8 @@ def lm2() -> LinearModel:
     alpha = 0.05
     return LinearModel(
         source, target, features, disturbances, alpha,
-        order=4, encode_features=False, skip_intercept_as_least=True)
+        order=4, encode_features=False, skip_intercept_as_least=True,
+        fit_at_init=False)
 
 @pytest.fixture
 def lm3() -> LinearModel:
@@ -119,7 +120,7 @@ def lm3() -> LinearModel:
     alpha = 0.05
     return LinearModel(
         source, target, features, disturbances, alpha,
-        order=1, encode_features=False)
+        order=1, encode_features=False, fit_at_init=False)
 
 @pytest.fixture
 def lm4() -> LinearModel:
@@ -136,7 +137,7 @@ def lm4() -> LinearModel:
     alpha = 0.05
     return LinearModel(
         source, target, features, disturbances, alpha,
-        order=3, encode_features=False)
+        order=3, encode_features=False, fit_at_init=False)
 
 @pytest.fixture
 def anova3_c_valid() -> DataFrame:
@@ -190,9 +191,9 @@ class TestLinearModel:
         assert '-1' in lm2.formula
 
     def test_model_property(self, lm: LinearModel) -> None:
-        with pytest.raises(AssertionError):
-            lm.model
+        assert not lm.fitted 
         lm.fit()
+        assert lm.fitted
         assert isinstance(lm.model, RegressionResultsWrapper)
 
     def test_least_parameter(self, lm: LinearModel, lm4: LinearModel) -> None:
@@ -238,7 +239,7 @@ class TestLinearModel:
         lm = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug'])
         
         valid = anova3_s_valid
-        anova = lm.fit().anova('III')
+        anova = lm.anova('III')
         anova.columns.name = None
         anova = anova.loc[valid.index.to_list(), valid.columns.to_list()]
         assert_frame_equal(
@@ -248,7 +249,7 @@ class TestLinearModel:
         valid = anova3_c_valid
         lm = LinearModel(
             df, 'Cholesterol', ['Sex', 'Risk', 'Drug'], order=3)
-        anova = lm.fit().anova('III')
+        anova = lm.anova('III')
         anova.columns.name = None
         anova = anova.loc[valid.index.to_list(), valid.columns.to_list()]
         assert_frame_equal(
@@ -257,8 +258,8 @@ class TestLinearModel:
 
     def test_summary(self) -> None:
         df = load_dataset('anova3')
-        lm = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug']).fit()
-        lm2 = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug'], order=3).fit()
+        lm = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug'])
+        lm2 = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug'], order=3)
         expected_param_table = (
             '===============================================================================\n'
             '                  coef    std err          t      P>|t|      [0.025      0.975]\n'
@@ -330,13 +331,12 @@ class TestLinearModel:
             'Center': [1, 0, 1, 0, 0, 0]})
         lm = LinearModel(
                 data, 'Ergebnis', ['A', 'B'], ['Center'], order=2, 
-                encode_features=False
-            ).fit()
+                encode_features=False)
         assert lm.r2_pred(), approx(0.350426519634100657)
     
     def test_str(self) -> None:
         df = load_dataset('anova3')
-        lm = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug']).fit()
+        lm = LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug'])
         expected_str = 'Cholesterol ~ 5.7072 + 0.3719*Sex[T.M] - 0.8692*Risk[T.Low] - 0.1080*Drug[T.B] + 0.1750*Drug[T.C]'
         assert str(lm) == expected_str
 
@@ -533,7 +533,6 @@ class TestGageRnRModel:
         """Verification done with Minitab v22.2
 
         Stat > Quality Tools > Gage Study > Gage R&R Study (Crossed)"""
-        rnr_thick_model.fit()
         anova = rnr_thick_model.anova()
 
         assert anova['DF']['part'] == 9
@@ -560,7 +559,6 @@ class TestGageRnRModel:
         
         The verification values for 6s/Tolerance coming from the 
         MSA Assistant."""
-        rnr_thick_model.fit()
         rnr = rnr_thick_model.rnr()
 
         var = rnr['MS']
@@ -617,7 +615,7 @@ class TestGageRnRModel:
             target='result',
             part='part',
             reproducer='operator',
-            gage=gage).fit()
+            gage=gage)
         rnr = rnr_thick_model.rnr(keep_interaction=True)
         
         var = rnr['MS']
@@ -635,6 +633,5 @@ class TestGageRnRModel:
         assert var_tot[ANOVA.TOTAL] == approx(1.0000, abs=1e-4)
 
     def test_unsertainties(self, rnr_adj_model: GageRnRModel) -> None:
-        rnr_adj_model.fit()
         df_u = rnr_adj_model.uncertainties()
         assert not df_u.empty

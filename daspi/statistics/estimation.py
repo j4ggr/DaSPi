@@ -2052,6 +2052,11 @@ class Loess:
     feature : str, optional
         Column name of the feature variable for the plot,
         by default ''
+    fit_at_init : bool, optional
+        Whether to fit the model at initialization, by default True
+    **kwds
+        Keyword arguments for the `fit` method. Is only taken into 
+        account if `fit_at_init` is True.
     
     Examples
     --------
@@ -2065,7 +2070,7 @@ class Loess:
     data = pd.DataFrame(dict(
         x = x,
         y = np.sin(x) * 3*np.exp(-x) + np.random.normal(0, 0.2, 100)))
-    model = dsp.Loess(data, 'y', 'x').fit()
+    model = dsp.Loess(data, 'y', 'x')
     sequence, prediction, lower, upper = model.fitted_line(0.95)
 
     fig, ax = plt.subplots()
@@ -2086,8 +2091,8 @@ class Loess:
     [3] Btyner (2006), Local Regression [Wikipedia](https://en.wikipedia.org/w/index.php?title=Local_regression&oldid=1261263154)
     """
     __slots__ = (
-        'source', 'target', 'feature', 'smoothed', 'std_errors', 'kernel',
-        'order')
+        'source', 'target', 'feature', 'smoothed', 'std_errors', 'fraction',
+        'kernel', 'order')
     
     source: DataFrame
     """The data source for the plot"""
@@ -2099,6 +2104,8 @@ class Loess:
     """Smoothed target data as a pandas Series."""
     std_errors: Series
     """Standard errors of the smoothed target data as a pandas Series."""
+    fraction: float
+    """The fraction of data points used in each local regression."""
     kernel: Kernel
     """The kernel for weights function used in the LOESS smoothing."""
     order: Literal[0, 1, 2, 3]
@@ -2120,6 +2127,9 @@ class Loess:
             source: DataFrame,
             target: str,
             feature: str,
+            *,
+            fit_at_init: bool = True,
+            **kwds
             ) -> None:
         source = (source
             .copy()
@@ -2132,6 +2142,8 @@ class Loess:
         self.source = source
         self.target = target
         self.feature = feature
+        if fit_at_init:
+            self.fit(**kwds)
     
     @property
     def x(self) -> Series:
@@ -2473,7 +2485,7 @@ class Lowess(Loess):
     data = pd.DataFrame(dict(
         x = x,
         y = np.sin(x) * 3*np.exp(-x) + np.random.normal(0, 0.2, 100)))
-    model = dsp.Lowess(data, 'y', 'x').fit()
+    model = dsp.Lowess(data, 'y', 'x')
     sequence, prediction, lower, upper = model.fitted_line(0.95)
 
     fig, ax = plt.subplots()

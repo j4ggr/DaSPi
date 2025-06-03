@@ -212,7 +212,7 @@ class TestLoess:
             Loess(empty_df, target='y', feature='x')
 
     def test_available_kernels(self) -> None:
-        loess = Loess(pd.DataFrame({'x': [1], 'y': [1]}), 'y', 'x')
+        loess = Loess(pd.DataFrame({'x': [1], 'y': [1]}), 'y', 'x', fit_at_init=False)
         kernels = loess.available_kernels
         assert 'tricube' in kernels
         assert 'gaussian' in kernels
@@ -220,8 +220,6 @@ class TestLoess:
 
     def test_fit_predict(self, sample_data: DataFrame) -> None:
         loess = Loess(sample_data, target='y', feature='x')
-        fitted = loess.fit()
-        assert fitted is loess
         assert hasattr(loess, 'smoothed')
         assert len(loess.smoothed) == len(sample_data)
         
@@ -232,7 +230,6 @@ class TestLoess:
 
     def test_fitted_line(self, sample_data: DataFrame) -> None:
         loess = Loess(sample_data, target='y', feature='x')
-        loess.fit()
         
         # Without confidence intervals
         seq, pred = loess.fitted_line(confidence_level=None, n_points=50)
@@ -248,12 +245,12 @@ class TestLoess:
         assert all(lower <= upper)
 
     def test_invalid_kernel(self) -> None:
-        loess = Loess(pd.DataFrame({'x': [1], 'y': [1]}), 'y', 'x')
+        loess = Loess(pd.DataFrame({'x': [1], 'y': [1]}), 'y', 'x', fit_at_init=False)
         with pytest.raises(AssertionError):
             loess.fit(fraction=0.3, kernel='invalid_kernel') # type: ignore
 
     def test_predict_before_fit(self, sample_data: DataFrame) -> None:
-        loess = Loess(sample_data, target='y', feature='x')
+        loess = Loess(sample_data, target='y', feature='x', fit_at_init=False)
         with pytest.raises(AssertionError):
             loess.predict(5.0)
 
@@ -437,7 +434,7 @@ class TestGageEstimator:
     def test_capable_values(self, estimator_gage: GageEstimator) -> None:
         assert estimator_gage.cg == pytest.approx(1.45266988, abs=1e-8)
         assert estimator_gage.cgk == pytest.approx(1.28803396, abs=1e-8)
-        assert estimator_gage.share_re == pytest.approx(1/30)
+        assert estimator_gage.resolution_ratio == pytest.approx(1/30)
         assert estimator_gage.T_min_cg == pytest.approx(0.02746667, abs=1e-8)
         assert estimator_gage.T_min_cgk == pytest.approx(0.03086667, abs=1e-8)
         assert estimator_gage.T_min_res == pytest.approx(0.02000000, abs=1e-8)
@@ -475,3 +472,6 @@ class TestGageEstimator:
             tolerance=specification,
             resolution=None)
         assert estimator.resolution == 1
+
+    def test_uncertainties(self) -> None:
+        pass

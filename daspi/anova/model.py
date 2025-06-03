@@ -190,6 +190,9 @@ class LinearModel:
         one-hot encoding by changing the data type to category. 
         Otherwise they are interpreted as continuous variables when 
         possible, by default True.
+    fit_at_init : bool, optional
+        If True, the model is fitted at initialization. Otherwise, the
+        model is fitted after calling the `fit` method. Default is True.
     
     Notes
     -----
@@ -289,7 +292,9 @@ class LinearModel:
             order: int = 1,
             skip_intercept_as_least: bool = True,
             generalized_vif: bool = True,
-            encode_features: bool = True) -> None:
+            encode_features: bool = True,
+            fit_at_init: bool = True
+            ) -> None:
         assert order > 0 and isinstance(order, int), (
             'Interaction order must be a positive integer')
         for column in features + disturbances:
@@ -310,8 +315,10 @@ class LinearModel:
         self.excluded = set()
         self._model = None
         self.data = (source
-            .copy()
-            .rename(columns=self.feature_map | self.target_map))
+            .rename(columns=self.feature_map | self.target_map)
+            [list(self.feature_map.values()) + list(self.target_map.values())]
+            .copy())
+        
         if encode_features:
             self.data[f_main_terms] = self.data[f_main_terms].astype('category')
         model_desc = ModelDesc.from_formula(
@@ -323,13 +330,22 @@ class LinearModel:
             t for t in terms if t.count(ANOVA.SEP) < order]
         self._reset_tables_()
         
+        if fit_at_init:
+            self.fit()
+    
+    @property
+    def fitted(self) -> bool:
+        """Whether the model is fitted (read-only)."""
+        return self._model is not None
+        
     @property
     def model(self) -> RegressionResultsWrapper:
-        """Get regression results of fitted model. Raises AssertionError
+        """Get regression results of fitted model. Calls `fit` method
         if no model is fitted yet (read-only)."""
-        assert self._model is not None, (
-            'Model not fitted yet, call `fit` method first.')
-        return self._model
+        if not self.fitted:
+            warnings.warn('Model not fitted yet, calling `fit` method.')
+            self.fit()
+        return self._model # type: ignore
 
     @property
     def initial_formula(self) -> str:
@@ -737,7 +753,7 @@ class LinearModel:
                 alpha=0.05,
                 order=3,
                 encode_categoricals=False
-            ).fit()
+            )
         dsp.ParameterRelevanceCharts(lm).plot().stripes().label()
         lm
         ```
@@ -746,7 +762,7 @@ class LinearModel:
         terms.
         
         ``` python
-        lm.eliminate('stirrer:brand:catalyst').fit()
+        lm.eliminate('stirrer:brand:catalyst')
         dsp.ParameterRelevanceCharts(lm).plot().stripes().label()
         lm
         ```
@@ -867,7 +883,7 @@ class LinearModel:
                 alpha=0.05,
                 order=3,
                 encode_categoricals=False
-            ).fit()
+            )
         df_gof = pd.concat(list(lm.recursive_elimination()))
         dsp.ParameterRelevanceCharts(lm).plot().stripes().label(info=True)
         dsp.ResidualsCharts(lm).plot().stripes().label(info=True)
@@ -969,7 +985,7 @@ class LinearModel:
         ``` python
         import daspi as dsp
         df = dsp.load_dataset('anova3')
-        lm = dsp.LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug']).fit()
+        lm = dsp.LinearModel(df, 'Cholesterol', ['Sex', 'Risk', 'Drug'])
         print(lm.anova(typ='III').round(3))
         ```
 
@@ -1305,7 +1321,7 @@ class LinearModel:
         df = dsp.load_dataset('partial_factorial')
         target = 'Yield'
         features = [c for c in df.columns if c != target]
-        lm = LinearModel(df, target, features).fit()
+        lm = LinearModel(df, target, features)
         print(lm.residual_data())
         ```
 
@@ -1447,6 +1463,9 @@ class GageRnRModel(LinearModel):
         Default is 2. Typical values are:
         - k=2 corresponds to a confidence interval of 95.45%
         - k=3 corresponds to a confidence interval of 99.73%
+    fit_at_init : bool, optional
+        If True, the model is fitted at initialization. Otherwise, the
+        model is fitted after calling the `fit` method. Default is True.
     
     Examples
     --------
@@ -1468,7 +1487,7 @@ class GageRnRModel(LinearModel):
         part='part',
         reproducer='operator',
         gage=gage)
-    rnr_model.fit()
+    rnr_model
     ```
     
     References
@@ -1522,19 +1541,21 @@ class GageRnRModel(LinearModel):
             part: str,
             reproducer: str,
             gage: GageEstimator,
-            k: int = 2
+            k: int = 2,
+            fit_at_init: bool = True
             ) -> None:
-        super().__init__(
-            source=source,
-            target=target,
-            features=[part, reproducer],
-            order=2)
         self.part = part
         self.reproducer = reproducer
         self.k = k
         self._gage = gage
         self._rnr = pd.DataFrame()
         self._uncertainties = pd.DataFrame()
+        super().__init__(
+            source=source,
+            target=target,
+            features=[part, reproducer],
+            order=2,
+            fit_at_init=fit_at_init)
     
     @property
     def gage(self) -> GageEstimator:
@@ -1632,7 +1653,7 @@ class GageRnRModel(LinearModel):
             part='part',
             reproducer='operator',
             gage=gage)
-        rnr_model.fit()
+        rnr_model
         print(rnr_model.rnr())
         ```
 
@@ -1810,7 +1831,7 @@ class GageRnRModel(LinearModel):
             part='part',
             reproducer='operator',
             gage=gage)
-        rnr_model.fit()
+        rnr_model
         print(rnr_model.uncertainties())
         ```
 
@@ -1892,6 +1913,21 @@ class GageRnRModel(LinearModel):
             self.rnr(),
             self.uncertainties()]
         return dfs
+    
+    def _repr_html_(self) -> str:
+        """Generates an HTML representation of the model's 
+        goodness-of-fit metrics, ANOVA table, and parameter statistics.
+        
+        Returns
+        -------
+        str:
+            An HTML-formatted string containing the model's diagnostic 
+            information.
+        """
+        html = frames_to_html(
+            self._dfs_repr_(),
+            captions=self._repr_captions)
+        return html
     
     def _reset_tables_(self) -> None:
         """Reset the anova table, the p_values and the effects."""

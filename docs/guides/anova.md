@@ -76,7 +76,6 @@ Visually they seem to be different, now we test against the hypothesis that they
 
 ``` py
 model = dsp.LinearModel(df, 'Pain threshold', ['Hair color'])
-model.fit()
 model.anova()
 ```
 
