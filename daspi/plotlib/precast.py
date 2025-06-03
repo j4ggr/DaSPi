@@ -1317,7 +1317,7 @@ class GageRnRCharts(JointChart):
 
         for ax in (self.axes[-2], self.axes[-1]):
             ax.xaxis.set_major_formatter(PercentFormatter(xmax=1))
-            ax.set(xlim=(0, 1))
+            ax.set(xlim=(0, 0.5))
         return self
 
 

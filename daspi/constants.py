@@ -277,9 +277,9 @@ class _Color_:
     """The covering capacity of confidence intervals."""
     CI_STRIPES: str = '#D7DBDF'
     """Color for confidence interval stripes."""
-    SPECIAL_AREA1: str = '#3249497e'
+    SPECIAL_AREA1: str = "#145a5aa0"
     """Color for special area 1."""
-    SPECIAL_AREA2: str = "#4947327b"
+    SPECIAL_AREA2: str = "#5a47149f"
     """Color for special area 2."""
 
     @property
