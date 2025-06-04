@@ -98,6 +98,7 @@ center_plot = CenterLocation(data, 'target_variable', 'feature_variable', kind='
 center_plot()
 ```
 """
+import warnings
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -592,6 +593,55 @@ class Plotter(ABC):
         This method should be overridden by subclasses to provide the 
         specific plotting functionality.
         """
+    
+    def label_feature_ticks(self) -> None:
+        """Label the feature ticks with categorical feature names.
+
+        This method gets the original feature values from the source
+        DataFrame and labels the feature ticks with the feature names.
+        Call this method if feature values are categorical.
+        """
+        ax = self.ax
+        tick_labels = getattr(self, '_original_f_values', None) # TransformPlotters
+        if tick_labels is None:
+            tick_labels = self.source[self.feature].unique()
+        n_labels = len(tick_labels)
+        lower = DEFAULT.FEATURE_BASE - 0.5
+        xy = 'x' if self.target_on_y else 'y'
+        settings = {
+            f'{xy}ticks': list(range(n_labels)),
+            f'{xy}ticklabels': tick_labels,
+            f'{xy}lim': (lower, lower + n_labels)}
+        ax.set(**settings)
+    
+    def target_as_percentage(
+            self,
+            xmax: float = 1.0,
+            decimals: int | None = None,
+            symbol: str | None = '%'
+            ) -> None:
+        """Format the numbers on target axis to percentage.
+
+        Parameters
+        ----------
+        xmax : float, optional
+            Determines how the number is converted into a percentage. 
+            xmax is the data value that corresponds to 100%. Percentages 
+            are computed as x / xmax * 100. So if the data is already 
+            scaled to be percentages, xmax will be 100. Another common 
+            situation is where xmax is 1.0.
+        decimals : int | None, optional
+            The number of decimal places to place after the point. If 
+            None (the default), the number will be computed 
+            automatically.
+        symbol : str | None, optional
+            A string that will be appended to the label. It may be None 
+            or empty to indicate that no symbol should be used. LaTeX 
+            special characters are escaped in symbol whenever latex mode 
+            is enabled, unless is_latex is True.
+        """
+        axis = self.ax.yaxis if self.target_on_y else self.ax.xaxis
+        axis.set_major_formatter(PercentFormatter(xmax=xmax, symbol='%'))
 
 
 class Scatter(Plotter):
@@ -897,15 +947,16 @@ class Stem(Plotter):
     import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt
-    from your_module import StemPlotter  # Replace with the actual module name
+    from daspi import Stem
 
     fig, ax = plt.subplots()
-    df = pd.DataFrame({'x': np.linspace(0, 10, 100)})
-    df['y'] = np.sin(df['x'])
-    stem_plotter = StemPlotter(source=df, target='y', feature='x', ax=ax)
-    stem_plotter(color='blue', marker='o', basefmt=' ')
-
-    plt.show()
+    df = pd.DataFrame({'x': list(x*np.pi/25 for x in range(50))})
+    df['y'] = np.cos(df['x'])
+    stem = Stem(
+        source=df, target='y', feature='x', target_on_y=False, bottom=1,
+        color='deepskyblue', line_color='steelblue', base_color='skyblue',
+        ax=ax)
+    stem(alpha=0.2, line_style='--', base_line_style='-.')
     ```
 
     Apply using the plot method of a DaSPi Chart object:
@@ -915,13 +966,14 @@ class Stem(Plotter):
     import daspi as dsp
     import pandas as pd
 
-    df = pd.DataFrame({'x': list(x*np.pi/50 for x in range(100))})
+    df = pd.DataFrame({'x': list(x*np.pi/25 for x in range(50))})
     df['y'] = np.cos(df['x'])
 
     chart = dsp.SingleChart(
             source=df,
             target='y',
-            feature='x'
+            feature='x',
+            target_on_y=False
         ).plot(
             dsp.Stem,
             bottom=1,
@@ -1364,7 +1416,7 @@ class LoessLine(Plotter):
         y = np.sin(x) * 3*np.exp(-x) + np.random.normal(0, 0.2, 100)))
     loess_line = LoessLine(
         source=df, target='y', feature='x',
-        show_scatter=True, show_fit_ci=True)
+        show_scatter=True, show_fit_ci=True, ax=ax)
     loess_line(
         kw_scatter=dict(color='black', s=10, alpha=0.5),
         kw_fit_ci=dict(color='skyblue'),
@@ -1569,7 +1621,8 @@ class Probability(LinearRegressionLine):
     df = pd.DataFrame(dict(
         y = np.random.weibull(a=1, size=100)))
     prob_line = Probability(
-        source=df, target='y', kind='pp', show_scatter=True, show_fit_ci=True)
+        source=df, target='y', kind='pp', show_scatter=True, show_fit_ci=True,
+        ax=ax)
     prob_line(
         kw_scatter=dict(color='black', s=10, alpha=0.5),
         kw_fit_ci=dict(color='skyblue'),
@@ -1789,10 +1842,11 @@ class ParallelCoordinate(Plotter):
 
     fig, ax = plt.subplots()
     df = load_dataset('shoe-sole')
-    prob_line = ParallelCoordinate(
+    parallel = ParallelCoordinate(
         source=df, target='wear', feature='status', identity='tester',
-        show_scatter=True)
-    prob_line()
+        show_scatter=True, ax=ax)
+    parallel()
+    parallel.label_feature_ticks()
     ```
 
     Apply using the plot method of a DaSPi Chart object:
@@ -2117,11 +2171,12 @@ class CenterLocation(TransformPlotter):
             list(np.random.normal(loc=3, scale=1, size=50))
             + list(np.random.normal(loc=4, scale=1, size=50))
             + list(np.random.normal(loc=2, scale=1, size=50)))))
-    scatter=Scatter(source=df, target='y', feature='x')
-    prob_line = CenterLocation(
+    scatter=Scatter(source=df, target='y', feature='x', ax=ax)
+    center = CenterLocation(
         source=df, target='y', feature='x', kind='median',
-        show_center=True, show_line=True)
-    prob_line(marker='_', markersize=10)
+        show_center=True, show_line=True, ax= ax)
+    center(marker='_', markersize=10)
+    center.label_feature_ticks()
     scatter(color='black')
     ```
 
@@ -2148,7 +2203,7 @@ class CenterLocation(TransformPlotter):
             kind='median',
             show_line=True,
             show_center=True,
-            kw_call=dict(marker='_', markersize=10)
+            kw_call=dict(marker='_', markersize=30)
         ).plot(
             dsp.Scatter,
         ).label() # neded to label feature ticks
@@ -2361,6 +2416,7 @@ class Bar(TransformPlotter):
     bar = Bar(
         source=df, target='y', feature='x')
     bar()
+    bar.label_feature_ticks()
     ```
 
     Apply using the plot method of a DaSPi Chart object:
@@ -2401,7 +2457,7 @@ class Bar(TransformPlotter):
             + list(np.random.normal(loc=4, scale=1, size=50) > limit)
             + list(np.random.normal(loc=2, scale=1, size=50) > limit))))
     bar = Bar(
-        source=df, target='y', feature='x', method='sum')
+        source=df, target='y', feature='x', method='sum', ax=ax)
     bar()
     ```
 
@@ -2669,7 +2725,7 @@ class Pareto(Bar):
         x = list('abcdefghijklmno'),
         y = list(100/x for x in range(1, 16))))
     pareto = Pareto(
-        source=df, target='y', feature='x')
+        source=df, target='y', feature='x', ax=ax)
     pareto()
     ```
 
@@ -2900,6 +2956,12 @@ class Pareto(Bar):
         self._set_margin_()
         self._remove_feature_grid_()
         self.add_percentage_texts()
+    
+    def label_feature_ticks(self) -> None:
+        warnings.warn(
+            'Calling this method is unnecessary, Pareto plotter already does '
+            'this during plotting',
+            UserWarning)
 
 
 class Jitter(TransformPlotter):
@@ -2955,6 +3017,7 @@ class Jitter(TransformPlotter):
     Apply to an existing Axes object:
 
     ```python
+    import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt
     from daspi import Jitter
@@ -2967,9 +3030,9 @@ class Jitter(TransformPlotter):
             + list(np.random.normal(loc=4, scale=1, size=50))
             + list(np.random.normal(loc=2, scale=1, size=50)))))
     jitter = Jitter(
-        source=df, target='y', feature='x')
+        source=df, target='y', feature='x', ax=ax)
     jitter()
-    ax.set(xticks=list(range(df.x.nunique())), xticklabels=df.x.unique())
+    jitter.label_feature_ticks()
     ```
 
     Apply using the plot method of a DaSPi Chart object:
@@ -3173,9 +3236,9 @@ class Beeswarm(TransformPlotter):
             + list(np.random.normal(loc=4, scale=1, size=50))
             + list(np.random.normal(loc=2, scale=1, size=50)))))
     beeswarm = Beeswarm(
-        source=df, target='y', feature='x')
+        source=df, target='y', feature='x', ax=ax)
     beeswarm()
-    ax.set(xticks=list(range(df.x.nunique())), xticklabels=df.x.unique())
+    beeswarm.label_feature_ticks()
     ```
 
     Apply using the plot method of a DaSPi Chart object:
@@ -3446,9 +3509,10 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
             + list(np.random.normal(loc=2, scale=1, size=50)))))
     boxes = QuantileBoxes(
         source=df, target='y', feature='x', strategy='norm',
-        agreements=(0.25, 0.5, 0.75, 0.95), vary_width=False, width=0.2)
+        agreements=(0.25, 0.5, 0.75, 0.95), vary_width=False, width=0.2,
+        ax=ax)
     boxes()
-    ax.set(xticks=list(range(df.x.nunique())), xticklabels=df.x.unique())
+    boxes.label_feature_ticks()
     ```
 
     Apply using the plot method of a DaSPi Chart object:
@@ -3566,6 +3630,7 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
         quantiles = self.quantiles(target_data)
         data = pd.DataFrame({
             self.target: quantiles,
+            self.feature: feature_data,
             PLOTTER.LOWER: feature_data - widths,
             PLOTTER.UPPER: feature_data + widths,
             PLOTTER.SUBGROUP: self.subgroup_values(2, quantiles),
@@ -3701,8 +3766,12 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
     for color, (name, group) in zip(colors, df.groupby('x')):
         kde = GaussianKDE(
             source=group, target='y', strategy='norm', agreements=(2, 4, 6),
-            target_on_y=False, color=color)
-        kde()
+            target_on_y=False, color=color, margin=0.3, ax=ax)
+        kde(label=name)
+    handles, labels = ax.get_legend_handles_labels()
+    agreements = kde.agreements[::-1] * df.x.nunique()
+    labels = [f'{l} {a}σ' for l, a in zip(labels, agreements)]
+    ax.legend(handles, labels)
     ```
 
     Apply using the plot method of a DaSPi Chart object:
@@ -3987,7 +4056,7 @@ class GaussianKDEContour(Plotter):
     for color, (name, group) in zip(colors, df.groupby('species')):
         kde = GaussianKDEContour(
             source=group, target='length', feature='width', color=color,
-            fill=False, fade_outers=False, margin=0.5)
+            fill=False, fade_outers=False, margin=0.3, ax=ax)
         kde()
     ```
 
@@ -4001,12 +4070,12 @@ class GaussianKDEContour(Plotter):
             source=df,
             target='length',
             feature='width',
-            hue='species',
+            hue='leaf',
         ).plot(
             dsp.GaussianKDEContour,
             fill=False,
             fade_outers=False,
-            margin=0.5
+            margin=0.3
         ).label() # neded to add legend
     ```
     """
@@ -4053,8 +4122,11 @@ class GaussianKDEContour(Plotter):
             visible_spines=visible_spines,
             hide_axis=hide_axis,
             **kwds)
-        if fade_outers:
-            colors = [(1, 1, 1, 0), self.color]
+        if self.fill:
+            colors = [COLOR.TRANSPARENT, self.color]
+        elif fade_outers:
+            rgba = mcolors.to_rgba(self.color)
+            colors = [(*rgba[:3], 0.0), self.color]
         else:
             colors = [self.color, self.color]
         self.cmap = LinearSegmentedColormap.from_list('', colors)
@@ -4076,6 +4148,11 @@ class GaussianKDEContour(Plotter):
             self.ax.contourf(X, Y, Z, **_kwds)
         else:
             self.ax.contour(X, Y, Z, **_kwds)
+    
+    def label_feature_ticks(self) -> None:
+        warnings.warn(
+            'Calling this method for this plotter is pointless.',
+            UserWarning)
 
 
 class Violine(GaussianKDE):
@@ -4163,8 +4240,10 @@ class Violine(GaussianKDE):
             + list(np.random.normal(loc=4, scale=1, size=50))
             + list(np.random.normal(loc=2, scale=1, size=50)))))
     violine = Violine(
-        source=df, target='y', feature='x', fill=True, margin=1, agreements=())
+        source=df, target='y', feature='x', fill=True, margin=0.3, 
+        agreements=(), ax=ax)
     violine()
+    violine.label_feature_ticks()
     ```
 
     Apply using the plot method of a DaSPi Chart object:
@@ -4312,10 +4391,11 @@ class Errorbar(TransformPlotter):
         data['upper'].append(x_bar + sem)
 
     df = pd.DataFrame(data)
-    errobar = Errorbar(
+    errorbar = Errorbar(
         source=df, target='x_bar', feature='x', lower='lower', upper='upper',
-        show_center=True)
-    errobar(kw_points=dict(color='black', s=10, marker='_'))
+        show_center=True, ax=ax)
+    errorbar(kw_center=dict(color='black', s=30, marker='_')
+    errorbar.label_feature_ticks()
     ```
 
     Apply using the plot method of a DaSPi Chart object:
@@ -4347,7 +4427,7 @@ class Errorbar(TransformPlotter):
             lower='lower',
             upper='upper',
             bars_same_color=True,
-            kw_call={'kw_points': dict(color='black', s=10, marker='_')}
+            kw_call={'kw_center': dict(color='black', s=30, marker='_')}
         ).label() # neded to add legend
     ```
     """
@@ -4453,20 +4533,20 @@ class Errorbar(TransformPlotter):
             self.source[self.upper] - self.source[self.target]]))
         return err
     
-    def __call__(self, kw_points: dict = {}, **kwds) -> None:
+    def __call__(self, kw_center: dict = {}, **kwds) -> None:
         """Perform the plotting operation.
 
         Parameters
         ----------
-        kw_points : dict, optional
+        kw_center : dict, optional
             Additional keyword arguments for the axes `scatter` method,
             by default {}.
         **kwds :
             Additional keyword arguments for the axes `errorbar` method.
         """
         if self.show_center:
-            kw_points = dict(color=self.color, marker=self.marker) | kw_points
-            self.ax.scatter(self.x, self.y, **kw_points)
+            kw_center = dict(color=self.color, marker=self.marker) | kw_center
+            self.ax.scatter(self.x, self.y, **kw_center)
         _kwds = self.kw_default | kwds
         if self.target_on_y:
             self.ax.errorbar(self.x, self.y, yerr=self.err, **_kwds)
@@ -4533,11 +4613,49 @@ class StandardErrorMean(Errorbar):
     Apply to an existing Axes object:
 
     ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import StandardErrorMean
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    sem = StandardErrorMean(
+        source=df, target='y', feature='x',
+        show_center=True, bars_same_color=True, ax=ax)
+    sem(kw_center=dict(s=30, marker='_'))
+    sem.label_feature_ticks()
     ```
 
     Apply using the plot method of a DaSPi Chart object:
 
     ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x',
+            categorical_feature=True, # neded to label the feature tick labels
+        ).plot(
+            dsp.StandardErrorMean,
+            show_center=True,
+            bars_same_color=True,
+            kw_call=dict(kw_center=dict(s=30, marker='_'))
+        ).label() # neded to label the feature tick labels
     ```
     """
     def __init__(
@@ -4647,8 +4765,8 @@ class SpreadWidth(Errorbar):
         continuous distributions of scipy.stats are allowed,
         by default `DIST.COMMON`
     show_center : bool, optional
-        Flag indicating whether to show the center points,
-        by default True.
+        Flag indicating whether to show the center points (see `kind` 
+        option). Default is True.
     kind : Literal['mean', 'median'], optional
         The type of center to plot ('mean' or 'median'),
         by default 'mean'.
@@ -4694,12 +4812,70 @@ class SpreadWidth(Errorbar):
     Apply to an existing Axes object:
 
     ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import SpreadWidth, Beeswarm
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    swarm = Beeswarm(source=df, target='y', feature='x')
+    swarm(color=(0.3, )*4)
+    spread = SpreadWidth(
+        source=df, target='y', feature='x', strategy='data', agreement=1.0, 
+        kind='median', show_center=True, bars_same_color=True,
+        ax=ax)
+    spread(kw_center=dict(s=30, marker='_'))
+    spread.label_feature_ticks()
     ```
 
     Apply using the plot method of a DaSPi Chart object:
 
     ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x',
+            categorical_feature=True, # neded to label the feature tick labels
+        ).plot(
+            dsp.SpreadWidth,
+            strategy='data',
+            agreement=1.0,
+            show_center=True,
+            kind='median',
+            bars_same_color=True,
+            kw_call=dict(kw_center=dict(s=30, marker='_'))
+        ).plot(
+            dsp.Beeswarm,
+            color=(0.3, ) * 4
+        ).label() # neded to label the feature tick labels
     ```
+
+    Notes
+    -----
+    Under the hood, the class `daspi.statistics.estimation.Estimator` is 
+    used. The error bar then corresponds to the control limits `lcl` and 
+    ucl` calculated with it.
+
+    If you want to display the minimum and maximum values (the range), 
+    set agreement to `1.0` (important: it must be a float) or to 
+    `float('inf')` and strategy to 'data'. This way, the control limits 
+    correspond to the minimum and maximum of the data.
     """
     __slots__ = (
         'strategy', 'agreement', 'possible_dists', '_kind', 'estimation')
@@ -4811,19 +4987,19 @@ class SpreadWidth(Errorbar):
             self.upper: [self.estimation.ucl]})
         return data
     
-    def __call__(self, kw_points: dict = {}, **kwds) -> None:
+    def __call__(self, kw_center: dict = {}, **kwds) -> None:
         """Perform the plotting operation.
 
         Parameters
         ----------
-        kw_points : dict, optional
+        kw_center : dict, optional
             Additional keyword arguments for the axes `scatter` method,
             by default {}.
         **kwds :
             Additional keyword arguments for the axes `errorbar` method.
         """
-        kw_points = dict(marker=self.marker) | kw_points
-        return super().__call__(kw_points, **kwds)
+        kw_center = dict(marker=self.marker) | kw_center
+        return super().__call__(kw_center, **kwds)
 
 
 class ConfidenceInterval(Errorbar):
@@ -4880,7 +5056,8 @@ class ConfidenceInterval(Errorbar):
         two arguments are passed to the function: The sample data and 
         the confidence level. The returned values must be three floats
         in order: center value, lower confidence limit and upper 
-        confidence limit, by default `mean_ci`.
+        confidence limit.
+        Default is `daspi.statistics.conficence.mean_ci`.
     color : str | None, optional
         Color to be used to draw the artists. If None, the first
         color is taken from the color cycle, by default None.
@@ -4909,11 +5086,53 @@ class ConfidenceInterval(Errorbar):
     Apply to an existing Axes object:
 
     ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import ConfidenceInterval, variance_ci
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    ci = ConfidenceInterval(
+        source=df, target='y', feature='x', show_center=True, ci_func=variance_ci,
+        n_groups=df.x.nunique(), confidence_level=0.95, bars_same_color=True,
+        ax=ax)
+    ci(kw_center=dict(s=30, marker='_'))
+    ci.label_feature_ticks()
     ```
 
     Apply using the plot method of a DaSPi Chart object:
 
     ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=1, scale=3, size=50))
+            + list(np.random.normal(loc=1, scale=4, size=50))
+            + list(np.random.normal(loc=1, scale=2, size=50)))))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x',
+            categorical_feature=True, # neded to label the feature tick labels
+        ).plot(
+            dsp.ConfidenceInterval,
+            show_center=True,
+            ci_func=dsp.variance_ci,
+            n_groups=df.x.nunique(),
+            confidence_level=0.95,
+            bars_same_color=True,
+            kw_call=dict(kw_center=dict(s=30, marker='_'))
+        ).label() # neded to label the feature tick labels
     ```
     """
     __slots__ = ('confidence_level', 'ci_func', 'n_groups')
@@ -5064,11 +5283,52 @@ class MeanTest(ConfidenceInterval):
     Apply to an existing Axes object:
 
     ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import MeanTest
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    test = MeanTest(
+        source=df, target='y', feature='x', show_center=True,
+        n_groups=df.x.nunique(), confidence_level=0.95, bars_same_color=True,
+        ax=ax)
+    test(kw_center=dict(s=30, marker='_'))
+    test.label_feature_ticks()
     ```
 
     Apply using the plot method of a DaSPi Chart object:
 
     ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x',
+            categorical_feature=True, # neded to label the feature tick labels
+        ).plot(
+            dsp.MeanTest,
+            show_center=True,
+            n_groups=df.x.nunique(),
+            confidence_level=0.95,
+            bars_same_color=True,
+            kw_call=dict(kw_center=dict(s=30, marker='_'))
+        ).label() # neded to label the feature tick labels
     ```
     """
     def __init__(
@@ -5176,11 +5436,52 @@ class VariationTest(ConfidenceInterval):
     Apply to an existing Axes object:
 
     ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import VariationTest
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=1, scale=3, size=50))
+            + list(np.random.normal(loc=1, scale=4, size=50))
+            + list(np.random.normal(loc=1, scale=2, size=50)))))
+    test = VariationTest(
+        source=df, target='y', feature='x', show_center=True,
+        n_groups=df.x.nunique(), confidence_level=0.95, bars_same_color=True,
+        ax=ax)
+    test(kw_center=dict(s=30, marker='_'))
+    test.label_feature_ticks()
     ```
 
     Apply using the plot method of a DaSPi Chart object:
 
     ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=1, scale=3, size=50))
+            + list(np.random.normal(loc=1, scale=4, size=50))
+            + list(np.random.normal(loc=1, scale=2, size=50)))))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x',
+            categorical_feature=True, # neded to label the feature tick labels
+        ).plot(
+            dsp.VariationTest,
+            show_center=True,
+            n_groups=df.x.nunique(),
+            confidence_level=0.95,
+            bars_same_color=True,
+            kw_call=dict(kw_center=dict(s=30, marker='_'))
+        ).label() # neded to label the feature tick labels
     ```
     """
     def __init__(
@@ -5301,18 +5602,103 @@ class ProportionTest(ConfidenceInterval):
     Apply to an existing Axes object:
 
     ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import ProportionTest, ProcessEstimator, SpecLimits, Bar
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = ['first'] * 100 + ['second'] * 100 + ['third'] * 100,
+        y = (list(np.random.normal(loc=3, scale=1, size=100))
+            + list(np.random.normal(loc=4, scale=1, size=100))
+            + list(np.random.normal(loc=2, scale=1, size=100)))))
+    spec_limits = SpecLimits(upper=4.3)
+
+    # Create data that records how many are out of specification
+    data = pd.DataFrame()
+    for name, group in df.groupby('x'):
+        y = ProcessEstimator(group['y'], spec_limits=spec_limits)
+        temp = pd.DataFrame(dict(
+            x = [name],
+            proportion = y.n_nok / y.n_samples,
+            events = y.n_nok,
+            observations = y.n_samples))
+        data = pd.concat([data, temp], ignore_index=True, axis=0)
+    
+    # Now plot it in combination with a bar chart
+    bar = Bar(source=data, target='proportion', feature='x', ax=ax)
+    bar()
+    test = ProportionTest(
+        source=data, target='proportion', feature='x', events='events', 
+        observations='observations', show_center=False, n_groups=data.x.nunique(), 
+        confidence_level=0.95, bars_same_color=True,)
+    test()
+    test.label_feature_ticks()
+    test.target_as_percentage()
     ```
 
     Apply using the plot method of a DaSPi Chart object:
 
     ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = ['first'] * 100 + ['second'] * 100 + ['third'] * 100,
+        y = (list(np.random.normal(loc=3, scale=1, size=100))
+            + list(np.random.normal(loc=4, scale=1, size=100))
+            + list(np.random.normal(loc=2, scale=1, size=100)))))
+    spec_limits = dsp.SpecLimits(upper=4.3)
+
+    # Create data that records how many are out of specification
+    data = pd.DataFrame()
+    for name, group in df.groupby('x'):
+        y = ProcessEstimator(group['y'], spec_limits=spec_limits)
+        temp = pd.DataFrame(dict(
+            x = [name],
+            proportion = y.n_nok / y.n_samples,
+            events = y.n_nok,
+            observations = y.n_samples))
+        data = pd.concat([data, temp], ignore_index=True, axis=0)
+
+    # Now plot it in combination with a bar chart
+    chart = dsp.SingleChart(
+            source=data,
+            target='proportion',
+            feature='x',
+            categorical_feature=True, # neded to label the feature tick labels
+        ).plot(
+            dsp.ProportionTest,
+            events='events', 
+            observations='observations',
+            show_center=False,
+            n_groups=data.x.nunique(), 
+            confidence_level=0.95,
+            bars_same_color=True,
+        ).plot(
+            dsp.Bar,
+        ).label() # neded to label the feature tick labels
     ```
     
     Notes
     -----
-    This class is a bit of a hack as it creates its own target variable 
-    with the events/observation ratio. For this reason please use with 
-    caution, especially with other plotters and/or axes.
+    This class is a bit of a hack, as it creates its own target variable 
+    using the ratio of events / observations. This allows it to 
+    visualize proportions directly, even if a target column is not 
+    explicitly provided.
+
+    A recommended and robust approach is to precompute the proportion 
+    yourself and pass it as the target variable. This gives you full 
+    control over how the proportion is calculated and ensures 
+    compatibility with other plotters or axes.
+
+    See the Examples section for a demonstration of this approach, where 
+    the proportion is computed manually and passed to both the Bar and 
+    ProportionTest plotters. This method is especially useful when 
+    combining multiple visualizations or when working with 
+    pre-aggregated data.
     """
 
     __slots__ = ('method')
@@ -5486,11 +5872,61 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
     Apply to an existing Axes object:
 
     ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import CapabilityConfidenceInterval, SpecLimits
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = ['first'] * 100 + ['second'] * 100 + ['third'] * 100,
+        y = (list(np.random.normal(loc=3, scale=1, size=100))
+            + list(np.random.normal(loc=4, scale=1, size=100))
+            + list(np.random.normal(loc=2, scale=1, size=100)))))
+
+    test = CapabilityConfidenceInterval(
+        source=df, target='y', feature='x', spec_limits=SpecLimits(upper=4.3), 
+        kind='cpk', show_center=True, n_groups=df.x.nunique(), 
+        confidence_level=0.95, bars_same_color=True, ax=ax)
+    test(kw_center=dict(s=30, marker='_'))
+    test.label_feature_ticks()
+
+    #If you are interested in the calculated values, you can get them like this:
+    print(test.source)
     ```
 
     Apply using the plot method of a DaSPi Chart object:
 
     ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = ['first'] * 100 + ['second'] * 100 + ['third'] * 100,
+        y = (list(np.random.normal(loc=3, scale=1, size=100))
+            + list(np.random.normal(loc=4, scale=1, size=100))
+            + list(np.random.normal(loc=2, scale=1, size=100)))))
+
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x',
+            categorical_feature=True, # neded to label the feature tick labels
+        ).plot(
+            dsp.CapabilityConfidenceInterval,
+            kind='cpk',
+            spec_limits=dsp.SpecLimits(upper=4.3),
+            show_center=True, 
+            confidence_level=0.95,
+            n_groups=df.x.nunique(),
+            bars_same_color=True,
+        ).label() # neded to label the feature tick labels
+
+    #If you are interested in the calculated values, you can get them like this:
+    df_cpk = chart.plots[0].source.copy()
+    df_cpk.index = chart.dodging.pos_to_ticklabels(df_cpk['x'])
+    print(df_cpk)
     ```
     """
 
@@ -5599,18 +6035,18 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
         self.processes.append(process)
         return data 
     
-    def __call__(self, kw_points: dict = {}, **kwds) -> None:
+    def __call__(self, kw_center: dict = {}, **kwds) -> None:
         """Perform the plotting operation.
 
         Parameters
         ----------
-        kw_points : dict, optional
+        kw_center : dict, optional
             Additional keyword arguments for the axes `scatter` method,
             by default {}.
         **kwds :
             Additional keyword arguments for the axes `errorbar` method.
         """
-        super().__call__(kw_points, **kwds)
+        super().__call__(kw_center, **kwds)
         if not self.show_feature_axis:
             self.hide_feature_axis()
 
@@ -5626,18 +6062,8 @@ class HideSubplot(Plotter):
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
-    
-    Examples
-    --------
-    Apply to an existing Axes object:
 
-    ```python
-    ```
-
-    Apply using the plot method of a DaSPi Chart object:
-
-    ```python
-    ```"""
+    """
 
     def __init__(
             self,
@@ -5657,18 +6083,6 @@ class HideSubplot(Plotter):
 
 class SkipSubplot(Plotter):
     """Class for skip plotting at current axes in a JointChart.
-    
-    Examples
-    --------
-    Apply to an existing Axes object:
-
-    ```python
-    ```
-
-    Apply using the plot method of a DaSPi Chart object:
-
-    ```python
-    ```
     """
 
     def __init__(self, *args, **kwds) -> None:
@@ -5686,40 +6100,58 @@ class SkipSubplot(Plotter):
 
 
 class Stripe(ABC):
-    """Abstract base class for drawing a line or area on Axes objects.
-    
+    """Abstract base class for drawing a stripe (line or area) on 
+    Matplotlib Axes.
+
+    A stripe is a visual element used to highlight a specific region or 
+    value on a plot, such as a threshold line or a band of interest. 
+    This class provides a flexible interface for defining the appearance 
+    and behavior of such elements.
+
     Parameters
     ----------
     label : str
         The label of the stripe as it appears in the legend.
     position : float
-        The position of the stripe on the x- or y-axis.
+        The central position of the stripe on the x- or y-axis.
     width : float
         The width of the stripe.
     orientation : {'horizontal', 'vertical'}, optional
         The orientation of the stripe. Defaults to 'horizontal'.
     color : str, optional
-        The color of the stripe as string or hex value. Defaults to
-        `COLOR.STRIPE`
+        The color of the stripe, specified as a named color or hex code.
+        Defaults to `COLOR.STRIPE`.
     alpha : float or None, optional
-        Set the alpha value used for blending. Must be between 0-1.
-        Defaults to None.
+        The transparency level of the stripe, between 0 (fully 
+        transparent) and 1 (fully opaque). Defaults to None.
     lower_limit : float, optional
-        The lower limit (start) of the stripe relative to the plotting
-        area. Should be between 0 and 1. Defaults to 1.
+        The lower bound of the stripe relative to the plotting area, 
+        expressed as a proportion between 0 and 1. Defaults to 0.0.
     upper_limit : float, optional
-        The upper limit (end) of the stripe relative to the plotting
-        area. Should be between 0 and 1. Defaults to 1.
+        The upper bound of the stripe relative to the plotting area, 
+        expressed as a proportion between 0 and 1. Defaults to 1.0.
     zorder : float, optional
-        The order in "z" direction of the artis. Defaults to 0.7.
+        The drawing order of the stripe relative to other plot elements.
+        Higher values are drawn on top. Defaults to 0.7.
     show_position : bool, optional
-        Whether position value of the stripe should be displayed the 
-        label. Default to False.
-    decimals : int | None, optional
-        Number of decimal places with which the position value should be
-        formatted. If None is given for setting decimals, it is 
-        determined based on the size of the position value see 
-        `determine_decimals` method. Default to None.
+        Whether to include the position value in the legend label.
+        Defaults to False.
+    decimals : int or None, optional
+        Number of decimal places to use when formatting the position 
+        value in the label. If None, the number is determined 
+        automatically based on the magnitude of the position. 
+        Defaults to None.
+
+    Notes
+    -----
+    This is an abstract base class. Subclasses must implement the 
+    `__call__` method to draw the stripe on a given Axes, and the 
+    `handle` property to return the legend handle.
+
+    The `label` property automatically wraps the label in dollar signs 
+    (`$`) so that it is interpreted as a LaTeX-style math expression in 
+    the legend. If `show_position` is True, the position value is 
+    appended to the label.
     """
 
     __slots__ = (
@@ -5848,61 +6280,143 @@ class Stripe(ABC):
 
 
 class StripeLine(Stripe):
-    """Class for drawing straight lines on Axes objects.
-    
+    """
+    Concrete implementation of `Stripe` for drawing straight lines on Matplotlib Axes.
+
+    This class is used to draw horizontal or vertical lines that highlight specific 
+    positions on a plot, such as thresholds, limits, or reference values. It supports 
+    customization of line style, color, transparency, and legend labeling.
+
     Parameters
     ----------
     label : str
         The label of the stripe as it appears in the legend.
     position : float
         The position of the stripe on the x- or y-axis.
-    width : float
-        The width of the stripe.
+    width : float, optional
+        The line width of the stripe. Can be overridden by `lw` or `linewidth` in `**kwds`.
+        Defaults to `LINE.WIDTH`.
     orientation : {'horizontal', 'vertical'}, optional
         The orientation of the stripe. Defaults to 'horizontal'.
     color : str, optional
-        The color of the stripe as string or hex value. Defaults to
-        `COLOR.STRIPE`
+        The color of the stripe, specified as a named color or hex code.
+        Can be overridden by `c` in `**kwds`. Defaults to `COLOR.STRIPE`.
     alpha : float or None, optional
-        Set the alpha value used for blending. Must be between 0-1.
+        Transparency level of the stripe, between 0 (transparent) and 1 (opaque).
         Defaults to None.
     lower_limit : float, optional
-        The lower limit (start) of the stripe relative to the plotting
-        area. Should be between 0 and 1. Defaults to 1.
+        The lower bound of the stripe relative to the plotting area (0 to 1).
+        Defaults to 0.0.
     upper_limit : float, optional
-        The upper limit (end) of the stripe relative to the plotting
-        area. Should be between 0 and 1. Defaults to 1.
+        The upper bound of the stripe relative to the plotting area (0 to 1).
+        Defaults to 1.0.
     zorder : float, optional
-        The order in "z" direction of the artis. Defaults to 0.7.
+        Drawing order of the stripe. Higher values are drawn above lower ones.
+        Defaults to 0.7.
     show_position : bool, optional
-        Whether position value of the stripe should be displayed the 
-        label. Default to False.
-    decimals : int | None, optional
-        Number of decimal places with which the position value should be
-        formatted. If None is given for setting decimals, it is 
-        determined based on the size of the position value see 
-        `determine_decimals` method. Default to None.
+        Whether to include the position value in the legend label. Defaults to False.
+    decimals : int or None, optional
+        Number of decimal places to use when formatting the position in the label.
+        If None, the number is determined automatically based on the value.
     linestyle : LineStyle, optional
-        The linestyle of the stripe. Defaults to `LINE.DASHED`.
-    **kwds: 
-        Additional keyword arguments such as `ls`, `lw`, `c` or 
-        `linewidth` are supported. The priority orders are as follows
-        (first mentioned corresponds to higher priority):
-        - Line width = `lw`, `linewidth`, `width`
-        - Color = `c`, `color`
-        - Style = `ls`, `linestyle`
-    
+        The line style of the stripe (e.g., solid, dashed). Can be overridden by `ls` in `**kwds`.
+        Defaults to `LINE.DASHED`.
+    **kwds :
+        Additional keyword arguments for fine-tuning appearance. Priority order:
+        - Line width: `lw`, `linewidth`, then `width`
+        - Color: `c`, then `color`
+        - Style: `ls`, then `linestyle`
+
     Examples
     --------
     Apply to an existing Axes object:
 
     ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import GaussianKDE, StripeLine, Estimator
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(x = np.random.weibull(a=1.5, size=1000)))
+    kde = GaussianKDE(source=df, target='x', target_on_y=False)
+    kde()
+    x = Estimator(df.x)
+    mean = StripeLine(
+        label=r'\bar x = 'f'{x.mean:.2f}',
+        position=x.mean,
+        color="#145a5aa0",
+        upper_limit=0.9,
+        orientation='vertical')
+    mean(ax=ax)
+    median = StripeLine(
+        label=r'\tilde x = 'f'{x.median:.2f}',
+        position=x.median,
+        color="#5a47149f",
+        upper_limit=0.9,
+        orientation='vertical')
+    median(ax=ax)
+    ax.set(ylim=(0, None))
+    ax.legend([mean.handle, median.handle], [mean.label, median.label])
     ```
 
     Apply using the plot method of a DaSPi Chart object:
 
     ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(x = np.random.weibull(a=1.5, size=1000)))
+    x = Estimator(df.x)
+    mean = StripeLine(
+        label=r'\bar x = 'f'{x.mean:.2f}',
+        position=x.mean,
+        color="#145a5aa0",
+        upper_limit=0.9,
+        orientation='vertical')
+    median = StripeLine(
+        label=r'\tilde x = 'f'{x.median:.2f}',
+        position=x.median,
+        color="#5a47149f",
+        upper_limit=0.9,
+        orientation='vertical')
+    chart = dsp.SingleChart(
+            source=df,
+            target='x',
+            target_on_y=False
+        ).plot(dsp.GaussianKDE,
+        ).stripes([mean, median]
+        ).label() # neded to add the legend
     ```
+
+    The last example only serves to demonstrate how custom lines can be 
+    added. The median and mean are already predefined and can be easily 
+    plotted by setting the appropriate flag. With the following example, 
+    we get a similar result:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(x = np.random.weibull(a=1.5, size=1000)))
+    chart = dsp.SingleChart(
+            source=df,
+            target='x',
+            target_on_y=False
+        ).plot(dsp.GaussianKDE,
+        ).stripes(
+            mean=True,
+            median=True,
+        ).label() # neded to add the legend
+    ```
+
+    Notes
+    -----
+    This class is part of the DaSPi visualization toolkit and is 
+    designed to integrate seamlessly with other chart components. It 
+    ensures that each stripe is only drawn once per Axes instance.
     """
 
     __slots__ = ('linestyle')
@@ -5977,60 +6491,120 @@ class StripeLine(Stripe):
 
 
 class StripeSpan(Stripe):
-    """Class for drawing wide stripes on Axes objects.
-    
+    """
+    Concrete implementation of `Stripe` for drawing wide spans (bands) 
+    on Matplotlib Axes.
+
+    This class is used to highlight a continuous region between two 
+    positions on a plot, such as confidence intervals, tolerance bands, 
+    or shaded areas of interest. It supports both direct specification 
+    of the lower and upper bounds, or a central position with width.
+
     Parameters
     ----------
     label : str
         The label of the stripe as it appears in the legend.
     lower_position : float or None, optional
-        The lower position of the stripe on the x- or y-axis. Must be 
-        provided if position and width is not given. Defaults to None.
+        The lower bound of the stripe on the x- or y-axis. Must be 
+        provided if `position` and `width` are not given.
+        Defaults to None.
     upper_position : float or None, optional
-        The upper position of the stripe on the x- or y-axis. Must be 
-        provided if position and width is not given. Defaults to None.
+        The upper bound of the stripe on the x- or y-axis. Must be 
+        provided if `position` and `width` are not given.
+        Defaults to None.
     position : float or None, optional
-        The position of the stripe on the x- or y-axis. Must be provided
-        if lower_position and upper_position is not given. Defaults to
-        None.
+        The central position of the stripe. Must be provided if 
+        `lower_position` and `upper_position` are not given.
+        Defaults to None.
     width : float or None, optional
-        The width of the stripe.. Must be provided if lower_position and
-        upper_position is not given. Defaults to None.
+        The width of the stripe. Must be provided if `lower_position` 
+        and `upper_position` are not given. Defaults to None.
     orientation : {'horizontal', 'vertical'}, optional
         The orientation of the stripe. Defaults to 'horizontal'.
     color : str, optional
-        The color of the stripe as string or hex value. Defaults to
-        `COLOR.STRIPE`
+        The fill color of the stripe. Can be a named color or hex code.
+        Defaults to `COLOR.STRIPE`.
     alpha : float or None, optional
-        Set the alpha value used for blending. Must be between 0-1.
-        Defaults to None.
+        Transparency level of the stripe, between 0 (transparent) and 1 
+        (opaque). Defaults to `COLOR.CI_ALPHA`.
     lower_limit : float, optional
-        The lower limit (start) of the stripe relative to the plotting
-        area. Should be between 0 and 1. Defaults to 1.
+        The lower limit of the stripe relative to the plotting area 
+        (0 to 1). Defaults to 0.0.
     upper_limit : float, optional
-        The upper limit (end) of the stripe relative to the plotting
-        area. Should be between 0 and 1. Defaults to 1.
+        The upper limit of the stripe relative to the plotting area 
+        (0 to 1). Defaults to 1.0.
     zorder : float, optional
-        The order in "z" direction of the artis. Defaults to 0.7.
-    **kwds: 
-        Additional keyword arguments such as `ls`, `lw`, `c` or 
-        `linewidth` are supported. The priority orders are as follows
-        (first mentioned corresponds to higher priority):
-        - Line width = `lw`, `linewidth`, `width`
-        - Color = `c`, `color`
-        - Style = `ls`, `linestyle`
-    
+        Drawing order of the stripe. Higher values are drawn above lower 
+        ones. Defaults to 0.7.
+    border_linewidth : float, optional
+        Width of the border line. Can also be set via `lw` or 
+        `linewidth` in `**kwds`. Defaults to 0.
+    **kwds :
+        Additional keyword arguments for appearance customization. 
+        Priority order:
+        - Line width: `lw`, `linewidth`, then `border_linewidth`
+        - Color: `c`, then `color`
+        - Style: `ls`, then `linestyle`
+
     Examples
     --------
     Apply to an existing Axes object:
 
     ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import Line, StripeSpan, SpecLimits, COLOR
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(x = np.random.weibull(a=1.5, size=100)))
+    line = Line(source=df, target='x', ax=ax)
+    line(marker='o')
+    spec_limits=SpecLimits(lower=0, upper=2.5)
+    ok_area = StripeSpan(
+        label=r'OK',
+        lower_position=spec_limits.lower,
+        upper_position=spec_limits.upper,
+        color=COLOR.GOOD,
+        orientation='horizontal')
+    ok_area(ax=ax)
+
+    ax.legend([ok_area.handle], [ok_area.label])
     ```
 
     Apply using the plot method of a DaSPi Chart object:
 
     ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(x = np.random.weibull(a=1.5, size=100)))
+    spec_limits=dsp.SpecLimits(lower=0, upper=2.5)
+    ok_area = StripeSpan(
+        label=r'OK',
+        lower_position=spec_limits.lower,
+        upper_position=spec_limits.upper,
+        color=COLOR.GOOD,
+        orientation='horizontal')
+    chart = dsp.SingleChart(
+            source=df,
+            target='x',
+        ).plot(
+            dsp.Line,
+            kw_call={'marker': 'o'}
+        ).stripes(
+            [ok_area]
+        ).label() # neded to add the legend
     ```
+
+    Notes
+    -----
+    You must specify either:
+    - `lower_position` and `upper_position`, or
+    - `position` and `width`
+
+    but not both. The class will compute the missing values accordingly.
     """
 
     __slots__ = ('lower_position', 'upper_position', 'border_linewidth')
@@ -6214,14 +6788,21 @@ class BlandAltman(Plotter):
     
     Examples
     --------
-    Apply to an existing Axes object:
-
-    ```python
-    ```
 
     Apply using the plot method of a DaSPi Chart object:
 
     ```python
+    import daspi as dsp
+
+    chart = dsp.SingleChart(
+            source=dsp.load_dataset('shoe-sole'),
+            target='wear',
+            feature='status',
+        ).plot(
+            dsp.BlandAltman,
+            identity='tester',
+            feature_axis='mean',
+            reverse=True)
     ```
 
     Notes

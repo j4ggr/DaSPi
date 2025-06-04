@@ -133,8 +133,8 @@ class ParameterRelevanceCharts(JointChart):
         Self: 
             The `ParameterRelevanceCharts` instance, for method chaining.
 
-        Note
-        ----
+        Notes
+        -----
         The `plot()` method will generate two charts. The first chart
         will contain the Pareto chart of the parameter standardized
         effects. The second chart will contain the Pareto chart of the
@@ -401,7 +401,7 @@ class PairComparisonCharts(JointChart):
         """
         super().plot(BlandAltman, identity=self.identity, feature_axis='data')
         super().plot(
-            ParallelCoordinate, identity=self.identity, show_points=False)
+            ParallelCoordinate, identity=self.identity, show_scatter=False)
         super().plot(MeanTest, n_groups=2, on_last_axes=True)
         super().plot(QuantileBoxes, strategy='fit', on_last_axes=True)
         return self
@@ -1080,6 +1080,30 @@ class GageRnRCharts(JointChart):
     stretch_figsize : bool, optional
         If True, stretch the figure height and width based on the number of
         rows and columns, by default False.
+    
+    Examples
+    --------
+    ```python
+    import daspi as dsp
+    
+    df = dsp.load_dataset('grnr_layer_thickness')
+    gage = dsp.GageEstimator(
+        samples=df['result_gage'],
+        reference=df['reference'][0],
+        U_cal=df['U_cal'][0],
+        tolerance=df['tolerance'][0],
+        resolution=df['resolution'][0])
+    model = dsp.GageRnRModel(
+        source=df,
+        target='Messwerte',
+        part='Teil',
+        reproducer='Mitarbeiter',
+        gage=gage)
+    chart = dsp.GageRnRCharts(model, stretch_figsize=True
+        ).plot(
+        ).stripes(
+        ).label()
+    ```
     """
     
     __slots__ = (
@@ -1234,7 +1258,7 @@ class GageRnRCharts(JointChart):
             MeanTest,
             show_center=True,
             on_last_axes=True,
-            kw_call=dict(kw_points=dict(marker='_', s=10)))
+            kw_call=dict(kw_center=dict(marker='_', s=10)))
         
         # bottom left
         super().plot(
