@@ -457,14 +457,14 @@ class Dodger:
     """
 
     __slots__ = (
-        'categories', 'ticks', 'tick_lables', 'amount', 'width', 'dodge',
-        '_default')
+        'categories', 'ticks', 'tick_labels', 'amount', 'width', 'dodge',
+        '_default', '_pos_to_label_map')
     
     categories: Tuple[str, ...]
     """Categories corresponding to the features."""
     ticks: NDArray[np.int_]
     """Numeric positions of the ticks."""
-    tick_lables: Tuple[str, ...]
+    tick_labels: Tuple[str, ...]
     """Labels for the ticks on the axis."""
     width: float
     """Width of each category bar."""
@@ -474,13 +474,15 @@ class Dodger:
     """Dictionary mapping categories to dodge values."""
     _default: int
     """Default dodge value."""
+    _pos_to_label_map: Dict[str, str]
+    """Dictionary mapping tick positions to tick labels."""
 
     def __init__(
             self,
             categories: Tuple[str, ...],
             tick_labels: Tuple[Any, ...]) -> None:
         self.categories = categories
-        self.tick_lables = tuple(map(str, tick_labels))
+        self.tick_labels = tuple(map(str, tick_labels))
         self.ticks = np.arange(len(tick_labels)) + DEFAULT.FEATURE_BASE
         self.amount = max(len(self.categories), 1)
         space = CATEGORY.FEATURE_SPACE/self.amount
@@ -489,6 +491,7 @@ class Dodger:
         _dodge = tuple(i*space + offset for i in range(self.amount))
         self.dodge = {c: d for c, d in zip(self.categories, _dodge)}
         self._default = 0
+        self._pos_to_label_map = {}
     
     @property
     def lim(self) -> Tuple[float, float]:
@@ -536,7 +539,9 @@ class Dodger:
         if not isinstance(values, pd.Series):
             values = pd.Series(values)
         offset = self[category]
-        mapper = dict(zip(self.tick_lables, (self.ticks + offset).astype(str)))
+        positions = (self.ticks + offset).astype(float).astype(str)
+        mapper = dict(zip(self.tick_labels, positions))
+        self._pos_to_label_map |= {v: k for k, v in mapper.items()}
         return values.astype(str).replace(mapper).astype(float)
     
     def __bool__(self) -> bool:
@@ -548,6 +553,30 @@ class Dodger:
             True if there are multiple categories, False otherwise.
         """
         return len(self.categories) > 1
+    
+    def pos_to_ticklabels(self, positions: Series) -> Series:
+        """Convert numeric or encoded feature axis positions to their 
+        corresponding tick labels.
+
+        This method uses an internal mapping (`_pos_to_label_map`) to 
+        translate position values (typically numeric or categorical 
+        codes) into human-readable tick labels for display on the 
+        feature axis.
+
+        Parameters
+        ----------
+        positions : Series
+            A pandas Series containing the axis positions to be 
+            converted.
+
+        Returns
+        -------
+        Series
+            A Series of the same shape with positions replaced by their 
+            corresponding labels.
+        """
+        return positions.astype(str).replace(self._pos_to_label_map)
+
 
 __all__ = [
     'HueLabel',

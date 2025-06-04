@@ -824,7 +824,7 @@ class SingleChart(Chart):
         xy = 'x' if self.target_on_y else 'y'
         settings = {
             f'{xy}ticks': self.dodging.ticks,
-            f'{xy}ticklabels': self.dodging.tick_lables,
+            f'{xy}ticklabels': self.dodging.tick_labels,
             f'{xy}lim': self.dodging.lim}
         ax.set(**settings)
         ax.tick_params(which='minor', color=COLOR.TRANSPARENT)
