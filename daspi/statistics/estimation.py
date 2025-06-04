@@ -97,6 +97,14 @@ class Estimator:
         Distributions to which the data may be subject. Only 
         continuous distributions of scipy.stats are allowed,
         by default `DIST.COMMON`
+    
+    Notes
+    -----
+    A special case occurs when the agreement is 1. For a corresponding
+    standard deviation, enter 1 as an integer. If you want percentiles 
+    or the entire range, enter it as a floating-point number (1.0) or as 
+    `float('inf')`. If strategy is 'data', `lcl` and `ucl` correspond to 
+    `min` and `max`, otherwise we get `-inf` and `inf`.
     """
     __slots__ = (
         '_samples', '_filtered', '_n_samples', '_n_missing', '_min', '_max', 
@@ -286,7 +294,7 @@ class Estimator:
         the agreement is given as 6, this value corresponds to the 
         0.135 % quantile: 6 σ ~ 99.73 % of the samples (read-only)."""
         if self._q_low is None:
-            self._q_low = float(stats.norm.cdf(-self.agreement/2))
+            self._q_low = float(stats.norm.cdf(-self.agreement / 2))
         return self._q_low
 
     @property
@@ -419,24 +427,59 @@ class Estimator:
         
         If setting agreement by giving the percentile, enter the 
         acceptable proportion for the spread, e.g. 0.9973 
-        (which corresponds to ~ 6 σ)"""
+        (which corresponds to ~ 6 σ).
+        
+        A special case occurs when the agreement is 1. For a
+        corresponding standard deviation, enter 1 as an integer. If you
+        want percentiles or the entire range, enter it as a
+        floating-point number (1.0) or as `float('inf')`."""
         return self._agreement
     @agreement.setter
     def agreement(self, agreement: int | float) -> None:
         assert agreement > 0, (
-            'Agreement must be set as a percentage (0 < agreement < 1) '
+            'Agreement must be set as a percentage (0.0 < agreement <= 1.0) '
             + 'or as a multiple of the standard deviation (agreement >= 1), '
             + f'got {agreement}.')
         
-        if agreement >= 1:
-            self._k = agreement / 2
-        else:
+        is_percentile = (
+            agreement < 1 or (agreement == 1 and isinstance(agreement, float)))
+        if is_percentile:
             self._k = float(stats.norm.ppf((1 + agreement) / 2))
             agreement = 2 * self._k
+        else:
+            self._k = agreement / 2
         
         if self._agreement != agreement:
             self._agreement = agreement
             self._reset_values_()
+    
+    def mask_missing(self) -> 'Series[bool]':
+        """Returns a boolean mask indicating which samples are missing 
+        (NaN).
+
+        This mask can be used to filter or analyze entries in the 
+        `samples` attribute that contain missing values.
+
+        Returns
+        -------
+        Series[bool]:
+            A boolean Series where True indicates a missing sample.
+        """
+        return self.samples.isna()
+    
+    def mask_ok(self) -> Series:
+        """Returns a boolean mask indicating which samples are valid 
+        (OK).
+
+        A sample is considered OK if it is:
+        - Not missing (i.e., not NaN)
+
+        Returns
+        -------
+        Series[bool]
+            A boolean Series where True indicates a valid sample.
+        """
+        return ~self.mask_missing()
 
     def z_transform(self, x: float) -> float:
         """Transform value to z-score.
@@ -849,8 +892,7 @@ class ProcessEstimator(Estimator):
         if self._filtered.empty:
             self._filtered = pd.to_numeric(
                 self.samples[
-                    ~ self.samples.isin(self._error_values)
-                    & self.samples.notna()])
+                    ~ (self.mask_error() | self.mask_missing())])
         return self._filtered
     
     @property
@@ -868,9 +910,7 @@ class ProcessEstimator(Estimator):
     def n_nok(self) -> int:
         """Get amount of NOK-values (read-only)."""
         if self._n_nok is None:
-            self._n_nok = int(
-                (self.filtered >= self.usl).sum()
-                + (self.filtered <= self.lsl).sum())
+            self._n_nok = int(self.mask_nok().sum())
         return self._n_nok
     
     @property
@@ -1016,6 +1056,68 @@ class ProcessEstimator(Estimator):
         if self._Z_lt is None:
             self._Z_lt = self.Z - SIGMA_DIFFERENCE
         return self._Z_lt
+
+    def mask_error(self) -> 'Series[bool]':
+        """Returns a boolean mask indicating which samples are 
+        considered errors.
+
+        A sample is marked as an error if its value is found in the 
+        predefined set of error values (`_error_values`).
+
+        Returns
+        -------
+        Series[bool]
+            A boolean Series where True indicates an erroneous sample.
+        """
+        return self.samples.isin(self._error_values)
+
+    def mask_nok(self) -> 'Series[bool]':
+        """Returns a boolean mask indicating which filtered samples are 
+        out of specification.
+
+        A sample is considered not OK (NOK) if it is less than or equal 
+        to the lower specification limit (`lsl`) or greater than or 
+        equal to the upper specification limit (`usl`).
+
+        Returns
+        -------
+        Series[bool]
+            A boolean Series where True indicates a sample that is out 
+            of spec.
+        
+        Notes
+        -----
+        This mask only checks for out-of-spec values and does not 
+        consider missing or erroneous samples. Therefore, it is not the 
+        exact inverse of `mask_ok()`, which also excludes missing and 
+        error values. To get the full set of invalid samples, combine 
+        this mask with `mask_missing()` and `mask_error()`.
+        """
+        return (self.filtered <= self.lsl) | (self.filtered >= self.usl)
+
+    def mask_ok(self) -> Series:
+        """Returns a boolean mask indicating which samples are valid 
+        (OK).
+
+        A sample is considered OK if it is:
+        - Not missing (i.e., not NaN)
+        - Not an error (i.e., not in `_error_values`)
+        - Within specification limits (`lsl` < value < `usl`)
+
+        Returns
+        -------
+        Series[bool]
+            A boolean Series where True indicates a valid sample.
+        
+        Notes
+        -----
+        This mask is the logical inverse of the union of 
+        `mask_missing()`, `mask_error()`, and `mask_nok()`. It ensures 
+        that only fully valid samples are marked as OK, whereas 
+        `mask_nok()` alone does not account for missing or erroneous 
+        values.
+        """
+        return ~(self.mask_missing() | self.mask_error() | self.mask_nok())
 
     def _reset_values_(self) -> None:
         """Set all values relevant to process capability to None. This 

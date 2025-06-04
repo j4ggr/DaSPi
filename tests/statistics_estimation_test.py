@@ -190,6 +190,34 @@ class TestEstimator:
         assert not np.isnan(result.loc['std'][0])
         assert len(result) == len(estimator._descriptive_statistic_attrs_)
 
+    def test_full_range(self) -> None:
+        data = np.random.normal(size=10_000)
+
+        estimator = Estimator(data, strategy='data', agreement=1.0)
+        assert estimator.agreement == float('inf')
+        assert estimator._k == float('inf')
+        assert estimator.lcl == estimator.min
+        assert estimator.ucl == estimator.max
+        
+        estimator = Estimator(data, strategy='data', agreement=float('inf'))
+        assert estimator.agreement == float('inf')
+        assert estimator._k == float('inf')
+        assert estimator.lcl == estimator.min
+        assert estimator.ucl == estimator.max
+        
+        estimator = Estimator(data, strategy='norm', agreement=1.0)
+        assert estimator.agreement == float('inf')
+        assert estimator._k == float('inf')
+        assert estimator.lcl == float('-inf')
+        assert estimator.ucl == float('inf')
+
+        estimator = Estimator(data, strategy='data', agreement=1)
+        assert estimator.agreement == 1
+        assert estimator._k == 0.5
+        assert estimator.lcl != estimator.min
+        assert estimator.ucl != estimator.max
+
+
 class TestLoess:
     @pytest.fixture
     def sample_data(self) -> DataFrame:
