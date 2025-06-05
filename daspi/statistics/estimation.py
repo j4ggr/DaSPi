@@ -1728,11 +1728,17 @@ def _extended_range_(
     of the range of the data. The margin is added to the lower and
     upper bound of the data. The formula is as follows:
 
-        $margin_{data} = margin \cdot (max(data) - min(dat))$
+    $$
+    margin_{data} = margin(max(data) - min(dat))
+    $$
 
-        $extended_{min} = min(data) - margin_{data}$
+    $$
+    extended_{min} = min(data) - margin_{data}
+    $$
 
-        $extended_{max} = max(data) + margin_{data}$
+    $$
+    extended_{max} = max(data) + margin_{data}
+    $$
     
     Parameters
     ----------

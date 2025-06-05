@@ -1704,34 +1704,49 @@ class GageRnRModel(LinearModel):
 
         **With interaction term:**
 
-            $$s^2_{repeatability} = MS_{repeatability} = MS_{residual}$$
+        $$
+        s^2_{repeatability} = MS_{repeatability} = MS_{residual}
+        $$
 
-            $$s^2_{reproducer} = \frac{MS_{reproducer} - MS_{interaction}}
-                {n_{parts} \cdot n_{replication}}$$
+        $$
+        s^2_{reproducer} = \\frac{MS_{reproducer} - MS_{interaction}}{n_{parts} n_{replication}}
+        $$
 
-            $$s^2_{interaction} = \frac{MS_{interaction} - MS_{repeatability}}
-                {n_{replication}}$$
+        $$
+        s^2_{interaction} = \\frac{MS_{interaction} - MS_{repeatability}}{n_{replication}}
+        $$
 
-            $$s^2_{part} = \frac{MS_{part} - MS_{interaction}}
-                {n_{reproducer} \cdot n_{replication}}$$
+        $$
+        s^2_{part} = \\frac{MS_{part} - MS_{interaction}}{n_{reproducer} n_{replication}}
+        $$
 
-            $$s^2_{reproducibility} = s^2_{reproducer} + s^2_{interaction}$$
+        $$
+        s^2_{reproducibility} = s^2_{reproducer} + s^2_{interaction}
+        $$
 
         **Without interaction term:**
 
-            $$s^2_{repeatability} = MS_{repeatability} = MS_{residual}$$
+        $$
+        s^2_{repeatability} = MS_{repeatability} = MS_{residual}
+        $$
 
-            $$s^2_{reproducer} = \frac{MS_{reproducer} - MS_{repeatability}}
-                {n_{parts} \cdot n_{replication}}$$
+        $$
+        s^2_{reproducer} = \\frac{MS_{reproducer} - MS_{repeatability}}{n_{parts} n_{replication}}
+        $$
 
-            $$s^2_{part} = \frac{MS_{part} - MS_{repeatability}}
-                {n_{reproducer} \cdot n_{replication}}$$
+        $$
+        s^2_{part} = \\frac{MS_{part} - MS_{repeatability}}{n_{reproducer} n_{replication}}
+        $$
 
         **Variance summary:**
 
-            $$s^2_{RnR} = s^2_{repeatability} + s^2_{reproducibility}$$
+        $$
+        s^2_{RnR} = s^2_{repeatability} + s^2_{reproducibility}
+        $$
 
-            $$s^2_{total} = s^2_{RnR} + s^2_{part}$$
+        $$
+        s^2_{total} = s^2_{RnR} + s^2_{part}
+        $$
         """
         assert keep_interaction in (True, False, 'auto'), (
             'keep_interaction must be True, False, or auto')
