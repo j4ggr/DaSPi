@@ -14,7 +14,7 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
-## [1.6.0] - 2025-04-29
+## [1.6.0] - 2025-06-05
 
 ### Changed
 
