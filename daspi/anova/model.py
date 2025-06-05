@@ -194,6 +194,33 @@ class LinearModel:
         If True, the model is fitted at initialization. Otherwise, the
         model is fitted after calling the `fit` method. Default is True.
     
+    Examples
+    --------
+    Do some ANOVA and statistics on a dataset. Run the example below in 
+    a Jupyther Notebook to see the results.
+
+    ``` py
+    import daspi as dsp
+    
+    df = dsp.load_dataset('aspirin-dissolution')
+    model = dsp.LinearModel(
+        source=df,
+        target='dissolution',
+        features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+        disturbances=['temperature', 'preparation'],
+        order=2)
+
+    # Store goodnes of fit values for each elimination step
+    df_gof = pd.concat(model.recursive_elimination())
+
+    # Plot residual and parameter relevance analysis
+    dsp.ResidualsCharts(model).plot().stripes().label(info=True)
+    dsp.ParameterRelevanceCharts(model).plot().label(info=True)
+
+    # Get HTML output
+    model
+    ```
+
     Notes
     -----
     Always be careful when removing the intercept. If the intercept is 
