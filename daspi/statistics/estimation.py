@@ -98,6 +98,48 @@ class Estimator:
         continuous distributions of scipy.stats are allowed,
         by default `DIST.COMMON`
     
+    Examples
+    --------
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+
+    np.random.seed(1)
+    samples = data = np.random.weibull(a=1.5, size=100)
+    estimation = dsp.Estimator(
+        samples=samples,
+        strategy='fit',
+        agreement=6,
+        possible_dists=dsp.DIST.COMMON_NOT_NORM)
+    print(estimation.describe())
+    ```
+
+    So you will receive the following output:
+
+    ```console
+                      None
+    n_samples          100
+    n_missing            0
+    min           0.002356
+    max           2.724595
+    R             2.722239
+    mean           0.86943
+    median         0.74006
+    std           0.593666
+    sem           0.059367
+    excess        0.163836
+    p_excess      0.599041
+    skew          0.802202
+    p_skew        0.001918
+    p_ad          0.000455
+    dist       weibull_min
+    p_dist        0.968613
+    strategy           fit
+    lcl          -0.004917
+    ucl            3.43952
+    ```
+
     Notes
     -----
     A special case occurs when the agreement is 1. For a corresponding
@@ -827,8 +869,49 @@ class ProcessEstimator(Estimator):
         continuous distributions of scipy.stats are allowed,
         by default DIST.COMMON
 
-    """
+    Examples
+    --------
+    You can get a comprehensive analysis of your process using the 
+    `describe()` method, which returns a `pandas.DataFrame`. This 
+    contains all important metrics, such as the Cp (if possible) and 
+    Cpk values:
+    
+    ```python
+    import daspi as dsp
 
+    df = dsp.load_dataset('drop_card')
+    spec_limits = dsp.SpecLimits(0, float(df.loc[0, 'usl']))
+    target = 'distance'
+
+    drop_process = dsp.ProcessEstimator(
+        samples=df[target],
+        spec_limits=spec_limits)
+    print(drop_process.describe())
+    ```
+
+    However, in this dataset, the cards were dropped in two different 
+    ways. To compare both methods, a DataFrame containing both process 
+    analyses can be created as follows:
+
+    ```python
+    method_mapping = {0: 'parallel', 1: 'perpendicular'}
+    samples_parallel = df[df['method']==method_mapping[0]][target]
+    samples_series = df[df['method']==method_mapping[1]][target]
+
+    drop_analysis = pd.concat([
+        dsp.ProcessEstimator(samples_parallel, spec_limits).describe(),
+        dsp.ProcessEstimator(samples_series, spec_limits).describe()],
+        axis=1,
+        ignore_index=True,
+    ).rename(
+        columns=method_mapping
+    )
+    print(drop_analysis)
+    ```
+
+    You can get a detailed visual analysis with the precast chart 
+    `daspi.plotlib.precast.ProcessCapabilityAnalysisCharts`
+    """
     __slots__ = (
         '_spec_limits', '_n_ok', '_n_nok', '_ok', '_nok', '_nok_norm', 
         '_nok_fit', '_error_values', '_n_errors', '_cp', '_cpk', '_Z', 
@@ -1173,6 +1256,51 @@ class GageEstimator(Estimator):
         Indicates whether the bias is corrected for the Gage R&R study. 
         If True, the bias is not included in the measurement uncertainty; 
         otherwise, it is included. Default is True.
+    
+    Examples
+    --------
+
+    ```python
+    import daspi as dsp
+
+    df = dsp.load_dataset('grnr_adjustment')
+    gage = dsp.GageEstimator(
+        samples=df['result_gage'],
+        reference=df['reference'][0],
+        U_cal=df['U_cal'][0],
+        tolerance=df['tolerance'][0],
+        resolution=df['resolution'][0])
+    print(gage.describe())
+    ```
+
+    ```console
+                       result_gage
+    n_samples         6.000000e+01
+    n_missing         6.000000e+00
+    n_outlier         0.000000e+00
+    min               1.000700e+00
+    max               1.001600e+00
+    R                 9.000000e-04
+    mean              1.000809e+00
+    median            1.000800e+00
+    std               1.306999e-04
+    sem               1.778600e-05
+    p_ad              9.866969e-20
+    lower             9.870000e-01
+    upper             1.013000e+00
+    cg                3.315484e+01
+    cgk               3.109092e+01
+    bias              8.092593e-04
+    p_bias            3.723292e-44
+    T_min_cg          5.214925e-03
+    T_min_cgk         1.330752e-02
+    T_min_res         2.000000e-03
+    resolution_ratio  7.692308e-04
+    u_re              2.886751e-05
+    u_bias            1.014135e-04
+    u_evr             1.306999e-04
+    u_ms              1.654302e-04
+    ```
 
     References
     ----------
@@ -1182,7 +1310,6 @@ class GageEstimator(Estimator):
     [2] VDA Band 5, Mess- und Prüfprozesse. Eignung, Planung und Management
         (Juli 2021) 3. überarbeitete Auflage
     """
-
 
     __slots__ = (
         '_specification', '_reference', '_U_cal', '_resolution', '_cg_limit', 
@@ -1443,7 +1570,7 @@ class GageEstimator(Estimator):
         """The probability of the bias being significant by performing
         a t-test (read-only)."""
         if self._p_bias is None:
-            self._p_bias = t_test(self.samples, self.reference)[1]
+            self._p_bias = t_test(self.filtered, self.reference)[0]
         return self._p_bias
 
     @property
@@ -1529,7 +1656,7 @@ class GageEstimator(Estimator):
     
     def estimate_resolution(self) -> float:
         """Estimate the resolution of the testing system."""
-        return estimate_resolution(self.samples)
+        return estimate_resolution(self.filtered)
     
     def _reset_values_(self) -> None:
         """Set all values relevant to process capability to None. This 

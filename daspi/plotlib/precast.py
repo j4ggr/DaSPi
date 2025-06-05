@@ -845,13 +845,12 @@ class ProcessCapabilityAnalysisCharts(JointChart):
     import daspi as dsp
 
     df = dsp.load_dataset('drop_card')
-    spec_limits = 0, float(df.loc[0, 'usl'])
     target = 'distance'
 
     chart = dsp.ProcessCapabilityAnalysisCharts(
             source=df,
             target=target,
-            spec_limits=spec_limits,
+            spec_limits=dsp.SpecLimits(0, float(df.loc[0, 'usl'])),
             hue='method'
         ).plot(
         ).stripes(

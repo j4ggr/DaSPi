@@ -270,8 +270,8 @@ def t_test(
     df : int
         The degrees of freedom
     """
-    t, p, df = ttest_1samp(sample, mu, alternative=alternative)
-    return p, t, df # type: ignore
+    result = ttest_1samp(sample, mu, alternative=alternative)
+    return result.pvalue, result.statistic, result.df # type: ignore
 
 def levene_test(
         sample1: NumericSample1D,
