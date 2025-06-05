@@ -14,6 +14,34 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.6.0] - 2025-04-29
+
+### Changed
+
+- Renamed the module templates to precast.
+- Renamed Parameter class to Specification.
+- The groupby option observed to Ture within Chart and Plotter classes, because of FutureWarnings.
+- LinearModel does not require calling fit method by default aufter initialization.
+- The attribute name tick_lables to tick_labels at Dodger class
+
+### Added
+
+- The inclination_displacement() function to montecarlo module.
+- The coaxial() and perpendicular() methods to RandomProcessValue class at montecarlo module.
+- The GageEstimator class to estimation module.
+- The GageRnRModel class to model module.
+- The GageRnRCharts class to precast module.
+- The t_test() function to hypothesis module.
+- Unittests across many classes.
+- Documentation for plotting guide and a lot of examples across many classes.
+- The datasets grnr_adjustment.csv, grnr_layer_thickness.csv and grnr_spec.csv
+- The option margin to estimate_kernel_density and that this option can also be used in the GaussianKDE and GaussianKDEContour plotters.
+- The option to get the full data range for Estimator lcl and ucl when setting strategy to 'data' and agreement to '1.0' or flota('inf')
+- The mask_missing(), mask_ok() methods to Estimator class.
+- The mask_error(), mask_nok() and mask_ok() method to ProcessEstimator class.
+- The pos_to_ticklabes() method for Dodger class.
+- The Stem class to plotter module.
+
 ## [1.5.0] - 2025-04-29
 
 ### Changed

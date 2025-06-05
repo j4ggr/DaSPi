@@ -1070,9 +1070,6 @@ class GageRnRCharts(JointChart):
     spread_rejected_limit: float, optional
         The minimum limit where the spread proportion is rejected.
         Default is 0.3 (30 %).
-    resolution_accepted_limit: float, optional
-        The maximum value for the the resolution proportion where it is 
-        accepted. Default is 0.1 (10 %).
     u_accepted_limit: float, optional
         The maximum value for the the u proportion where it is accepted.
         Default is 0.15 (15 %).

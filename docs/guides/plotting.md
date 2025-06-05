@@ -234,7 +234,7 @@ Think of charts as your personal plotting assistants. They handle all the tediou
 
 Meet the three chart siblings, each with their own personality:
 
-- **SimpleChart** - The minimalist. One plot area, infinite possibilities.
+- **SingleChart** - The minimalist. One plot area, infinite possibilities.
 - **JointChart** - The collaborator. Loves showing relationships between variables.
 - **MultiVariantChart** - The overachiever. Handles complex multi-panel layouts like a boss.
 
@@ -263,7 +263,7 @@ All methods are chainable, so you can create entire visualizations in one elegan
 ```py
 import daspi as dsp
 
-chart = dsp.SimpleChart(...
+chart = dsp.SingleChart(...
     ).plot(...
     ).stripes(...
     ).labels(...
@@ -272,30 +272,45 @@ chart = dsp.SimpleChart(...
 
 It's like writing poetry, but with data! Each method flows naturally into the next, creating a readable narrative of your visualization process.
 
-### SimpleChart
+### SingleChart
 
-The SimpleChart class is perfect when you want to focus all attention on one plot area. It's like having a single spotlight on stage - everything else fades away, and your data becomes the star.
+The SingleChart class is perfect when you want to focus all attention on one plot area. It's like having a single spotlight on stage - everything else fades away, and your data becomes the star.
 
-Here's how to create a beautiful combination of a loess line with confidence intervals and a scatter plot:
+So now let's create a chart using the SingleChart class with the same data we used in the Facets section above.
 
 ```py
 import daspi as dsp
 
-df = dsp.load_dataset('iris')
-axes = dsp.AxesFacets(nrows=1, ncols=1)
-kwds = dict(
-    source=df,
-    target='length',
-    feature='width',
-    color=dsp.DEFAULT.PLOTTING_COLOR,
-    ax=axes[0])
+df = dsp.load_dataset('aspirin-dissolution')
 
-loess_plot = dsp.LoessLine(show_ci=True, **kwds)
-loess_plot()
-scatter_plot = dsp.Scatter(**kwds)
-scatter_plot()
+chart = dsp.SingleChart(
+        source=df,
+        target='dissolution',
+        feature='employee',
+        hue='brand',
+        dodge=True,
+    ).plot(
+        dsp.Beeswarm
+    ).plot(
+        dsp.CenterLocation,
+        show_line=True,
+        show_center=False,
+    ).plot(
+        dsp.MeanTest,
+        marker='_',
+        kw_center={'size': 100}
+    ).stripes(
+        mean=True,
+        confidence=0.95
+    ).label(
+        fig_title='Aspirin dissolution',
+        sub_title='Dissolution time vs. Employee, Brand, and Stirrer',
+        target_label='Dissolution time (s)',
+        feature_label='Employee',
+        info=True
+    )
 ```
 
-![XY Plot](../img/plotters_xy-example.png)
+![XY Plot](../img/plotters_single-chart_example.png)
 
 The result? A professional-looking plot that would make any data scientist proud! 📊

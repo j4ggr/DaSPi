@@ -85,15 +85,17 @@ nav:
     - Anova:
       - ANOVA: anova/index.md
       - anova/linear-model.md
+      - anova/gage-rnr-model.md
     - Plotlib: 
       - Plotting Library: plotlib/index.md
-      - Templates:
-        - Templates Module: plotlib/precast/index.md
+      - Precast Charts:
+        - Precast Module: plotlib/precast/index.md
         - plotlib/precast/residual-charts.md
         - plotlib/precast/parameter-relevance-charts.md
         - plotlib/precast/pair-comparison-charts.md
         - plotlib/precast/bivariate-univariate-charts.md
         - plotlib/precast/process-capability-analysis-charts.md
+        - plotlib/precast/gage-rnr-charts.md
       - Chart:
         - Chart Module: plotlib/chart/index.md
         - plotlib/chart/chart.md
@@ -105,6 +107,7 @@ nav:
         - plotlib/plotter/plotter.md
         - plotlib/plotter/scatter.md
         - plotlib/plotter/line.md
+        - plotlib/plotter/stem.md
         - plotlib/plotter/linear-regression-line.md
         - plotlib/plotter/probability.md
         - plotlib/plotter/parallel-coordinate.md
@@ -142,6 +145,7 @@ nav:
         - statistics/estimation/index.md
         - statistics/estimation/estimator.md
         - statistics/estimation/process-estimator.md
+        - statistics/estimation/gage-estimator.md
       - Confidence:
         - statistics/confidence/index.md
       - Monte-Carlo Library: statistics\montecarlo\index.md

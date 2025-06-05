@@ -1480,11 +1480,10 @@ class GageRnRModel(LinearModel):
         Column name of the reproducer. That is, the variable that
         identifies the operator for type 2 or the block for type 3 
         Gage R&R.
-    tolerance : float | SpecLimits | Specification
-        The tolerance range for the measurement.
-    resolution : float | None
-        The resolution of the measurement system. If None, the 
-        resolution is estimated from the samples.
+    gage : GageEstimator
+        The provided GageEstimator instance contains the measurement 
+        system's statistics. This class corresponds to measurement
+        system analysis type 1.
     k : int, optional
         The coverage factor for the expanded measurement uncertainty. 
         Default is 2. Typical values are:
