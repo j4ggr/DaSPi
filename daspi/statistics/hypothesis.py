@@ -89,11 +89,18 @@ def ensure_generic(
         The converted rv_continuous object if the input is a
         string representing a distribution, otherwise returns the input
         distribution directly.
+    
+    Raises
+    ------
+    AssertionError
+        If the input is a string that does not represent a valid 
+        distribution in scipy.stats.
     """
-    if isinstance(dist, str):
-        return getattr(stats, dist)
-    else:
-        return dist
+    _dist: rv_continuous
+    _dist = getattr(stats, dist) if isinstance(dist, str) else dist
+    assert hasattr(stats, getattr(_dist, 'name')), (
+        f'{dist} is not a valid distribution')
+    return _dist
 
 def anderson_darling_test(
         sample: NumericSample1D

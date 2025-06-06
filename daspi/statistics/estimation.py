@@ -52,7 +52,472 @@ from .hypothesis import variance_stability_test
 from .hypothesis import kolmogorov_smirnov_test
 
 
-class Estimator:
+class DistributionEstimator:
+    """A class to estimate the distribution of a given 1D numeric sample.
+    
+    This class provides methods to estimate distribution by fitting a
+    continuous distribution from `scipy.stats` to the provided samples.
+    It uses the Kolmogorov-Smirnov test to evaluate the fit of the
+    distribution to the data. The distribution with a higher p-value
+    is considered a better fit.
+    
+    Parameters
+    ----------
+    samples : NumericSample1D
+        The 1D numeric sample for which the distribution is to be 
+        estimated. This should be a Series or array-like object
+        containing numeric values.
+    dist : str rv_continuous, optional
+        Distributions to which the data may be subject. Only continuous 
+        distributions of scipy.stats are allowed. Default is 'norm'
+    possible_dists : tuple of strings or rv_continous, optional
+        Distributions to which the data may be subject. Only 
+        continuous distributions of scipy.stats are allowed,
+        by default `DIST.COMMON`
+    nan_policy : {'propagate', 'raise', 'omit'}, optional
+        How to handle NaN values in the samples. 
+        - 'propagate': NaN values are preserved in the analysis.
+        - 'raise': Raises an error if NaN values are found.
+        - 'omit': Omits NaN values from the analysis, default is 'omit'.
+    
+    Raises
+    ------
+    ValueError
+        If NaN values are found in the samples and `nan_policy` is set to 
+        'raise'.
+    UserWarning
+        If NaN values are found in the samples and `nan_policy` is set 
+        to 'omit' or 'propagate'. The warning indicates that NaN values 
+        will be omitted from the analysis or may lead to unexpected 
+        results.
+    """
+    __slots__ = (
+        '_samples',
+        '_filtered',
+        '_n_samples',
+        '_n_missing',
+        '_dist',
+        '_p_dist',
+        '_D',
+        '_params',
+        '_excess',
+        '_p_excess', 
+        '_skew',
+        '_p_skew',
+        '_p_ad',
+        '_ss',
+        '_aic',
+        '_bic',
+        '_descriptive_statistic_attrs',
+        'possible_dists',
+        'nan_policy')
+
+    _samples: pd.Series
+    _filtered: pd.Series
+    _n_samples: int
+    _n_missing: int
+    _dist: rv_continuous | None
+    _p_dist: float | None
+    _D: float | None
+    _params: Tuple[float, ...] | None
+    _excess: float | None
+    _p_excess: float | None
+    _skew: float | None
+    _p_skew: float | None
+    _p_ad: float | None
+    _ss: float | None
+    _aic: float | None
+    _bic: float | None
+    _descriptive_statistic_attrs: Tuple[str, ...]
+    possible_dists: Tuple[str | rv_continuous, ...]
+    """Distributions given during initialization to which the data may 
+    be subject."""
+    nan_policy : Literal['propagate', 'raise', 'omit']
+    """How to handle NaN values in the samples. 
+        - 'propagate': NaN values are preserved in the analysis.
+        - 'raise': Raises an error if NaN values are found.
+        - 'omit': Omits NaN values from the analysis, default is 'omit'."""
+
+    def __init__(
+            self, 
+            samples: NumericSample1D, 
+            dist: str | rv_continuous | None = None,
+            possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
+            nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
+            ) -> None:
+        if not isinstance(samples, pd.Series):
+            samples = pd.Series(samples)
+        has_nan = samples.isna().any()
+        if has_nan and nan_policy == 'raise':
+            raise ValueError(
+                'NaN values found in the samples. '
+                'Set nan_policy to "omit" to ignore them.')
+        elif nan_policy == 'omit':
+            if has_nan:
+                warnings.warn(
+                    'NaN values found in the samples. '
+                    'These will be omitted from the analysis.',
+                    UserWarning)
+        elif nan_policy == 'propagate' and has_nan:
+            warnings.warn(
+                'NaN values found in the samples. '
+                'This may lead to unexpected results.',
+                UserWarning)
+        self.nan_policy = nan_policy
+        self._filtered = pd.Series()
+        if not isinstance(samples, pd.Series):
+            samples = pd.Series(samples)
+        self._samples = samples
+        self._n_samples = len(self.samples)
+        self._n_missing = self.samples.isna().sum()
+        self._dist = None
+        self._p_dist = None
+        self._params = None
+        self._D = None
+        self.possible_dists = possible_dists
+        self.dist = dist
+
+        self._excess = None
+        self._p_excess = None
+        self._skew = None
+        self._p_skew = None
+        self._p_ad = None
+
+        self._ss = None
+        self._aic = None
+        self._bic = None
+
+        self._descriptive_statistic_attrs = (
+            'n_samples',
+            'n_missing',
+            'dist',
+            'p_dist',
+            'p_ad',
+            'excess',
+            'p_excess',
+            'skew',
+            'p_skew',)
+    
+    @property
+    def descriptive_statistic_attrs(self) -> Tuple[str, ...]:
+        """Get attribute names used for `describe` method."""
+        return self._descriptive_statistic_attrs
+    
+    @property
+    def samples(self) -> pd.Series:
+        """Get the raw samples as it was given during instantiation
+        as pandas Series (read-only)."""
+        return self._samples
+    
+    @property
+    def filtered(self) -> pd.Series:
+        """Get the samples without error values and no missing value 
+        (read-only)."""
+        if self._filtered.empty:
+            self._filtered = pd.to_numeric(self.samples[self.samples.notna()])
+        return self._filtered
+
+    @property
+    def n_samples(self) -> int:
+        """Get sample size of unfiltered samples (read-only)."""
+        return self._n_samples
+
+    @property
+    def n_missing(self) -> int:
+        """Get amount of missing values (read-only)."""
+        return self._n_missing
+    
+    @property
+    def dist(self) -> rv_continuous:
+        """This is the generic continuous distribution class of the 
+        provided or evaluated distribution."""
+        if self._dist is None:
+            self._dist, self._p_dist, self._params = self.distribution()
+        return self._dist
+    @dist.setter
+    def dist(self, dist: str | rv_continuous | None) -> None:
+        """Set the distribution to be used for estimation. If a string 
+        is provided, it will be converted to a continuous distribution 
+        class using `ensure_generic`. If None, the distribution will be 
+        estimated from the samples."""
+        if isinstance(dist, str):
+            dist = ensure_generic(dist)
+        self._dist = dist
+        if self._dist != dist:
+            self._p_dist = None
+            self._params = None
+            self._D = None
+    
+    @property
+    def p_dist(self) -> float:
+        """Get the two-tailed p-value for the provided or fitted 
+        distribution. A higher p-value indicates a better fit to the 
+        data (read-only)."""
+        if self._p_dist is None:
+            self._dist, self._p_dist, self._params = self.distribution()
+        return self._p_dist
+    
+    @property
+    def D(self) -> float:
+        """Get the Kolmogorov-Smirnov test statistic, either D, D+ or 
+        D-."""
+        if self._D is None:
+            self._D = kolmogorov_smirnov_test(self.filtered, self.dist)[0]
+        return self._D
+
+    @property
+    def params(self) -> Tuple[float, ...]:
+        """Estimates for any distribution shape parameters (if 
+        applicable), followed by those for location and scale. For most 
+        random variables, shape statistics will be returned, but there 
+        are exceptions (e.g. norm). Can be used to generate values with 
+        the help of the dist attribute (read-only)."""
+        if self._params is None:
+            self._dist, self._p_dist, self._params = self.distribution()
+        return self._params
+
+    @property
+    def excess(self) -> float:
+        """Get the Fisher kurtosis (excess) of filtered samples.
+        Calculations are corrected for statistical bias (read-only).
+        The curvature of the distribution corresponds to the 
+        curvature of a normal distribution when the excess is close to 
+        zero. Distributions with negative excess kurtosis are said to be 
+        platykurtic, this distribution produces fewer and/or less 
+        extreme outliers than the normal distribution (e.g. the uniform 
+        distribution has no outliers). Distributions with a positive 
+        excess kurtosis are said to be leptokurtic (e.g. the Laplace 
+        distribution, which has tails that asymptotically approach zero 
+        more slowly than a Gaussian, and therefore produces more 
+        outliers than the normal distribution):
+            - excess < 0: less extreme outliers than normal distribution
+            - excess > 0: more extreme outliers than normal distribution
+        """
+        if self._excess is None:
+            self._excess = float(kurtosis(
+                self.filtered, fisher=True, bias=False))
+        return self._excess
+
+    @property
+    def p_excess(self) -> float:
+        """Get the probability that the excess of the population that
+        the sample was drawn from is the same as that of a corresponding
+        normal distribution (read-only)."""
+        if self._p_excess is None:
+            self._p_excess = kurtosis_test(self.filtered)[0]
+        return self._p_excess
+
+    @property
+    def skew(self) -> float:
+        """Get the skewness of the filtered samples (read-only).
+        Calculations are corrected for statistical bias.
+        For normally distributed data, the skewness should be about zero. 
+        For unimodal continuous distributions, a skewness value greater 
+        than zero means that there is more weight in the right tail of 
+        the distribution:
+            - skew < 0: left-skewed -> long tail left
+            - skew > 0: right-skewed -> long tail right
+        """
+        if self._skew is None:
+            self._skew = float(skew(self.filtered, bias=False))
+        return self._skew
+
+    @property
+    def p_skew(self) -> float:
+        """Get the probability that the skewness of the population that
+        the sample was drawn from is the same as that of a corresponding
+        normal distribution (read-only)."""
+        if self._p_skew is None:
+            self._p_skew = skew_test(self.filtered)[0]
+        return self._p_skew
+
+    @property
+    def p_ad(self) -> float:
+        """Get the probability that the filtered samples are subject of
+        the normal distribution by performing a Anderson-Darling test
+        (read-only)."""
+        if self._p_ad is None:
+            self._p_ad = anderson_darling_test(self.filtered)[0]
+        return self._p_ad
+    
+    def mask_missing(self) -> 'Series[bool]':
+        """Returns a boolean mask indicating which samples are missing 
+        (NaN).
+
+        This mask can be used to filter or analyze entries in the 
+        `samples` attribute that contain missing values.
+
+        Returns
+        -------
+        Series[bool]:
+            A boolean Series where True indicates a missing sample.
+        """
+        return self.samples.isna()
+    
+    def mask_ok(self) -> Series:
+        """Returns a boolean mask indicating which samples are valid 
+        (OK).
+
+        A sample is considered OK if it is:
+        - Not missing (i.e., not NaN)
+
+        Returns
+        -------
+        Series[bool]
+            A boolean Series where True indicates a valid sample.
+        """
+        return ~self.mask_missing()
+    
+    def distribution(self) -> Tuple[rv_continuous, float, Tuple[float, ...]]:
+        """Estimate the distribution by selecting the one from the
+        provided distributions that best reflects the filtered data.
+
+        Returns
+        -------
+        dist : scipy.stats rv_continuous
+            A generic continous distribution class of best fit
+        p : float
+            The two-tailed p-value for the best fit
+        params : Tuple[float, ...]
+            Estimates for any shape parameters (if applicable), followed
+            by those for location and scale. For most random variables,
+            shape statistics will be returned, but there are exceptions
+            (e.g. norm). Can be used to generate values with the help of
+            returned dist
+        
+        Notes
+        -----
+        First, the p-score is calculated by performing a 
+        Kolmogorov-Smirnov test to determine how well each distribution 
+        fits the samples. Whatever has the highest P-score is considered
+        the most accurate. This is because a higher p-score means the 
+        hypothesis is closest to reality."""
+        samples = self.filtered if self.nan_policy == 'omit' else self.samples
+        dists =  self.possible_dists if self._dist is None else (self._dist, )
+        return estimate_distribution(samples, dists)
+    
+    def stable_variance(
+            self, alpha: float = 0.05, n_sections : int = 3) -> bool:
+        """Test whether the variance remains stable across the samples. 
+        
+        The sample data is divided into subgroups and the variances of
+        their sections are checked using the Levene test.
+        
+        Parameters
+        ----------
+        alpha : float
+            Alpha risk of hypothesis tests. If a p-value is below this 
+            limit, the null hypothesis is rejected
+        n_sections : int, optional
+            Amount of sections to divide the filtered samples into, 
+            by default 3
+        
+        Returns
+        -------
+        stable : bool
+            True if the p-value > alpha
+        """
+        assert isinstance(n_sections, int)
+        assert  1 < n_sections < len(self.filtered)
+        p, _ = variance_stability_test(self.filtered, n_sections=n_sections)
+        return p > alpha
+    
+    def stable_mean(
+            self, alpha: float = 0.05, n_sections : int = 3) -> bool:
+        """Test whether the mean remains stable across the samples. 
+        
+        The sample data is divided into subgroups and the mean of their 
+        sections are checked using the F test.
+        
+        Parameters
+        ----------
+        alpha : float
+            Alpha risk of hypothesis tests. If a p-value is below this 
+            limit, the null hypothesis is rejected
+        n_sections : int, optional
+            Amount of sections to divide the filtered samples into, 
+            by default 3
+        
+        Returns
+        -------
+        stable : bool
+            True if the p-value > alpha
+        """
+        assert isinstance(n_sections, int)
+        assert  1 < n_sections < len(self.filtered)
+        p, _ = mean_stability_test(self.filtered, n_sections=n_sections)
+        return p > alpha
+    
+    def follows_norm_curve(
+            self, alpha: float = 0.05, excess_test: bool = True,
+            skew_test: bool = True, ad_test: bool = False) -> bool:
+        """Checks whether the sample data is subject to normal 
+        distribution by performing one or more of the following tests 
+        (depending on the input):
+        - Skewness test
+        - Bulge test
+        - Anderson-Darling test
+        
+        Parameters
+        ----------
+        alpha : float
+            Alpha risk of hypothesis tests. If a p-value is below this 
+            limit, the null hypothesis is rejected
+        skew_test : bool, optional
+            If true, an skew test will also be carried out, by default 
+            True
+        ad_test : bool, optional
+            If true, an excess test will also be carried out, by default True
+        ad_test : bool, optional
+            If true, an Anderson Darling test will also be carried out,
+            by default False
+            
+        Returns
+        -------
+        remain_h0 : bool
+            True if all p-values of the tests performed are greater than 
+            alpha, otherwise False
+        """
+        remain_h0 = [
+            (self.p_excess > alpha) if excess_test else True,
+            (self.p_skew > alpha) if skew_test else True,
+            (self.p_ad > alpha) if ad_test else True]
+        return all(remain_h0)
+    
+    def _get_descriptive_attr_(self, name) -> float | int | str:
+        """Return the current value of the specified attribute."""
+        assert name in self.descriptive_statistic_attrs, (
+            f'Attribute {name} is not a valid descriptive statistic '
+            'attribute')
+        if name == 'dist':
+            return self.dist.name
+        return getattr(self, name)
+    
+    def describe(self, exclude: Tuple[str, ...] = ()) -> DataFrame:
+        """Generate descriptive statistics.
+        
+        Parameters
+        ----------
+        exclude : Tuple[str,...], optional
+            Attributes to exclude from the summary statistics,
+            by default ()
+        
+        Returns
+        -------
+        stats : DataFrame
+            Summary statistics as pandas DataFrame. The indices of the
+            DataFrame are the attributes that have been computed and the
+            column name is the name of the samples.
+        """
+        names = (
+            n for n in self.descriptive_statistic_attrs if n not in exclude)
+        data = pd.DataFrame(
+            data={name: [self._get_descriptive_attr_(name)] for name in names},
+            index=[self.samples.name])
+        return data.T
+
+
+class Estimator(DistributionEstimator):
     """An object for various statistical estimators
     
     The attributes are calculated lazily. After the class is 
@@ -149,16 +614,22 @@ class Estimator:
     `min` and `max`, otherwise we get `-inf` and `inf`.
     """
     __slots__ = (
-        '_samples', '_filtered', '_n_samples', '_n_missing', '_min', '_max', 
-        '_R', '_mean', '_median', '_std', '_sem', '_lcl', '_ucl', '_strategy',
-        '_agreement', '_excess', '_p_excess', '_skew', '_p_skew', '_dist',
-        '_p_dist', '_p_ad', '_dist_params', 'possible_dists', '_k', '_evaluate',
-        '_q_low', '_q_upp')
+        '_min',
+        '_max', 
+        '_R',
+        '_mean',
+        '_median',
+        '_std',
+        '_sem',
+        '_lcl',
+        '_ucl',
+        '_strategy',
+        '_agreement',
+        '_k',
+        '_evaluate',
+        '_q_low',
+        '_q_upp')
     
-    _samples: Series
-    _filtered: Series
-    _n_samples: int
-    _n_missing: int
     _min: float | None
     _max: float | None
     _R: float | None
@@ -168,23 +639,12 @@ class Estimator:
     _sem: float | None
     _lcl: float | None
     _ucl: float | None
-    _excess: float | None
-    _p_excess: float | None
-    _skew: float | None
-    _p_skew: float | None
-    _dist: rv_continuous | None
-    _p_dist: float | None
-    _p_ad: float | None
-    _dist_params: tuple | None
     _strategy: Literal['eval', 'fit', 'norm', 'data'] 
     _agreement: int | float
     _k: float
     _evaluate: Callable | None
     _q_low: float | None
     _q_upp: float | None
-    possible_dists: Tuple[str | rv_continuous, ...]
-    """Distributions given during initialization to which the data may 
-    be subject."""
 
     def __init__(
             self,
@@ -194,6 +654,11 @@ class Estimator:
             possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
             evaluate: Callable | None = None
             ) -> None:
+        super().__init__(
+            samples=samples,
+            dist=None,
+            possible_dists=possible_dists,
+            nan_policy='omit')
         self._min = None
         self._max = None
         self._R = None
@@ -205,59 +670,31 @@ class Estimator:
         self._ucl = None
         self._q_low = None
         self._q_upp = None
-        self._excess = None
-        self._p_excess = None
-        self._skew = None
-        self._p_skew = None
-        self._dist = None
-        self._p_dist = None
-        self._p_ad = None
-        self._dist_params = None
-        self.possible_dists = possible_dists
-        self._filtered = pd.Series()
-        if not isinstance(samples, pd.Series):
-            samples = pd.Series(samples)
-        self._samples = samples
-        self._n_samples = len(self.samples)
-        self._n_missing = self.samples.isna().sum()
         self._strategy = 'norm'
         self.strategy = strategy
         self._agreement = -1
         self.agreement = agreement
         self._evaluate = evaluate
-    
-    @property
-    def _descriptive_statistic_attrs_(self) -> Tuple[str, ...]:
-        """Get attribute names used for `describe` method."""
-        attrs = (
-            'n_samples', 'n_missing', 'min', 'max', 'R', 'mean', 'median',
-            'std', 'sem', 'excess', 'p_excess', 'skew', 'p_skew', 'p_ad',
-            'dist', 'p_dist', 'strategy', 'lcl', 'ucl')
-        return attrs
-
-    @property
-    def samples(self) -> pd.Series:
-        """Get the raw samples as it was given during instantiation
-        as pandas Series (read-only)."""
-        return self._samples
-    
-    @property
-    def filtered(self) -> pd.Series:
-        """Get the samples without error values and no missing value 
-        (read-only)."""
-        if self._filtered.empty:
-            self._filtered = pd.to_numeric(self.samples[self.samples.notna()])
-        return self._filtered
-
-    @property
-    def n_samples(self) -> int:
-        """Get sample size of unfiltered samples (read-only)."""
-        return self._n_samples
-
-    @property
-    def n_missing(self) -> int:
-        """Get amount of missing values (read-only)."""
-        return self._n_missing
+        self._descriptive_statistic_attrs = (
+            'n_samples',
+            'n_missing',
+            'min',
+            'max',
+            'R',
+            'mean',
+            'median',
+            'std',
+            'sem',
+            'excess',
+            'p_excess',
+            'skew',
+            'p_skew',
+            'p_ad',
+            'dist',
+            'p_dist',
+            'strategy',
+            'lcl',
+            'ucl')
 
     @property
     def dof(self) -> int:
@@ -350,94 +787,6 @@ class Estimator:
         return self._q_upp
 
     @property
-    def excess(self) -> float:
-        """Get the Fisher kurtosis (excess) of filtered samples.
-        Calculations are corrected for statistical bias (read-only).
-        The curvature of the distribution corresponds to the 
-        curvature of a normal distribution when the excess is close to 
-        zero. Distributions with negative excess kurtosis are said to be 
-        platykurtic, this distribution produces fewer and/or less 
-        extreme outliers than the normal distribution (e.g. the uniform 
-        distribution has no outliers). Distributions with a positive 
-        excess kurtosis are said to be leptokurtic (e.g. the Laplace 
-        distribution, which has tails that asymptotically approach zero 
-        more slowly than a Gaussian, and therefore produces more 
-        outliers than the normal distribution):
-            - excess < 0: less extreme outliers than normal distribution
-            - excess > 0: more extreme outliers than normal distribution
-        """
-        if self._excess is None:
-            self._excess = float(kurtosis(
-                self.filtered, fisher=True, bias=False))
-        return self._excess
-
-    @property
-    def p_excess(self) -> float:
-        """Get the probability that the excess of the population that
-        the sample was drawn from is the same as that of a corresponding
-        normal distribution (read-only)."""
-        if self._p_excess is None:
-            self._p_excess = kurtosis_test(self.filtered)[0]
-        return self._p_excess
-
-    @property
-    def skew(self) -> float:
-        """Get the skewness of the filtered samples (read-only).
-        Calculations are corrected for statistical bias.
-        For normally distributed data, the skewness should be about zero. 
-        For unimodal continuous distributions, a skewness value greater 
-        than zero means that there is more weight in the right tail of 
-        the distribution:
-            - skew < 0: left-skewed -> long tail left
-            - skew > 0: right-skewed -> long tail right
-        """
-        if self._skew is None:
-            self._skew = float(skew(self.filtered, bias=False))
-        return self._skew
-
-    @property
-    def p_skew(self) -> float:
-        """Get the probability that the skewness of the population that
-        the sample was drawn from is the same as that of a corresponding
-        normal distribution (read-only)."""
-        if self._p_skew is None:
-            self._p_skew = skew_test(self.filtered)[0]
-        return self._p_skew
-
-    @property
-    def p_ad(self) -> float:
-        """Get the probability that the filtered samples are subject of
-        the normal distribution by performing a Anderson-Darling test
-        (read-only)."""
-        if self._p_ad is None:
-            self._p_ad = anderson_darling_test(self.filtered)[0]
-        return self._p_ad
-
-    @property
-    def dist(self) -> rv_continuous:
-        """Get fitted distribution. None if method distribution has 
-        not been called (read-only)."""
-        if self._dist is None:
-            self._dist, self._p_dist, self._dist_params = self.distribution()
-        return self._dist
-
-    @property
-    def p_dist(self) -> float:
-        """Get probability of fitted distribution. None if method 
-        distribution has not been called (read-only)."""
-        if self._p_dist is None:
-            self._dist, self._p_dist, self._dist_params = self.distribution()
-        return self._p_dist
-
-    @property
-    def dist_params(self) -> Tuple[float, ...]:
-        """Get params of fitted distribution. None if method 
-        distribution has not been called (read-only)."""
-        if self._dist_params is None:
-            self._dist, self._p_dist, self._dist_params = self.distribution()
-        return self._dist_params
-
-    @property
     def strategy(self) -> Literal['eval', 'fit', 'norm', 'data']:
         """Strategy used to determine the control limits. The control 
         limits can also be interpreted as the process range.
@@ -494,34 +843,6 @@ class Estimator:
         if self._agreement != agreement:
             self._agreement = agreement
             self._reset_values_()
-    
-    def mask_missing(self) -> 'Series[bool]':
-        """Returns a boolean mask indicating which samples are missing 
-        (NaN).
-
-        This mask can be used to filter or analyze entries in the 
-        `samples` attribute that contain missing values.
-
-        Returns
-        -------
-        Series[bool]:
-            A boolean Series where True indicates a missing sample.
-        """
-        return self.samples.isna()
-    
-    def mask_ok(self) -> Series:
-        """Returns a boolean mask indicating which samples are valid 
-        (OK).
-
-        A sample is considered OK if it is:
-        - Not missing (i.e., not NaN)
-
-        Returns
-        -------
-        Series[bool]
-            A boolean Series where True indicates a valid sample.
-        """
-        return ~self.mask_missing()
 
     def z_transform(self, x: float) -> float:
         """Transform value to z-score.
@@ -591,120 +912,6 @@ class Estimator:
         ci_low, ci_upp = stdev_ci(sample=self.filtered, level=level)[1:]
         return ci_low, ci_upp
     
-    def distribution(self) -> Tuple[rv_continuous, float, Tuple[float, ...]]:
-        """Estimate the distribution by selecting the one from the
-        provided distributions that best reflects the filtered data.
-
-        Returns
-        -------
-        dist : scipy.stats rv_continuous
-            A generic continous distribution class of best fit
-        p : float
-            The two-tailed p-value for the best fit
-        params : Tuple[float, ...]
-            Estimates for any shape parameters (if applicable), followed
-            by those for location and scale. For most random variables,
-            shape statistics will be returned, but there are exceptions
-            (e.g. norm). Can be used to generate values with the help of
-            returned dist
-        
-        Notes
-        -----
-        First, the p-score is calculated by performing a 
-        Kolmogorov-Smirnov test to determine how well each distribution 
-        fits the samples. Whatever has the highest P-score is considered
-        the most accurate. This is because a higher p-score means the 
-        hypothesis is closest to reality."""
-        return estimate_distribution(self.filtered, self.possible_dists)
-    
-    def stable_variance(
-            self, alpha: float = 0.05, n_sections : int = 3) -> bool:
-        """Test whether the variance remains stable across the samples. 
-        
-        The sample data is divided into subgroups and the variances of
-        their sections are checked using the Levene test.
-        
-        Parameters
-        ----------
-        alpha : float
-            Alpha risk of hypothesis tests. If a p-value is below this 
-            limit, the null hypothesis is rejected
-        n_sections : int, optional
-            Amount of sections to divide the filtered samples into, 
-            by default 3
-        
-        Returns
-        -------
-        stable : bool
-            True if the p-value > alpha
-        """
-        assert isinstance(n_sections, int)
-        assert  1 < n_sections < len(self.filtered)
-        p, _ = variance_stability_test(self.filtered, n_sections=n_sections)
-        return p > alpha
-    
-    def stable_mean(
-            self, alpha: float = 0.05, n_sections : int = 3) -> bool:
-        """Test whether the mean remains stable across the samples. 
-        
-        The sample data is divided into subgroups and the mean of their 
-        sections are checked using the F test.
-        
-        Parameters
-        ----------
-        alpha : float
-            Alpha risk of hypothesis tests. If a p-value is below this 
-            limit, the null hypothesis is rejected
-        n_sections : int, optional
-            Amount of sections to divide the filtered samples into, 
-            by default 3
-        
-        Returns
-        -------
-        stable : bool
-            True if the p-value > alpha
-        """
-        assert isinstance(n_sections, int)
-        assert  1 < n_sections < len(self.filtered)
-        p, _ = mean_stability_test(self.filtered, n_sections=n_sections)
-        return p > alpha
-    
-    def follows_norm_curve(
-            self, alpha: float = 0.05, excess_test: bool = True,
-            skew_test: bool = True, ad_test: bool = False) -> bool:
-        """Checks whether the sample data is subject to normal 
-        distribution by performing one or more of the following tests 
-        (depending on the input):
-        - Skewness test
-        - Bulge test
-        - Anderson-Darling test
-        
-        Parameters
-        ----------
-        alpha : float
-            Alpha risk of hypothesis tests. If a p-value is below this 
-            limit, the null hypothesis is rejected
-        skew_test : bool, optional
-            If true, an skew test will also be carried out, by default 
-            True
-        ad_test : bool, optional
-            If true, an excess test will also be carried out, by default True
-        ad_test : bool, optional
-            If true, an Anderson Darling test will also be carried out,
-            by default False
-            
-        Returns
-        -------
-        remain_h0 : bool
-            True if all p-values of the tests performed are greater than 
-            alpha, otherwise False
-        """
-        remain_h0 = [
-            (self.p_excess > alpha) if excess_test else True,
-            (self.p_skew > alpha) if skew_test else True,
-            (self.p_ad > alpha) if ad_test else True]
-        return all(remain_h0)
-    
     def evaluate(self) -> Literal['fit', 'norm', 'data']:
         """Evaluate strategy to calculate control limits. If no evaluate
         function is given the strategy is evaluated as follows:
@@ -764,8 +971,8 @@ class Estimator:
                 self.strategy = self.evaluate()
                 lcl, ucl = self._calculate_control_limits_()
             case 'fit':
-                lcl = float(self.dist.ppf(self.q_low, *self.dist_params))
-                ucl = float(self.dist.ppf(self.q_upp, *self.dist_params))
+                lcl = float(self.dist.ppf(self.q_low, *self.params))
+                ucl = float(self.dist.ppf(self.q_upp, *self.params))
             case 'norm':
                 lcl = self.mean - self._k * self.std
                 ucl = self.mean + self._k * self.std
@@ -783,38 +990,6 @@ class Estimator:
         self._ucl = None
         self._q_low = None
         self._q_upp = None
-    
-    def _get_(self, name) -> float | int | str:
-        """Return the current value of the specified attribute."""
-        assert name in self._descriptive_statistic_attrs_, (
-            f'Attribute {name} is not a valid descriptive statistic '
-            'attribute')
-        if name == 'dist':
-            return self.dist.name
-        return getattr(self, name)
-    
-    def describe(self, exclude: Tuple[str, ...] = ()) -> DataFrame:
-        """Generate descriptive statistics.
-        
-        Parameters
-        ----------
-        exclude : Tuple[str,...], optional
-            Attributes to exclude from the summary statistics,
-            by default ()
-        
-        Returns
-        -------
-        stats : DataFrame
-            Summary statistics as pandas DataFrame. The indices of the
-            DataFrame are the attributes that have been computed and the
-            column name is the name of the samples.
-        """
-        names = (
-            n for n in self._descriptive_statistic_attrs_ if n not in exclude)
-        data = pd.DataFrame(
-            data={name: [self._get_(name)] for name in names},
-            index=[self.samples.name])
-        return data.T
 
 
 class ProcessEstimator(Estimator):
@@ -913,9 +1088,20 @@ class ProcessEstimator(Estimator):
     `daspi.plotlib.precast.ProcessCapabilityAnalysisCharts`
     """
     __slots__ = (
-        '_spec_limits', '_n_ok', '_n_nok', '_ok', '_nok', '_nok_norm', 
-        '_nok_fit', '_error_values', '_n_errors', '_cp', '_cpk', '_Z', 
+        '_spec_limits',
+        '_n_ok',
+        '_n_nok',
+        '_ok',
+        '_nok',
+        '_nok_norm', 
+        '_nok_fit',
+        '_error_values',
+        '_n_errors',
+        '_cp',
+        '_cpk',
+        '_Z', 
         '_Z_lt')
+    
     _spec_limits: SpecLimits
     _n_ok: int | None
     _n_nok: int | None
@@ -958,14 +1144,41 @@ class ProcessEstimator(Estimator):
         super().__init__(samples, strategy, agreement, possible_dists)
     
     @property
-    def _descriptive_statistic_attrs_(self) -> Tuple[str, ...]:
+    def descriptive_statistic_attrs(self) -> Tuple[str, ...]:
         """Get attribute names used for `describe` method (read-only)."""
-        _attrs = super()._descriptive_statistic_attrs_
-        attrs = (_attrs[:2]
-                 + ('n_ok', 'n_nok', 'n_errors', 'ok', 'nok', 
-                    'nok_norm', 'nok_fit')
-                 + _attrs[2:]
-                 + ('lsl', 'usl', 'cp', 'cpk', 'Z', 'Z_lt'))
+        attrs = (
+            'n_samples',
+            'n_missing',
+            'n_ok',
+            'n_nok',
+            'n_errors',
+            'ok',
+            'nok', 
+            'nok_norm',
+            'nok_fit'
+            'min',
+            'max',
+            'R',
+            'mean',
+            'median',
+            'std',
+            'sem',
+            'excess',
+            'p_excess',
+            'skew',
+            'p_skew',
+            'p_ad',
+            'dist',
+            'p_dist',
+            'strategy',
+            'lcl',
+            'ucl'
+            'lsl',
+            'usl',
+            'cp',
+            'cpk',
+            'Z',
+            'Z_lt')
         return attrs
         
     @property
@@ -1026,8 +1239,8 @@ class ProcessEstimator(Estimator):
         fitted distribution (read-only)."""
         if self._nok_fit is None:
             self._nok_fit = float(
-                1 - self.dist.cdf(self.usl, *self.dist_params)
-                + self.dist.cdf(self.lsl, *self.dist_params))
+                1 - self.dist.cdf(self.usl, *self.params)
+                + self.dist.cdf(self.lsl, *self.params))
         return f'{100 * self._nok_fit:.2f} %'
     
     @property
@@ -1374,17 +1587,33 @@ class GageEstimator(Estimator):
             warnings.warn(
                 f'The number of samples is too small ({self.n_samples}). '
                 f'The minimum number of samples is {self._n_samples_min}.')
+        self._descriptive_statistic_attrs = (
+            'n_samples',
+            'n_missing',
+            'n_outlier',
+            'min',
+            'max',
+            'R',
+            'mean', 
+            'median',
+            'std',
+            'sem',
+            'p_ad',
+            'lower',
+            'upper',
+            'cg',
+            'cgk', 
+            'bias',
+            'p_bias',
+            'T_min_cg',
+            'T_min_cgk',
+            'T_min_res',
+            'resolution_ratio',
+            'u_re',
+            'u_bias',
+            'u_evr',
+            'u_ms')
         self._reset_values_()
-
-    @property
-    def _descriptive_statistic_attrs_(self) -> Tuple[str, ...]:
-        """Get attribute names used for `describe` method (read-only)."""
-        attrs = (
-            'n_samples', 'n_missing', 'n_outlier', 'min', 'max', 'R', 'mean', 
-            'median', 'std', 'sem', 'p_ad', 'lower', 'upper', 'cg', 'cgk', 
-            'bias', 'p_bias', 'T_min_cg', 'T_min_cgk', 'T_min_res', 'resolution_ratio',
-            'u_re', 'u_bias', 'u_evr', 'u_ms')
-        return attrs
     
     @property
     def resolution(self) -> float:

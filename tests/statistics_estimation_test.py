@@ -143,13 +143,13 @@ class TestEstimator:
     def test_fit_distribution(self) -> None:
         estimate = Estimator(df_dist25['expon'])
         assert estimate._dist is None
-        assert estimate._dist_params is None
+        assert estimate._params is None
         assert estimate._p_dist is None
        
         estimate.distribution()
         assert estimate.dist.name != 'norm'
         assert estimate.p_dist > 0.005
-        assert estimate.dist_params is not None
+        assert estimate.params is not None
         
         estimate = Estimator(df_dist25['norm'])
         estimate.distribution()
@@ -179,7 +179,7 @@ class TestEstimator:
 
     def test_describe_with_empty_exclude(self, sample_estimator: Estimator) -> None:
         result = sample_estimator.describe(exclude=())
-        expected_attrs = sample_estimator._descriptive_statistic_attrs_
+        expected_attrs = sample_estimator.descriptive_statistic_attrs
         assert all(attr in result.index for attr in expected_attrs)
 
     def test_describe_with_nan_values(self) -> None:
@@ -188,7 +188,7 @@ class TestEstimator:
         result = estimator.describe()
         assert not np.isnan(result.loc['mean'][0])
         assert not np.isnan(result.loc['std'][0])
-        assert len(result) == len(estimator._descriptive_statistic_attrs_)
+        assert len(result) == len(estimator.descriptive_statistic_attrs)
 
     def test_full_range(self) -> None:
         data = np.random.normal(size=10_000)
@@ -385,7 +385,7 @@ class TestProcessEstimator:
 
     def test_describe_with_empty_exclude(self, sample_estimator: ProcessEstimator) -> None:
         result = sample_estimator.describe(exclude=())
-        expected_attrs = sample_estimator._descriptive_statistic_attrs_
+        expected_attrs = sample_estimator.descriptive_statistic_attrs
         assert all(attr in result.index for attr in expected_attrs)
 
     def test_describe_with_nan_values(self) -> None:
@@ -394,7 +394,7 @@ class TestProcessEstimator:
         result = estimator.describe()
         assert not np.isnan(result.loc['mean'][0])
         assert not np.isnan(result.loc['std'][0])
-        assert len(result) == len(estimator._descriptive_statistic_attrs_)
+        assert len(result) == len(estimator.descriptive_statistic_attrs)
     
     def test_n_nok(self, estimator_norm: ProcessEstimator) -> None:
         assert estimator_norm._n_nok is None
