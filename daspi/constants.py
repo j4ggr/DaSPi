@@ -488,6 +488,8 @@ class _Anova_:
     """"Default name for effects"""
     FEATURES: Literal['features'] = 'features'
     """"Default name for features"""
+    REFERENCE: Literal['reference'] = 'reference'
+    """"Default name for reference used in GageStudyModel."""
     SOURCE: Literal['Source'] = 'Source'
     """"Default name for source used in ANOVA table."""
     VIF: Literal['VIF'] = 'VIF'
@@ -547,7 +549,7 @@ class _Anova_:
     @property
     def UNCERTAINTY_ROWS(self) -> List[str]:
         """Captions for the uncertainty table."""
-        return ['RE', 'Bi', 'EVR', 'MS', 'EVO', 'AV', 'IA', 'MP']
+        return ['RE', 'Bi', 'EVR', 'LIN', 'MS', 'EVO', 'AV', 'IA', 'MP']
 
 ANOVA = _Anova_()
 
