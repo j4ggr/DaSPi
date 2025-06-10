@@ -42,7 +42,7 @@ This Package contains following submodules:
 
 To use DaSPi, you can import the package and start exploring your data. Here is an example of how to use DaSPi to visualize a dataset:
 
-``` py
+```python
 import daspi as dsp
 df = dsp.load_dataset('iris')
 
@@ -69,7 +69,7 @@ chart = dsp.MultivariateChart(
 
 Do some ANOVA and statistics on a dataset. Run the example below in a Jupyther Notebook to see the results.
 
-``` py
+```python
 df = dsp.load_dataset('aspirin-dissolution')
 model = dsp.LinearModel(
     source=df,
@@ -134,7 +134,7 @@ dissolution ~ 16.0792 + 2.3750 employee[T.B] + 0.8375 employee[T.C] + 10.7500 br
 
 Analyze process variation and other key performance indicators for process capacity.
 
-``` py
+```python
 df = dsp.load_dataset('drop_card')
 spec_limits = dsp.SpecLimits(0, float(df.loc[0, 'usl']))
 target = 'distance'

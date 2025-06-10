@@ -361,7 +361,7 @@ axes.prop_cycle: cycler('color', ['0091dc', '1186dc', '227adc', '346fdc', '4564d
                                             # See also https://matplotlib.org/tutorials/intermediate/color_cycle.html
                                             # for more details on prop_cycle usage.
                                             # This colormap was created using following code:
-                                            # ``` python
+                                            # ```python
                                             #     from matplotlib.colors import to_hex, LinearSegmentedColormap
                                             #     n = 50
                                             #     cmap = LinearSegmentedColormap.from_list(     # distributet Hs in the HSV color space with same S and V

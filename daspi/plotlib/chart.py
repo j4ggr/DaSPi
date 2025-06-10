@@ -1810,7 +1810,7 @@ class MultivariateChart(SingleChart):
     Examples
     --------
     
-    ``` python
+    ```python
     import daspi as dsp
     df = dsp.load_dataset('iris')
 

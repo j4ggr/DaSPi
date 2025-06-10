@@ -50,7 +50,7 @@ def load_dataset(dataset_name: str) -> DataFrame:
     Load the `Iris <https://archive.ics.uci.edu/dataset/53/iris>`_
     dataset:
 
-    ``` python
+    ```python
     import daspi as dsp
     df = dsp.load_dataset('iris')
     df
@@ -88,12 +88,12 @@ def list_dataset():
 
     Examples
     --------
-    ``` python
+    ```python
     import daspi as pg
     all_datasets = pg.list_dataset()
     all_datasets.index.tolist()
     ```
-    ``` console
+    ```console
     ['ancova',
      'anova',
      'anova2',

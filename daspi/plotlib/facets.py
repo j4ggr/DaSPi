@@ -97,14 +97,14 @@ class AxesFacets:
     --------
     1. Using nrows and ncols:
     Creates a regular grid of subplots with specified dimensions
-    ``` python
+    ```python
     # Creates a 2x3 grid of regular subplots
     facets = AxesFacets(nrows=2, ncols=3)
     ```
 
     2. Using mosaic:
     Creates a layout with custom subplot arrangements and spanning
-    ``` python
+    ```python
     import daspi as dsp
     # Creates a layout with spanning cells
     layout = (
@@ -114,7 +114,7 @@ class AxesFacets:
     ```
     
     3. Create a seaborn-style jointplot layout with custom size ratios:
-    ``` python
+    ```python
     import daspi as dsp
     # Creates a layout with main scatter plot and marginal distributions
     layout = [

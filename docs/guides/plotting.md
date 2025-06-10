@@ -16,7 +16,7 @@ You have two ways to design your layout:
 
 Use `nrows`, `ncols`, `width_ratios`, and `height_ratios` for clean, structured layouts:
 
-```py
+```python
 import daspi as dsp
 
 axes = dsp.AxesFacets(
@@ -27,7 +27,7 @@ axes = dsp.AxesFacets(
 
 Use the `mosaic` argument for more creative, flexible layouts:
 
-```py
+```python
 axes = dsp.AxesFacets(mosaic=[
     'aaa.',
     'bbbc',
@@ -39,7 +39,7 @@ Both approaches give you the same basic layout, but mosaic has a cool trick up i
 
 **Pro tip**: Combine mosaic with ratios for the best of both worlds:
 
-```py
+```python
 axes = dsp.AxesFacets(
     mosaic=['a.', 'bc'], width_ratios=[3, 1], height_ratios=[1, 3])
 ```
@@ -64,7 +64,7 @@ Ever wanted to add reference lines or highlight important regions across your pl
 
 Let's see this in action with aspirin dissolution data. First, the "before" picture:
 
-```py
+```python
 import daspi as dsp
 import matplotlib.pyplot as plt
 
@@ -82,7 +82,7 @@ for ax, (name, group) in zip(axes, df.groupby('employee')):
 
 Hard to compare, right? Now watch the magic happen when we add stripes:
 
-```py
+```python
 import daspi as dsp
 import matplotlib.pyplot as plt
 
@@ -116,7 +116,7 @@ LabelFacets is your typography and annotation specialist. 📝 This class handle
 
 The best part? It automatically adjusts the subplot area to prevent text overlap. No more manually tweaking margins!
 
-```py
+```python
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
@@ -151,7 +151,7 @@ labels.draw()
 
 Let's create a complete, professional-looking analysis by combining all three facet classes. We'll revisit our aspirin dissolution example and make it publication-ready:
 
-```py
+```python
 import daspi as dsp
 
 df = dsp.load_dataset('aspirin-dissolution')
@@ -260,7 +260,7 @@ Here's the secret sauce for chart creation:
 
 All methods are chainable, so you can create entire visualizations in one elegant flow:
 
-```py
+```python
 import daspi as dsp
 
 chart = dsp.SingleChart(...
@@ -278,7 +278,7 @@ The SingleChart class is perfect when you want to focus all attention on one plo
 
 So now let's create a chart using the SingleChart class with the same data we used in the Facets section above.
 
-```py
+```python
 import daspi as dsp
 
 df = dsp.load_dataset('aspirin-dissolution')

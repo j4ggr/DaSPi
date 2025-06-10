@@ -146,7 +146,7 @@ class Specification:
     Examples
     --------
     Create a specification with limits:
-    ``` python
+    ```python
     Specification(limits=(0, 1))
     ```
 
@@ -155,7 +155,7 @@ class Specification:
     ```
     
     Create a specification with tolerance and nominal:
-    ``` python
+    ```python
     Specification(tolerance=0.1, nominal=0.5)
     ```
     
@@ -278,7 +278,7 @@ class RandomProcessValue:
     --------
     Generate a random value from a uniform distribution:
     
-    ``` python
+    ```python
     import daspi as dsp
 
     PARAM_I = dsp.Specification(limits=(5, 10))
@@ -522,7 +522,7 @@ class Binning:
     Examples
     --------
     Example 1: Binning with linear approach
-    ``` python
+    ```python
     import numpy as np
     import daspi as dsp
     data = np.array([1.5, 2.3, 3.7, 4.1, 5.0])
@@ -533,14 +533,14 @@ class Binning:
     print(binned_values)
     ```
 
-    ``` console
+    ```console
     binning.nominals=array([2.32, 3.32, 4.32])
     binning.indices=array([0, 0, 1, 2, 2])
     [2.32, 2.32, 3.32, 4.32, 4.32]
     ```
 
     Example 2: Binning with quantile approach
-    ``` python
+    ```python
     data = np.array([1.5, 2.3, 3.7, 4.1, 5.0])
     binning = dsp.Binning(data, num_bins=3, kind='quantile')
     binned_values = binning.values()
@@ -549,14 +549,14 @@ class Binning:
     print(binned_values)
     ```
 
-    ``` console
+    ```console
     binning.nominals=array([2.3, 3.7, 4.1])
     binning.indices=array([0, 0, 1, 2, 2])
     [2.3, 2.3, 3.7, 4.1, 4.1]
     ```
 
     Example 3: Rounding nominals
-    ``` python
+    ```python
     data = np.array([1.5, 2.3, 3.7, 4.1, 5.0])
     binning = dsp.Binning(data, num_bins=3, kind='quantile')
     binning.round_to_nearest(nearest=5, digit=1)
@@ -565,7 +565,7 @@ class Binning:
     print(binned_values)
     ```
 
-    ``` console
+    ```console
     binning.nominals=array([2.5, 3.5, 4.0])
     [2.5, 2.5, 3.5, 4.0, 4.0]
     ```

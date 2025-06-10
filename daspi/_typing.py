@@ -63,7 +63,7 @@ MosaicLayout: TypeAlias = (
     | str | None)
 """Type alias for mosaic layout. From the author's point of view, the 
 best option is a tuple of strings. Dor example:
-    ``` python
+    ```python
     layout: MosaicLayout = (
         'AA.',
         '°°D',
