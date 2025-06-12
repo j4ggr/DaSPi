@@ -24,6 +24,7 @@ from scipy import stats
 from scipy.stats import norm
 from scipy.stats import skew
 from scipy.stats import kurtosis
+from scipy.stats._morestats import _calc_uniform_order_statistic_medians
 
 from .._typing import NumericSample1D
 
@@ -52,7 +53,209 @@ from .hypothesis import variance_stability_test
 from .hypothesis import kolmogorov_smirnov_test
 
 
-class DistributionEstimator:
+class BaseEstimator:
+    """
+    Parameters
+    ----------
+    samples : NumericSample1D
+        The 1D numeric sample for which the distribution is to be 
+        estimated. This should be a Series or array-like object
+        containing numeric values.
+    nan_policy : {'propagate', 'raise', 'omit'}, optional
+        How to handle NaN values in the samples. 
+        - 'propagate': NaN values are preserved in the analysis.
+        - 'raise': Raises an error if NaN values are found.
+        - 'omit': Omits NaN values from the analysis, default is 'omit'.
+    
+    Raises
+    ------
+    ValueError
+        If NaN values are found in the samples and `nan_policy` is set to 
+        'raise'.
+    UserWarning
+        If NaN values are found in the samples and `nan_policy` is set 
+        to 'omit' or 'propagate'. The warning indicates that NaN values 
+        will be omitted from the analysis or may lead to unexpected 
+        results.
+    """
+    __slots__ = (
+        '_samples',
+        '_filtered',
+        '_ordered',
+        '_n_samples',
+        '_n_missing',
+        '_n_filtered',
+        '_nan_policy',
+        '_descriptive_statistic_attrs',)
+
+    _samples: pd.Series
+    _filtered: pd.Series
+    _ordered: pd.Series
+    _n_samples: int | None
+    _n_missing: int | None
+    _n_filtered: int | None
+    _nan_policy : Literal['propagate', 'raise', 'omit']
+    _descriptive_statistic_attrs: Tuple[str, ...]
+    """How to handle NaN values in the samples. 
+        - 'propagate': NaN values are preserved in the analysis.
+        - 'raise': Raises an error if NaN values are found.
+        - 'omit': Omits NaN values from the analysis, default is 'omit'."""
+
+    def __init__(
+            self, 
+            samples: NumericSample1D, 
+            nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
+            ) -> None:
+        if not isinstance(samples, pd.Series):
+            samples = pd.Series(samples)
+        has_nan = samples.isna().any()
+        if has_nan and nan_policy == 'raise':
+            raise ValueError(
+                'NaN values found in the samples. '
+                'Set nan_policy to "omit" to ignore them.')
+        elif nan_policy == 'omit':
+            if has_nan:
+                warnings.warn(
+                    'NaN values found in the samples. '
+                    'These will be omitted from the analysis.',
+                    UserWarning)
+        elif nan_policy == 'propagate' and has_nan:
+            warnings.warn(
+                'NaN values found in the samples. '
+                'This may lead to unexpected results.',
+                UserWarning)
+        self._nan_policy = nan_policy
+        self._filtered = pd.Series(dtype=float)
+        self._ordered = pd.Series(dtype=float)
+        if not isinstance(samples, pd.Series):
+            samples = pd.Series(samples)
+        self._samples = samples
+        self._n_samples = None
+        self._n_missing = None
+        self._n_filtered = None
+
+        self._descriptive_statistic_attrs = (
+            'n_samples',
+            'n_missing',)
+    
+    @property
+    def descriptive_statistic_attrs(self) -> Tuple[str, ...]:
+        """Get attribute names used for `describe` method."""
+        return self._descriptive_statistic_attrs
+    
+    @property
+    def nan_policy(self) -> Literal['propagate', 'raise', 'omit']:
+        """How to handle NaN values in the samples (read-only). 
+            - 'propagate': NaN values are preserved in the analysis.
+            - 'raise': Raises an error if NaN values are found.
+            - 'omit': Omits NaN values from the analysis"""
+        return self._nan_policy
+    
+    @property
+    def samples(self) -> pd.Series:
+        """Get the raw samples as it was given during instantiation
+        as pandas Series (read-only)."""
+        return self._samples
+    
+    @property
+    def filtered(self) -> pd.Series:
+        """Get the samples without error values and no missing value 
+        (read-only)."""
+        if self._filtered.empty:
+            self._filtered = pd.to_numeric(self.samples[self.samples.notna()])
+        return self._filtered
+
+    @property
+    def ordered(self) -> pd.Series:
+        """Get the filtered samples ordered by value with new index
+        (read-only)."""
+        if self._ordered.empty:
+            self._ordered = self.filtered.sort_values(ignore_index=True)
+        return self._ordered
+
+    @property
+    def n_samples(self) -> int:
+        """Get sample size of unfiltered samples (read-only)."""
+        if self._n_samples is None:
+            self._n_samples = len(self.samples)
+        return self._n_samples
+
+    @property
+    def n_missing(self) -> int:
+        """Get amount of missing values (read-only)."""
+        if self._n_missing is None:
+            self._n_missing = self.mask_missing().sum()
+        return self._n_missing
+    
+    @property
+    def n_filtered(self) -> int:
+        """Get sample size of filtered samples (read-only)."""
+        if self._n_filtered is None:
+            self._n_filtered = len(self.filtered)
+        return self._n_filtered
+    
+    def mask_missing(self) -> 'Series[bool]':
+        """Returns a boolean mask indicating which samples are missing 
+        (NaN).
+
+        This mask can be used to filter or analyze entries in the 
+        `samples` attribute that contain missing values.
+
+        Returns
+        -------
+        Series[bool]:
+            A boolean Series where True indicates a missing sample.
+        """
+        return self.samples.isna()
+    
+    def mask_ok(self) -> Series:
+        """Returns a boolean mask indicating which samples are valid 
+        (OK).
+
+        A sample is considered OK if it is:
+        - Not missing (i.e., not NaN)
+
+        Returns
+        -------
+        Series[bool]
+            A boolean Series where True indicates a valid sample.
+        """
+        return ~self.mask_missing()
+    
+    def _get_descriptive_attr_(self, name) -> float | int | str:
+        """Return the current value of the specified attribute."""
+        assert name in self.descriptive_statistic_attrs, (
+            f'Attribute {name} is not a valid descriptive statistic '
+            'attribute')
+        if name == 'dist':
+            return self.dist.name # type: ignore
+        return getattr(self, name)
+    
+    def describe(self, exclude: Tuple[str, ...] = ()) -> DataFrame:
+        """Generate descriptive statistics.
+        
+        Parameters
+        ----------
+        exclude : Tuple[str,...], optional
+            Attributes to exclude from the summary statistics,
+            by default ()
+        
+        Returns
+        -------
+        stats : DataFrame
+            Summary statistics as pandas DataFrame. The indices of the
+            DataFrame are the attributes that have been computed and the
+            column name is the name of the samples.
+        """
+        names = (
+            n for n in self.descriptive_statistic_attrs if n not in exclude)
+        data = pd.DataFrame(
+            data={name: [self._get_descriptive_attr_(name)] for name in names},
+            index=[self.samples.name])
+        return data.T
+
+
+class DistributionEstimator(BaseEstimator):
     """A class to estimate the distribution of a given 1D numeric sample.
     
     This class provides methods to estimate distribution by fitting a
@@ -92,39 +295,33 @@ class DistributionEstimator:
         results.
     """
     __slots__ = (
-        '_samples',
-        '_filtered',
-        '_n_samples',
-        '_n_missing',
         '_dist',
-        '_p_dist',
         '_D',
-        '_params',
+        '_shape_params',
+        '_p_ks',
         '_excess',
         '_p_excess', 
         '_skew',
         '_p_skew',
         '_p_ad',
+        '_predicted',
         '_ss',
         '_aic',
         '_bic',
-        '_descriptive_statistic_attrs',
-        'possible_dists',
-        'nan_policy')
+        '_osm',
+        'possible_dists',)
 
-    _samples: pd.Series
-    _filtered: pd.Series
-    _n_samples: int
-    _n_missing: int
     _dist: rv_continuous | None
-    _p_dist: float | None
     _D: float | None
-    _params: Tuple[float, ...] | None
+    _shape_params: Tuple[float, ...] | None
+    _p_ks: float | None
     _excess: float | None
     _p_excess: float | None
     _skew: float | None
     _p_skew: float | None
     _p_ad: float | None
+    _osm: NDArray | None
+    _predicted: pd.Series
     _ss: float | None
     _aic: float | None
     _bic: float | None
@@ -132,11 +329,6 @@ class DistributionEstimator:
     possible_dists: Tuple[str | rv_continuous, ...]
     """Distributions given during initialization to which the data may 
     be subject."""
-    nan_policy : Literal['propagate', 'raise', 'omit']
-    """How to handle NaN values in the samples. 
-        - 'propagate': NaN values are preserved in the analysis.
-        - 'raise': Raises an error if NaN values are found.
-        - 'omit': Omits NaN values from the analysis, default is 'omit'."""
 
     def __init__(
             self, 
@@ -145,34 +337,10 @@ class DistributionEstimator:
             possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
             nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
             ) -> None:
-        if not isinstance(samples, pd.Series):
-            samples = pd.Series(samples)
-        has_nan = samples.isna().any()
-        if has_nan and nan_policy == 'raise':
-            raise ValueError(
-                'NaN values found in the samples. '
-                'Set nan_policy to "omit" to ignore them.')
-        elif nan_policy == 'omit':
-            if has_nan:
-                warnings.warn(
-                    'NaN values found in the samples. '
-                    'These will be omitted from the analysis.',
-                    UserWarning)
-        elif nan_policy == 'propagate' and has_nan:
-            warnings.warn(
-                'NaN values found in the samples. '
-                'This may lead to unexpected results.',
-                UserWarning)
-        self.nan_policy = nan_policy
-        self._filtered = pd.Series()
-        if not isinstance(samples, pd.Series):
-            samples = pd.Series(samples)
-        self._samples = samples
-        self._n_samples = len(self.samples)
-        self._n_missing = self.samples.isna().sum()
+        super().__init__(samples, nan_policy)
         self._dist = None
-        self._p_dist = None
-        self._params = None
+        self._p_ks = None
+        self._shape_params = None
         self._D = None
         self.possible_dists = possible_dists
         self.dist = dist
@@ -183,6 +351,8 @@ class DistributionEstimator:
         self._p_skew = None
         self._p_ad = None
 
+        self._osm = None
+        self._predicted = pd.Series(dtype=float)
         self._ss = None
         self._aic = None
         self._bic = None
@@ -191,7 +361,7 @@ class DistributionEstimator:
             'n_samples',
             'n_missing',
             'dist',
-            'p_dist',
+            'p_ks',
             'p_ad',
             'excess',
             'p_excess',
@@ -199,40 +369,11 @@ class DistributionEstimator:
             'p_skew',)
     
     @property
-    def descriptive_statistic_attrs(self) -> Tuple[str, ...]:
-        """Get attribute names used for `describe` method."""
-        return self._descriptive_statistic_attrs
-    
-    @property
-    def samples(self) -> pd.Series:
-        """Get the raw samples as it was given during instantiation
-        as pandas Series (read-only)."""
-        return self._samples
-    
-    @property
-    def filtered(self) -> pd.Series:
-        """Get the samples without error values and no missing value 
-        (read-only)."""
-        if self._filtered.empty:
-            self._filtered = pd.to_numeric(self.samples[self.samples.notna()])
-        return self._filtered
-
-    @property
-    def n_samples(self) -> int:
-        """Get sample size of unfiltered samples (read-only)."""
-        return self._n_samples
-
-    @property
-    def n_missing(self) -> int:
-        """Get amount of missing values (read-only)."""
-        return self._n_missing
-    
-    @property
     def dist(self) -> rv_continuous:
         """This is the generic continuous distribution class of the 
         provided or evaluated distribution."""
         if self._dist is None:
-            self._dist, self._p_dist, self._params = self.distribution()
+            self._dist, self._p_ks, self._shape_params = self.distribution()
         return self._dist
     @dist.setter
     def dist(self, dist: str | rv_continuous | None) -> None:
@@ -244,18 +385,9 @@ class DistributionEstimator:
             dist = ensure_generic(dist)
         self._dist = dist
         if self._dist != dist:
-            self._p_dist = None
-            self._params = None
+            self._p_ks = None
+            self._shape_params = None
             self._D = None
-    
-    @property
-    def p_dist(self) -> float:
-        """Get the two-tailed p-value for the provided or fitted 
-        distribution. A higher p-value indicates a better fit to the 
-        data (read-only)."""
-        if self._p_dist is None:
-            self._dist, self._p_dist, self._params = self.distribution()
-        return self._p_dist
     
     @property
     def D(self) -> float:
@@ -266,15 +398,24 @@ class DistributionEstimator:
         return self._D
 
     @property
-    def params(self) -> Tuple[float, ...]:
+    def shape_params(self) -> Tuple[float, ...]:
         """Estimates for any distribution shape parameters (if 
         applicable), followed by those for location and scale. For most 
         random variables, shape statistics will be returned, but there 
         are exceptions (e.g. norm). Can be used to generate values with 
         the help of the dist attribute (read-only)."""
-        if self._params is None:
-            self._dist, self._p_dist, self._params = self.distribution()
-        return self._params
+        if self._shape_params is None:
+            self._dist, self._p_ks, self._shape_params = self.distribution()
+        return self._shape_params
+    
+    @property
+    def p_ks(self) -> float:
+        """Get the two-tailed p-value of kolmogorov-smirnof test for 
+        the provided or fitted  distribution. A higher p-value indicates 
+        a better fit to the data (read-only)."""
+        if self._p_ks is None:
+            self._dist, self._p_ks, self._shape_params = self.distribution()
+        return self._p_ks
 
     @property
     def excess(self) -> float:
@@ -339,34 +480,33 @@ class DistributionEstimator:
         if self._p_ad is None:
             self._p_ad = anderson_darling_test(self.filtered)[0]
         return self._p_ad
-    
-    def mask_missing(self) -> 'Series[bool]':
-        """Returns a boolean mask indicating which samples are missing 
-        (NaN).
 
-        This mask can be used to filter or analyze entries in the 
-        `samples` attribute that contain missing values.
+    @property
+    def osm(self) -> NDArray:
+        """Get the theoretical quantiles (osm, or order statistic 
+        medians) of the filtered samples. This quantiles are calculated
+        the same way as in `scipy.stats.probplot()` function 
+        (read-only)."""
+        if self._osm is None:
+            osm_uniform = _calc_uniform_order_statistic_medians(self.n_filtered)
+            self._osm = self.dist.ppf(osm_uniform, *self.shape_params)
+        return self._osm
 
-        Returns
-        -------
-        Series[bool]:
-            A boolean Series where True indicates a missing sample.
-        """
-        return self.samples.isna()
-    
-    def mask_ok(self) -> Series:
-        """Returns a boolean mask indicating which samples are valid 
-        (OK).
+    @property
+    def predicted(self) -> pd.Series:
+        """Get the predicted values of the provided or evaluated 
+        distribution by using the order statistic medians (read-only)."""
+        if self._ordered.empty:
+            self._predicted = pd.Series(
+                self.dist.pdf(self.osm, *self.shape_params))
+        return self._predicted
 
-        A sample is considered OK if it is:
-        - Not missing (i.e., not NaN)
-
-        Returns
-        -------
-        Series[bool]
-            A boolean Series where True indicates a valid sample.
-        """
-        return ~self.mask_missing()
+    @property
+    def ss(self) -> float:
+        """Get the sum of squared residuals (read-only)."""
+        if self._ss is None:
+            self._ss = float(np.sum((self.ordered - self.predicted)**2))
+        return self._ss
     
     def distribution(self) -> Tuple[rv_continuous, float, Tuple[float, ...]]:
         """Estimate the distribution by selecting the one from the
@@ -378,7 +518,7 @@ class DistributionEstimator:
             A generic continous distribution class of best fit
         p : float
             The two-tailed p-value for the best fit
-        params : Tuple[float, ...]
+        shape_params : Tuple[float, ...]
             Estimates for any shape parameters (if applicable), followed
             by those for location and scale. For most random variables,
             shape statistics will be returned, but there are exceptions
@@ -477,47 +617,22 @@ class DistributionEstimator:
         remain_h0 : bool
             True if all p-values of the tests performed are greater than 
             alpha, otherwise False
+        
+        Raises
+        ------
+        AssertionError
+            If all flags are False.
         """
+        assert any([skew_test, ad_test, excess_test]), (
+            'At least one of skew_test, ad_test, excess_test must be True')
         remain_h0 = [
             (self.p_excess > alpha) if excess_test else True,
             (self.p_skew > alpha) if skew_test else True,
             (self.p_ad > alpha) if ad_test else True]
         return all(remain_h0)
-    
-    def _get_descriptive_attr_(self, name) -> float | int | str:
-        """Return the current value of the specified attribute."""
-        assert name in self.descriptive_statistic_attrs, (
-            f'Attribute {name} is not a valid descriptive statistic '
-            'attribute')
-        if name == 'dist':
-            return self.dist.name
-        return getattr(self, name)
-    
-    def describe(self, exclude: Tuple[str, ...] = ()) -> DataFrame:
-        """Generate descriptive statistics.
-        
-        Parameters
-        ----------
-        exclude : Tuple[str,...], optional
-            Attributes to exclude from the summary statistics,
-            by default ()
-        
-        Returns
-        -------
-        stats : DataFrame
-            Summary statistics as pandas DataFrame. The indices of the
-            DataFrame are the attributes that have been computed and the
-            column name is the name of the samples.
-        """
-        names = (
-            n for n in self.descriptive_statistic_attrs if n not in exclude)
-        data = pd.DataFrame(
-            data={name: [self._get_descriptive_attr_(name)] for name in names},
-            index=[self.samples.name])
-        return data.T
 
 
-class Estimator(DistributionEstimator):
+class LocationDispersionEstimator(DistributionEstimator):
     """An object for various statistical estimators
     
     The attributes are calculated lazily. After the class is 
@@ -572,7 +687,7 @@ class Estimator(DistributionEstimator):
 
     np.random.seed(1)
     samples = data = np.random.weibull(a=1.5, size=100)
-    estimation = dsp.Estimator(
+    estimation = dsp.LocationDispersionEstimator(
         samples=samples,
         strategy='fit',
         agreement=6,
@@ -599,7 +714,7 @@ class Estimator(DistributionEstimator):
     p_skew        0.001918
     p_ad          0.000455
     dist       weibull_min
-    p_dist        0.968613
+    p_ks          0.968613
     strategy           fit
     lcl          -0.004917
     ucl            3.43952
@@ -691,7 +806,7 @@ class Estimator(DistributionEstimator):
             'p_skew',
             'p_ad',
             'dist',
-            'p_dist',
+            'p_ks',
             'strategy',
             'lcl',
             'ucl')
@@ -971,8 +1086,8 @@ class Estimator(DistributionEstimator):
                 self.strategy = self.evaluate()
                 lcl, ucl = self._calculate_control_limits_()
             case 'fit':
-                lcl = float(self.dist.ppf(self.q_low, *self.params))
-                ucl = float(self.dist.ppf(self.q_upp, *self.params))
+                lcl = float(self.dist.ppf(self.q_low, *self.shape_params))
+                ucl = float(self.dist.ppf(self.q_upp, *self.shape_params))
             case 'norm':
                 lcl = self.mean - self._k * self.std
                 ucl = self.mean + self._k * self.std
@@ -992,7 +1107,7 @@ class Estimator(DistributionEstimator):
         self._q_upp = None
 
 
-class ProcessEstimator(Estimator):
+class ProcessEstimator(LocationDispersionEstimator):
     """An object for various statistical estimators. This class extends 
     the estimator with process-specific statistics such as specification
     limits, Cp and Cpk values.
@@ -1155,7 +1270,7 @@ class ProcessEstimator(Estimator):
             'ok',
             'nok', 
             'nok_norm',
-            'nok_fit'
+            'nok_fit',
             'min',
             'max',
             'R',
@@ -1169,10 +1284,10 @@ class ProcessEstimator(Estimator):
             'p_skew',
             'p_ad',
             'dist',
-            'p_dist',
+            'p_ks',
             'strategy',
             'lcl',
-            'ucl'
+            'ucl',
             'lsl',
             'usl',
             'cp',
@@ -1239,8 +1354,8 @@ class ProcessEstimator(Estimator):
         fitted distribution (read-only)."""
         if self._nok_fit is None:
             self._nok_fit = float(
-                1 - self.dist.cdf(self.usl, *self.params)
-                + self.dist.cdf(self.lsl, *self.params))
+                1 - self.dist.cdf(self.usl, *self.shape_params)
+                + self.dist.cdf(self.lsl, *self.shape_params))
         return f'{100 * self._nok_fit:.2f} %'
     
     @property
@@ -1435,7 +1550,7 @@ class ProcessEstimator(Estimator):
         self._Z_lt = None
 
 
-class GageEstimator(Estimator):
+class GageEstimator(LocationDispersionEstimator):
     """Estimates the process capability of a single measurement system
     using the Gage Study Type 1 method.
 
@@ -1935,7 +2050,7 @@ def estimate_distribution(
         A generic continous distribution class of best fit
     p : float
         The two-tailed p-value for the best fit
-    params : Tuple[float, ...]
+    shape_params : Tuple[float, ...]
         Estimates for any shape parameters (if applicable), followed 
         by those for location and scale. For most random variables, 
         shape statistics will be returned, but there are exceptions 
@@ -1944,9 +2059,9 @@ def estimate_distribution(
     """
     dists = (dists, ) if isinstance(dists, (str, rv_continuous)) else dists
     results = {d: kolmogorov_smirnov_test(data, d) for d in dists}
-    dist, (p, _, params) = max(results.items(), key=lambda i: i[1][0])
+    dist, (p, _, shape_params) = max(results.items(), key=lambda i: i[1][0])
     dist = ensure_generic(dist)
-    return dist, p, params
+    return dist, p, shape_params
 
 def _extended_range_(
         data: NumericSample1D,
@@ -3002,7 +3117,9 @@ class Lowess(Loess):
 
 
 __all__ = [
-    'Estimator',
+    'BaseEstimator',
+    'DistributionEstimator',
+    'LocationDispersionEstimator',
     'ProcessEstimator',
     'GageEstimator',
     'estimate_distribution',

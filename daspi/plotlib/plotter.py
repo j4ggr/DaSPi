@@ -158,7 +158,6 @@ from ..statistics import Lowess
 from ..statistics import fit_ci
 from ..statistics import mean_ci
 from ..statistics import stdev_ci
-from ..statistics import Estimator
 from ..statistics import SpecLimits
 from ..statistics import variance_ci
 from ..statistics import prediction_ci
@@ -167,6 +166,7 @@ from ..statistics import ensure_generic
 from ..statistics import ProcessEstimator
 from ..statistics import estimate_kernel_density
 from ..statistics import estimate_kernel_density_2d
+from ..statistics import LocationDispersionEstimator
 from ..statistics import estimate_capability_confidence
 
 
@@ -228,7 +228,7 @@ class SpreadOpacity:
     possible_dists: Tuple[str | rv_continuous, ...]
     """Tuple of possible distributions for the spread width
     estimation."""
-    estimation: Estimator
+    estimation: LocationDispersionEstimator
     """The estimator used to calculate the quantiles."""
     
     @property
@@ -287,7 +287,7 @@ class SpreadOpacity:
         """
         quantiles = []
         
-        self.estimation = Estimator(
+        self.estimation = LocationDispersionEstimator(
             samples=target_data,
             strategy=self.strategy,
             possible_dists=self.possible_dists)
@@ -2321,7 +2321,7 @@ class CenterLocation(TransformPlotter):
             The transformed data source for the plot.
         """
         
-        t_value = getattr(Estimator(target_data), self.kind)
+        t_value = getattr(LocationDispersionEstimator(target_data), self.kind)
         data = pd.DataFrame({
             self.target: [t_value],
             self.feature: [feature_data]})
@@ -4708,7 +4708,7 @@ class StandardErrorMean(Errorbar):
         data : pandas DataFrame
             The transformed data source for the plot.
         """
-        estimation = Estimator(target_data)
+        estimation = LocationDispersionEstimator(target_data)
         data = pd.DataFrame({
             self.target: [estimation.mean],
             self.feature: [feature_data],
@@ -4889,7 +4889,7 @@ class SpreadWidth(Errorbar):
     estimation."""
     _kind: Literal['mean', 'median']
     """The type of center to plot ('mean' or'median')."""
-    estimation: Estimator
+    estimation: LocationDispersionEstimator
     """Estimator instance used for spread width and center estimation."""
 
     def __init__(
@@ -4977,7 +4977,7 @@ class SpreadWidth(Errorbar):
         data : pandas DataFrame
             The transformed data source for the plot.
         """
-        self.estimation = Estimator(
+        self.estimation = LocationDispersionEstimator(
             samples=target_data, strategy=self.strategy, agreement=self.agreement,
             possible_dists=self.possible_dists)
         data = pd.DataFrame({
@@ -6335,13 +6335,13 @@ class StripeLine(Stripe):
     import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt
-    from daspi import GaussianKDE, StripeLine, Estimator
+    from daspi import GaussianKDE, StripeLine, LocationDispersionEstimator
 
     fig, ax = plt.subplots()
     df = pd.DataFrame(dict(x = np.random.weibull(a=1.5, size=1000)))
     kde = GaussianKDE(source=df, target='x', target_on_y=False)
     kde()
-    x = Estimator(df.x)
+    x = LocationDispersionEstimator(df.x)
     mean = StripeLine(
         label=r'\bar x = 'f'{x.mean:.2f}',
         position=x.mean,
@@ -6368,7 +6368,7 @@ class StripeLine(Stripe):
     import pandas as pd
 
     df = pd.DataFrame(dict(x = np.random.weibull(a=1.5, size=1000)))
-    x = Estimator(df.x)
+    x = LocationDispersionEstimator(df.x)
     mean = StripeLine(
         label=r'\bar x = 'f'{x.mean:.2f}',
         position=x.mean,
@@ -6828,7 +6828,7 @@ class BlandAltman(Plotter):
     confidence: float
     """Confidence level of the confidence interval for mean and
     agreements."""
-    estimation: Estimator
+    estimation: LocationDispersionEstimator
     """Estimator instance to estimate the mean and limits of agreement."""
     stripes: Dict[str, Stripe]
     """Dictionary of Stripe objects used for drawing lines and their
@@ -6892,7 +6892,7 @@ class BlandAltman(Plotter):
         self.stripes = {}
         self.lines_same_color = lines_same_color
         self.confidence = confidence
-        self.estimation = Estimator(
+        self.estimation = LocationDispersionEstimator(
             samples=df[_target], strategy='norm', agreement=agreement)
 
     @property

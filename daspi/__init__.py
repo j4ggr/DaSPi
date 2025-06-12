@@ -190,7 +190,7 @@ pd.concat([
 |    p_skew |   0.690373 |      0.438723 |
 |      p_ad |   0.754044 |      0.098371 |
 |      dist |    lognorm |      logistic |
-|    p_dist |   0.964797 |      0.744326 |
+|    p_ks |   0.964797 |      0.744326 |
 |  strategy |       norm |          norm |
 |       lcl | -25.064748 |     -3.593468 |
 |       ucl | 110.934748 |    100.563468 |
@@ -262,7 +262,7 @@ from .statistics.hypothesis import variance_stability_test
 
 from .statistics.estimation import Loess
 from .statistics.estimation import Lowess
-from .statistics.estimation import Estimator
+from .statistics.estimation import LocationDispersionEstimator
 from .statistics.estimation import GageEstimator
 from .statistics.estimation import ProcessEstimator
 from .statistics.estimation import estimate_resolution
