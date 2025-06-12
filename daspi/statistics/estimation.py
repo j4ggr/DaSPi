@@ -97,6 +97,7 @@ def root_sum_squares(*args: float | int,) -> float:
 
 class BaseEstimator:
     """
+
     Parameters
     ----------
     samples : NumericSample1D
@@ -341,11 +342,11 @@ class DistributionEstimator(BaseEstimator):
         '_D',
         '_shape_params',
         '_p_ks',
+        '_p_ad',
         '_excess',
         '_p_excess', 
         '_skew',
         '_p_skew',
-        '_p_ad',
         '_predicted',
         '_ss',
         '_aic',
@@ -357,11 +358,11 @@ class DistributionEstimator(BaseEstimator):
     _D: float | None
     _shape_params: Tuple[float, ...] | None
     _p_ks: float | None
+    _p_ad: float | None
     _excess: float | None
     _p_excess: float | None
     _skew: float | None
     _p_skew: float | None
-    _p_ad: float | None
     _osm: NDArray | None
     _predicted: pd.Series
     _ss: float | None
@@ -379,44 +380,19 @@ class DistributionEstimator(BaseEstimator):
             possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
             nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
             ) -> None:
-        if not isinstance(samples, pd.Series):
-            samples = pd.Series(samples)
-        has_nan = samples.isna().any()
-        if has_nan and nan_policy == 'raise':
-            raise ValueError(
-                'NaN values found in the samples. '
-                'Set nan_policy to "omit" to ignore them.')
-        elif nan_policy == 'omit':
-            if has_nan:
-                warnings.warn(
-                    'NaN values found in the samples. '
-                    'These will be omitted from the analysis.',
-                    UserWarning)
-        elif nan_policy == 'propagate' and has_nan:
-            warnings.warn(
-                'NaN values found in the samples. '
-                'This may lead to unexpected results.',
-                UserWarning)
-        self.nan_policy = nan_policy
-        self._filtered = pd.Series(dtype='float64')
-        if not isinstance(samples, pd.Series):
-            samples = pd.Series(samples)
-        self._samples = samples
-        self._n_samples = len(self.samples)
-        self._n_missing = self.samples.isna().sum()
-        super().__init__(samples, nan_policy)
+        super().__init__(samples=samples, nan_policy=nan_policy)
         self._dist = None
+        self.dist = dist
         self._p_ks = None
+        self._p_ad = None
         self._shape_params = None
         self._D = None
         self.possible_dists = possible_dists
-        self.dist = dist
 
         self._excess = None
         self._p_excess = None
         self._skew = None
         self._p_skew = None
-        self._p_ad = None
 
         self._osm = None
         self._predicted = pd.Series(dtype=float)
@@ -438,16 +414,17 @@ class DistributionEstimator(BaseEstimator):
     @property
     def dist(self) -> rv_continuous:
         """This is the generic continuous distribution class of the 
-        provided or evaluated distribution."""
+        provided or evaluated distribution.
+        
+        Set the distribution to be used for estimation. If a string 
+        is provided, it will be converted to a continuous distribution 
+        class using `ensure_generic`. If None, the distribution will be 
+        estimated from the samples."""
         if self._dist is None:
             self._dist, self._p_ks, self._shape_params = self.distribution()
         return self._dist
     @dist.setter
     def dist(self, dist: str | rv_continuous | None) -> None:
-        """Set the distribution to be used for estimation. If a string 
-        is provided, it will be converted to a continuous distribution 
-        class using `ensure_generic`. If None, the distribution will be 
-        estimated from the samples."""
         if isinstance(dist, str):
             dist = ensure_generic(dist)
         self._dist = dist
@@ -744,6 +721,11 @@ class LocationDispersionEstimator(DistributionEstimator):
         Distributions to which the data may be subject. Only 
         continuous distributions of scipy.stats are allowed,
         by default `DIST.COMMON`
+    nan_policy : {'propagate', 'raise', 'omit'}, optional
+        How to handle NaN values in the samples. 
+        - 'propagate': NaN values are preserved in the analysis.
+        - 'raise': Raises an error if NaN values are found.
+        - 'omit': Omits NaN values from the analysis, default is 'omit'.
     
     Examples
     --------
@@ -775,13 +757,13 @@ class LocationDispersionEstimator(DistributionEstimator):
     median         0.74006
     std           0.593666
     sem           0.059367
+    dist       weibull_min
+    p_ks          0.968613
+    p_ad          0.000455
     excess        0.163836
     p_excess      0.599041
     skew          0.802202
     p_skew        0.001918
-    p_ad          0.000455
-    dist       weibull_min
-    p_ks          0.968613
     strategy           fit
     lcl          -0.004917
     ucl            3.43952
@@ -794,6 +776,17 @@ class LocationDispersionEstimator(DistributionEstimator):
     or the entire range, enter it as a floating-point number (1.0) or as 
     `float('inf')`. If strategy is 'data', `lcl` and `ucl` correspond to 
     `min` and `max`, otherwise we get `-inf` and `inf`.
+    
+    Raises
+    ------
+    ValueError
+        If NaN values are found in the samples and `nan_policy` is set to 
+        'raise'.
+    UserWarning
+        If NaN values are found in the samples and `nan_policy` is set 
+        to 'omit' or 'propagate'. The warning indicates that NaN values 
+        will be omitted from the analysis or may lead to unexpected 
+        results.
     """
     __slots__ = (
         '_min',
@@ -834,13 +827,14 @@ class LocationDispersionEstimator(DistributionEstimator):
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: int | float = 6, 
             possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
-            evaluate: Callable | None = None
+            evaluate: Callable | None = None,
+            nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
             ) -> None:
         super().__init__(
             samples=samples,
             dist=None,
             possible_dists=possible_dists,
-            nan_policy='omit')
+            nan_policy=nan_policy)
         self._min = None
         self._max = None
         self._R = None
@@ -867,13 +861,13 @@ class LocationDispersionEstimator(DistributionEstimator):
             'median',
             'std',
             'sem',
+            'dist',
+            'p_ks',
+            'p_ad',
             'excess',
             'p_excess',
             'skew',
             'p_skew',
-            'p_ad',
-            'dist',
-            'p_ks',
             'strategy',
             'lcl',
             'ucl')
@@ -1225,6 +1219,11 @@ class ProcessEstimator(LocationDispersionEstimator):
         Distributions to which the data may be subject. Only 
         continuous distributions of scipy.stats are allowed,
         by default DIST.COMMON
+    nan_policy : {'propagate', 'raise', 'omit'}, optional
+        How to handle NaN values in the samples. 
+        - 'propagate': NaN values are preserved in the analysis.
+        - 'raise': Raises an error if NaN values are found.
+        - 'omit': Omits NaN values from the analysis, default is 'omit'.
 
     Examples
     --------
@@ -1268,6 +1267,17 @@ class ProcessEstimator(LocationDispersionEstimator):
 
     You can get a detailed visual analysis with the precast chart 
     `daspi.plotlib.precast.ProcessCapabilityAnalysisCharts`
+    
+    Raises
+    ------
+    ValueError
+        If NaN values are found in the samples and `nan_policy` is set to 
+        'raise'.
+    UserWarning
+        If NaN values are found in the samples and `nan_policy` is set 
+        to 'omit' or 'propagate'. The warning indicates that NaN values 
+        will be omitted from the analysis or may lead to unexpected 
+        results.
     """
     __slots__ = (
         '_spec_limits',
@@ -1305,7 +1315,8 @@ class ProcessEstimator(LocationDispersionEstimator):
             error_values: Tuple[float, ...] = (),
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: float | int = 6, 
-            possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON
+            possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
+            nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
             ) -> None:
         self._n_ok = None
         self._n_nok = None
@@ -1323,7 +1334,12 @@ class ProcessEstimator(LocationDispersionEstimator):
             spec_limits = spec_limits.LIMITS
         self._spec_limits = spec_limits
         self._reset_values_()
-        super().__init__(samples, strategy, agreement, possible_dists)
+        super().__init__(
+            samples=samples,
+            strategy=strategy,
+            agreement=agreement,
+            possible_dists=possible_dists,
+            nan_policy=nan_policy)
     
     @property
     def descriptive_statistic_attrs(self) -> Tuple[str, ...]:
@@ -1345,13 +1361,13 @@ class ProcessEstimator(LocationDispersionEstimator):
             'median',
             'std',
             'sem',
+            'dist',
+            'p_ks',
+            'p_ad',
             'excess',
             'p_excess',
             'skew',
             'p_skew',
-            'p_ad',
-            'dist',
-            'p_ks',
             'strategy',
             'lcl',
             'ucl',
@@ -1648,6 +1664,11 @@ class GageEstimator(LocationDispersionEstimator):
         Indicates whether the bias is corrected for the Gage R&R study. 
         If True, the bias is not included in the measurement uncertainty; 
         otherwise, it is included. Default is False.
+    nan_policy : {'propagate', 'raise', 'omit'}, optional
+        How to handle NaN values in the samples. 
+        - 'propagate': NaN values are preserved in the analysis.
+        - 'raise': Raises an error if NaN values are found.
+        - 'omit': Omits NaN values from the analysis, default is 'omit'.
     
     Examples
     --------
@@ -1693,6 +1714,17 @@ class GageEstimator(LocationDispersionEstimator):
     u_evr             1.306999e-04
     u_ms              1.654302e-04
     ```
+    
+    Raises
+    ------
+    ValueError
+        If NaN values are found in the samples and `nan_policy` is set to 
+        'raise'.
+    UserWarning
+        If NaN values are found in the samples and `nan_policy` is set 
+        to 'omit' or 'propagate'. The warning indicates that NaN values 
+        will be omitted from the analysis or may lead to unexpected 
+        results.
 
     References
     ----------
@@ -1761,13 +1793,15 @@ class GageEstimator(LocationDispersionEstimator):
             tolerance_ratio: float = 0.2,
             resolution_ratio_limit: float = 0.05,
             bias_corrected: bool = False,
+            nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
             ) -> None:
         super().__init__(
             samples=samples,
             strategy='norm',
             agreement=6,
             possible_dists=DIST.COMMON,
-            evaluate=None)
+            evaluate=None,
+            nan_policy=nan_policy)
         self.resolution = resolution
         self.reference = reference
         self.U_cal = U_cal
@@ -3190,7 +3224,6 @@ class Lowess(Loess):
 
 __all__ = [
     'root_sum_squares',
-    'Estimator',
     'BaseEstimator',
     'DistributionEstimator',
     'LocationDispersionEstimator',

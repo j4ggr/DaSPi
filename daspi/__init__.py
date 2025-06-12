@@ -262,14 +262,15 @@ from .statistics.hypothesis import variance_stability_test
 
 from .statistics.estimation import Loess
 from .statistics.estimation import Lowess
-from .statistics.estimation import LocationDispersionEstimator
 from .statistics.estimation import GageEstimator
 from .statistics.estimation import ProcessEstimator
 from .statistics.estimation import root_sum_squares
 from .statistics.estimation import estimate_resolution
+from .statistics.estimation import DistributionEstimator
 from .statistics.estimation import estimate_distribution
 from .statistics.estimation import estimate_kernel_density
 from .statistics.estimation import estimate_kernel_density_2d
+from .statistics.estimation import LocationDispersionEstimator
 from .statistics.estimation import estimate_capability_confidence
 
 
