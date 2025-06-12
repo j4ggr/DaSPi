@@ -43,7 +43,7 @@ This Package contains following submodules:
 
 To use DaSPi, you can import the package and start exploring your data. Here is an example of how to use DaSPi to visualize a dataset:
 
-``` py
+```python
 import daspi as dsp
 df = dsp.load_dataset('iris')
 
@@ -70,7 +70,7 @@ chart = dsp.MultivariateChart(
 
 Do some ANOVA and statistics on a dataset. Run the example below in a Jupyther Notebook to see the results.
 
-``` py
+```python
 df = dsp.load_dataset('aspirin-dissolution')
 model = dsp.LinearModel(
     source=df,
@@ -136,7 +136,7 @@ dissolution ~ 16.0792 + 2.3750 employee[T.B] + 0.8375 employee[T.C] + 10.7500 br
 
 Analyze process variation and other key performance indicators for process capacity.
 
-``` py
+```python
 df = dsp.load_dataset('drop_card')
 spec_limits = dsp.SpecLimits(0, float(df.loc[0, 'usl']))
 target = 'distance'
@@ -265,6 +265,7 @@ from .statistics.estimation import Lowess
 from .statistics.estimation import LocationDispersionEstimator
 from .statistics.estimation import GageEstimator
 from .statistics.estimation import ProcessEstimator
+from .statistics.estimation import root_sum_squares
 from .statistics.estimation import estimate_resolution
 from .statistics.estimation import estimate_distribution
 from .statistics.estimation import estimate_kernel_density
@@ -341,6 +342,7 @@ from .anova.tables import variance_inflation_factor
 from .anova.model import LinearModel
 from .anova.model import GageRnRModel
 from .anova.model import hierarchical
+from .anova.model import GageStudyModel
 from .anova.model import is_main_parameter
 
 from .datasets import load_dataset

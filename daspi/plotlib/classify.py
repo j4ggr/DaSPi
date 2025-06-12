@@ -195,7 +195,7 @@ class HueLabel(_CategoryLabel):
 
     Examples
     --------
-    ``` python
+    ```python
     hue_labels = HueLabel(
         labels=['A', 'B', 'C'],
         colors=('red', 'green', 'blue'),
@@ -272,7 +272,7 @@ class ShapeLabel(_CategoryLabel):
 
     Examples
     --------
-    ``` python
+    ```python
     shape_labels = ShapeLabel(
         labels=['A', 'B', 'C'], 
         markers=('o', 's', '^'))
@@ -334,7 +334,7 @@ class SizeLabel(_CategoryLabel):
 
     Examples
     --------
-    ``` python
+    ```python
     size_labels = SizeLabel(min_value=5, max_value=100, n_bins=5)
     ```
     """
@@ -449,7 +449,7 @@ class Dodger:
 
     Examples
     --------
-    ``` python
+    ```python
     dodger = Dodger(
         categories=('A', 'B', 'C'),
         tick_labels=('Category A', 'Category B', 'Category C'))

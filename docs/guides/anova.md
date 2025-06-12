@@ -53,7 +53,7 @@ Research from the University of Melbourne indicates potential differences in pai
 
 To begin with, we will take an exploratory look at the data:
 
-``` py
+```python
 import daspi as dsp
 
 df = dsp.load_dataset('anova')
@@ -74,7 +74,7 @@ chart = dsp.SingleChart(
 
 Visually they seem to be different, now we test against the hypothesis that they are not:
 
-``` py
+```python
 model = dsp.LinearModel(df, 'Pain threshold', ['Hair color'])
 model.anova()
 ```
@@ -101,13 +101,13 @@ The alpha risk, or Type I error, is the probability of incorrectly rejecting a t
 
 The influence $\tau$ of the individual groups is calculated from the group mean values to the overall mean value.
 
-``` py
+```python
 x_bar = df['Pain threshold'].mean()
 x_bar_group = df.groupby('Hair color')['Pain threshold'].mean()
 x_bar_group - x_bar
 ```
 
-``` console
+```console
 Hair color
 Dark Blond         3.357895
 Dark Brunette     10.442105
@@ -118,7 +118,7 @@ Name: Pain threshold, dtype: float64
 
 This influence can be displayed using the following command:
 
-``` py
+```python
 LEVEL = 0.95
 chart = dsp.SingleChart(
         source=df,
@@ -149,11 +149,11 @@ So far we have determined the predicted values of the model. Since the predicted
 
 $$s=\sqrt{MS_{residual}}$$
 
-``` py
+```python
 print(model.uncertainty)
 ```
 
-``` console
+```console
 2.374692962609412
 ```
 
@@ -168,7 +168,7 @@ Before we can use our mathematical model, we must check whether the statistical 
 
 We can check these four points graphically using the following command. Each subplot corresponds to one of these four points in order from top left to bottom right. [[4]](#4)
 
-``` py
+```python
 chart = dsp.ResidualsCharts(model).plot().label()
 ```
 

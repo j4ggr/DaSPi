@@ -10,7 +10,7 @@
 
 The easiest way to install is via pip:
 
-``` bash
+```console
 pip install daspi
 ```
 
@@ -18,14 +18,14 @@ pip install daspi
 
 Verify the installation by executing the following lines with a Python interpreter:
 
-``` py
+```python
 import daspi
 print(daspi.__version__)
 ```
 
 Or directly in the terminal:
 
-``` bash
+```console
 python -c "import daspi; print(daspi.__version__)" 
 ```
 

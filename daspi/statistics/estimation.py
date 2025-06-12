@@ -53,6 +53,48 @@ from .hypothesis import variance_stability_test
 from .hypothesis import kolmogorov_smirnov_test
 
 
+def root_sum_squares(*args: float | int,) -> float:
+    """Calculate the root sum of squares of the given arguments.
+    
+    Parameters
+    ----------
+    *args : float or int
+        Values to be summed up
+    
+    Returns
+    -------
+    float
+        The root sum of squares of the given arguments.
+    
+    Notes
+    -----
+    The root sum of squares is calculated as follows:
+    
+    $$
+        \\sqrt{x_1^2 + x_2^2 + ... + x_n^2}
+    
+    $$
+
+    If only one argument is provided, it returns the argument itself.
+    
+    Raises
+    ------
+    AssertionError
+        If no arguments are provided or if any argument is not of type
+        int or float.
+    """
+    assert args, (
+        'At least one argument is required to calculate the root '
+        'sum of squares.')
+    assert all(isinstance(x, (int, float)) for x in args), (
+        'All arguments must be of type int or float, '
+        f'got {args} instead.')
+    
+    if len(args) == 1:
+        return args[0]
+    return np.sqrt(sum(map(lambda x: x**2, args)))
+
+
 class BaseEstimator:
     """
     Parameters
@@ -337,6 +379,31 @@ class DistributionEstimator(BaseEstimator):
             possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
             nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
             ) -> None:
+        if not isinstance(samples, pd.Series):
+            samples = pd.Series(samples)
+        has_nan = samples.isna().any()
+        if has_nan and nan_policy == 'raise':
+            raise ValueError(
+                'NaN values found in the samples. '
+                'Set nan_policy to "omit" to ignore them.')
+        elif nan_policy == 'omit':
+            if has_nan:
+                warnings.warn(
+                    'NaN values found in the samples. '
+                    'These will be omitted from the analysis.',
+                    UserWarning)
+        elif nan_policy == 'propagate' and has_nan:
+            warnings.warn(
+                'NaN values found in the samples. '
+                'This may lead to unexpected results.',
+                UserWarning)
+        self.nan_policy = nan_policy
+        self._filtered = pd.Series(dtype='float64')
+        if not isinstance(samples, pd.Series):
+            samples = pd.Series(samples)
+        self._samples = samples
+        self._n_samples = len(self.samples)
+        self._n_missing = self.samples.isna().sum()
         super().__init__(samples, nan_policy)
         self._dist = None
         self._p_ks = None
@@ -1577,13 +1644,10 @@ class GageEstimator(LocationDispersionEstimator):
         to calculate the adjusted limits, default is 0.2 (20%).
     resolution_ratio_limit : float, optional
         The limit for the resolution proportion, default is 0.05.
-    n_samples_min : int, optional
-        The minimum number of samples required to perform a 
-        Measurement System Analysis Type 1, default is 50.
     bias_corrected : bool, optional
         Indicates whether the bias is corrected for the Gage R&R study. 
         If True, the bias is not included in the measurement uncertainty; 
-        otherwise, it is included. Default is True.
+        otherwise, it is included. Default is False.
     
     Examples
     --------
@@ -1640,11 +1704,29 @@ class GageEstimator(LocationDispersionEstimator):
     """
 
     __slots__ = (
-        '_specification', '_reference', '_U_cal', '_resolution', '_cg_limit', 
-        '_cgk_limit', '_tolerance_ratio', '_resolution_ratio_limit', 
-        '_n_samples_min', '_cg',  '_cgk', '_limits', '_resolution_ratio', 
-        '_bias', '_p_bias', '_T_min_cg', '_T_min_cgk', '_T_min_res', 
-        '_process', '_u_re', '_u_bias', '_u_evr', '_u_ms', '_bias_corrected')
+        '_specification',
+        '_reference',
+        '_U_cal',
+        '_resolution',
+        '_cg_limit', 
+        '_cgk_limit',
+        '_tolerance_ratio',
+        '_resolution_ratio_limit', 
+        '_cg', 
+        '_cgk',
+        '_limits',
+        '_resolution_ratio', 
+        '_bias',
+        '_p_bias',
+        '_T_min_cg',
+        '_T_min_cgk',
+        '_T_min_res', 
+        '_process',
+        '_u_re',
+        '_u_bias',
+        '_u_evr',
+        '_u_ms',
+        '_bias_corrected')
     _specification: Specification
     _reference: float
     _U_cal: float
@@ -1653,7 +1735,6 @@ class GageEstimator(LocationDispersionEstimator):
     _cgk_limit: float
     _tolerance_ratio: float
     _resolution_ratio_limit: float
-    _n_samples_min: int
     _cg: float | None
     _cgk: float | None
     _limits: SpecLimits | None
@@ -1679,8 +1760,7 @@ class GageEstimator(LocationDispersionEstimator):
             cgk_limit: float = 1.33,
             tolerance_ratio: float = 0.2,
             resolution_ratio_limit: float = 0.05,
-            n_samples_min: int = 50,
-            bias_corrected: bool = True,
+            bias_corrected: bool = False,
             ) -> None:
         super().__init__(
             samples=samples,
@@ -1696,12 +1776,7 @@ class GageEstimator(LocationDispersionEstimator):
         self._cgk_limit = cgk_limit
         self._tolerance_ratio = tolerance_ratio
         self._resolution_ratio_limit = resolution_ratio_limit
-        self._n_samples_min = n_samples_min
         self._bias_corrected = bias_corrected
-        if self.n_samples < self._n_samples_min:
-            warnings.warn(
-                f'The number of samples is too small ({self.n_samples}). '
-                f'The minimum number of samples is {self._n_samples_min}.')
         self._descriptive_statistic_attrs = (
             'n_samples',
             'n_missing',
@@ -1964,9 +2039,8 @@ class GageEstimator(LocationDispersionEstimator):
         """The uncertainty of the bias of the testing system (read-only)."""
         if self._u_bias is None:
             bias = 0 if self.bias_corrected else self.bias
-            self._u_bias = sum(
-                map(np.square, (bias, self.U_cal/2, self.std/self.n_samples**0.5))
-                )**0.5
+            self._u_bias = root_sum_squares(
+                bias, self.U_cal/2, self.std/(self.n_samples**0.5))
         return self._u_bias # type: ignore
     
     @property
@@ -1982,9 +2056,7 @@ class GageEstimator(LocationDispersionEstimator):
         """The uncertainty of the measurement system (read-only)."""
         if self._u_ms is None:
             u_equipement = max(self.u_re, self.u_evr)
-            self._u_ms = sum(
-                map(np.square, (self.u_bias, u_equipement))
-                )**0.5
+            self._u_ms = root_sum_squares(self.u_bias, u_equipement)
         return self._u_ms # type: ignore
     
     def check(self) -> Dict[str, bool]:
@@ -2639,7 +2711,7 @@ class Loess:
     
     Examples
     --------
-    ``` python
+    ```python
     import numpy as np
     import daspi as dsp
     import pandas as pd
@@ -3054,7 +3126,7 @@ class Lowess(Loess):
     
     Examples
     --------
-    ``` python
+    ```python
     import numpy as np
     import daspi as dsp
     import pandas as pd
@@ -3117,6 +3189,8 @@ class Lowess(Loess):
 
 
 __all__ = [
+    'root_sum_squares',
+    'Estimator',
     'BaseEstimator',
     'DistributionEstimator',
     'LocationDispersionEstimator',

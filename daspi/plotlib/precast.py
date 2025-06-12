@@ -76,7 +76,7 @@ class ParameterRelevanceCharts(JointChart):
     Examples
     --------
 
-    ``` python
+    ```python
     import daspi as dsp
     import pandas as pd
 
@@ -220,7 +220,7 @@ class ResidualsCharts(JointChart):
     Examples
     --------
 
-    ``` python
+    ```python
     import daspi as dsp
     import pandas as pd
 
@@ -347,7 +347,7 @@ class PairComparisonCharts(JointChart):
     Examples
     --------
 
-    ``` python
+    ```python
     import daspi as dsp
 
     df = dsp.load_dataset('shoe-sole')
@@ -480,7 +480,7 @@ class BivariateUnivariateCharts(JointChart):
     Examples
     --------
 
-    ``` python
+    ```python
     import daspi as dsp
 
     df = dsp.load_dataset('aspirin-dissolution')
@@ -511,7 +511,7 @@ class BivariateUnivariateCharts(JointChart):
     Information about which distribution is used to calculate the
     quantile boxes can be obtained as follows:
 
-    ``` python
+    ```python
     brands = (brand for brand in df[hue].unique().tolist()*2)
     for plot in chart.plots:
         if isinstance(plot, dsp.QuantileBoxes):
@@ -841,7 +841,7 @@ class ProcessCapabilityAnalysisCharts(JointChart):
     Examples
     --------
     
-    ``` python
+    ```python
     import daspi as dsp
 
     df = dsp.load_dataset('drop_card')
@@ -1083,9 +1083,11 @@ class GageRnRCharts(JointChart):
     import daspi as dsp
     
     df = dsp.load_dataset('grnr_layer_thickness')
-    gage = dsp.GageEstimator(
-        samples=df['result_gage'],
-        reference=df['reference'][0],
+    gage = dsp.GageStudyModel(
+        source=df,
+        target='result_gage',
+        reference=None,
+        reference_values=df['reference'][0],
         U_cal=df['U_cal'][0],
         tolerance=df['tolerance'][0],
         resolution=df['resolution'][0])

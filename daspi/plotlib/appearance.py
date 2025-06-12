@@ -124,7 +124,7 @@ class Style:
         Examples
         --------
         Change plotting style:
-        ``` python
+        ```python
         import daspi as dsp
         dsp.style.use('daspi')                      # Use default DaSPi style
         dsp.style.use('seaborn')                    # Use built-in matplotlib style
@@ -132,7 +132,7 @@ class Style:
         ```
         
         Show available styles:
-        ``` python
+        ```python
         import daspi as dsp
         print(dsp.style.available)
         ```
@@ -179,7 +179,7 @@ class Style:
 
         Examples
         --------
-        ``` python
+        ```python
         import daspi as dsp
         import seaborn as sns
         from pathlib import Path
