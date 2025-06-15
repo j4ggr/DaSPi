@@ -1680,6 +1680,7 @@ class GageStudyModel(BaseHTMLReprModel):
         self.k = k
         self._bias_corrected = bias_corrected
         self._captions = (
+            STR['lm_table_caption_capabilities'],
             STR['lm_table_caption_uncertainty'],)
         self._reset_tables_()
     
@@ -1844,7 +1845,6 @@ class GageStudyModel(BaseHTMLReprModel):
 
         self._capabilities = pd.concat([cap, lim, tol_min], axis=1)
         return self._capabilities
-
 
     def uncertainties(self) -> pd.DataFrame:
         """Returns a DataFrame with the uncertainties for the 

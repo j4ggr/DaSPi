@@ -232,6 +232,11 @@ class _String_:
         'en': 'Source',
         'de': 'Quelle',
         'fr': 'Source'}
+    
+    lm_table_caption_capabilities: Dict[str, str] = {
+        'en': 'Gage capability',
+        'de': 'Messsystemfähigkeit',
+        'fr': 'Capacité du système de mesure'}
 
     _language_: Literal['en', 'de', 'fr'] = 'en'
     _username_: str = environ['USERNAME']
