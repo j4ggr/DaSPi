@@ -124,7 +124,7 @@ __Types of changes__:
 - The stripes method for ParameterRelevanceCharts.
 - The option dist when instantiating ProcessCapabilityAnalysisCharts.
 - The property nok_norm to ProcessEstimator class.
-- The p_dist to the returned values of describe method of ProcessEstimator class.
+- The p_ks to the returned values of describe method of ProcessEstimator class.
 - Tests for LinearModel highest_parameter, optimize and predict methods.
 - Tests for ProcessEstimator nok_fit and nok_norm property.
 

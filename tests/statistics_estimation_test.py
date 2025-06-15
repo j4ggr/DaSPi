@@ -36,19 +36,19 @@ class TestEstimator:
 
     # source data contains 8 decimal places
     rel_curve: float = 1e-7
-    estimate: Estimator = Estimator(df_dist10['rayleigh'])
+    estimate: LocationDispersionEstimator = LocationDispersionEstimator(df_dist10['rayleigh'])
     
     @pytest.fixture
-    def sample_estimator(self) -> Estimator:
+    def sample_estimator(self) -> LocationDispersionEstimator:
         np.random.seed(42)
         data = np.random.normal(0, 1, 100)
-        return Estimator(data)
+        return LocationDispersionEstimator(data)
     
     def test_data_filtered(self) -> None:
         N = 10
         N_nan = 2
         data = np.concatenate((np.random.randn(N-2), N_nan*[np.nan], [.1, -.1]))
-        estimate = Estimator(data)
+        estimate = LocationDispersionEstimator(data)
         assert len(estimate.samples) == N + N_nan
         assert estimate._filtered.empty
         assert len(estimate.filtered) == N
@@ -86,13 +86,13 @@ class TestEstimator:
 
         size = 10
         for dist in df_dist10.columns:
-            estimate = Estimator(df_dist10[dist])
+            estimate = LocationDispersionEstimator(df_dist10[dist])
             excess = estimate.excess
             assert excess == approx(df_valid10[dist]['excess'], rel=rel)
         
         size = 25
         for dist in df_dist10.columns:
-            estimate = Estimator(df_dist25[dist])
+            estimate = LocationDispersionEstimator(df_dist25[dist])
             excess = estimate.excess
             assert excess == approx(df_valid25[dist]['excess'], rel=rel)
 
@@ -101,62 +101,62 @@ class TestEstimator:
 
         size = 10
         for dist in df_dist10.columns:
-            estimate = Estimator(df_dist10[dist])
+            estimate = LocationDispersionEstimator(df_dist10[dist])
             skew = estimate.skew
             assert skew == approx(df_valid10[dist]['skew'], rel=rel)
         
         size = 25
         for dist in df_dist10.columns:
-            estimate = Estimator(df_dist25[dist])
+            estimate = LocationDispersionEstimator(df_dist25[dist])
             skew = estimate.skew
             assert skew == approx(df_valid25[dist]['skew'], rel=rel)
 
     def test_follows_norm_curve(self) -> None:
-        estimate = Estimator(df_dist25['norm'])
+        estimate = LocationDispersionEstimator(df_dist25['norm'])
         assert estimate.follows_norm_curve()
         
-        estimate = Estimator(df_dist25['chi2'])
+        estimate = LocationDispersionEstimator(df_dist25['chi2'])
         assert not estimate.follows_norm_curve()
         
-        estimate = Estimator(df_dist25['foldnorm'])
+        estimate = LocationDispersionEstimator(df_dist25['foldnorm'])
         assert not estimate.follows_norm_curve()
         
-        estimate = Estimator(df_dist25['weibull_min'])
+        estimate = LocationDispersionEstimator(df_dist25['weibull_min'])
         assert not estimate.follows_norm_curve()
         
-        estimate = Estimator(df_dist25['gamma'])
+        estimate = LocationDispersionEstimator(df_dist25['gamma'])
         assert not estimate.follows_norm_curve()
         
-        estimate = Estimator(df_dist25['wald'])
+        estimate = LocationDispersionEstimator(df_dist25['wald'])
         assert not estimate.follows_norm_curve()
 
-        estimate = Estimator(df_dist25['expon'])
+        estimate = LocationDispersionEstimator(df_dist25['expon'])
         assert not estimate.follows_norm_curve()
 
     def test_stable_variance(self) -> None:
         assert self.estimate.stable_variance()
 
         data = list(df_dist25['logistic']) + list(df_dist25['expon'])
-        estimate = Estimator(data)
+        estimate = LocationDispersionEstimator(data)
         assert not estimate.stable_variance(n_sections=2)
 
     def test_fit_distribution(self) -> None:
-        estimate = Estimator(df_dist25['expon'])
+        estimate = LocationDispersionEstimator(df_dist25['expon'])
         assert estimate._dist is None
-        assert estimate._params is None
-        assert estimate._p_dist is None
+        assert estimate._shape_params is None
+        assert estimate._p_ks is None
        
         estimate.distribution()
         assert estimate.dist.name != 'norm'
-        assert estimate.p_dist > 0.005
-        assert estimate.params is not None
+        assert estimate.p_ks > 0.005
+        assert estimate.shape_params is not None
         
-        estimate = Estimator(df_dist25['norm'])
+        estimate = LocationDispersionEstimator(df_dist25['norm'])
         estimate.distribution()
-        assert estimate.p_dist > 0.005
+        assert estimate.p_ks > 0.005
         assert estimate.dist.name != 'expon'
 
-    def test_describe_basic(self, sample_estimator: Estimator) -> None:
+    def test_describe_basic(self, sample_estimator: LocationDispersionEstimator) -> None:
         result = sample_estimator.describe()
         assert 'min' in result.index
         assert 'max' in result.index
@@ -164,27 +164,27 @@ class TestEstimator:
         assert 'median' in result.index
         assert 'std' in result.index
 
-    def test_describe_with_exclude(self, sample_estimator: Estimator) -> None:
+    def test_describe_with_exclude(self, sample_estimator: LocationDispersionEstimator) -> None:
         result = sample_estimator.describe(exclude=('mean', 'median'))
         assert 'mean' not in result.index
         assert 'median' not in result.index
         assert 'min' in result.index
         assert 'max' in result.index
 
-    def test_describe_with_distribution(self, sample_estimator: Estimator) -> None:
+    def test_describe_with_distribution(self, sample_estimator: LocationDispersionEstimator) -> None:
         sample_estimator.distribution()
         result = sample_estimator.describe()
         assert 'dist' in result.index
         assert isinstance(result.loc['dist'][0], str)
 
-    def test_describe_with_empty_exclude(self, sample_estimator: Estimator) -> None:
+    def test_describe_with_empty_exclude(self, sample_estimator: LocationDispersionEstimator) -> None:
         result = sample_estimator.describe(exclude=())
         expected_attrs = sample_estimator.descriptive_statistic_attrs
         assert all(attr in result.index for attr in expected_attrs)
 
     def test_describe_with_nan_values(self) -> None:
         data = [1.0, np.nan, 3.0, 4.0, np.nan]
-        estimator = Estimator(data)
+        estimator = LocationDispersionEstimator(data)
         result = estimator.describe()
         assert not np.isnan(result.loc['mean'][0])
         assert not np.isnan(result.loc['std'][0])
@@ -193,25 +193,25 @@ class TestEstimator:
     def test_full_range(self) -> None:
         data = np.random.normal(size=10_000)
 
-        estimator = Estimator(data, strategy='data', agreement=1.0)
+        estimator = LocationDispersionEstimator(data, strategy='data', agreement=1.0)
         assert estimator.agreement == float('inf')
         assert estimator._k == float('inf')
         assert estimator.lcl == estimator.min
         assert estimator.ucl == estimator.max
         
-        estimator = Estimator(data, strategy='data', agreement=float('inf'))
+        estimator = LocationDispersionEstimator(data, strategy='data', agreement=float('inf'))
         assert estimator.agreement == float('inf')
         assert estimator._k == float('inf')
         assert estimator.lcl == estimator.min
         assert estimator.ucl == estimator.max
         
-        estimator = Estimator(data, strategy='norm', agreement=1.0)
+        estimator = LocationDispersionEstimator(data, strategy='norm', agreement=1.0)
         assert estimator.agreement == float('inf')
         assert estimator._k == float('inf')
         assert estimator.lcl == float('-inf')
         assert estimator.ucl == float('inf')
 
-        estimator = Estimator(data, strategy='data', agreement=1)
+        estimator = LocationDispersionEstimator(data, strategy='data', agreement=1)
         assert estimator.agreement == 1
         assert estimator._k == 0.5
         assert estimator.lcl != estimator.min
