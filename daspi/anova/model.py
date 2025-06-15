@@ -70,6 +70,8 @@ import pandas as pd
 import scipy.stats as stats
 import statsmodels.formula.api as smf
 
+from abc import ABC
+from abc import abstractmethod
 from typing import Any
 from typing import Set
 from typing import Self
@@ -90,7 +92,6 @@ from statsmodels.iolib.summary import Summary
 from statsmodels.iolib.summary import summary_params_frame
 from statsmodels.iolib.tableformatting import fmt_base
 from statsmodels.regression.linear_model import RegressionResultsWrapper
-
 from .convert import frames_to_html
 from .convert import get_term_name
 
@@ -151,7 +152,71 @@ def hierarchical(parameters: List[str]) -> List[str]:
     return sorted(sorted(h_parameters), key=get_order)
 
 
-class LinearModel:
+class BaseHTMLReprModel(ABC):
+    """Base class for HTML representation of models.
+    
+    This class provides a base implementation for generating HTML 
+    representations of models. Those classes that inherit from this 
+    class have an HTML representation that can be used for displaying 
+    the model in a jupyter notebook or other HTML-based environment.
+    """
+    __slots__ = (
+        '_captions', )
+    _captions: Tuple[str, ...]
+    
+    @property
+    def captions(self) -> Tuple[str, ...]:
+        """Get the captions for the tables used for html output
+        (read-only)."""
+        return self._captions
+    
+    @abstractmethod
+    def _reset_tables_(self) -> None:
+        """Reset the tables used for html output."""
+        ...
+    
+    @abstractmethod
+    def _dfs_repr_(self) -> List[DataFrame]:
+        """Returns a list of DataFrames to be used for html output."""
+        ...
+
+    def _repr_html_(self) -> str:
+        """Generates an HTML representation of the model's 
+        tables and its corresponding captions.
+        
+        Returns
+        -------
+        str:
+            An HTML-formatted string containing the model's diagnostic 
+            information.
+        """
+        html = frames_to_html(
+            self._dfs_repr_(),
+            captions=self.captions)
+        return html
+
+    def __html__(self) -> str:
+        """This method exists to inform other HTML-using modules (e.g. 
+        Markupsafe, htmltag, etc) that this object is HTML and does not 
+        need things like special characters (<>&) escaped."""
+        return self._repr_html_()
+    
+    def __repr__(self) -> str:
+        """Generates an string representation of the model's 
+        diagnostic information.
+        
+        Returns
+        -------
+        str:
+            A string containing the model's diagnostic information.
+        """
+        spacing = 2*'\n'
+        _repr = spacing.join(
+            f'{c}:\n{df}' for df, c in zip(self._dfs_repr_(), self.captions))
+        return _repr
+
+
+class LinearModel(BaseHTMLReprModel):
     """This class is used to create and simplify linear models so that 
     only significant features describe the model.
     
@@ -340,8 +405,16 @@ class LinearModel:
             ) -> None:
         assert order > 0 and isinstance(order, int), (
             'Interaction order must be a positive integer')
+        
         for column in features + disturbances:
             assert column in source, f'Column {column} not found in source!'
+
+        self._captions = (
+                STR['lm_table_caption_summary'],
+                STR['lm_table_caption_statistics'],
+                STR['lm_table_caption_anova'],
+                STR['lm_table_caption_vif'])
+        
         self.target = target
         self.features = features
         self.disturbances = disturbances
@@ -492,15 +565,6 @@ class LinearModel:
             columns=self.model.model.data.xnames)
         dm[self.model.model.data.ynames] = self.model.model.data.endog
         return dm
-    
-    @property
-    def _repr_captions(self) -> Tuple[str, str, str, str]:
-        captions = (
-                STR['lm_table_caption_summary'],
-                STR['lm_table_caption_statistics'],
-                STR['lm_table_caption_anova'],
-                STR['lm_table_caption_vif'])
-        return captions
     
     def _reset_tables_(self) -> None:
         """Reset the anova table, the p_values and the effects."""
@@ -1430,10 +1494,9 @@ class LinearModel:
             An HTML-formatted string containing the model's diagnostic 
             information.
         """
-        html = f'<b>{STR["formula"]}:</b></br>{self}</br></br>'
-        html += frames_to_html(
-            self._dfs_repr_(),
-            captions=self._repr_captions)
+        html = (
+            f'<b>{STR["formula"]}:</b></br>{self}</br></br>'
+            + super()._repr_html_())
         return html
 
     def __html__(self) -> str:
@@ -1452,11 +1515,7 @@ class LinearModel:
             An HTML-formatted string containing the model's diagnostic 
             information.
         """
-        spacing = 2*'\n'
-        _repr = f'{STR["formula"]}:\n{str(self)}'
-        for df, caption in zip(self._dfs_repr_(), self._repr_captions):
-            _repr += spacing + caption + ':\n' + str(df)
-        return _repr
+        return f'{STR["formula"]}:\n{str(self)}\n\n{super().__repr__()}'
     
     def __str__(self) -> str:
         """Generates a string representation of the linear regression 
@@ -1479,7 +1538,7 @@ class LinearModel:
         return formula
 
 
-class GageStudyModel:
+class GageStudyModel(BaseHTMLReprModel):
     """Calculates uncertainties for a measurement system (MSA Type 1 
     study), supporting one or multiple GageEstimator instances. If 
     multiple are provided, the uncertainty for linearity is also 
@@ -1567,8 +1626,10 @@ class GageStudyModel:
             self._gages.append(gage)
 
         self.k = k
-        self._uncertainties = pd.DataFrame()
         self._bias_corrected = bias_corrected
+        self._captions = (
+            STR['lm_table_caption_uncertainty'],)
+        self._reset_tables_()
     
     def _ensure_tuple_(
             self,
@@ -1665,6 +1726,14 @@ class GageStudyModel:
 
         self._uncertainties = df_u
         return self._uncertainties
+    
+    def _dfs_repr_(self) -> List[DataFrame]:
+        dfs = [
+            self.uncertainties(),]
+        return dfs
+    
+    def _reset_tables_(self) -> None:
+        self._uncertainties = pd.DataFrame()
 
 
 class GageRnRModel(LinearModel):
@@ -1787,6 +1856,11 @@ class GageRnRModel(LinearModel):
             features=[part, reproducer],
             order=2,
             fit_at_init=fit_at_init)
+        self._captions = (
+            STR['lm_table_caption_summary'],
+            STR['lm_table_caption_anova'],
+            STR['lm_table_caption_rnr'],
+            STR['lm_table_caption_uncertainty'])
     
     @property
     def gage(self) -> GageStudyModel:
@@ -2115,15 +2189,6 @@ class GageRnRModel(LinearModel):
         df_u[df_u.columns[2]] = df_u[df_u.columns[1]] * 2 / self.tolerance
         self._uncertainties = df_u
         return self._uncertainties
-
-    @property
-    def _repr_captions(self) -> Tuple[str, str, str, str]:
-        captions = (
-                STR['lm_table_caption_summary'],
-                STR['lm_table_caption_anova'],
-                STR['lm_table_caption_rnr'],
-                STR['lm_table_caption_uncertainty'])
-        return captions
     
     def _dfs_repr_(self) -> List[DataFrame]:
         """Returns a list of DataFrames containing the goodness-of-fit 
@@ -2161,7 +2226,7 @@ class GageRnRModel(LinearModel):
         """
         html = frames_to_html(
             self._dfs_repr_(),
-            captions=self._repr_captions)
+            captions=self.captions)
         return html
     
     def _reset_tables_(self) -> None:
