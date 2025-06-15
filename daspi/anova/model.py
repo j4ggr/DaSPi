@@ -1497,6 +1497,49 @@ class GageStudyModel:
         values belong to which reference part. If only one reference 
         part was measured, this does not need to be specified (set None).
         In this case, linearity is not evaluated.
+    reference_values : float | Tuple[float, ...]
+        The reference values for the measured parts. If multiple 
+        reference parts are measured, this must be a tuple of floats 
+        with the same length as the number of unique values in the 
+        reference column.
+    U_cal : float | Tuple[float, ...]
+        The calibration uncertainty for the measured parts. If multiple
+        reference parts are measured, this must be a tuple of floats
+        with the same length as the number of unique values in the
+        reference column.
+    tolerance : float | SpecLimits | Specification
+        The specification limits for the measurement system. This can 
+        be a float, a `SpecLimits` instance or a `Specification` 
+        instance. If a float is given, it is interpreted as the 
+        tolerance (e.g., 0.1 for ±0.05).
+    resolution : float | None
+        The resolution of the measurement system. If None, the
+        resolution is estimated from the data. If a float is given, it
+        is interpreted as the resolution (e.g., 0.01 for a resolution of
+        0.01).
+    tolerance_ratio : float, optional
+        The ratio of the tolerance to the standard deviation of the
+        measurement system. If the ratio is below this limit, the
+        measurement system is considered unacceptable. Default is 0.2.
+    agreement : int | float, optional
+        The multiplier of the standard deviation for Cp and Cpk
+        values. If an integer is given, the value is interpreted as
+        the number of standard deviations (e.g., 6 for 6σ). If a float
+        is given, it is interpreted as the acceptable proportion for
+        the spread, e.g. 0.9973 (which corresponds to ~ 6 σ). Default
+        is 6.
+    cg_limit : float, optional
+        The limit for the Gage R&R study's Cg value. If the Cg value is
+        below this limit, the measurement system is considered
+        unacceptable. Default is 1.33.
+    cgk_limit : float, optional
+        The limit for the Gage R&R study's Cgk value. If the Cgk value
+        is below this limit, the measurement system is considered
+        unacceptable. Default is 1.33.
+    resolution_ratio_limit : float, optional
+        The ratio of the resolution to the standard deviation of the
+        measurement system. If the ratio is below this limit, the
+        measurement system is considered unacceptable. Default is 0.05.
     k : int, optional
         Coverage factor for expanded uncertainty (default 2).
     bias_corrected : bool, optional
@@ -1512,7 +1555,9 @@ class GageStudyModel:
         'target',
         'reference',
         '_gages',
+        '_capabilities',
         '_uncertainties',
+        '_alpha',
         '_k',
         '_n_samples',
         '_bias_corrected')
@@ -1521,9 +1566,11 @@ class GageStudyModel:
     target: str
     reference: str
     _gages: List[GageEstimator]
+    _capabilities: pd.DataFrame
     _uncertainties: pd.DataFrame
+    _alpha: float
     _k: int
-    _n_samples: int
+    _n_samples: int | None
     _bias_corrected: bool
 
     def __init__(
@@ -1535,10 +1582,12 @@ class GageStudyModel:
             U_cal: float | Tuple[float, ...],
             tolerance: float | SpecLimits | Specification,
             resolution: float | None,
+            tolerance_ratio: float = 0.2,
+            agreement: int | float = 6,
             cg_limit: float = 1.33,
             cgk_limit: float = 1.33,
-            tolerance_ratio: float = 0.2,
             resolution_ratio_limit: float = 0.05,
+            alpha: float = 0.05,
             k: int = 2,
             bias_corrected: bool = False,) -> None:
 
@@ -1559,17 +1608,79 @@ class GageStudyModel:
                 U_cal=U_cal[i],
                 tolerance=tolerance,
                 resolution=resolution,
+                tolerance_ratio=tolerance_ratio,
+                agreement=agreement,
                 cg_limit=cg_limit,
                 cgk_limit=cgk_limit,
-                tolerance_ratio=tolerance_ratio,
                 resolution_ratio_limit=resolution_ratio_limit,
                 bias_corrected=bias_corrected)
             self._gages.append(gage)
 
+        self._n_samples = None
+        self._alpha = alpha
         self.k = k
+        self._capabilities = pd.DataFrame()
         self._uncertainties = pd.DataFrame()
         self._bias_corrected = bias_corrected
     
+    def from_gage_estimators(
+            self,
+            gages: GageEstimator | List[GageEstimator],
+            k: int = 2,
+            bias_corrected: bool = False) -> 'GageStudyModel':
+        """Create a GageStudyModel from a list of GageEstimator 
+        instances. This method is useful when you already have 
+        GageEstimator instances and want to create a GageStudyModel 
+        without needing to provide the source DataFrame and other 
+        parameters again.
+        
+        Parameters
+        ----------
+        gages : GageEstimator | List[GageEstimator]
+            A list of GageEstimator instances to create the model from.
+        k : int, optional
+            The coverage factor for expanded uncertainty (default 2).
+        bias_corrected : bool, optional
+            Indicates whether the bias is corrected for the Gage R&R 
+            study. If True, the bias is not included in the measurement 
+            uncertainty; otherwise, it is included. Default is False.
+        
+        Returns
+        -------
+        GageStudyModel
+            A new GageStudyModel instance created from the provided 
+            GageEstimator instances.
+        """
+        if isinstance(gages, GageEstimator):
+            gages = [gages]
+        
+        gage0 = gages[0]
+        target = str(gage0.samples.name) or ANOVA.TARGET
+        source = pd.DataFrame()
+        for i, gage in enumerate(gages):
+            if not isinstance(gage, GageEstimator):
+                raise TypeError(
+                    f'Expected GageEstimator, got {type(gage).__name__}')
+            data = gage.samples.to_frame(name=target)
+            data[ANOVA.REFERENCE] = i
+            source = pd.concat([source, data], axis=0, ignore_index=True)
+        model = GageStudyModel(
+            source=source,
+            target=target,
+            reference=ANOVA.REFERENCE,
+            reference_values=tuple(g.reference for g in gages),
+            U_cal=tuple(g.U_cal for g in gages),
+            tolerance=gage0.tolerance,
+            resolution=gage0.resolution,
+            agreement=gage0.agreement,
+            cg_limit=gage0.cg_limit,
+            cgk_limit=gage0.cgk_limit,
+            tolerance_ratio=gage0.tolerance_ratio,
+            resolution_ratio_limit=gage0.resolution_ratio_limit,
+            k=k,
+            bias_corrected=bias_corrected)
+        return model
+        
     def _ensure_tuple_(
             self,
             value: float | Tuple[float, ...],
@@ -1628,16 +1739,56 @@ class GageStudyModel:
         if self._n_samples is None:
             self._n_samples = sum(g.n_samples for g in self._gages)
         return self._n_samples
-
-    def uncertainties(self) -> pd.DataFrame:
-        """
-        Returns a DataFrame with the uncertainties for the measurement system.
-        If multiple GageEstimators are provided, includes linearity uncertainty.
+    
+    def capabilities(self) -> pd.DataFrame:
+        """Returns a DataFrame with the capabilities of the measurement 
+        system. 
+        
+        The capabilities include Cg, Cgk, and the ratio of resolution
+        the .
 
         Returns
         -------
         pd.DataFrame
-            Uncertainties for RE, Bi, EVR, MS, LIN (if multiple), and MP.
+            Capabilities for Cp, Cpk, Cg, Cgk and the ratio of 
+            resolution to standard deviation.
+        """
+        if not self._uncertainties.empty:
+            return self._uncertainties
+
+        cg = [g.cg for g in self.gages if g.cg is not None]
+        cap = pd.Series({
+            'Cg': min(cg) if cg else None,
+            'Cgk': min(g.cgk for g in self.gages),
+            'p_Bi': min(g.p_bias for g in self.gages),
+            'RE_ratio': max(g.resolution_ratio for g in self.gages),
+        })
+
+        df_cap = pd.DataFrame(
+            index=cap.index,
+            columns=ANOVA.CAPABILITY_COLNAMES)
+        df_cap[df_cap.columns[0]] = cap
+        df_cap[df_cap.columns[1]] = self.k * cap
+        df_cap[df_cap.columns[2]] = df_cap[df_cap.columns[1]] * 2 / self.tolerance
+
+        self._uncertainties = df_cap
+        return self._uncertainties
+
+
+    def uncertainties(self) -> pd.DataFrame:
+        """Returns a DataFrame with the uncertainties for the 
+        measurement system. 
+        
+        If only one GageEstimator is provided, the
+        uncertainty for linearity (LIN) will be 0.0. If multiple
+        GageEstimator instances are provided, the uncertainty for
+        linearity will be calculated based on the standard deviation of
+        the biases of the GageEstimator instances.
+
+        Returns
+        -------
+        pd.DataFrame
+            Uncertainties for RE, Bi, EVR, MS, LIN and MP.
         """
         if not self._uncertainties.empty:
             return self._uncertainties

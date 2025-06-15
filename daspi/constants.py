@@ -486,6 +486,8 @@ class _Anova_:
     """Column name for intercept"""
     EFFECTS: Literal['effects'] = 'effects'
     """"Default name for effects"""
+    TARGET: Literal['target'] = 'target'
+    """"Default name for target used in GageStudyModel."""
     FEATURES: Literal['features'] = 'features'
     """"Default name for features"""
     REFERENCE: Literal['reference'] = 'reference'
@@ -539,6 +541,12 @@ class _Anova_:
         """Column names when crating the rnr table using the 
         `variance_inflation_factor` function."""
         return ['MS', 'MS/Total', 's', '6s', '6s/Total', '6s/Tolerance']
+    
+    @property
+    def CAPABILITY_COLNAMES(self) -> List[str]:
+        """Column names when crating the capability table using the 
+        `capability` method of GageStudyModel."""
+        return ['Value', 'Limit', 'Capable', 'T_min']
 
     @property
     def UNCERTAINTY_COLNAMES(self) -> List[str]:
