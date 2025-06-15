@@ -1678,8 +1678,10 @@ class GageStudyModel(BaseHTMLReprModel):
         self._n_samples = None
         self._alpha = alpha
         self.k = k
-        self._capabilities = pd.DataFrame()
         self._bias_corrected = bias_corrected
+        self._captions = (
+            STR['lm_table_caption_uncertainty'],)
+        self._reset_tables_()
     
     def from_gage_estimators(
             self,
@@ -1738,9 +1740,6 @@ class GageStudyModel(BaseHTMLReprModel):
             k=k,
             bias_corrected=bias_corrected)
         return model
-            self._captions = (
-            STR['lm_table_caption_uncertainty'],)
-        self._reset_tables_()
     
     def _ensure_tuple_(
             self,
@@ -1817,23 +1816,34 @@ class GageStudyModel(BaseHTMLReprModel):
         if not self._uncertainties.empty:
             return self._uncertainties
 
+        gage0 = self.gages[0]
         cg = [g.cg for g in self.gages if g.cg is not None]
-        cap = pd.Series({
+        cap = pd.Series({ # TODO: ensure this does the right thing
             'Cg': min(cg) if cg else None,
             'Cgk': min(g.cgk for g in self.gages),
-            'p_Bi': min(g.p_bias for g in self.gages),
             'RE_ratio': max(g.resolution_ratio for g in self.gages),
-        })
+            'p_Bi': min(g.p_bias for g in self.gages),},
+            name=ANOVA.CAPABILITY_COLNAMES[0])
+        lim = pd.Series({
+            'Cg': gage0.cg_limit,
+            'Cgk': gage0.cgk_limit,
+            'RE_ratio': gage0.resolution_ratio_limit,
+            'p_Bi': self._alpha,},
+            name=ANOVA.CAPABILITY_COLNAMES[1])
+        capable = cap >= lim
+        capable.iloc[-1] = not capable.iloc[-1]
+        capable.name = ANOVA.CAPABILITY_COLNAMES[2]
+        
+        t_min_cg = [g.T_min_cg for g in self.gages if g.T_min_cg is not None]
+        tol_min = pd.Series({
+            'Cg': min(t_min_cg) if t_min_cg else None,
+            'Cgk': min(g.T_min_cgk for g in self.gages),
+            'RE_ratio': max(g.resolution_ratio for g in self.gages),
+            'p_Bi': None,},
+            name=ANOVA.CAPABILITY_COLNAMES[3])
 
-        df_cap = pd.DataFrame(
-            index=cap.index,
-            columns=ANOVA.CAPABILITY_COLNAMES)
-        df_cap[df_cap.columns[0]] = cap
-        df_cap[df_cap.columns[1]] = self.k * cap
-        df_cap[df_cap.columns[2]] = df_cap[df_cap.columns[1]] * 2 / self.tolerance
-
-        self._uncertainties = df_cap
-        return self._uncertainties
+        self._capabilities = pd.concat([cap, lim, tol_min], axis=1)
+        return self._capabilities
 
 
     def uncertainties(self) -> pd.DataFrame:
@@ -1880,10 +1890,12 @@ class GageStudyModel(BaseHTMLReprModel):
     
     def _dfs_repr_(self) -> List[DataFrame]:
         dfs = [
+            self.capabilities(),
             self.uncertainties(),]
         return dfs
     
     def _reset_tables_(self) -> None:
+        self._capabilities = pd.DataFrame()
         self._uncertainties = pd.DataFrame()
 
 

@@ -154,9 +154,9 @@ class _String_:
         'fr': 'Ordre d\'observation'}
     
     charts_label_alpha_th: Dict[str, str] = {
-        'en': 'effect_α\;(α={alpha})',
-        'de': 'Effekt_α\;(α={alpha})',
-        'fr': 'effet_α\;(α={alpha})'}
+        'en': r'effect_α\;(α={alpha})',
+        'de': r'Effekt_α\;(α={alpha})',
+        'fr': r'effet_α\;(α={alpha})'}
 
     cp: Dict[str, str] = {
         'en': 'Process Capability index Cp',

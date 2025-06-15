@@ -2047,12 +2047,9 @@ class GageEstimator(LocationDispersionEstimator):
         return self._T_min_cg
     
     @property
-    def T_min_cgk(self) -> float | None:
+    def T_min_cgk(self) -> float:
         """The minimum allowed tolerance for this testing system based
         on the capability cgk of the process (read-only)."""
-        if self.cgk is None:
-            return None
-        
         if self._T_min_cgk is None:
             self._T_min_cgk = (
                 (self.cgk_limit * self.control_range / 2 + abs(self.bias))
