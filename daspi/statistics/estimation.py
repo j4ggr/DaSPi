@@ -1651,13 +1651,20 @@ class GageEstimator(LocationDispersionEstimator):
     resolution : float | None
         The resolution of the measurement system. If None, the 
         resolution is estimated from the samples.
+    tolerance_ratio : float, optional
+        The proportion of the tolerance range (between 0 and 1) used 
+        to calculate the adjusted limits, default is 0.2 (20%).
+    aggreement : int | float, optional
+        The multiplier of the standard deviation for Cp and Cpk
+        values. If an integer is given, the value is interpreted as
+        the number of standard deviations (e.g., 6 for 6σ). If a float
+        is given, it is interpreted as the acceptable proportion for
+        the spread, e.g. 0.9973 (which corresponds to ~ 6 σ). Default
+        is 6.
     cg_limit : float, optional
         The limit for the capability index, default is 1.33.
     cgk_limit : float, optional
         The limit for the capability index, default is 1.33.
-    tolerance_ratio : float, optional
-        The proportion of the tolerance range (between 0 and 1) used 
-        to calculate the adjusted limits, default is 0.2 (20%).
     resolution_ratio_limit : float, optional
         The limit for the resolution proportion, default is 0.05.
     bias_corrected : bool, optional
@@ -1788,9 +1795,10 @@ class GageEstimator(LocationDispersionEstimator):
             U_cal: float | None,
             tolerance: float | SpecLimits | Specification,
             resolution: float | None,
+            tolerance_ratio: float = 0.2,
+            agreement: float | int = 6,
             cg_limit: float = 1.33,
             cgk_limit: float = 1.33,
-            tolerance_ratio: float = 0.2,
             resolution_ratio_limit: float = 0.05,
             bias_corrected: bool = False,
             nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
@@ -1798,7 +1806,7 @@ class GageEstimator(LocationDispersionEstimator):
         super().__init__(
             samples=samples,
             strategy='norm',
-            agreement=6,
+            agreement=agreement,
             possible_dists=DIST.COMMON,
             evaluate=None,
             nan_policy=nan_policy)
@@ -1992,7 +2000,7 @@ class GageEstimator(LocationDispersionEstimator):
         return self._cg
     
     @property
-    def cgk(self) -> float | None:
+    def cgk(self) -> float:
         """The repeatability of the measuring system taking into account 
         the bias(read-only)."""
         if self._cgk is None:
@@ -2019,7 +2027,7 @@ class GageEstimator(LocationDispersionEstimator):
         return self._bias
     
     @property
-    def p_bias(self) -> float | None:
+    def p_bias(self) -> float:
         """The probability of the bias being significant by performing
         a t-test (read-only)."""
         if self._p_bias is None:
