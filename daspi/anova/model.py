@@ -161,8 +161,12 @@ class BaseHTMLReprModel(ABC):
     the model in a jupyter notebook or other HTML-based environment.
     """
     __slots__ = (
-        '_captions', )
+        '_captions', 'print_formula')
     _captions: Tuple[str, ...]
+    target: str
+    """The name of the target variable for the model."""
+    print_formula: bool
+    """Whether to print the formula in the HTML representation."""
     
     @property
     def captions(self) -> Tuple[str, ...]:
@@ -179,6 +183,22 @@ class BaseHTMLReprModel(ABC):
     def _dfs_repr_(self) -> List[DataFrame]:
         """Returns a list of DataFrames to be used for html output."""
         ...
+    
+    @abstractmethod
+    def parameter_statistics(self) -> DataFrame:
+        """Get the parameter statistics of the model.
+        
+        This method should return a DataFrame containing the parameter 
+        statistics, such as coefficients, standard errors, t-values, 
+        p-values, and confidence intervals for each parameter in the 
+        model.
+        
+        Returns
+        -------
+        DataFrame:
+            A DataFrame containing the parameter statistics.
+        """
+        ...
 
     def _repr_html_(self) -> str:
         """Generates an HTML representation of the model's 
@@ -193,6 +213,8 @@ class BaseHTMLReprModel(ABC):
         html = frames_to_html(
             self._dfs_repr_(),
             captions=self.captions)
+        if self.print_formula:
+            html = f'<b>{STR["formula"]}:</b></br>{self}</br></br>{html}'
         return html
 
     def __html__(self) -> str:
@@ -213,7 +235,29 @@ class BaseHTMLReprModel(ABC):
         spacing = 2*'\n'
         _repr = spacing.join(
             f'{c}:\n{df}' for df, c in zip(self._dfs_repr_(), self.captions))
+        if self.print_formula:
+           _repr = f'{STR["formula"]}:\n{str(self)}{spacing}{_repr}'
         return _repr
+    
+    def __str__(self) -> str:
+        """Generates a string representation of the linear regression 
+        model's formula.
+        
+        The formula is constructed by iterating over the parameter 
+        statistics and adding each parameter name and coefficient to the
+        formula string. The target variable is included at the start of 
+        the formula."""
+        formula = f'{self.target} ~'
+        param_stats = self.parameter_statistics()
+        for name in param_stats.index:
+            coef = float(param_stats.loc[name, 'coef']) # type: ignore
+            if name == param_stats.index[0]:
+                sign = '-' if coef < 0 else ''
+            else:
+                sign = '- ' if coef < 0 else '+ '
+            _name = '' if name == ANOVA.INTERCEPT else f'*{name}'
+            formula += f' {sign}{abs(coef):.4f}{_name}'
+        return formula
 
 
 class LinearModel(BaseHTMLReprModel):
@@ -448,6 +492,7 @@ class LinearModel(BaseHTMLReprModel):
         
         if fit_at_init:
             self.fit()
+        self.print_formula = True
     
     @property
     def fitted(self) -> bool:
@@ -1107,7 +1152,7 @@ class LinearModel(BaseHTMLReprModel):
         ```
         """
         column_name = self._anova.columns.name
-        if column_name and column_name.split('-')[1] != typ:
+        if column_name and str(column_name).split('-')[1] != typ:
             self._reset_tables_()
         
         if self._anova.empty:
@@ -1118,14 +1163,7 @@ class LinearModel(BaseHTMLReprModel):
                     typ = 'III'
                 else:
                     typ = 'I'
-            try:
-                self._anova = anova_table(self.model, typ=typ)
-            except ValueError:
-                warnings.warn(
-                    f"ANOVA table could not be computed with type {typ}."
-                    " Using type III instead.",
-                    RuntimeWarning)
-                self._anova = anova_table(self.model, typ='III')
+            self._anova = anova_table(self.model, typ=typ)
 
         if vif:
             self.variance_inflation_factor()
@@ -1417,7 +1455,7 @@ class LinearModel(BaseHTMLReprModel):
 
         Returns
         -------
-        pd.DataFrame
+        DataFrame
             The residual data containing the residuals, observation index, and predicted values.
 
         Examples
@@ -1484,61 +1522,8 @@ class LinearModel(BaseHTMLReprModel):
             dfs.append(self.variance_inflation_factor())
         return dfs
 
-    def _repr_html_(self) -> str:
-        """Generates an HTML representation of the model's 
-        goodness-of-fit metrics, ANOVA table, and parameter statistics.
-        
-        Returns
-        -------
-        str:
-            An HTML-formatted string containing the model's diagnostic 
-            information.
-        """
-        html = (
-            f'<b>{STR["formula"]}:</b></br>{self}</br></br>'
-            + super()._repr_html_())
-        return html
 
-    def __html__(self) -> str:
-        """This method exists to inform other HTML-using modules (e.g. 
-        Markupsafe, htmltag, etc) that this object is HTML and does not 
-        need things like special characters (<>&) escaped."""
-        return self._repr_html_()
-    
-    def __repr__(self) -> str:
-        """Generates an string representation of the model's 
-        goodness-of-fit metrics, ANOVA table, and parameter statistics.
-        
-        Returns
-        -------
-        str:
-            An HTML-formatted string containing the model's diagnostic 
-            information.
-        """
-        return f'{STR["formula"]}:\n{str(self)}\n\n{super().__repr__()}'
-    
-    def __str__(self) -> str:
-        """Generates a string representation of the linear regression 
-        model's formula.
-        
-        The formula is constructed by iterating over the parameter 
-        statistics and adding each parameter name and coefficient to the
-        formula string. The target variable is included at the start of 
-        the formula."""
-        formula = f'{self.target} ~'
-        param_stats = self.parameter_statistics()
-        for name in param_stats.index:
-            coef = float(param_stats.loc[name, 'coef']) # type: ignore
-            if name == param_stats.index[0]:
-                sign = '-' if coef < 0 else ''
-            else:
-                sign = '- ' if coef < 0 else '+ '
-            _name = '' if name == ANOVA.INTERCEPT else f'*{name}'
-            formula += f' {sign}{abs(coef):.4f}{_name}'
-        return formula
-
-
-class GageStudyModel(BaseHTMLReprModel):
+class GageStudyModel(LinearModel):
     """Calculates uncertainties for a measurement system (MSA Type 1 
     study), supporting one or multiple GageEstimator instances. If 
     multiple are provided, the uncertainty for linearity is also 
@@ -1551,16 +1536,12 @@ class GageStudyModel(BaseHTMLReprModel):
         model.
     target : str
         Column name for source data holding the measurement values.
-    reference : str | None
-        Column name with the values used to identify which measured 
-        values belong to which reference part. If only one reference 
-        part was measured, this does not need to be specified (set None).
-        In this case, linearity is not evaluated.
-    reference_values : float | Tuple[float, ...]
-        The reference values for the measured parts. If multiple 
-        reference parts are measured, this must be a tuple of floats 
-        with the same length as the number of unique values in the 
-        reference column.
+    reference : str
+        Column name holding the reference values for the measured parts.
+        This column is also used to identify which measured 
+        values belong to which reference part. If the column has missing 
+        values, the pandas method `ffill()` is used to ensure that the 
+        column is filled.
     U_cal : float | Tuple[float, ...]
         The calibration uncertainty for the measured parts. If multiple
         reference parts are measured, this must be a tuple of floats
@@ -1613,31 +1594,34 @@ class GageStudyModel(BaseHTMLReprModel):
         'source',
         'target',
         'reference',
-        '_gages',
+        '_gage',
+        '_ref_gages',
+        '_U_cal',
+        '_references_analysis',
         '_capabilities',
         '_uncertainties',
         '_alpha',
         '_k',
-        '_n_samples',
         '_bias_corrected')
     
     source: DataFrame
     target: str
     reference: str
-    _gages: List[GageEstimator]
-    _capabilities: pd.DataFrame
-    _uncertainties: pd.DataFrame
+    _gage: GageEstimator
+    _ref_gages: List[GageEstimator]
+    _U_cal: Tuple[float, ...]
+    _references_analysis: DataFrame
+    _capabilities: DataFrame
+    _uncertainties: DataFrame
     _alpha: float
     _k: int
-    _n_samples: int | None
     _bias_corrected: bool
 
     def __init__(
             self,
             source: DataFrame,
             target: str,
-            reference: str | None,
-            reference_values: float | Tuple[float, ...],
+            reference: str,
             U_cal: float | Tuple[float, ...],
             tolerance: float | SpecLimits | Specification,
             resolution: float | None,
@@ -1650,39 +1634,49 @@ class GageStudyModel(BaseHTMLReprModel):
             k: int = 2,
             bias_corrected: bool = False,) -> None:
 
-        if reference is None:
-            reference = ANOVA.REFERENCE
-            source[reference] = 1
-        self.source = source[[target, reference]].copy()
         self.target = target
         self.reference = reference
-        n_refs = source[self.reference].nunique()
-        reference_values = self._ensure_tuple_(reference_values, n_refs)
-        U_cal = self._ensure_tuple_(U_cal, n_refs)
-        self._gages = []
-        for i, ref in enumerate(source[self.reference].unique()):
-            gage = GageEstimator(
-                samples=source[source[self.reference] == ref][self.target],
-                reference=reference_values[i],
-                U_cal=U_cal[i],
-                tolerance=tolerance,
-                resolution=resolution,
-                tolerance_ratio=tolerance_ratio,
-                agreement=agreement,
-                cg_limit=cg_limit,
-                cgk_limit=cgk_limit,
-                resolution_ratio_limit=resolution_ratio_limit,
-                bias_corrected=bias_corrected)
-            self._gages.append(gage)
+        source = source[[target, reference]].copy()
+        source[reference] = source[reference].ffill()
+        self.source = source
 
-        self._n_samples = None
+        if not isinstance(U_cal, (float, int)):
+            U_cal = root_sum_squares(*U_cal)
+        self._U_cal = self._ensure_tuple_(U_cal, len(source[reference].unique()))
+
+        super().__init__(
+            source=source,
+            target=target,
+            features=[reference],
+            disturbances=[],
+            alpha=alpha,
+            order=1,
+            fit_at_init=True,)
+        
+        self._gage = GageEstimator(
+            samples=source[target] - source[reference],
+            reference=0.0,
+            U_cal=U_cal,
+            tolerance=tolerance,
+            resolution=resolution,
+            tolerance_ratio=tolerance_ratio,
+            agreement=agreement,
+            cg_limit=cg_limit,
+            cgk_limit=cgk_limit,
+            resolution_ratio_limit=resolution_ratio_limit,
+            bias_corrected=bias_corrected)
+
+        self._ref_gages = []
         self._alpha = alpha
         self.k = k
         self._bias_corrected = bias_corrected
         self._captions = (
+            # STR['lm_table_caption_summary'],
+            STR['lm_table_caption_ref_gages'],
             STR['lm_table_caption_capabilities'],
             STR['lm_table_caption_uncertainty'],)
         self._reset_tables_()
+        self.print_formula = False
     
     def from_gage_estimators(
             self,
@@ -1718,18 +1712,17 @@ class GageStudyModel(BaseHTMLReprModel):
         gage0 = gages[0]
         target = str(gage0.samples.name) or ANOVA.TARGET
         source = pd.DataFrame()
-        for i, gage in enumerate(gages):
+        for gage in gages:
             if not isinstance(gage, GageEstimator):
                 raise TypeError(
                     f'Expected GageEstimator, got {type(gage).__name__}')
             data = gage.samples.to_frame(name=target)
-            data[ANOVA.REFERENCE] = i
+            data[ANOVA.REFERENCE] = gage.reference
             source = pd.concat([source, data], axis=0, ignore_index=True)
         model = GageStudyModel(
             source=source,
             target=target,
             reference=ANOVA.REFERENCE,
-            reference_values=tuple(g.reference for g in gages),
             U_cal=tuple(g.U_cal for g in gages),
             tolerance=gage0.tolerance,
             resolution=gage0.resolution,
@@ -1740,10 +1733,11 @@ class GageStudyModel(BaseHTMLReprModel):
             resolution_ratio_limit=gage0.resolution_ratio_limit,
             k=k,
             bias_corrected=bias_corrected)
+        model._ref_gages = gages
         return model
     
+    @staticmethod
     def _ensure_tuple_(
-            self,
             value: float | Tuple[float, ...],
             n_values: int
             ) -> Tuple[float, ...]:
@@ -1758,11 +1752,37 @@ class GageStudyModel(BaseHTMLReprModel):
             f'Expected {n_values} values, got {len(values)}. '
             f'Got {values=}')
         return values
-
+    
     @property
-    def gages(self) -> List[GageEstimator]:
-        """Returns the list of GageEstimator instances (read-only)."""
-        return self._gages
+    def gage(self) -> GageEstimator:
+        """Returns the GageEstimator instances (read-only)."""
+        return self._gage
+    
+    @property
+    def ref_gages(self) -> List[GageEstimator]:
+        """Returns a list of GageEstimator instances used in the model
+        (read_only).
+
+        If only one reference is used, it returns a list containing 
+        one GageEstimator of that reference. If multiple references
+        are used, it returns a list of GageEstimator instances for each
+        reference part measured."""
+        if not self._ref_gages:
+            for reference, group in self.source.groupby(self.reference):
+                gage = GageEstimator(
+                    samples=group[self.target],
+                    reference=float(reference), # type: ignore
+                    U_cal=self.gage.U_cal,
+                    tolerance=self.gage.tolerance,
+                    resolution=self.gage.resolution,
+                    tolerance_ratio=self.gage.tolerance_ratio,
+                    agreement=self.gage.agreement,
+                    cg_limit=self.gage.cg_limit,
+                    cgk_limit=self.gage.cgk_limit,
+                    resolution_ratio_limit=self.gage.resolution_ratio_limit,
+                    bias_corrected=self.bias_corrected)
+                self._ref_gages.append(gage)
+        return self._ref_gages
     
     @property
     def bias_corrected(self) -> bool:
@@ -1774,13 +1794,13 @@ class GageStudyModel(BaseHTMLReprModel):
     def tolerance(self) -> float:
         """Returns the tolerance of the first GageEstimator instance 
         (read-only)."""
-        return self._gages[0].tolerance
+        return self._gage.tolerance
     
     @property
     def resolution(self) -> float:
         """Returns the resolution of the first GageEstimator instance
         (read-only)."""
-        return self._gages[0].resolution
+        return self._gage.resolution
 
     @property
     def k(self) -> int:
@@ -1792,16 +1812,40 @@ class GageStudyModel(BaseHTMLReprModel):
     def k(self, k: int) -> None:
         assert k > 0, f'k must be positive, typically 2 or 3. Got {k=}'
         self._k = k
-        self._uncertainties = pd.DataFrame()
+        self._reset_tables_()
     
     @property
     def n_samples(self) -> int:
         """The number of samples used in the Gage study (read-only)."""
-        if self._n_samples is None:
-            self._n_samples = sum(g.n_samples for g in self._gages)
-        return self._n_samples
+        return self.gage.n_samples
     
-    def capabilities(self) -> pd.DataFrame:
+    def references_analysis(self,) -> DataFrame:
+        """Returns a DataFrame with the analysis of the reference 
+        parts. 
+        
+        The analysis includes the GageEstimator statistics for each 
+        reference part, such as Cg, Cgk, resolution ratio, and bias.
+
+        Returns
+        -------
+        DataFrame
+            Analysis of the reference parts with GageEstimator statistics.
+        """
+        if not self._references_analysis.empty:
+            return self._references_analysis
+        
+        column_names = ANOVA.REFERENCE_ANALYSIS_COLNAMES
+        self._references_analysis = pd.DataFrame({
+            column_names[0]: [g.reference for g in self.ref_gages],
+            column_names[1]: [g.std for g in self.ref_gages],
+            column_names[2]: [g.mean for g in self.ref_gages],
+            column_names[3]: [g.bias for g in self.ref_gages],
+            column_names[4]: [g.R for g in self.ref_gages],},
+            index=[i + 1 for i in range(len(self.ref_gages))],)
+        
+        return self._references_analysis
+
+    def capabilities(self) -> DataFrame:
         """Returns a DataFrame with the capabilities of the measurement 
         system. 
         
@@ -1810,43 +1854,31 @@ class GageStudyModel(BaseHTMLReprModel):
 
         Returns
         -------
-        pd.DataFrame
+        DataFrame
             Capabilities for Cp, Cpk, Cg, Cgk and the ratio of 
             resolution to standard deviation.
         """
-        if not self._uncertainties.empty:
-            return self._uncertainties
-
-        gage0 = self.gages[0]
-        cg = [g.cg for g in self.gages if g.cg is not None]
-        cap = pd.Series({ # TODO: ensure this does the right thing
-            'Cg': min(cg) if cg else None,
-            'Cgk': min(g.cgk for g in self.gages),
-            'RE_ratio': max(g.resolution_ratio for g in self.gages),
-            'p_Bi': min(g.p_bias for g in self.gages),},
-            name=ANOVA.CAPABILITY_COLNAMES[0])
-        lim = pd.Series({
-            'Cg': gage0.cg_limit,
-            'Cgk': gage0.cgk_limit,
-            'RE_ratio': gage0.resolution_ratio_limit,
-            'p_Bi': self._alpha,},
-            name=ANOVA.CAPABILITY_COLNAMES[1])
-        capable = cap >= lim
-        capable.iloc[-1] = not capable.iloc[-1]
-        capable.name = ANOVA.CAPABILITY_COLNAMES[2]
+        if not self._capabilities.empty:
+            return self._capabilities
         
-        t_min_cg = [g.T_min_cg for g in self.gages if g.T_min_cg is not None]
-        tol_min = pd.Series({
-            'Cg': min(t_min_cg) if t_min_cg else None,
-            'Cgk': min(g.T_min_cgk for g in self.gages),
-            'RE_ratio': max(g.resolution_ratio for g in self.gages),
-            'p_Bi': None,},
-            name=ANOVA.CAPABILITY_COLNAMES[3])
+        g = self.gage
+        self._capabilities  = pd.DataFrame({
+            ANOVA.CAPABILITY_COLNAMES[0]: [
+                g.cg, g.cgk, g.resolution_ratio, g.p_bias],
+            ANOVA.CAPABILITY_COLNAMES[1]: [
+                g.cg_limit, g.cgk_limit, g.resolution_ratio_limit, self._alpha],
+            ANOVA.CAPABILITY_COLNAMES[2]: [
+                None if g.cg is None else (g.cg >= g.cg_limit),
+                g.cgk >= g.cgk_limit,
+                g.resolution_ratio <= g.resolution_ratio_limit,
+                g.p_bias >= self._alpha],
+            ANOVA.CAPABILITY_COLNAMES[3]: [
+                g.T_min_cg, g.T_min_cgk, g.T_min_res, None]},
+            index=ANOVA.CAPABILITY_ROWS)
 
-        self._capabilities = pd.concat([cap, lim, tol_min], axis=1)
         return self._capabilities
 
-    def uncertainties(self) -> pd.DataFrame:
+    def uncertainties(self) -> DataFrame:
         """Returns a DataFrame with the uncertainties for the 
         measurement system. 
         
@@ -1858,23 +1890,21 @@ class GageStudyModel(BaseHTMLReprModel):
 
         Returns
         -------
-        pd.DataFrame
+        DataFrame
             Uncertainties for RE, Bi, EVR, MS, LIN and MP.
         """
         if not self._uncertainties.empty:
             return self._uncertainties
 
         u = pd.Series({
-            'RE': self._gages[0].u_re,
-            'Bi': root_sum_squares(*(g.u_bias for g in self.gages)),
-            'EVR': root_sum_squares(*(g.std for g in self.gages)),
+            'RE': self.gage.u_re,
+            'Bi': self.gage.u_bias,
+            'EVR': self.gage.std,
             'LIN': 0.0,
-            'MS': None,
-        })
+            'MS': None,})
 
-        if len(self._gages) > 1:
-            biases = np.array([g.u_bias for g in self._gages])
-            u['LIN'] = float(np.std(biases, ddof=1))
+        if len(self.ref_gages) > 1:
+            u['LIN'] = float(np.std([g.u_bias for g in self.ref_gages], ddof=1))
         
         u['MS'] = root_sum_squares(u['Bi'], max(u['RE'], u['EVR']), u['LIN'])
 
@@ -1888,13 +1918,25 @@ class GageStudyModel(BaseHTMLReprModel):
         self._uncertainties = df_u
         return self._uncertainties
     
+    def anova(
+            self,
+            typ: Literal['', 'I', 'II', 'III'] = 'I',
+            vif: bool = False) -> DataFrame:
+        return super().anova(typ, vif)
+    
     def _dfs_repr_(self) -> List[DataFrame]:
         dfs = [
+            # self.gof_metrics().drop('formula', axis=1),
+            self.references_analysis(),
             self.capabilities(),
             self.uncertainties(),]
         return dfs
     
     def _reset_tables_(self) -> None:
+        """Reset the internal tables for reference analysis,
+        capabilities and uncertainties."""
+        super()._reset_tables_()
+        self._references_analysis = pd.DataFrame()
         self._capabilities = pd.DataFrame()
         self._uncertainties = pd.DataFrame()
 
@@ -1942,8 +1984,7 @@ class GageRnRModel(LinearModel):
     gage = dsp.GageStudyModel(
         source=df,
         target='result_gage',
-        reference=None,,
-        reference_values=df['reference'][0],
+        reference='reference',
         U_cal=df['U_cal'][0],
         tolerance=df['tolerance'][0],
         resolution=df['resolution'][0],
@@ -2011,8 +2052,6 @@ class GageRnRModel(LinearModel):
         self.reproducer = reproducer
         self.k = k
         self._gage = gage
-        self._rnr = pd.DataFrame()
-        self._uncertainties = pd.DataFrame()
         super().__init__(
             source=source,
             target=target,
@@ -2024,6 +2063,8 @@ class GageRnRModel(LinearModel):
             STR['lm_table_caption_anova'],
             STR['lm_table_caption_rnr'],
             STR['lm_table_caption_uncertainty'])
+        self._reset_tables_()
+        self.print_formula = False
     
     @property
     def gage(self) -> GageStudyModel:
@@ -2108,8 +2149,7 @@ class GageRnRModel(LinearModel):
         gage = dsp.GageStudyModel(
             source=df,
             target='result_gage',
-            reference=None,
-            reference_values=df['reference'][0],
+            reference='reference',
             U_cal=df['U_cal'][0],
             tolerance=df['tolerance'][0],
             resolution=df['resolution'][0],
@@ -2300,8 +2340,7 @@ class GageRnRModel(LinearModel):
         gage = dsp.GageStudyModel(
             source=df,
             target='result_gage',
-            reference=None,
-            reference_values=df['reference'][0],
+            reference='reference',
             U_cal=df['U_cal'][0],
             tolerance=df['tolerance'][0],
             resolution=df['resolution'][0],
@@ -2377,21 +2416,6 @@ class GageRnRModel(LinearModel):
             self.uncertainties()]
         return dfs
     
-    def _repr_html_(self) -> str:
-        """Generates an HTML representation of the model's 
-        goodness-of-fit metrics, ANOVA table, and parameter statistics.
-        
-        Returns
-        -------
-        str:
-            An HTML-formatted string containing the model's diagnostic 
-            information.
-        """
-        html = frames_to_html(
-            self._dfs_repr_(),
-            captions=self.captions)
-        return html
-    
     def _reset_tables_(self) -> None:
         """Reset the anova table, the p_values and the effects."""
         super()._reset_tables_()
@@ -2404,4 +2428,5 @@ __all__ = [
     'get_order',
     'hierarchical',
     'LinearModel',
+    'GageStudyModel',
     'GageRnRModel']

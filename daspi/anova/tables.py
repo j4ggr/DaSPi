@@ -196,6 +196,8 @@ def anova_table(
 
         Parameters
         ----------
+        model : RegressionResultsWrapper
+            A fitted regression model of the `statsmodels` package.
         typ : Literal['I', 'II', 'III'], optional
             The type of ANOVA to perform. Default is 'III', see notes
             for more informations about the types.
@@ -248,13 +250,31 @@ def anova_table(
         source:
         https://towardsdatascience.com/anovas-three-types-of-estimating-sums-of-squares-don-t-make-the-wrong-choice-91107c77a27a
         """
+        typs = ('I', 'II', 'III')
+        assert typ in typs, f'typ must be one of {typs}'
+
+        anova = pd.DataFrame()
         if all(model.pvalues.isna()):
             warnings.warn(
                 'ANOVA table could not be calculated because the model is '
                 'underdetermined.')
-            return pd.DataFrame()
+            return anova
 
-        anova = sm.stats.anova_lm(model, typ=typ)
+        try:
+            anova = sm.stats.anova_lm(model, typ=typ)
+        except ValueError as error:
+            for other_typ in (t for t in typs if t != typ):
+                warnings.warn(
+                    f'ANOVA table could not be computed with type {typ}. '
+                    f'Using type {other_typ} instead.',
+                    RuntimeWarning)
+                try:
+                    anova = sm.stats.anova_lm(model, typ=other_typ)
+                except ValueError:
+                    continue
+                finally:
+                    if anova.empty:
+                        raise error
         anova = anova.rename(
             columns={'df': 'DF', 'sum_sq': 'SS', 'PR(>F)': 'p'})
 
@@ -286,7 +306,7 @@ def terms_probability(model: RegressionResultsWrapper) -> 'Series[float]':
     ANOVA typ III table is used, because it is the only one who gives us
     a p-value for the intercept.
     """
-    anova = anova_table(model, typ='III') # do not call self.anova() here, it would mess up the internal anova table
+    anova = anova_table(model, typ='III')
     if anova.empty:
         names = model.model.data.design_info.term_names
         p_values = pd.Series({n: np.nan for n in names})

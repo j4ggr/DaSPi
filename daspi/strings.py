@@ -223,15 +223,20 @@ class _String_:
         'de': 'Wiederholbarkeit und Reproduzierbarkeit (R&R)',
         'fr': 'Répétabilité et reproductibilité (R&R)'}
     
-    lm_table_caption_uncertainty: Dict[str, str] = {
-        'en': 'Measurement uncertainty',
-        'de': 'Messunsicherheit',
-        'fr': 'Incertitude de mesure'}
-    
     lm_table_rnr_source: Dict[str, str] = {
         'en': 'Source',
         'de': 'Quelle',
         'fr': 'Source'}
+    
+    lm_table_caption_ref_gages: Dict[str, str] = {
+        'en': 'Reference analysis',
+        'de': 'Analyse der Referenzen',
+        'fr': 'Analyse des références'}
+    
+    lm_table_caption_uncertainty: Dict[str, str] = {
+        'en': 'Measurement uncertainty',
+        'de': 'Messunsicherheit',
+        'fr': 'Incertitude de mesure'}
     
     lm_table_caption_capabilities: Dict[str, str] = {
         'en': 'Gage capability',

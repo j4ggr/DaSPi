@@ -293,7 +293,6 @@ from .plotlib.plotter import Beeswarm
 from .plotlib.plotter import Errorbar
 from .plotlib.plotter import MeanTest
 from .plotlib.plotter import LoessLine
-from .plotlib.plotter import QuantileBoxes
 from .plotlib.plotter import StripeLine
 from .plotlib.plotter import StripeSpan
 from .plotlib.plotter import HideSubplot
@@ -302,6 +301,7 @@ from .plotlib.plotter import SpreadWidth
 from .plotlib.plotter import Probability
 from .plotlib.plotter import BlandAltman
 from .plotlib.plotter import GaussianKDE
+from .plotlib.plotter import QuantileBoxes
 from .plotlib.plotter import VariationTest
 from .plotlib.plotter import ProportionTest
 from .plotlib.plotter import CenterLocation
@@ -311,6 +311,7 @@ from .plotlib.plotter import ConfidenceInterval
 from .plotlib.plotter import ParallelCoordinate
 from .plotlib.plotter import GaussianKDEContour
 from .plotlib.plotter import LinearRegressionLine
+from .plotlib.plotter import CategoricalObservation
 from .plotlib.plotter import CapabilityConfidenceInterval
 
 from .plotlib.facets import AxesFacets
@@ -324,6 +325,7 @@ from .plotlib.chart import SingleChart
 from .plotlib.chart import MultivariateChart
 
 from .plotlib.precast import GageRnRCharts
+from .plotlib.precast import GageStudyCharts
 from .plotlib.precast import ResidualsCharts
 from .plotlib.precast import PairComparisonCharts
 from .plotlib.precast import ParameterRelevanceCharts
