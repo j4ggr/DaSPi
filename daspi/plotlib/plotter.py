@@ -134,7 +134,6 @@ from scipy.stats._distn_infrastructure import rv_continuous
 
 from itertools import cycle
 
-from statsmodels.graphics.gofplots import ProbPlot
 from statsmodels.regression.linear_model import OLSResults
 
 from pandas.api.types import is_scalar
@@ -162,8 +161,8 @@ from ..statistics import SpecLimits
 from ..statistics import variance_ci
 from ..statistics import prediction_ci
 from ..statistics import proportion_ci
-from ..statistics import ensure_generic
 from ..statistics import ProcessEstimator
+from ..statistics import DistributionEstimator
 from ..statistics import estimate_kernel_density
 from ..statistics import estimate_kernel_density_2d
 from ..statistics import LocationDispersionEstimator
@@ -1659,14 +1658,12 @@ class Probability(LinearRegressionLine):
     AssertionError
         If given kind is not one of 'qq', 'pp', 'sq' or 'sp'
     """
-    __slots__ = ('dist', 'kind', 'prob_fit')
+    __slots__ = ('dist', 'kind')
     
-    dist: rv_continuous
-    """The probability distribution use for creating feature data."""
+    dist: DistributionEstimator
+    """The distribution estimator used for creating feature data."""
     kind: Literal['qq', 'pp', 'sq', 'sp']
     """The type of probability plot to create."""
-    prob_fit: ProbPlot
-    """The probability fit for the given distribution."""
 
     def __init__(
             self,
@@ -1688,8 +1685,7 @@ class Probability(LinearRegressionLine):
             f'kind must be one of {"qq", "pp", "sq", "sp"}, got {kind}')
 
         self.kind = kind
-        self.dist = ensure_generic(dist)
-        self.prob_fit = ProbPlot(source[target], self.dist, fit=True) # type: ignore
+        self.dist = DistributionEstimator(source[target], dist)
         
         feature_kind = 'quantiles' if self.kind[1] == "q" else 'percentiles'
         feature = f'{self.dist.name}_{feature_kind}'
@@ -1738,26 +1734,26 @@ class Probability(LinearRegressionLine):
             axis.set_major_formatter(PercentFormatter(xmax=1.0, symbol='%'))
     
     @property
-    def sample_data(self) -> NDArray:
+    def sample_data(self) -> Series:
         """Get fitted samples (target data) according to given kind"""
         match self.kind[0]:
             case 'q':
-                data = self.prob_fit.sample_percentiles
+                data = self.dist.sample_quantiles
             case 'p':
-                data = self.prob_fit.sample_percentiles
+                data = self.dist.sample_percentiles
             case 's' | _:
-                data = self.prob_fit.sorted_data
+                data = self.dist.sorted
         return data
 
     @property
-    def theoretical_data(self) -> NDArray:
+    def theoretical_data(self) -> Series:
         """Get theoretical data (quantiles or percentiles) according to 
         the given kind."""
         match self.kind[1]:
             case 'q':
-                data = self.prob_fit.theoretical_quantiles
+                data = self.dist.theoretical_quantiles
             case 'p' | _:
-                data = self.prob_fit.theoretical_percentiles
+                data = self.dist.theoretical_percentiles
         return data
     
     def __call__(
