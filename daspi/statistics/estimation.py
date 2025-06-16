@@ -18,13 +18,13 @@ from numpy.linalg import LinAlgError
 from scipy.interpolate import interp1d
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
+from scipy.stats._distn_infrastructure import rv_frozen
 from scipy.stats._distn_infrastructure import rv_continuous
 
 from scipy import stats
 from scipy.stats import norm
 from scipy.stats import skew
 from scipy.stats import kurtosis
-from scipy.stats._morestats import _calc_uniform_order_statistic_medians
 
 from .._typing import NumericSample1D
 
@@ -124,7 +124,7 @@ class BaseEstimator:
     __slots__ = (
         '_samples',
         '_filtered',
-        '_ordered',
+        '_sorted',
         '_n_samples',
         '_n_missing',
         '_n_filtered',
@@ -133,16 +133,12 @@ class BaseEstimator:
 
     _samples: pd.Series
     _filtered: pd.Series
-    _ordered: pd.Series
+    _sorted: pd.Series
     _n_samples: int | None
     _n_missing: int | None
     _n_filtered: int | None
     _nan_policy : Literal['propagate', 'raise', 'omit']
     _descriptive_statistic_attrs: Tuple[str, ...]
-    """How to handle NaN values in the samples. 
-        - 'propagate': NaN values are preserved in the analysis.
-        - 'raise': Raises an error if NaN values are found.
-        - 'omit': Omits NaN values from the analysis, default is 'omit'."""
 
     def __init__(
             self, 
@@ -169,7 +165,7 @@ class BaseEstimator:
                 UserWarning)
         self._nan_policy = nan_policy
         self._filtered = pd.Series(dtype=float)
-        self._ordered = pd.Series(dtype=float)
+        self._sorted = pd.Series(dtype=float)
         if not isinstance(samples, pd.Series):
             samples = pd.Series(samples)
         self._samples = samples
@@ -209,12 +205,12 @@ class BaseEstimator:
         return self._filtered
 
     @property
-    def ordered(self) -> pd.Series:
-        """Get the filtered samples ordered by value with new index
+    def sorted(self) -> pd.Series:
+        """Get the filtered samples sorted by value with new index
         (read-only)."""
-        if self._ordered.empty:
-            self._ordered = self.filtered.sort_values(ignore_index=True)
-        return self._ordered
+        if self._sorted.empty:
+            self._sorted = self.filtered.sort_values(ignore_index=True)
+        return self._sorted
 
     @property
     def n_samples(self) -> int:
@@ -336,9 +332,16 @@ class DistributionEstimator(BaseEstimator):
         to 'omit' or 'propagate'. The warning indicates that NaN values 
         will be omitted from the analysis or may lead to unexpected 
         results.
+        
+    Sources
+    -------
+    The theoretical quantiles and percentiles are calculated the same 
+    way as statsmodels ProbPlot class does, see:
+    https://www.statsmodels.org/dev/_modules/statsmodels/graphics/gofplots.html
     """
     __slots__ = (
         '_dist',
+        '_frozen',
         '_D',
         '_shape_params',
         '_p_ks',
@@ -351,10 +354,13 @@ class DistributionEstimator(BaseEstimator):
         '_ss',
         '_aic',
         '_bic',
-        '_osm',
+        '_theoretical_percentiles',
+        '_theoretical_quantiles',
+        '_sample_percentiles',
+        '_sample_quantiles',
         'possible_dists',)
-
     _dist: rv_continuous | None
+    _frozen: rv_frozen | None
     _D: float | None
     _shape_params: Tuple[float, ...] | None
     _p_ks: float | None
@@ -363,8 +369,11 @@ class DistributionEstimator(BaseEstimator):
     _p_excess: float | None
     _skew: float | None
     _p_skew: float | None
-    _osm: NDArray | None
-    _predicted: pd.Series
+    _theoretical_percentiles: Series | None
+    _theoretical_quantiles: Series | None
+    _sample_percentiles: Series | None
+    _sample_quantiles: Series | None
+    _predicted: Series
     _ss: float | None
     _aic: float | None
     _bic: float | None
@@ -382,6 +391,7 @@ class DistributionEstimator(BaseEstimator):
             ) -> None:
         super().__init__(samples=samples, nan_policy=nan_policy)
         self._dist = None
+        self._frozen = None
         self.dist = dist
         self._p_ks = None
         self._p_ad = None
@@ -394,7 +404,10 @@ class DistributionEstimator(BaseEstimator):
         self._skew = None
         self._p_skew = None
 
-        self._osm = None
+        self._theoretical_percentiles = None
+        self._theoretical_quantiles = None
+        self._sample_percentiles = None
+        self._sample_quantiles = None
         self._predicted = pd.Series(dtype=float)
         self._ss = None
         self._aic = None
@@ -410,6 +423,50 @@ class DistributionEstimator(BaseEstimator):
             'p_excess',
             'skew',
             'p_skew',)
+    
+    @staticmethod
+    def plotting_positions(nobs, alpha=0.0, beta=None) -> Series:
+        """Generates sequence of plotting positions
+
+        Parameters
+        ----------
+        nobs : int
+            Number of probability points to plot
+        alpha : float, default 0.0
+            alpha parameter for the plotting position of an expected order
+            statistic
+        beta : float | None, default None
+            beta parameter for the plotting position of an expected order
+            statistic. If None, then beta is set to alpha.
+
+        Returns
+        -------
+        Series
+            The plotting positions
+
+        Notes
+        -----
+        The plotting positions are given by 
+
+        $$
+        i \\in [1, nobs])
+        $$
+        
+        $$
+        \\frac{(i - \\alpha)}{nobs + 1 - \\alpha - \\beta}
+        $$
+
+        Additional information on alpha and beta see:
+        `scipy.stats.mstats.plotting_positions`
+        """
+        beta = alpha if beta is None else beta
+        pos = (np.arange(1.0, nobs + 1) - alpha) / (nobs + 1 - alpha - beta)
+        return pd.Series(pos)
+    
+    @property
+    def name(self) -> str:
+        """Get the name of the estimated distribution (read-only)."""
+        return self.dist.name
     
     @property
     def dist(self) -> rv_continuous:
@@ -427,18 +484,30 @@ class DistributionEstimator(BaseEstimator):
     def dist(self, dist: str | rv_continuous | None) -> None:
         if isinstance(dist, str):
             dist = ensure_generic(dist)
-        self._dist = dist
         if self._dist != dist:
             self._p_ks = None
-            self._shape_params = None
             self._D = None
+            self._shape_params = None
+            self._frozen = None
+        self._dist = dist
+    
+    @property
+    def frozen(self) -> rv_frozen:
+        """This is the frozen continuous RV object of dist property 
+        (read-only)."""
+        if self._frozen is None:
+            self._frozen = self.dist(
+                *self.shape_params[:-2],
+                **dict(loc=self.loc, scale=self.scale))
+        return self._frozen
     
     @property
     def D(self) -> float:
         """Get the Kolmogorov-Smirnov test statistic, either D, D+ or 
         D-."""
         if self._D is None:
-            self._D = kolmogorov_smirnov_test(self.filtered, self.dist)[0]
+            self._p_ks, self._D, self._shape_params = kolmogorov_smirnov_test(
+                self.filtered, self.dist)
         return self._D
 
     @property
@@ -449,8 +518,19 @@ class DistributionEstimator(BaseEstimator):
         are exceptions (e.g. norm). Can be used to generate values with 
         the help of the dist attribute (read-only)."""
         if self._shape_params is None:
-            self._dist, self._p_ks, self._shape_params = self.distribution()
+            self._p_ks, self._D, self._shape_params = kolmogorov_smirnov_test(
+                self.filtered, self.dist)
         return self._shape_params
+    
+    @property
+    def loc(self) -> float:
+        """Get the `loc` paramter from `shape_params` (read-only)."""
+        return self.shape_params[-2]
+    
+    @property
+    def scale(self) -> float:
+        """Get the `scale` paramter from `shape_params` (read-only)."""
+        return self.shape_params[-1]
     
     @property
     def p_ks(self) -> float:
@@ -458,7 +538,8 @@ class DistributionEstimator(BaseEstimator):
         the provided or fitted  distribution. A higher p-value indicates 
         a better fit to the data (read-only)."""
         if self._p_ks is None:
-            self._dist, self._p_ks, self._shape_params = self.distribution()
+            self._p_ks, self._D, self._shape_params = kolmogorov_smirnov_test(
+                self.filtered, self.dist)
         return self._p_ks
 
     @property
@@ -526,30 +607,53 @@ class DistributionEstimator(BaseEstimator):
         return self._p_ad
 
     @property
-    def osm(self) -> NDArray:
+    def theoretical_percentiles(self) -> Series:
+        """Get the theoretical percentiles (CDF values) of the sample data (read-only)"""
+        if self._theoretical_percentiles is None:
+            self._theoretical_percentiles = self.plotting_positions(
+                self.n_filtered)
+        return self._theoretical_percentiles
+
+    @property
+    def theoretical_quantiles(self) -> Series:
         """Get the theoretical quantiles (osm, or order statistic 
         medians) of the filtered samples. This quantiles are calculated
         the same way as in `scipy.stats.probplot()` function 
         (read-only)."""
-        if self._osm is None:
-            osm_uniform = _calc_uniform_order_statistic_medians(self.n_filtered)
-            self._osm = self.dist.ppf(osm_uniform, *self.shape_params)
-        return self._osm
+        if self._theoretical_quantiles is None:
+            self._theoretical_quantiles = pd.Series(
+                self.frozen.ppf(self.theoretical_percentiles))
+        return self._theoretical_quantiles
+    
+    @property
+    def sample_quantiles(self) -> Series:
+        """Get the sample quantiles (sorted filtered samples)
+        (read-only)."""
+        if self._sample_quantiles is None:
+            self._sample_quantiles = (self.sorted - self.loc) / self.scale
+        return self._sample_quantiles
+
+    @property
+    def sample_percentiles(self) -> Series:
+        """Get the empirical percentiles (CDF values) of the sample data (read-only)"""
+        if self._sample_percentiles is None:
+            self._sample_percentiles = pd.Series(self.frozen.cdf(self.sorted))
+        return self._sample_percentiles
 
     @property
     def predicted(self) -> pd.Series:
         """Get the predicted values of the provided or evaluated 
         distribution by using the order statistic medians (read-only)."""
-        if self._ordered.empty:
+        if self._sorted.empty:
             self._predicted = pd.Series(
-                self.dist.pdf(self.osm, *self.shape_params))
+                self.dist.pdf(self.theoretical_quantiles, *self.shape_params))
         return self._predicted
 
     @property
     def ss(self) -> float:
         """Get the sum of squared residuals (read-only)."""
         if self._ss is None:
-            self._ss = float(np.sum((self.ordered - self.predicted)**2))
+            self._ss = float(np.sum((self.sorted - self.predicted)**2))
         return self._ss
     
     def distribution(self) -> Tuple[rv_continuous, float, Tuple[float, ...]]:
@@ -2138,7 +2242,7 @@ class GageEstimator(LocationDispersionEstimator):
 
 def estimate_distribution(
         data: NumericSample1D,
-        dists: Tuple[str|rv_continuous, ...] = DIST.COMMON
+        dists: Tuple[str | rv_continuous, ...] = DIST.COMMON
         ) -> Tuple[rv_continuous, float, Tuple[float, ...]]:
     """First, the p-score is calculated by performing a 
     Kolmogorov-Smirnov test to determine how well each distribution fits
@@ -2171,8 +2275,7 @@ def estimate_distribution(
     dists = (dists, ) if isinstance(dists, (str, rv_continuous)) else dists
     results = {d: kolmogorov_smirnov_test(data, d) for d in dists}
     dist, (p, _, shape_params) = max(results.items(), key=lambda i: i[1][0])
-    dist = ensure_generic(dist)
-    return dist, p, shape_params
+    return ensure_generic(dist), p, shape_params
 
 def _extended_range_(
         data: NumericSample1D,
