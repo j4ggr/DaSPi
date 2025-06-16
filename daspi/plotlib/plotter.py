@@ -3402,6 +3402,235 @@ class Beeswarm(TransformPlotter):
         self.ax.scatter(self.x, self.y, **_kwds)
 
 
+class CategoricalObservation(TransformPlotter):
+    """TransformPlotter for visualizing the observation order, but for 
+    categorical features.
+
+    This class is designed to create a scatter, line, or a combination 
+    of these for categorical features. However, the individual points 
+    are displayed for each feature category, ordered by observation 
+    order, within the available categorical range.
+
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''
+    show_line : bool, optional
+        Flag indicating whether to draw a line between the individual 
+        points, by default True
+    show_scatter : bool, optional
+        Flag indicating whether to show the individual points, 
+        by default True.
+    width : float, optional
+        The width of the scatter range,
+        by default `CATEGORY.FEATURE_SPACE`.
+    skip_na : Literal['none', 'all', 'any'], optional
+        Flag indicating whether to skip missing values in the feature 
+        grouped data, by default None
+        - None, no missing values are skipped
+        - all', grouped data is skipped if all values are missing
+        - any', grouped data is skipped if any value is missing
+
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on 
+        the y-axis, by default True
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the scatter plot. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import CategoricalObservation
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    observation = CategoricalObservation(
+        source=df, target='y', feature='x', ax=ax,
+        show_line=True, show_scatter=True,)
+    observation()
+    observation.label_feature_ticks()
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x',
+            categorical_feature=True # neded to label feature ticks
+        ).plot(
+            dsp.CategoricalObservation,
+            show_line=True,
+            show_scatter=True,
+        ).label() # neded to label feature ticks
+    ```
+    """
+    __slots__ = (
+        'width',
+        'show_line',
+        'show_scatter')
+
+    width: float
+    """The width of the categorical range."""
+    show_line: bool
+    """Whether to draw a line between the individual points."""
+    show_scatter: bool
+    """Whetter to draw the scatter points."""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str = '',
+            show_line: bool = True,
+            show_scatter: bool = True,
+            width: float = CATEGORY.FEATURE_SPACE,
+            skip_na: Literal['all', 'any'] | None = None,
+            target_on_y: bool = True,
+            color: str | None = None,
+            marker: str | None = None,
+            ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
+            **kwds) -> None:
+        assert any((show_line, show_scatter)), (
+            'At least one of show_line or show_scatter must be True.')
+        self.width = width
+        self.show_line = show_line
+        self.show_scatter = show_scatter
+        super().__init__(
+            source=source,
+            target=target,
+            feature=feature,
+            skip_na=skip_na,
+            target_on_y=target_on_y,
+            color=color,
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis,
+            **kwds)
+        self._marker = marker
+    
+    @property
+    def kw_default(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        if self.show_scatter:
+            marker = self.marker if self.marker else DEFAULT.MARKER
+        else:
+            marker = None
+        
+        kwds = dict(color=self.color, marker=marker)
+        if not self.show_line:
+            kwds['ls'] = ''
+        return kwds
+        
+    def observation(self, loc: float, size: int) -> NDArray:
+        """Creates a uniform sequence of numbers with the number 
+        `size` from `loc` minus half the width to `loc` plus half 
+        the width.
+        
+        Parameters
+        ----------
+        loc : float
+            Center position (feature axis) of the scatter values.
+        size : int
+            Amount of valaues to generate
+        
+        Returns
+        -------
+        1D array
+            Evenly distributed values.
+        """
+        half_width = self.width / 2
+        return np.linspace(loc - half_width, loc + half_width, size)
+        
+    def transform(
+            self, feature_data: float | int, target_data: Series) -> DataFrame:
+        """Normally randomize the target data for each feature value in 
+        the feature axis direction.
+
+        Parameters
+        ----------
+        feature_data : int | float
+            Base location (offset) of feature axis coming from 
+            `feature_grouped' generator.
+        target_data : pandas Series
+            feature grouped target data used for transformation, coming
+            from `feature_grouped' generator.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            The transformed data source for the plot.
+        """
+        data = pd.DataFrame({
+            self.target: target_data,
+            self.feature: self.observation(feature_data, target_data.size)})
+        empty_row = pd.DataFrame(
+            [[None] * len(data.columns)], columns=data.columns)
+        data = pd.concat([data, empty_row], ignore_index=True)
+        return data
+
+    def __call__(self, **kwds) -> None:
+        """Perform the plot operation.
+
+        Parameters
+        ----------
+        **kwds
+            Additional keyword arguments to be passed to the Axes 
+            `plot` method.
+        """
+        _kwds = self.kw_default | kwds
+        self.ax.plot(self.x, self.y, **_kwds)
+
+
 class QuantileBoxes(SpreadOpacity, TransformPlotter):
     """TransformPlotter for visualizing quantiles through box plots.
 
@@ -6971,6 +7200,7 @@ __all__ = [
     'Pareto',
     'Jitter',
     'Beeswarm',
+    'CategoricalObservation',
     'QuantileBoxes',
     'GaussianKDE',
     'GaussianKDEContour',
