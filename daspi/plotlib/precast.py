@@ -15,6 +15,7 @@ from pandas.core.frame import DataFrame
 from scipy.stats._distn_infrastructure import rv_continuous
 
 from .chart import JointChart
+
 from .plotter import Bar
 from .plotter import Line
 from .plotter import Stem
@@ -33,11 +34,15 @@ from .plotter import BlandAltman
 from .plotter import QuantileBoxes
 from .plotter import CenterLocation
 from .plotter import ParallelCoordinate
+from .plotter import CategoricalObservation
 from .plotter import CapabilityConfidenceInterval
 
 from ..anova import LinearModel
 from ..anova import GageRnRModel
+from ..anova import GageStudyModel
+
 from ..strings import STR
+
 from ..constants import DIST
 from ..constants import COLOR
 from ..constants import ANOVA
@@ -1056,6 +1061,90 @@ class ProcessCapabilityAnalysisCharts(JointChart):
         return self
 
 
+class GageStudyCharts(JointChart):
+    """
+    A class for visualizing the parameters of a GageStudy model.
+
+    Parameters
+    ----------
+    gage_model : GageStudyModel
+        The GageStudy model whose parameters will be visualized.
+    dist : scipy stats rv_continuous, optional
+        The probability distribution use for creating feature data
+        (the theoretical values). Default is 'norm'.
+    stretch_figsize : bool, optional
+        If True, stretch the figure height and width based on the number of
+        rows and columns, by default False.
+    
+    Examples
+    --------
+    ```python
+    import daspi as dsp
+    
+    df = dsp.load_dataset('grnr_layer_thickness')
+    gage = dsp.GageStudyModel(
+        source=df,
+        target='result_gage',
+        reference='reference',
+        U_cal=df['U_cal'][0],
+        tolerance=df['tolerance'][0],
+        resolution=df['resolution'][0])
+    chart = dsp.GageStudyCharts(gage).plot().label()
+    ```
+    """
+    
+    __slots__ = (
+        'model',
+        'dist',
+        'has_multiple_references')
+
+    model: GageStudyModel
+    """The GageStudy model whose parameters are visualized."""
+    dist: rv_continuous | str
+    """The probability distribution use for creating feature data
+    (the theoretical values)."""
+    has_multiple_references: bool
+    """Whether the GageStudy model has multiple references."""
+
+    def __init__(
+            self,
+            model: GageStudyModel,
+            *,
+            dist: rv_continuous | str = 'norm',
+            stretch_figsize: bool = False
+            ) -> None:
+        source = model.source.copy()
+        reference = model.reference
+        self.dist = dist
+        self.has_multiple_references = source[reference].nunique() > 1
+        if self.has_multiple_references:
+            feature = (reference, '', '')
+            hue = ('', reference, reference)
+        else:
+            feature = (STR['charts_flabel_observed'], '', '')
+            hue = ('', ) * 3
+            source[feature[0]] = [i + 1 for i in range(len(source))]
+
+        super().__init__(
+            source=source,
+            target=model.target,
+            feature=feature,
+            hue=hue,
+            mosaic=('rr', 'pd'),
+            stretch_figsize=stretch_figsize)
+    
+    def plot(self) -> Self: # type: ignore
+        if self.has_multiple_references:
+            super().plot(Scatter)
+            super().plot(Line, on_last_axes=True)
+        else:
+            super().plot(
+                CategoricalObservation, show_line=True, show_scatter=True)
+        super().plot(Probability, dist=self.dist)
+        super().plot(GaussianKDE, hide_axis='feature', visible_spines='target')
+        return self
+
+
 class GageRnRCharts(JointChart):
     """
     A class for visualizing the parameters of a GageRnR model.
@@ -1086,8 +1175,7 @@ class GageRnRCharts(JointChart):
     gage = dsp.GageStudyModel(
         source=df,
         target='result_gage',
-        reference=None,
-        reference_values=df['reference'][0],
+        reference='reference',
         U_cal=df['U_cal'][0],
         tolerance=df['tolerance'][0],
         resolution=df['resolution'][0])
@@ -1349,5 +1437,6 @@ __all__ = [
     'PairComparisonCharts',
     'BivariateUnivariateCharts',
     'ProcessCapabilityAnalysisCharts',
+    'GageStudyCharts',
     'GageRnRCharts',
     ]
