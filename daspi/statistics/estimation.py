@@ -129,7 +129,7 @@ class BaseEstimator:
         '_n_missing',
         '_n_filtered',
         '_nan_policy',
-        '_descriptive_statistic_attrs',)
+        '_attrs_describe',)
 
     _samples: pd.Series
     _filtered: pd.Series
@@ -138,7 +138,7 @@ class BaseEstimator:
     _n_missing: int | None
     _n_filtered: int | None
     _nan_policy : Literal['propagate', 'raise', 'omit']
-    _descriptive_statistic_attrs: Tuple[str, ...]
+    _attrs_describe: Tuple[str, ...]
 
     def __init__(
             self, 
@@ -173,14 +173,14 @@ class BaseEstimator:
         self._n_missing = None
         self._n_filtered = None
 
-        self._descriptive_statistic_attrs = (
+        self._attrs_describe = (
             'n_samples',
             'n_missing',)
     
     @property
-    def descriptive_statistic_attrs(self) -> Tuple[str, ...]:
+    def attrs_describe(self) -> Tuple[str, ...]:
         """Get attribute names used for `describe` method."""
-        return self._descriptive_statistic_attrs
+        return self._attrs_describe
     
     @property
     def nan_policy(self) -> Literal['propagate', 'raise', 'omit']:
@@ -263,11 +263,9 @@ class BaseEstimator:
     
     def _get_descriptive_attr_(self, name) -> float | int | str:
         """Return the current value of the specified attribute."""
-        assert name in self.descriptive_statistic_attrs, (
+        assert name in self.attrs_describe, (
             f'Attribute {name} is not a valid descriptive statistic '
             'attribute')
-        if name == 'dist':
-            return self.dist.name # type: ignore
         return getattr(self, name)
     
     def describe(self, exclude: Tuple[str, ...] = ()) -> DataFrame:
@@ -287,7 +285,7 @@ class BaseEstimator:
             column name is the name of the samples.
         """
         names = (
-            n for n in self.descriptive_statistic_attrs if n not in exclude)
+            n for n in self.attrs_describe if n not in exclude)
         data = pd.DataFrame(
             data={name: [self._get_descriptive_attr_(name)] for name in names},
             index=[self.samples.name])
@@ -350,14 +348,15 @@ class DistributionEstimator(BaseEstimator):
         '_p_excess', 
         '_skew',
         '_p_skew',
-        '_predicted',
-        '_ss',
-        '_aic',
-        '_bic',
         '_theoretical_percentiles',
         '_theoretical_quantiles',
         '_sample_percentiles',
         '_sample_quantiles',
+        '_predicted',
+        '_log_likelihood',
+        '_ss',
+        '_aic',
+        '_bic',
         'possible_dists',)
     _dist: rv_continuous | None
     _frozen: rv_frozen | None
@@ -374,10 +373,11 @@ class DistributionEstimator(BaseEstimator):
     _sample_percentiles: Series | None
     _sample_quantiles: Series | None
     _predicted: Series
+    _log_likelihood: float | None
     _ss: float | None
     _aic: float | None
     _bic: float | None
-    _descriptive_statistic_attrs: Tuple[str, ...]
+    _attrs_describe: Tuple[str, ...]
     possible_dists: Tuple[str | rv_continuous, ...]
     """Distributions given during initialization to which the data may 
     be subject."""
@@ -409,20 +409,24 @@ class DistributionEstimator(BaseEstimator):
         self._sample_percentiles = None
         self._sample_quantiles = None
         self._predicted = pd.Series(dtype=float)
+        self._log_likelihood = None
         self._ss = None
         self._aic = None
         self._bic = None
 
-        self._descriptive_statistic_attrs = (
+        self._attrs_describe = (
             'n_samples',
             'n_missing',
-            'dist',
+            'dist_name',
             'p_ks',
             'p_ad',
             'excess',
             'p_excess',
             'skew',
-            'p_skew',)
+            'p_skew',
+            'ss',
+            'aic',
+            'bic',)
     
     @staticmethod
     def plotting_positions(nobs, alpha=0.0, beta=None) -> Series:
@@ -464,7 +468,7 @@ class DistributionEstimator(BaseEstimator):
         return pd.Series(pos)
     
     @property
-    def name(self) -> str:
+    def dist_name(self) -> str:
         """Get the name of the estimated distribution (read-only)."""
         return self.dist.name
     
@@ -648,6 +652,15 @@ class DistributionEstimator(BaseEstimator):
             self._predicted = pd.Series(
                 self.dist.pdf(self.theoretical_quantiles, *self.shape_params))
         return self._predicted
+    
+    @property
+    def log_likelihood(self) -> float:
+        """Get the log-likelihood of the provided or evaluated 
+        distribution (read-only)."""
+        if self._log_likelihood is None:
+            self._log_likelihood = float(
+                np.sum(self.dist.logpdf(self.sorted, *self.shape_params)))
+        return self._log_likelihood
 
     @property
     def ss(self) -> float:
@@ -655,6 +668,24 @@ class DistributionEstimator(BaseEstimator):
         if self._ss is None:
             self._ss = float(np.sum((self.sorted - self.predicted)**2))
         return self._ss
+    
+    @property
+    def aic(self) -> float:
+        """Get the Akaike information criterion (AIC) (read-only)."""
+        if self._aic is None:
+            n_params = len(self.shape_params)
+            self._aic = 2 * n_params - 2 * self.log_likelihood
+        return self._aic
+    
+    @property
+    def bic(self) -> float:
+        """Get the Bayesian information criterion (BIC) (read-only)."""
+        if self._bic is None:
+            n_params = len(self.shape_params)
+            self._bic = (
+                n_params * float(np.log(self.n_filtered))
+                - 2 * self.log_likelihood)
+        return self._bic
     
     def distribution(self) -> Tuple[rv_continuous, float, Tuple[float, ...]]:
         """Estimate the distribution by selecting the one from the
@@ -955,7 +986,7 @@ class LocationDispersionEstimator(DistributionEstimator):
         self._agreement = -1
         self.agreement = agreement
         self._evaluate = evaluate
-        self._descriptive_statistic_attrs = (
+        self._attrs_describe = (
             'n_samples',
             'n_missing',
             'min',
@@ -965,7 +996,7 @@ class LocationDispersionEstimator(DistributionEstimator):
             'median',
             'std',
             'sem',
-            'dist',
+            'dist_name',
             'p_ks',
             'p_ad',
             'excess',
@@ -1446,7 +1477,7 @@ class ProcessEstimator(LocationDispersionEstimator):
             nan_policy=nan_policy)
     
     @property
-    def descriptive_statistic_attrs(self) -> Tuple[str, ...]:
+    def attrs_describe(self) -> Tuple[str, ...]:
         """Get attribute names used for `describe` method (read-only)."""
         attrs = (
             'n_samples',
@@ -1465,7 +1496,7 @@ class ProcessEstimator(LocationDispersionEstimator):
             'median',
             'std',
             'sem',
-            'dist',
+            'dist_name',
             'p_ks',
             'p_ad',
             'excess',
@@ -1923,7 +1954,7 @@ class GageEstimator(LocationDispersionEstimator):
         self._tolerance_ratio = tolerance_ratio
         self._resolution_ratio_limit = resolution_ratio_limit
         self._bias_corrected = bias_corrected
-        self._descriptive_statistic_attrs = (
+        self._attrs_describe = (
             'n_samples',
             'n_missing',
             'n_outlier',

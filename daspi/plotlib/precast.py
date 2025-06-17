@@ -520,7 +520,7 @@ class BivariateUnivariateCharts(JointChart):
     brands = (brand for brand in df[hue].unique().tolist()*2)
     for plot in chart.plots:
         if isinstance(plot, dsp.QuantileBoxes):
-            print(f'{next(brands)} {plot.target}: {plot.estimation.dist.name}')
+            print(f'{next(brands)} {plot.target}: {plot.estimation.dist.dist_name}')
     ```
     """
     __slots__ = ('_top_right_hidden')

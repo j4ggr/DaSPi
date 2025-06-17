@@ -1688,7 +1688,7 @@ class Probability(LinearRegressionLine):
         self.dist = DistributionEstimator(source[target], dist)
         
         feature_kind = 'quantiles' if self.kind[1] == "q" else 'percentiles'
-        feature = f'{self.dist.name}_{feature_kind}'
+        feature = f'{self.dist.dist_name}_{feature_kind}'
         df = pd.DataFrame({
             target: self.sample_data,
             feature: self.theoretical_data})
@@ -1712,7 +1712,7 @@ class Probability(LinearRegressionLine):
         axis scale for samples or quantiles (not for percentiles) from
         'linear' to 'log'."""
         xscale = yscale = 'linear'
-        if self.dist.name in ('expon', 'log', 'lognorm'):
+        if self.dist.dist_name in ('expon', 'log', 'lognorm'):
             if self.kind[1] == 'q': 
                 xscale = 'log'
             if self.kind[0] == 'q': 

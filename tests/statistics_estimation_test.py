@@ -32,7 +32,166 @@ df_valid25: DataFrame = pd.read_csv(
     source/f'dists_25-samples.csv', skiprows=29, **KW_READ)
 
 
-class TestEstimator:
+class TestDistributionEstimator:
+
+    # source data contains 8 decimal places
+    rel_curve: float = 1e-7
+    estimate: DistributionEstimator = DistributionEstimator(df_dist10['rayleigh'])
+    
+    @pytest.fixture
+    def sample_estimator(self) -> DistributionEstimator:
+        np.random.seed(42)
+        data = np.random.normal(0, 1, 100)
+        return DistributionEstimator(data)
+    
+    def test_data_filtered(self) -> None:
+        N = 10
+        N_nan = 2
+        data = np.concatenate((np.random.randn(N-2), N_nan*[np.nan], [.1, -.1]))
+        estimate = DistributionEstimator(data)
+        assert len(estimate.samples) == N + N_nan
+        assert estimate._filtered.empty
+        assert len(estimate.filtered) == N
+        assert not estimate._filtered.empty
+        assert not any(np.isnan(estimate.filtered))
+
+    def test_excess(self) -> None:
+        rel = self.rel_curve
+
+        size = 10
+        for dist in df_dist10.columns:
+            estimate = DistributionEstimator(df_dist10[dist])
+            excess = estimate.excess
+            assert excess == approx(df_valid10[dist]['excess'], rel=rel)
+        
+        size = 25
+        for dist in df_dist10.columns:
+            estimate = DistributionEstimator(df_dist25[dist])
+            excess = estimate.excess
+            assert excess == approx(df_valid25[dist]['excess'], rel=rel)
+
+    def test_skew(self) -> None:
+        rel = self.rel_curve
+
+        size = 10
+        for dist in df_dist10.columns:
+            estimate = DistributionEstimator(df_dist10[dist])
+            skew = estimate.skew
+            assert skew == approx(df_valid10[dist]['skew'], rel=rel)
+        
+        size = 25
+        for dist in df_dist10.columns:
+            estimate = DistributionEstimator(df_dist25[dist])
+            skew = estimate.skew
+            assert skew == approx(df_valid25[dist]['skew'], rel=rel)
+
+    def test_follows_norm_curve(self) -> None:
+        estimate = DistributionEstimator(df_dist25['norm'])
+        assert estimate.follows_norm_curve()
+        
+        estimate = DistributionEstimator(df_dist25['chi2'])
+        assert not estimate.follows_norm_curve()
+        
+        estimate = DistributionEstimator(df_dist25['foldnorm'])
+        assert not estimate.follows_norm_curve()
+        
+        estimate = DistributionEstimator(df_dist25['weibull_min'])
+        assert not estimate.follows_norm_curve()
+        
+        estimate = DistributionEstimator(df_dist25['gamma'])
+        assert not estimate.follows_norm_curve()
+        
+        estimate = DistributionEstimator(df_dist25['wald'])
+        assert not estimate.follows_norm_curve()
+
+        estimate = DistributionEstimator(df_dist25['expon'])
+        assert not estimate.follows_norm_curve()
+
+    def test_stable_variance(self) -> None:
+        assert self.estimate.stable_variance()
+
+        data = list(df_dist25['logistic']) + list(df_dist25['expon'])
+        estimate = DistributionEstimator(data)
+        assert not estimate.stable_variance(n_sections=2)
+
+    def test_fit_distribution(self) -> None:
+        estimate = DistributionEstimator(df_dist25['expon'])
+        assert estimate._dist is None
+        assert estimate._shape_params is None
+        assert estimate._p_ks is None
+       
+        estimate.distribution()
+        assert estimate.dist.name != 'norm'
+        assert estimate.p_ks > 0.005
+        assert estimate.shape_params is not None
+        
+        estimate = DistributionEstimator(df_dist25['norm'])
+        estimate.distribution()
+        assert estimate.p_ks > 0.005
+        assert estimate.dist.name != 'expon'
+
+    def test_describe_basic(self, sample_estimator: DistributionEstimator) -> None:
+        result = sample_estimator.describe()
+        assert 'n_samples' in result.index
+        assert 'n_missing' in result.index
+        assert 'dist_name' in result.index
+        assert 'p_ks' in result.index
+        assert 'p_ad' in result.index
+        assert 'excess' in result.index
+        assert 'p_excess' in result.index
+        assert 'skew' in result.index
+        assert 'p_skew' in result.index
+        assert 'ss' in result.index
+        assert 'aic' in result.index
+        assert 'bic' in result.index
+
+    def test_describe_with_exclude(self, sample_estimator: DistributionEstimator) -> None:
+        result = sample_estimator.describe(exclude=('ss', 'aic', 'bic'))
+        assert 'n_samples' in result.index
+        assert 'n_missing' in result.index
+        assert 'dist_name' in result.index
+        assert 'p_ks' in result.index
+        assert 'p_ad' in result.index
+        assert 'excess' in result.index
+        assert 'p_excess' in result.index
+        assert 'skew' in result.index
+        assert 'p_skew' in result.index
+        assert 'ss' not in result.index
+        assert 'aic' not in result.index
+        assert 'bic' not in result.index
+
+    def test_describe_with_empty_exclude(self, sample_estimator: DistributionEstimator) -> None:
+        result = sample_estimator.describe(exclude=())
+        attrs = sample_estimator.attrs_describe
+        assert all(a in result.index for a in attrs)
+
+    def test_describe_with_nan_values(self) -> None:
+        data = [1.0, np.nan, 3.0, 4.0, np.nan]
+        estimator = DistributionEstimator(data)
+        result = estimator.describe()
+        assert estimator.n_missing == 2
+        assert estimator.n_samples == 5
+        assert estimator.n_filtered == 3
+        assert not any(pd.isna(result.loc[['excess', 'skew']]))
+        assert len(result) == len(estimator.attrs_describe)
+
+    def test_nan_policy_warn(self) -> None:
+        data = [1.0, np.nan, 3.0, 4.0, np.nan]
+        with pytest.warns(UserWarning):
+            estimator = DistributionEstimator(data)
+        assert estimator.nan_policy == 'omit'
+
+        with pytest.warns(UserWarning):
+            estimator = DistributionEstimator(data, nan_policy='propagate')
+        assert estimator.nan_policy == 'propagate'
+
+    def test_nan_policy_raise(self) -> None:
+        data = [1.0, np.nan, 3.0, 4.0, np.nan]
+        with pytest.raises(ValueError):
+            DistributionEstimator(data, nan_policy='raise')
+
+
+class TestLocationDispersionEstimator:
 
     # source data contains 8 decimal places
     rel_curve: float = 1e-7
@@ -81,81 +240,6 @@ class TestEstimator:
         assert self.estimate.std == approx(np.std(self.estimate.filtered, ddof=1))
         assert self.estimate._std is not None
 
-    def test_excess(self) -> None:
-        rel = self.rel_curve
-
-        size = 10
-        for dist in df_dist10.columns:
-            estimate = LocationDispersionEstimator(df_dist10[dist])
-            excess = estimate.excess
-            assert excess == approx(df_valid10[dist]['excess'], rel=rel)
-        
-        size = 25
-        for dist in df_dist10.columns:
-            estimate = LocationDispersionEstimator(df_dist25[dist])
-            excess = estimate.excess
-            assert excess == approx(df_valid25[dist]['excess'], rel=rel)
-
-    def test_skew(self) -> None:
-        rel = self.rel_curve
-
-        size = 10
-        for dist in df_dist10.columns:
-            estimate = LocationDispersionEstimator(df_dist10[dist])
-            skew = estimate.skew
-            assert skew == approx(df_valid10[dist]['skew'], rel=rel)
-        
-        size = 25
-        for dist in df_dist10.columns:
-            estimate = LocationDispersionEstimator(df_dist25[dist])
-            skew = estimate.skew
-            assert skew == approx(df_valid25[dist]['skew'], rel=rel)
-
-    def test_follows_norm_curve(self) -> None:
-        estimate = LocationDispersionEstimator(df_dist25['norm'])
-        assert estimate.follows_norm_curve()
-        
-        estimate = LocationDispersionEstimator(df_dist25['chi2'])
-        assert not estimate.follows_norm_curve()
-        
-        estimate = LocationDispersionEstimator(df_dist25['foldnorm'])
-        assert not estimate.follows_norm_curve()
-        
-        estimate = LocationDispersionEstimator(df_dist25['weibull_min'])
-        assert not estimate.follows_norm_curve()
-        
-        estimate = LocationDispersionEstimator(df_dist25['gamma'])
-        assert not estimate.follows_norm_curve()
-        
-        estimate = LocationDispersionEstimator(df_dist25['wald'])
-        assert not estimate.follows_norm_curve()
-
-        estimate = LocationDispersionEstimator(df_dist25['expon'])
-        assert not estimate.follows_norm_curve()
-
-    def test_stable_variance(self) -> None:
-        assert self.estimate.stable_variance()
-
-        data = list(df_dist25['logistic']) + list(df_dist25['expon'])
-        estimate = LocationDispersionEstimator(data)
-        assert not estimate.stable_variance(n_sections=2)
-
-    def test_fit_distribution(self) -> None:
-        estimate = LocationDispersionEstimator(df_dist25['expon'])
-        assert estimate._dist is None
-        assert estimate._shape_params is None
-        assert estimate._p_ks is None
-       
-        estimate.distribution()
-        assert estimate.dist.name != 'norm'
-        assert estimate.p_ks > 0.005
-        assert estimate.shape_params is not None
-        
-        estimate = LocationDispersionEstimator(df_dist25['norm'])
-        estimate.distribution()
-        assert estimate.p_ks > 0.005
-        assert estimate.dist.name != 'expon'
-
     def test_describe_basic(self, sample_estimator: LocationDispersionEstimator) -> None:
         result = sample_estimator.describe()
         assert 'min' in result.index
@@ -170,25 +254,6 @@ class TestEstimator:
         assert 'median' not in result.index
         assert 'min' in result.index
         assert 'max' in result.index
-
-    def test_describe_with_distribution(self, sample_estimator: LocationDispersionEstimator) -> None:
-        sample_estimator.distribution()
-        result = sample_estimator.describe()
-        assert 'dist' in result.index
-        assert isinstance(result.loc['dist'][0], str)
-
-    def test_describe_with_empty_exclude(self, sample_estimator: LocationDispersionEstimator) -> None:
-        result = sample_estimator.describe(exclude=())
-        expected_attrs = sample_estimator.descriptive_statistic_attrs
-        assert all(attr in result.index for attr in expected_attrs)
-
-    def test_describe_with_nan_values(self) -> None:
-        data = [1.0, np.nan, 3.0, 4.0, np.nan]
-        estimator = LocationDispersionEstimator(data)
-        result = estimator.describe()
-        assert not np.isnan(result.loc['mean'][0])
-        assert not np.isnan(result.loc['std'][0])
-        assert len(result) == len(estimator.descriptive_statistic_attrs)
 
     def test_full_range(self) -> None:
         data = np.random.normal(size=10_000)
@@ -369,7 +434,7 @@ class TestProcessEstimator:
         assert 'mean' in result.index
         assert 'median' in result.index
         assert 'std' in result.index
-        assert 'dist' in result.index
+        assert 'dist_name' in result.index
         assert 'lcl' in result.index
         assert 'ucl' in result.index
         assert 'strategy' in result.index
@@ -377,15 +442,15 @@ class TestProcessEstimator:
         assert 'Z_lt' in result.index
 
     def test_describe_with_exclude(self, sample_estimator: ProcessEstimator) -> None:
-        result = sample_estimator.describe(exclude=('dist', 'strategy'))
-        assert 'dist' not in result.index
+        result = sample_estimator.describe(exclude=('dist_name', 'strategy'))
+        assert 'dist_name' not in result.index
         assert 'strategy' not in result.index
         assert 'lcl' in result.index
         assert 'ucl' in result.index
 
     def test_describe_with_empty_exclude(self, sample_estimator: ProcessEstimator) -> None:
         result = sample_estimator.describe(exclude=())
-        expected_attrs = sample_estimator.descriptive_statistic_attrs
+        expected_attrs = sample_estimator.attrs_describe
         assert all(attr in result.index for attr in expected_attrs)
 
     def test_describe_with_nan_values(self) -> None:
@@ -394,7 +459,7 @@ class TestProcessEstimator:
         result = estimator.describe()
         assert not np.isnan(result.loc['mean'][0])
         assert not np.isnan(result.loc['std'][0])
-        assert len(result) == len(estimator.descriptive_statistic_attrs)
+        assert len(result) == len(estimator.attrs_describe)
     
     def test_n_nok(self, estimator_norm: ProcessEstimator) -> None:
         assert estimator_norm._n_nok is None
