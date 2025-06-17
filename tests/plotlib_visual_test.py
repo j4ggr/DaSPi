@@ -15,37 +15,56 @@ from pandas.core.frame import DataFrame
 
 sys.path.append(Path(__file__).parent.resolve()) # type: ignore
 
-from daspi import load_dataset
 from daspi import STR
 from daspi import COLOR
-from daspi import Bar
-from daspi import Line
-from daspi import Pareto
-from daspi import Jitter
-from daspi import Scatter
-from daspi import Violine
-from daspi import Beeswarm
-from daspi import MeanTest
-from daspi import LoessLine
 from daspi import SpecLimits
-from daspi import JointChart
-from daspi import SingleChart
-from daspi import HideSubplot
-from daspi import BlandAltman
-from daspi import Probability
-from daspi import GaussianKDE
-from daspi import QuantileBoxes
-from daspi import VariationTest
-from daspi import ResidualsCharts
-from daspi import StandardErrorMean
-from daspi import GaussianKDEContour
-from daspi import MultivariateChart
-from daspi import PairComparisonCharts
-from daspi import LinearRegressionLine
-from daspi import ParameterRelevanceCharts
-from daspi import BivariateUnivariateCharts
-from daspi import ProcessCapabilityAnalysisCharts
+from daspi import load_dataset
 
+from daspi.plotlib.chart import Chart
+from daspi.plotlib.chart import JointChart
+from daspi.plotlib.chart import SingleChart
+from daspi.plotlib.chart import MultivariateChart
+
+from daspi.plotlib.plotter import Bar
+from daspi.plotlib.plotter import Line
+from daspi.plotlib.plotter import Stem
+from daspi.plotlib.plotter import Pareto
+from daspi.plotlib.plotter import Jitter
+from daspi.plotlib.plotter import Plotter
+from daspi.plotlib.plotter import Scatter
+from daspi.plotlib.plotter import Violine
+from daspi.plotlib.plotter import Beeswarm
+from daspi.plotlib.plotter import Errorbar
+from daspi.plotlib.plotter import MeanTest
+from daspi.plotlib.plotter import LoessLine
+from daspi.plotlib.plotter import StripeLine
+from daspi.plotlib.plotter import StripeSpan
+from daspi.plotlib.plotter import HideSubplot
+from daspi.plotlib.plotter import SkipSubplot
+from daspi.plotlib.plotter import SpreadWidth
+from daspi.plotlib.plotter import Probability
+from daspi.plotlib.plotter import BlandAltman
+from daspi.plotlib.plotter import GaussianKDE
+from daspi.plotlib.plotter import QuantileBoxes
+from daspi.plotlib.plotter import VariationTest
+from daspi.plotlib.plotter import ProportionTest
+from daspi.plotlib.plotter import CenterLocation
+from daspi.plotlib.plotter import TransformPlotter
+from daspi.plotlib.plotter import StandardErrorMean
+from daspi.plotlib.plotter import ConfidenceInterval
+from daspi.plotlib.plotter import ParallelCoordinate
+from daspi.plotlib.plotter import GaussianKDEContour
+from daspi.plotlib.plotter import LinearRegressionLine
+from daspi.plotlib.plotter import CategoricalObservation
+from daspi.plotlib.plotter import CapabilityConfidenceInterval
+
+from daspi.plotlib.precast import GageRnRCharts
+from daspi.plotlib.precast import GageStudyCharts
+from daspi.plotlib.precast import ResidualsCharts
+from daspi.plotlib.precast import PairComparisonCharts
+from daspi.plotlib.precast import ParameterRelevanceCharts
+from daspi.plotlib.precast import BivariateUnivariateCharts
+from daspi.plotlib.precast import ProcessCapabilityAnalysisCharts
 
 matplotlib.use("Agg")
 
@@ -151,10 +170,10 @@ class TestSingleChart:
 
         with pytest.raises(AssertionError) as err:
             SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1,
-            ).label(info = self.info_msg
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1,
+            ).label(info=self.info_msg
             ).plot(Scatter)
         assert 'Cannot call plot() after label()' in str(err.value)
 
@@ -163,17 +182,17 @@ class TestSingleChart:
 
         self.kind = 'hue'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature,
-                hue = self.cat1
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature,
+                hue=self.cat1
             ).plot(Line
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = True, 
-                info = True, 
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=True, 
+                info=True, 
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -193,19 +212,19 @@ class TestSingleChart:
 
         self.kind = 'hue_size'
         chart =SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature,
-                hue = self.cat1,
-                size = self.size
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature,
+                hue=self.cat1,
+                size=self.size
             ).plot(Line
             ).plot(Scatter
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = self.feature_label,
-                target_label = self.target_label, 
-                info = self.info_msg, 
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=self.feature_label,
+                target_label=self.target_label, 
+                info=self.info_msg, 
             ).save(self.file_name
             ).close()
         assert self.file_name.is_file()
@@ -231,12 +250,12 @@ class TestSingleChart:
 
         self.kind = 'simple'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature
             ).plot(Scatter
             ).label(
-                sub_title = self.sub_title
+                sub_title=self.sub_title
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -247,9 +266,9 @@ class TestSingleChart:
 
         self.kind = 'simple-stripes'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature
             ).plot(Scatter
             ).stripes(
                 mean=True,
@@ -257,7 +276,7 @@ class TestSingleChart:
                 control_limits=True,
                 spec_limits=SpecLimits(8, 35),
             ).label(
-                sub_title = self.sub_title
+                sub_title=self.sub_title
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -268,9 +287,9 @@ class TestSingleChart:
 
         self.kind = 'simple-stripes-65ci'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature
             ).plot(Scatter
             ).stripes(
                 mean=True,
@@ -278,7 +297,7 @@ class TestSingleChart:
                 control_limits=True,
                 confidence=0.65,
             ).label(
-                sub_title = self.sub_title
+                sub_title=self.sub_title
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -289,9 +308,9 @@ class TestSingleChart:
 
         self.kind = 'simple-stripes-99ci'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature
             ).plot(Scatter
             ).stripes(
                 mean=True,
@@ -299,7 +318,7 @@ class TestSingleChart:
                 control_limits=True,
                 confidence=0.99,
             ).label(
-                sub_title = self.sub_title
+                sub_title=self.sub_title
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -310,14 +329,14 @@ class TestSingleChart:
 
         self.kind = 'transposed'
         chart =SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature,
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature,
             ).plot(Scatter, target_on_y=False
             ).label(
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = True
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=True
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -331,16 +350,16 @@ class TestSingleChart:
 
         self.kind = 'hue'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature,
-                hue = self.cat1
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature,
+                hue=self.cat1
             ).plot(Scatter
             ).label(
-                sub_title = self.sub_title,
-                feature_label = self.feature_label,
-                target_label = self.target_label, 
-                info = True
+                sub_title=self.sub_title,
+                feature_label=self.feature_label,
+                target_label=self.target_label, 
+                info=True
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -360,16 +379,16 @@ class TestSingleChart:
 
         self.kind = 'shape'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature,
-                shape = self.cat2
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature,
+                shape=self.cat2
             ).plot(Scatter
             ).label(
-                sub_title = self.sub_title,
-                feature_label = self.feature_label,
-                target_label = self.target_label, 
-                info = True
+                sub_title=self.sub_title,
+                feature_label=self.feature_label,
+                target_label=self.target_label, 
+                info=True
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -389,16 +408,16 @@ class TestSingleChart:
 
         self.kind = 'size'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature,
-                size = self.size
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature,
+                size=self.size
             ).plot(Scatter
             ).label(
-                sub_title = self.sub_title,
-                feature_label = self.feature_label,
-                target_label = self.target_label, 
-                info = True
+                sub_title=self.sub_title,
+                feature_label=self.feature_label,
+                target_label=self.target_label, 
+                info=True
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -418,18 +437,18 @@ class TestSingleChart:
 
         self.kind = 'hue-size'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature,
-                hue = self.cat1,
-                size = self.size
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature,
+                hue=self.cat1,
+                size=self.size
             ).plot(Scatter
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = self.feature_label,
-                target_label = self.target_label, 
-                info = True
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=self.feature_label,
+                target_label=self.target_label, 
+                info=True
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -450,18 +469,18 @@ class TestSingleChart:
 
         self.kind = 'hue-shape'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature,
-                hue = self.cat1,
-                shape = self.cat2
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature,
+                hue=self.cat1,
+                shape=self.cat2
             ).plot(Scatter
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = self.feature_label,
-                target_label = self.target_label, 
-                info = True
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=self.feature_label,
+                target_label=self.target_label, 
+                info=True
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -482,18 +501,18 @@ class TestSingleChart:
 
         self.kind = 'size-shape'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature,
-                size = self.size,
-                shape = self.cat2
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature,
+                size=self.size,
+                shape=self.cat2
             ).plot(Scatter
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = self.feature_label,
-                target_label = self.target_label, 
-                info = True
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=self.feature_label,
+                target_label=self.target_label, 
+                info=True
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -514,19 +533,19 @@ class TestSingleChart:
 
         self.kind = 'full'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature,
-                hue = self.cat1,
-                size = self.size,
-                shape = self.cat2
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature,
+                hue=self.cat1,
+                size=self.size,
+                shape=self.cat2
             ).plot(Scatter
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = self.feature_label,
-                target_label = self.target_label, 
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=self.feature_label,
+                target_label=self.target_label, 
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -550,27 +569,27 @@ class TestSingleChart:
         self.base = f'{self.fig_title}_pareto'
         with pytest.raises(AssertionError) as err:
             chart = SingleChart(
-                    source = df_aspirin,
-                    target = self.target,
-                    feature = self.cat1,
-                    categorical_feature = True
+                    source=df_aspirin,
+                    target=self.target,
+                    feature=self.cat1,
+                    categorical_feature=True
                 ).plot(
                     Pareto, method='sum')
         assert 'categorical_feature' in str(err.value)
         
         self.kind = 'simple'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1,
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1,
             ).plot(
                 Pareto, method='sum'  
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = self.target_label,
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -588,18 +607,18 @@ class TestSingleChart:
 
         self.kind = 'transposed'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1,
-                target_on_y = False
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1,
+                target_on_y=False
             ).plot(
                 Pareto, method='sum'  
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = self.target_label,
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -620,17 +639,17 @@ class TestSingleChart:
 
         self.kind = 'simple'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                target_on_y = False
+                source=df_aspirin,
+                target=self.target,
+                target_on_y=False
             ).plot(
                 GaussianKDE,
                 hide_axis=None,
                 visible_spines=None,
             ).label(
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = True
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=True
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -642,21 +661,21 @@ class TestSingleChart:
 
         self.kind = 'multiple'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                hue = self.cat1,
-                target_on_y = True
+                source=df_aspirin,
+                target=self.target,
+                hue=self.cat1,
+                target_on_y=True
             ).plot(
                 GaussianKDE,
                 visible_spines='target',
                 hide_axis='feature',
                 agreements=(),
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = True, 
-                info = True
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=True, 
+                info=True
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -677,21 +696,21 @@ class TestSingleChart:
 
         self.kind = 'simple'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1, 
-                categorical_feature = True,
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1, 
+                categorical_feature=True,
             ).plot(
                 Beeswarm
             ).plot(
                 Violine,
                 fill=False
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = self.target_label,    
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,    
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -704,23 +723,23 @@ class TestSingleChart:
         
         self.kind = 'multiple'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1, 
-                hue = self.cat2,
-                dodge = True,
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1, 
+                hue=self.cat2,
+                dodge=True,
                 target_on_y=False
             ).plot(
                 Beeswarm,
             ).plot(
                 Violine,
-                fill = False
+                fill=False
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = self.target_label,    
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,    
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -736,10 +755,10 @@ class TestSingleChart:
 
         self.kind = 'simple'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1, 
-                categorical_feature = True,
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1, 
+                categorical_feature=True,
             ).plot(
                 QuantileBoxes
             ).plot(
@@ -748,11 +767,11 @@ class TestSingleChart:
                 Violine,
                 fill=False
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = self.target_label,    
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,    
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -765,11 +784,11 @@ class TestSingleChart:
         
         self.kind = 'multiple'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1, 
-                hue = self.cat2,
-                dodge = True,
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1, 
+                hue=self.cat2,
+                dodge=True,
                 target_on_y=False
             ).plot(
                 QuantileBoxes,
@@ -780,13 +799,13 @@ class TestSingleChart:
                 Beeswarm,
             ).plot(
                 Violine,
-                fill = False
+                fill=False
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = self.target_label,    
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,    
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -802,18 +821,18 @@ class TestSingleChart:
 
         self.kind = 'simple'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1, 
-                categorical_feature = True,
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1, 
+                categorical_feature=True,
             ).plot(
                 Jitter
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = self.target_label,    
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,    
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -826,20 +845,20 @@ class TestSingleChart:
         
         self.kind = 'multiple'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1, 
-                hue = self.cat2,
-                dodge = True,
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1, 
+                hue=self.cat2,
+                dodge=True,
                 target_on_y=False
             ).plot(
                 Jitter
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = self.target_label,    
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,    
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -856,15 +875,15 @@ class TestSingleChart:
 
         self.kind = 'mono'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
+                source=df_aspirin,
+                target=self.target,
             ).plot(Violine
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = self.target_label,    
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,    
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -877,16 +896,16 @@ class TestSingleChart:
 
         self.kind = 'simple'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1, 
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1, 
             ).plot(Violine
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = self.target_label,    
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,    
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -899,18 +918,18 @@ class TestSingleChart:
         
         self.kind = 'multiple'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1, 
-                hue = self.cat2,
-                dodge = True
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1, 
+                hue=self.cat2,
+                dodge=True
             ).plot(Violine, target_on_y=False, agreements=()
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = self.target_label,    
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,    
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -926,20 +945,20 @@ class TestSingleChart:
 
         self.kind = 'sem'
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1, 
-                hue = self.cat2,
-                dodge = True,
-                target_on_y = True
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1, 
+                hue=self.cat2,
+                dodge=True,
+                target_on_y=True
             ).plot(
                 StandardErrorMean
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = self.target_label,    
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,    
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -953,11 +972,11 @@ class TestSingleChart:
         self.kind = 'mean-test'
         n_groups = df_aspirin.groupby(self.cat1).ngroups
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1,
-                categorical_feature = True,
-                target_on_y = False
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1,
+                categorical_feature=True,
+                target_on_y=False
             ).plot(
                 MeanTest, n_groups=n_groups
             ).label(
@@ -979,21 +998,21 @@ class TestSingleChart:
         self.kind = 'var-test'
         n_groups = df_aspirin.groupby(self.cat1).ngroups
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1,
-                categorical_feature = True,
-                target_on_y = False
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1,
+                categorical_feature=True,
+                target_on_y=False
             ).plot(
                 VariationTest,
-                kind = 'variance',
-                n_groups = n_groups
+                kind='variance',
+                n_groups=n_groups
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = self.target_label,    
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,    
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -1007,22 +1026,22 @@ class TestSingleChart:
         self.kind = 'std-test'
         n_groups = df_aspirin.groupby(self.cat1).ngroups
         chart = SingleChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1,
-                categorical_feature = True,
-                target_on_y = False,
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1,
+                categorical_feature=True,
+                target_on_y=False,
             ).plot(
                 VariationTest,
-                kind = 'stdev',
-                show_center = False,
+                kind='stdev',
+                show_center=False,
                 n_groups=n_groups
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = self.target_label,    
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,    
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -1038,9 +1057,9 @@ class TestSingleChart:
         
         self.kind = 'simple'
         chart = SingleChart(
-                source = load_dataset('shoe-sole'),
-                target = 'wear',
-                feature = 'status',
+                source=load_dataset('shoe-sole'),
+                target='wear',
+                feature='status',
             ).plot(
                 BlandAltman,
                 identity='tester',
@@ -1050,11 +1069,11 @@ class TestSingleChart:
         sub_title = 'Shoe sole materials dataset'
         feature_label = 'Mean both measurements'
         chart = chart.label(
-                fig_title = self.fig_title,
-                sub_title = sub_title,
-                feature_label = feature_label,
-                target_label = target_label,    
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=sub_title,
+                feature_label=feature_label,
+                target_label=target_label,    
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -1071,9 +1090,9 @@ class TestSingleChart:
 
         self.kind = 'user'
         chart = SingleChart(
-                source = load_dataset('shoe-sole'),
-                target = 'wear',
-                feature = 'status',
+                source=load_dataset('shoe-sole'),
+                target='wear',
+                feature='status',
             ).plot(
                 BlandAltman,
                 identity='tester',
@@ -1087,11 +1106,11 @@ class TestSingleChart:
         sub_title = 'Shoe sole materials dataset'
         feature_label = 'Mean both measurements'
         chart = chart.label(
-                fig_title = self.fig_title,
-                sub_title = sub_title,
-                feature_label = feature_label,
-                target_label = target_label,    
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=sub_title,
+                feature_label=feature_label,
+                target_label=target_label,    
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -1111,18 +1130,18 @@ class TestSingleChart:
         
         self.kind = 'simple'
         chart = SingleChart(
-                source = df_aspirin,
-                target = 'dissolution',
-                feature = 'temperature',
-                categorical_feature = True,
+                source=df_aspirin,
+                target='dissolution',
+                feature='temperature',
+                categorical_feature=True,
             ).plot(
                 Violine,
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = self.feature_label,
-                target_label = self.target_label,
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=self.feature_label,
+                target_label=self.target_label,
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -1159,28 +1178,28 @@ class TestJointChart:
     def test_raises(self):
         with pytest.raises(AssertionError) as err:
             JointChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1,
-                nrows = 2,
-                ncols = 2,
-                target_on_y = (True, True, False, False)
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1,
+                nrows=2,
+                ncols=2,
+                target_on_y=(True, True, False, False)
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = self.target_label,
-                info = self.info_msg)
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,
+                info=self.info_msg)
         assert 'Single label not allowed' in str(err.value)
     
         with pytest.raises(AssertionError) as err:
             JointChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1,
-                nrows = 2,
-                ncols = 2,
-                target_on_y = (True, True, False, False)
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1,
+                nrows=2,
+                ncols=2,
+                target_on_y=(True, True, False, False)
             ).plot(Scatter
             ).label(info=self.info_msg
             ).stripes(mean=True)
@@ -1193,15 +1212,15 @@ class TestJointChart:
         self.kind = 'kde-mean'
         n_groups = df_aspirin.groupby([self.cat1, self.cat2]).ngroups
         chart = JointChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = (self.cat1, ''),
-                hue = self.cat2,
-                ncols = 1,
-                nrows = 2,
-                sharex = True,
-                dodge = (False, True),
-                target_on_y = False,
+                source=df_aspirin,
+                target=self.target,
+                feature=(self.cat1, ''),
+                hue=self.cat2,
+                ncols=1,
+                nrows=2,
+                sharex=True,
+                dodge=(False, True),
+                target_on_y=False,
                 height_ratios=[5, 1],
             ).plot(GaussianKDE, show_density_axis=False
             ).plot(MeanTest, n_groups=n_groups
@@ -1216,21 +1235,21 @@ class TestJointChart:
         
         self.kind = 'mixed-kde'
         chart = JointChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1,
-                hue = self.cat2,
-                ncols = 1,
-                nrows = 2,
-                sharex = True,
-                dodge = (False, True),
-                categorical_feature = (False, True),
-                target_on_y = False
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1,
+                hue=self.cat2,
+                ncols=1,
+                nrows=2,
+                sharex=True,
+                dodge=(False, True),
+                categorical_feature=(False, True),
+                target_on_y=False
             ).plot(GaussianKDE, show_density_axis=True
             ).plot(Violine
             ).label(
-                feature_label = (False, True),
-                target_label = (True, True),
+                feature_label=(False, True),
+                target_label=(True, True),
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -1254,22 +1273,22 @@ class TestJointChart:
         self.kind = 'norm-prob'
         chart = JointChart(
                 df_dist25,
-                target = 'rayleigh',
-                feature = '',
-                nrows = 2,
-                ncols = 2,
-                target_on_y = False
+                target='rayleigh',
+                feature='',
+                nrows=2,
+                ncols=2,
+                target_on_y=False
             ).plot(Probability, kind='qq'
             ).plot(Probability, kind='pp'
             ).plot(Probability, kind='sq'
             ).plot(Probability, kind='sp'
             ).label(
-                fig_title = self.fig_title,
-                sub_title = 'QQ, PP, samples-Q and samples-P',
-                target_label = (
+                fig_title=self.fig_title,
+                sub_title='QQ, PP, samples-Q and samples-P',
+                target_label=(
                     'norm quantiles', 'norm percentiles',
                     'norm samples', 'norm samples'),
-                feature_label = (
+                feature_label=(
                     'theoretical quantiles', 'theoretical percentiles',
                     'theoretical quantiles', 'theoretical percentiles')
             ).save(self.file_name
@@ -1310,19 +1329,19 @@ class TestJointChart:
         feature_label = 'theoretical quantiles'
         chart = JointChart(
                 df_dist25,
-                target = target,
-                feature = '',
-                nrows = 3,
-                ncols = 3
+                target=target,
+                feature='',
+                nrows=3,
+                ncols=3
             )
         for distribution in target:
             chart.plot(Probability, dist=distribution, kind='qq')
         chart.label(
-                fig_title = self.fig_title,
-                sub_title = 'QQ for different distributions',
-                target_label = target_labels,
-                feature_label = feature_label,
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title='QQ for different distributions',
+                target_label=target_labels,
+                feature_label=feature_label,
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -1346,28 +1365,28 @@ class TestJointChart:
         target_labels = ('', '', 'In vehicle time (s)', '')
         feature_labels = ('', '', 'In vehicle cost ($)', '')
         chart = JointChart(
-                source = df_travel,
-                target = ('invc', '', 'invt', 'invt'),
-                feature = ('', '', 'invc', ''),
-                target_on_y = (False, False, True, True),
-                hue = 'mode',
-                nrows = 2,
-                ncols = 2,
-                sharex = 'col',
-                sharey = 'row',
-                width_ratios = [5, 1],
-                height_ratios = [1, 5],
-                stretch_figsize = False
+                source=df_travel,
+                target=('invc', '', 'invt', 'invt'),
+                feature=('', '', 'invc', ''),
+                target_on_y=(False, False, True, True),
+                hue='mode',
+                nrows=2,
+                ncols=2,
+                sharex='col',
+                sharey='row',
+                width_ratios=[5, 1],
+                height_ratios=[1, 5],
+                stretch_figsize=False
         ).plot(GaussianKDE, show_density_axis=False
         ).plot(HideSubplot
         ).plot(LinearRegressionLine, show_scatter=True, show_fit_ci=True
         ).plot(GaussianKDE, show_density_axis=False
         ).label(
-            feature_label = feature_labels,
-            target_label = target_labels,
-            fig_title = self.fig_title,
-            sub_title = 'Traveling Mode Dataset',
-            info = self.info_msg
+            feature_label=feature_labels,
+            target_label=target_labels,
+            fig_title=self.fig_title,
+            sub_title='Traveling Mode Dataset',
+            info=self.info_msg
         ).save(self.file_name
         ).close()
         texts = get_texts(chart)
@@ -1392,23 +1411,23 @@ class TestJointChart:
             'Dissolution time (s)')
         feature_label = 'Employee'
         chart = JointChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat2,
-                nrows = 2,
-                ncols = 1,
-                hue = self.cat1,
-                categorical_feature = True,
-                target_on_y = (False, False),
-                dodge = (False, True)
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat2,
+                nrows=2,
+                ncols=1,
+                hue=self.cat1,
+                categorical_feature=True,
+                target_on_y=(False, False),
+                dodge=(False, True)
             ).plot(Bar, method='count'
             ).plot(Bar, method='sum'
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = feature_label, 
-                target_label = target_labels,
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=feature_label, 
+                target_label=target_labels,
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -1429,34 +1448,34 @@ class TestJointChart:
         self.base = f'{self.fig_title}_pareto'
         with pytest.raises(AssertionError) as err:
             JointChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1,
-                nrows = 3,
-                ncols = 2,
-                sharex = 'col',
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1,
+                nrows=3,
+                ncols=2,
+                sharex='col',
             ).plot(Pareto, method='sum')
         assert 'shared with other axes' in str(err.value)
 
         self.kind = 'marked'
         chart = JointChart(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.cat1,
-                nrows = 2,
-                ncols = 2,
-                target_on_y = (True, True, False, False)
+                source=df_aspirin,
+                target=self.target,
+                feature=self.cat1,
+                nrows=2,
+                ncols=2,
+                target_on_y=(True, True, False, False)
             ).plot(Pareto, method='sum', highlight='C', highlighted_as_last=False
             ).plot(Pareto, method='sum', highlight='B', highlight_color=COLOR.GOOD
             ).plot(Pareto, method='sum', highlight='C', highlighted_as_last=False
             ).plot(Pareto, method='sum', highlight='B', highlight_color=COLOR.GOOD
             ).stripes(mean=True
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = (True, True, True, True),
-                target_label = tuple([self.target_label]*4),
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=(True, True, True, True),
+                target_label=tuple([self.target_label]*4),
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -1495,24 +1514,24 @@ class TestMultivariateChart:
 
         self.kind = 'full'
         chart = MultivariateChart(
-                source = df_affairs,
-                target = 'affairs',
-                feature = 'yrs_married', 
-                hue = 'rate_marriage',
-                size = 'age',
-                shape = 'educ',
-                col = 'religious',
-                row = 'children',
-                stretch_figsize = True
+                source=df_affairs,
+                target='affairs',
+                feature='yrs_married', 
+                hue='rate_marriage',
+                size='age',
+                shape='educ',
+                col='religious',
+                row='children',
+                stretch_figsize=True
             ).plot(Scatter
             ).label(
-                fig_title = 'Multiple Variate Chart',
-                sub_title = 'Affairs R Dataset',
-                feature_label = 'Years of marriage',
-                target_label = 'Amount of affairs',
-                row_title = 'Amount of children',
-                col_title = 'How religious',
-                info = 'pytest figure')
+                fig_title='Multiple Variate Chart',
+                sub_title='Affairs R Dataset',
+                feature_label='Years of marriage',
+                target_label='Amount of affairs',
+                row_title='Amount of children',
+                col_title='How religious',
+                info='pytest figure')
         chart.axes[0].set(ylim=(-5, 60))
         chart.save(self.file_name).close()
         assert self.file_name.is_file()
@@ -1520,28 +1539,28 @@ class TestMultivariateChart:
         self.base = f'{self.fig_title}'
         self.kind = 'full-stripes'
         chart = MultivariateChart(
-                source = df_affairs,
-                target = 'affairs',
-                feature = 'yrs_married', 
-                hue = 'rate_marriage',
-                size = 'age',
-                shape = 'educ',
-                col = 'religious',
-                row = 'children',
-                stretch_figsize = True
+                source=df_affairs,
+                target='affairs',
+                feature='yrs_married', 
+                hue='rate_marriage',
+                size='age',
+                shape='educ',
+                col='religious',
+                row='children',
+                stretch_figsize=True
             ).plot(Scatter
             ).stripes(
-                mean = True,
-                control_limits = True,
-                confidence = 0.95,
+                mean=True,
+                control_limits=True,
+                confidence=0.95,
             ).label(
-                fig_title = 'Multiple Variate Chart',
-                sub_title = 'Affairs R Dataset',
-                feature_label = 'Years of marriage',
-                target_label = 'Amount of affairs',
-                row_title = 'Amount of children',
-                col_title = 'How religious',
-                info = 'pytest figure')
+                fig_title='Multiple Variate Chart',
+                sub_title='Affairs R Dataset',
+                feature_label='Years of marriage',
+                target_label='Amount of affairs',
+                row_title='Amount of children',
+                col_title='How religious',
+                info='pytest figure')
         chart.axes[0].set(ylim=(-5, 60))
         chart.save(self.file_name).close()
         assert self.file_name.is_file()
@@ -1579,20 +1598,20 @@ class TestTemplates:
         self.base = f'{self.fig_title}_bivariate-univariate-charts'
         self.kind = 'simple'
         chart = BivariateUnivariateCharts(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature,
-                hue = self.cat1
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature,
+                hue=self.cat1
             ).plot_univariates(
                 GaussianKDE
             ).plot_bivariate(
                 LinearRegressionLine
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = True,
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=True,
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -1612,20 +1631,20 @@ class TestTemplates:
         self.base = f'{self.fig_title}_bivariate-univariate-charts'
         self.kind = 'smoothed'
         chart = BivariateUnivariateCharts(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature,
-                hue = self.cat2
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature,
+                hue=self.cat2
             ).plot_univariates(
                 GaussianKDE
             ).plot_bivariate(
                 LoessLine, show_ci=True
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = True,
-                target_label = True,
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=True,
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -1646,10 +1665,10 @@ class TestTemplates:
         _title = '95 % confidence interval of mean'
         n_groups = df_aspirin.groupby(self.cat2).ngroups
         chart = BivariateUnivariateCharts(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature,
-                hue = self.cat2,
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature,
+                hue=self.cat2,
                 dodge_univariates=True,
                 stretch_figsize=False,
             ).plot_univariates(
@@ -1657,12 +1676,12 @@ class TestTemplates:
             ).plot_bivariate(
                 LinearRegressionLine, show_fit_ci=True
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = self.feature_label,
-                target_label = self.target_label,
-                axes_titles = (_title, '', '', ''),
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=self.feature_label,
+                target_label=self.target_label,
+                axes_titles=(_title, '', '', ''),
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -1683,10 +1702,10 @@ class TestTemplates:
         _title = '95 % confidence interval of mean'
         n_groups = df_aspirin.groupby(self.cat2).ngroups
         chart = BivariateUnivariateCharts(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature,
-                hue = self.cat2,
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature,
+                hue=self.cat2,
                 dodge_univariates=True,
                 stretch_figsize=False,
             ).plot_univariates(
@@ -1694,12 +1713,12 @@ class TestTemplates:
             ).plot_bivariate(
                 GaussianKDEContour
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = self.feature_label,
-                target_label = self.target_label,
-                axes_titles = (_title, '', '', ''),
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=self.feature_label,
+                target_label=self.target_label,
+                axes_titles=(_title, '', '', ''),
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
@@ -1720,10 +1739,10 @@ class TestTemplates:
         _title = '95 % confidence interval of mean'
         n_groups = df_aspirin.groupby(self.cat2).ngroups
         chart = BivariateUnivariateCharts(
-                source = df_aspirin,
-                target = self.target,
-                feature = self.feature,
-                hue = self.cat2,
+                source=df_aspirin,
+                target=self.target,
+                feature=self.feature,
+                hue=self.cat2,
                 dodge_univariates=True,
                 stretch_figsize=False,
             ).plot_univariates(
@@ -1735,12 +1754,12 @@ class TestTemplates:
             ).plot_bivariate(
                 Scatter
             ).label(
-                fig_title = self.fig_title,
-                sub_title = self.sub_title,
-                feature_label = self.feature_label,
-                target_label = self.target_label,
-                axes_titles = (_title, '', '', ''),
-                info = self.info_msg
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=self.feature_label,
+                target_label=self.target_label,
+                axes_titles=(_title, '', '', ''),
+                info=self.info_msg
             ).save(self.file_name
             ).close()
         texts = get_texts(chart)
