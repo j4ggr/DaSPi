@@ -426,6 +426,17 @@ class _Distribution_:
         """Get all common distributions but norm, usefull to fit if norm
         tests fail."""
         return tuple(d for d in self.COMMON if d != 'norm')
+
+    @property
+    def UNCERTAINTY_FACTORS(self) -> Dict[str, float]:
+        """Factors used to calculate the measurement uncertainty 
+        (equivalent to the standard deviation) of a distribution using 
+        the error limit."""
+        factors = dict(
+            rectangular=3**0.5,  # ≈ 1.732
+            triangular=2.0,
+            normal=1.0)
+        return factors
     
 DIST = _Distribution_()
 

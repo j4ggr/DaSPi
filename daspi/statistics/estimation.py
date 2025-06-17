@@ -95,6 +95,314 @@ def root_sum_squares(*args: float | int,) -> float:
     return np.sqrt(sum(map(lambda x: x**2, args)))
 
 
+class MeasurementUncertainty:
+    """A class to represent and calculate measurement uncertainty.
+    
+    This class provides multiple ways to define measurement uncertainty:
+    1. From error limit and distribution factor
+    2. From expanded uncertainty and coverage factor k
+    3. From standard uncertainty directly
+    
+    Parameters
+    ----------
+    standard : float, optional
+        The standard uncertainty (u). If provided, other parameters are 
+        ignored.
+    error_limit : float, optional
+        The error limit or tolerance range.
+    distribution_factor : float, optional
+        The distribution factor based on the assumed distribution.
+        Common values:
+        - √3 ≈ 1.732 for rectangular (uniform) distribution
+        - 2 for triangular distribution  
+        - 1 for normal distribution (if error_limit is already 1σ)
+    expanded : float, optional
+        The expanded uncertainty (U).
+    k : float, optional
+        The coverage factor (k), typically 2 for ~95% confidence.
+        If not provided, it will be calculated from confidence level 
+        assuming normal distribution. Default is 2.
+    confidence_level : float, optional
+        The confidence level (0 to 1) to calculate coverage factor for 
+        normal distribution. Default is 0.95 (95% confidence).
+    distribution : {'rectangular', 'triangular', 'normal'}, optional
+        The assumed probability distribution for calculating 
+        distribution factor. Only used if distribution_factor is not 
+        explicitly provided. Default is 'rectangular'.
+    
+    Examples
+    --------
+    Create uncertainty from error limit (rectangular distribution):
+    
+    ```python
+    # Error limit ±0.1, rectangular distribution
+    unc1 = dsp.MeasurementUncertainty(error_limit=0.1)
+    print(f"Standard uncertainty: {unc1.standard:.4f}")
+    ```
+    
+    Create uncertainty from expanded uncertainty:
+    
+    ```python
+    # Expanded uncertainty U = 0.2 with k = 2
+    unc2 = dsp.MeasurementUncertainty(
+        expanded=0.2, k=2)
+    print(f"Standard uncertainty: {unc2.standard:.4f}")
+    ```
+    
+    Create uncertainty directly:
+    
+    ```python
+    # Direct standard uncertainty
+    unc3 = dsp.MeasurementUncertainty(standard=0.05)
+    print(f"Expanded uncertainty (k=2): {unc3.expanded(2):.4f}")
+    ```
+    
+    Raises
+    ------
+    ValueError
+        If insufficient or conflicting parameters are provided.
+    AssertionError
+        If parameter values are invalid (negative, out of range, etc.).
+    """
+    
+    __slots__ = (
+        '_standard',
+        '_expanded',
+        '_k',
+        '_confidence_level',
+        '_error_limit',
+        '_distribution',
+        '_distribution_factor')
+    
+    _standard: float
+    _expanded: float | None
+    _k: float | None
+    _confidence_level: float
+    _error_limit: float | None
+    _distribution: Literal['rectangular', 'triangular', 'normal']
+    _distribution_factor: float | None
+    
+    def __init__(
+            self,
+            *,
+            standard: float | None = None,
+            error_limit: float | None = None,
+            distribution_factor: float | None = None,
+            expanded: float | None = None,
+            k: float | None = 2,
+            confidence_level: float = 0.95,
+            distribution: Literal['rectangular', 'triangular', 'normal'] = 'rectangular'
+            ) -> None:
+        
+        assert distribution in DIST.UNCERTAINTY_FACTORS, (
+            f'Invalid distribution: {distribution}. '
+            f'Must be one of {DIST.UNCERTAINTY_FACTORS.keys()}')
+
+        assert 0 < confidence_level < 1, (
+            f'Confidence level must be between 0 and 1, got {confidence_level}')
+        self._confidence_level = confidence_level
+        
+        assert k is None or k > 0, (
+            f'Coverage factor must be None or positive, got {k}')
+        self._k = k
+
+        assert expanded is None or expanded > 0, (
+            f'Expanded uncertainty must be None or positive, got {expanded}')
+        self._expanded = expanded
+
+        assert error_limit is None or error_limit > 0, (
+            f'Error limit must be None or positive, got {error_limit}')
+        self._error_limit = error_limit
+
+        assert standard is None or standard > 0, (
+            f'Standard uncertainty must be None or positive, got {standard}')
+        
+        assert distribution_factor is None or distribution_factor > 0, (
+            'Distribution factor must be None or positive, '
+            f'got {distribution_factor}')
+        self._distribution_factor = distribution_factor
+
+        if standard is not None:
+            self._standard = standard
+        elif expanded is not None:
+            self._standard = self.expanded / self.k
+        elif error_limit is not None:
+            self._standard = self.error_limit / self.distribution_factor
+        else:
+            raise ValueError(
+                'Must provide one of: '
+                '1) standard, '
+                '2) expanded (with optional k), '
+                '3) error_limit (with optional distribution_factor)')
+    
+    @property
+    def standard(self) -> float:
+        """Get the standard uncertainty (u) (read-only)."""
+        return self._standard
+    
+    @property
+    def confidence_level(self) -> float:
+        """Get the confidence level used for calculations (read-only)."""
+        return self._confidence_level
+    
+    @property
+    def k(self) -> float:
+        """Get the coverage factor k (read-only)."""
+        if self._k is None:
+            self._k = float(
+                stats.norm.ppf(1 - (1 - self.confidence_level) / 2))
+        return self._k
+    
+    @property
+    def expanded(self) -> float:
+        """Get expanded uncertainty. If it was not provided during
+        initialization, it will be calculated from the standard
+        uncertainty and coverage factor k (U = k × u) (read-only)."""
+        if self._expanded is None:
+            return self.standard * self.k
+        return self._expanded
+    
+    @property
+    def error_limit(self) -> float:
+        """Get the error limit. If it was not provided during 
+        initialization, it will be calculated from the standard 
+        uncertainty and distribution factor 
+        (error_limit = u × distribution_factor) (read-only)."""
+        if self._error_limit is None:
+            self._error_limit = self.standard * self.distribution_factor
+        return self._error_limit
+    
+    @property
+    def distribution(self) -> Literal['rectangular', 'triangular', 'normal']:
+        """Get the assumed probability distribution (read-only)."""
+        return self._distribution
+
+    @property
+    def distribution_factor(self) -> float:
+        """Get the distribution factor (read-only)."""
+        if self._distribution_factor is None:
+            self._distribution_factor = DIST.UNCERTAINTY_FACTORS[
+                self.distribution]
+        return self._distribution_factor
+    
+    def relative(self, measured_value: float) -> float:
+        """Calculate the relative standard uncertainty as a percentage.
+        
+        Parameters
+        ----------
+        measured_value : float
+            The measured value to calculate relative uncertainty for.
+        
+        Returns
+        -------
+        float
+            The relative uncertainty as a percentage.
+        
+        Raises
+        ------
+        AssertionError
+            If measured_value is zero.
+        """
+        assert measured_value != 0, (
+            'Cannot calculate relative uncertainty for zero measured value')
+        
+        return abs(self.standard / measured_value) * 100
+    
+    def combine_with(
+            self, 
+            *others: 'MeasurementUncertainty',
+            method: Literal['rss', 'linear'] = 'rss'
+            ) -> 'MeasurementUncertainty':
+        """Combine this uncertainty with other uncertainties.
+        
+        Parameters
+        ----------
+        *others : MeasurementUncertainty
+            Other uncertainty instances to combine with.
+        method : {'rss', 'linear'}, optional
+            Combination method:
+            - 'rss': Root sum of squares (for independent uncertainties)
+            - 'linear': Linear addition (for fully correlated uncertainties)
+            Default is 'rss'.
+        
+        Returns
+        -------
+        MeasurementUncertainty
+            A new instance with the combined uncertainty.
+        
+        Examples
+        --------
+        ```python
+        unc1 = dsp.MeasurementUncertainty(standard=0.1)
+        unc2 = dsp.MeasurementUncertainty(error_limit=0.05)
+        unc3 = dsp.MeasurementUncertainty(expanded=0.2, k=2)
+        
+        # Combine using root sum of squares (default)
+        combined_rss = unc1.combine_with(unc2, unc3)
+        
+        # Combine using linear addition
+        combined_linear = unc1.combine_with(unc2, unc3, method='linear')
+        ```
+        """
+        assert method in ('rss', 'linear'), (
+            f'Method must be "rss" or "linear", got {method}')
+        
+        uncertainties = [self.standard] + [
+            other.standard for other in others]
+        
+        if method == 'rss':
+            combined_u = root_sum_squares(*uncertainties)
+        else:  # linear
+            combined_u = sum(uncertainties)
+        
+        return MeasurementUncertainty(
+            standard=combined_u,
+            confidence_level=self.confidence_level)
+    
+    def __str__(self) -> str:
+        """String representation of the uncertainty."""
+        return f"u = {self.standard:.4g}"
+    
+    def __repr__(self) -> str:
+        """Detailed string representation."""
+        return (f"MeasurementUncertainty(standard={self.standard:.4g}, "
+                f"confidence_level={self.confidence_level})")
+    
+    def __add__(self, other: 'MeasurementUncertainty') -> 'MeasurementUncertainty':
+        """Add uncertainties using root sum of squares."""
+        return self.combine_with(other, method='rss')
+    
+    def __mul__(self, factor: float) -> 'MeasurementUncertainty':
+        """Multiply uncertainty by a factor."""
+        assert isinstance(factor, (int, float)), (
+            f'Can only multiply by numeric factor, got {type(factor)}')
+        assert factor >= 0, (
+            f'Factor must be non-negative, got {factor}')
+        
+        return MeasurementUncertainty(
+            standard=self.standard * factor,
+            confidence_level=self.confidence_level)
+    
+    def __rmul__(self, factor: float) -> 'MeasurementUncertainty':
+        """Right multiplication (factor * uncertainty)."""
+        return self.__mul__(factor)
+    
+    def summary(self) -> Dict[str, float | str]:
+        """Get a summary of uncertainty values.
+        
+        Returns
+        -------
+        Dict[str, float | str]
+            Dictionary containing various uncertainty representations.
+        """
+        summary = dict(
+            standard=self.standard,
+            expanded=self.expanded,
+            error_limit=self.error_limit,
+            distribution=self.distribution,)
+        return summary
+
+
 class BaseEstimator:
     """
 
@@ -3363,6 +3671,7 @@ class Lowess(Loess):
 
 __all__ = [
     'root_sum_squares',
+    'MeasurementUncertainty',
     'BaseEstimator',
     'DistributionEstimator',
     'LocationDispersionEstimator',

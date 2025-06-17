@@ -266,6 +266,7 @@ from .statistics.estimation import root_sum_squares
 from .statistics.estimation import estimate_resolution
 from .statistics.estimation import DistributionEstimator
 from .statistics.estimation import estimate_distribution
+from .statistics.estimation import MeasurementUncertainty
 from .statistics.estimation import estimate_kernel_density
 from .statistics.estimation import estimate_kernel_density_2d
 from .statistics.estimation import LocationDispersionEstimator
