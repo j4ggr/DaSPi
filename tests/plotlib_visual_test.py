@@ -1522,7 +1522,7 @@ class TestMultivariateChart:
                 shape='educ',
                 col='religious',
                 row='children',
-                stretch_figsize=True
+                stretch_figsize=(2.0, 2.5)
             ).plot(Scatter
             ).label(
                 fig_title='Multiple Variate Chart',
@@ -1547,7 +1547,7 @@ class TestMultivariateChart:
                 shape='educ',
                 col='religious',
                 row='children',
-                stretch_figsize=True
+                stretch_figsize=(2.0, 2.5)
             ).plot(Scatter
             ).stripes(
                 mean=True,

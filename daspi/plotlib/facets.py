@@ -84,9 +84,12 @@ class AxesFacets:
         Relative widths of the columns, by default None.
     height_ratios : array-like of length nrows, optional
         Relative heights of the rows, by default None.
-    stretch_figsize : bool, optional
-        f True, the height and width of the figure are stretched based 
-        on the number of subplots in the rows and columns, 
+    stretch_figsize : bool | float | Tuple[float, float], optional
+        If True, the height and width of the figure are stretched based 
+        on the number rows and columns in the axes grid. If a float is 
+        provided, the figure size is stretched by the given factor. If a 
+        tuple of two floats is provided, the figure size is stretched by 
+        the given factors for the x and y axis, respectively.
         by default False.
     **kwds : dict, optional
         Additional keyword arguments to pass to the function 
@@ -173,7 +176,7 @@ class AxesFacets:
             sharey: ShareAxisProperty = 'none', 
             width_ratios: Sequence[float] | None = None,
             height_ratios: Sequence[float] | None = None, 
-            stretch_figsize: bool = False,
+            stretch_figsize: bool | float | Tuple[float, float] = False,
             **kwds
             ) -> None:
         assert not all(arg is not None for arg in (nrows, ncols, mosaic)), (
@@ -197,11 +200,18 @@ class AxesFacets:
             self._ncols = ncols if isinstance(ncols, int) else 1
 
         figsize = kwds.pop('figsize', plt.rcParams['figure.figsize'])
-        if stretch_figsize:
-            figsize = (
-                (1 + math.log(self._ncols, math.e)) * figsize[0],
-                (1 + math.log(self._nrows, math.e)) * figsize[1])
-        self.figsize = figsize
+        
+        if stretch_figsize is True:
+            stretch_x = (1 + math.log(self._ncols, math.e))
+            stretch_y = (1 + math.log(self._nrows, math.e))
+        elif isinstance(stretch_figsize, (tuple, list)):
+            stretch_x, stretch_y = stretch_figsize
+        elif isinstance(stretch_figsize, (int, float)):
+            stretch_x = stretch_y = stretch_figsize
+        else:
+            stretch_x = stretch_y = 1
+        self.figsize = (
+            (stretch_x * figsize[0], stretch_y * figsize[1]))
 
         _kwds: Dict[str, Any] = dict(
             sharex=self._sharex,

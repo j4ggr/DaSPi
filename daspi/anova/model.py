@@ -1589,6 +1589,26 @@ class GageStudyModel(LinearModel):
     n_samples_min : int, optional
         The minimum number of samples required to perform a 
         Measurement System Analysis Type 1, default is 50.
+    
+    Examples
+    --------
+    Run the following command in a jupyter notebook to get the html
+    output of `gage` or you can also use `print(repr(gage))` instead:
+
+    ```py
+    import daspi as dsp
+    df = dsp.load_dataset('grnr_layer_thickness')
+    gage = dsp.GageStudyModel(
+        source=df,
+        target='result_gage',
+        reference='reference',
+        U_cal=df['U_cal'][0],
+        tolerance=df['tolerance'][0],
+        resolution=df['resolution'][0],
+        bias_corrected=True,)
+    chart = dsp.GageStudyCharts(gage, stretch_figsize=1.5).plot().stripes().label()
+    gage
+    ```
     """
     __slots__ = (
         'source',
@@ -1671,7 +1691,6 @@ class GageStudyModel(LinearModel):
         self.k = k
         self._bias_corrected = bias_corrected
         self._captions = (
-            # STR['lm_table_caption_summary'],
             STR['lm_table_caption_ref_gages'],
             STR['lm_table_caption_capabilities'],
             STR['lm_table_caption_uncertainty'],)
@@ -1837,9 +1856,9 @@ class GageStudyModel(LinearModel):
         column_names = ANOVA.REFERENCE_ANALYSIS_COLNAMES
         self._references_analysis = pd.DataFrame({
             column_names[0]: [g.reference for g in self.ref_gages],
-            column_names[1]: [g.std for g in self.ref_gages],
-            column_names[2]: [g.mean for g in self.ref_gages],
-            column_names[3]: [g.bias for g in self.ref_gages],
+            column_names[1]: [g.mean for g in self.ref_gages],
+            column_names[2]: [g.bias for g in self.ref_gages],
+            column_names[3]: [g.std for g in self.ref_gages],
             column_names[4]: [g.R for g in self.ref_gages],},
             index=[i + 1 for i in range(len(self.ref_gages))],)
         
@@ -1926,7 +1945,6 @@ class GageStudyModel(LinearModel):
     
     def _dfs_repr_(self) -> List[DataFrame]:
         dfs = [
-            # self.gof_metrics().drop('formula', axis=1),
             self.references_analysis(),
             self.capabilities(),
             self.uncertainties(),]

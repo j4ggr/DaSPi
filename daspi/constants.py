@@ -570,7 +570,7 @@ class _Anova_:
     def REFERENCE_ANALYSIS_COLNAMES(self) -> List[str]:
         """Column names when crating the reference analysis table using
         the `reference_analysis` method of GageRnRModel."""
-        return ['Ref', 's',	'mean', 'Bias', 'R']
+        return ['Ref',	'mean', 'Bias', 's', 'R']
 
 ANOVA = _Anova_()
 

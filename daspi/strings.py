@@ -178,6 +178,16 @@ class _String_:
         'de': 'Bland-Altman 95 %-KI und Einzelwertvergleich',
         'fr': 'Bland-Altman 95 % IC et comparaison des valeurs individuelles'}
     
+    gstudycharts_fig_title: Dict[str, str] = {
+        'en': 'Measurement system analysis',
+        'de': 'Messsystemanalyse',
+        'fr': 'Analyse du système de mesure'}
+    
+    gstudycharts_sub_title: Dict[str, str] = {
+        'en': 'Gage study type 1',
+        'de': 'MSA Typ 1',
+        'fr': 'Etude de système de mesure type 1'}
+    
     rnrcharts_fig_title: Dict[str, str] = {
         'en': 'Measurement system analysis',
         'de': 'Messsystemanalyse',

@@ -174,9 +174,13 @@ class Chart(ABC):
         Relative widths of the columns, by default None.
     height_ratios : array-like of length nrows, optional
         Relative heights of the rows, by default None.
-    stretch_figsize : bool, optional
-        If True, stretch the figure height and width based on the number 
-        of rows and columns, by default False
+    stretch_figsize : bool | float | Tuple[float, float], optional
+        If True, the height and width of the figure are stretched based 
+        on the number rows and columns in the axes grid. If a float is 
+        provided, the figure size is stretched by the given factor. If a 
+        tuple of two floats is provided, the figure size is stretched by 
+        the given factors for the x and y axis, respectively.
+        by default False.
     **kwds
         Additional key word arguments to instantiate the `AxesFacets`
         object.
@@ -243,7 +247,7 @@ class Chart(ABC):
             sharey: ShareAxisProperty = 'none', 
             width_ratios: Sequence[float] | None = None,
             height_ratios: Sequence[float] | None = None, 
-            stretch_figsize: bool = False,
+            stretch_figsize: bool | float | Tuple[float, float] = False,
             **kwds,
             ) -> None:
         self.source = source.copy()
@@ -1148,9 +1152,13 @@ class JointChart(Chart):
         The width ratios for the subplot grid, by default None.
     height_ratios : List[float], optional
         The height ratios for the subplot grid, by default None.
-    stretch_figsize : bool, optional
-        Flag indicating whether figure size should be stretched to fill
-        the grid, by default False.
+    stretch_figsize : bool | float | Tuple[float, float], optional
+        If True, the height and width of the figure are stretched based 
+        on the number rows and columns in the axes grid. If a float is 
+        provided, the figure size is stretched by the given factor. If a 
+        tuple of two floats is provided, the figure size is stretched by 
+        the given factors for the x and y axis, respectively.
+        by default False.
     colors: Tuple[str, ...], optional
         Tuple of unique colors used for hue categories as hex or str,
         by default `CATEGORY.PALETTE`.
@@ -1221,7 +1229,7 @@ class JointChart(Chart):
             sharey: ShareAxisProperty = 'none', 
             width_ratios: List[float] | None = None,
             height_ratios: List[float] | None = None,
-            stretch_figsize: bool = False,
+            stretch_figsize: bool | float | Tuple[float, float] = False,
             colors: Tuple[str, ...] | None = None,
             markers: Tuple[str, ...] | None = None,
             n_size_bins: int = CATEGORY.N_SIZE_BINS,
@@ -1789,8 +1797,13 @@ class MultivariateChart(SingleChart):
         The row variable for facetting, by default ''.
     dodge : bool, optional
         Whether to dodge categorical variables, by default False.
-    stretch_figsize : bool, optional
-        Whether to stretch the figure size, by default False.
+    stretch_figsize : bool | float | Tuple[float, float], optional
+        If True, the height and width of the figure are stretched based 
+        on the number rows and columns in the axes grid. If a float is 
+        provided, the figure size is stretched by the given factor. If a 
+        tuple of two floats is provided, the figure size is stretched by 
+        the given factors for the x and y axis, respectively.
+        by default False.
     categorical_feature : bool, optional
         Whether the feature variable is categorical. If `dodge` is True,
         this will be automatically set to True, by default False.
@@ -1854,7 +1867,7 @@ class MultivariateChart(SingleChart):
             col: str = '',
             row: str = '',
             dodge: bool = False,
-            stretch_figsize: bool = False,
+            stretch_figsize: bool | float | Tuple[float, float] = False,
             categorical_feature: bool = False,
             target_on_y: bool = True,
             colors: Tuple[str, ...] | None = None,

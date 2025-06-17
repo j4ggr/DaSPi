@@ -74,9 +74,13 @@ class ParameterRelevanceCharts(JointChart):
         The linear regression model whose parameters will be visualized.
     drop_intercept : bool, optional
         Whether to drop the intercept from the model, by default True.
-    stretch_figsize : bool, optional
-        If True, stretch the figure height and width based on the number of
-        rows and columns, by default False.
+    stretch_figsize : bool | float | Tuple[float, float], optional
+        If True, the height and width of the figure are stretched based 
+        on the number rows and columns in the axes grid. If a float is 
+        provided, the figure size is stretched by the given factor. If a 
+        tuple of two floats is provided, the figure size is stretched by 
+        the given factors for the x and y axis, respectively.
+        by default False.
     
     Examples
     --------
@@ -107,7 +111,7 @@ class ParameterRelevanceCharts(JointChart):
             self,
             linear_model: LinearModel,
             drop_intercept: bool = True,
-            stretch_figsize: bool = False
+            stretch_figsize: bool | float | Tuple[float, float] = False
             ) -> None:
         self.lm = linear_model
         effects =  self.lm.effects()
@@ -218,9 +222,13 @@ class ResidualsCharts(JointChart):
     ----------
     linear_model : LinearModel
         The linear regression model whose residuals will be visualized.
-    stretch_figsize : bool, optional
-        If True, stretch the figure height and width based on the number of
-        rows and columns, by default False.
+    stretch_figsize : bool | float | Tuple[float, float], optional
+        If True, the height and width of the figure are stretched based 
+        on the number rows and columns in the axes grid. If a float is 
+        provided, the figure size is stretched by the given factor. If a 
+        tuple of two floats is provided, the figure size is stretched by 
+        the given factors for the x and y axis, respectively.
+        by default False.
     
     Examples
     --------
@@ -250,7 +258,7 @@ class ResidualsCharts(JointChart):
     def __init__(
             self,
             linear_model: LinearModel,
-            stretch_figsize: bool = False
+            stretch_figsize: bool | float | Tuple[float, float] = False
             ) -> None:
         self.lm = linear_model
         super().__init__(
@@ -345,9 +353,13 @@ class PairComparisonCharts(JointChart):
     identity : str
         Column name containing identities of each sample, must occur 
         once for each measurement.
-    stretch_figsize : bool, optional
-        If True, stretch the figure height and width based on the number of
-        rows and columns, by default False.
+    stretch_figsize : bool | float | Tuple[float, float], optional
+        If True, the height and width of the figure are stretched based 
+        on the number rows and columns in the axes grid. If a float is 
+        provided, the figure size is stretched by the given factor. If a 
+        tuple of two floats is provided, the figure size is stretched by 
+        the given factors for the x and y axis, respectively.
+        by default False.
     
     Examples
     --------
@@ -379,7 +391,7 @@ class PairComparisonCharts(JointChart):
             target: str,
             feature: str,
             identity: str,
-            stretch_figsize: bool = False
+            stretch_figsize: bool | float | Tuple[float, float] = False
             ) -> None:
         self.identity = identity
         super().__init__(
@@ -475,9 +487,13 @@ class BivariateUnivariateCharts(JointChart):
     ratios : List[float], optional
         The ratios of the bivariate axes height to the univariate axes 
         height, by default [4, 1].
-    stretch_figsize : bool, optional
-        If True, stretch the figure height and width based on the number of
-        rows and columns, by default False.
+    stretch_figsize : bool | float | Tuple[float, float], optional
+        If True, the height and width of the figure are stretched based 
+        on the number rows and columns in the axes grid. If a float is 
+        provided, the figure size is stretched by the given factor. If a 
+        tuple of two floats is provided, the figure size is stretched by 
+        the given factors for the x and y axis, respectively.
+        by default False.
     colors: Tuple[str, ...], optional
         Tuple of unique colors used for hue categories as hex or str. If
         not provided, the default colors will be used, by default ().
@@ -537,7 +553,7 @@ class BivariateUnivariateCharts(JointChart):
             dodge_univariates: bool = False,
             categorical_feature_univariates: bool = False,
             ratios: List[float] = [3, 1],
-            stretch_figsize: bool = False,
+            stretch_figsize: bool | float | Tuple[float, float] = False,
             colors: Tuple[str, ...] = ()
             ) -> None:
         assert len(ratios) == 2, ('ratios must be a list of two floats')
@@ -839,9 +855,13 @@ class ProcessCapabilityAnalysisCharts(JointChart):
         Distributions to which the data may be subject. Only 
         continuous distributions of scipy.stats are allowed,
         by default DIST.COMMON
-    stretch_figsize : bool, optional
-        Flag indicating whether figure size should be stretched to fill
-        the grid, by default False.
+    stretch_figsize : bool | float | Tuple[float, float], optional
+        If True, the height and width of the figure are stretched based 
+        on the number rows and columns in the axes grid. If a float is 
+        provided, the figure size is stretched by the given factor. If a 
+        tuple of two floats is provided, the figure size is stretched by 
+        the given factors for the x and y axis, respectively.
+        by default False.
     
     Examples
     --------
@@ -891,7 +911,7 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: float | int = 6, 
             possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
-            stretch_figsize: bool = False,
+            stretch_figsize: bool | float | Tuple[float, float] = False,
             ) -> None:
         assert not spec_limits.both_unbounded, (
             'At least one specification limit must not be None')
@@ -1072,15 +1092,22 @@ class GageStudyCharts(JointChart):
     dist : scipy stats rv_continuous, optional
         The probability distribution use for creating feature data
         (the theoretical values). Default is 'norm'.
-    stretch_figsize : bool, optional
-        If True, stretch the figure height and width based on the number of
-        rows and columns, by default False.
+    stretch_figsize : bool | float | Tuple[float, float], optional
+        If True, the height and width of the figure are stretched based 
+        on the number rows and columns in the axes grid. If a float is 
+        provided, the figure size is stretched by the given factor. If a 
+        tuple of two floats is provided, the figure size is stretched by 
+        the given factors for the x and y axis, respectively.
+        by default False.
     
     Examples
     --------
-    ```python
+
+    Run the following command in a jupyter notebook to get the html
+    output of `gage` or you can also use `print(repr(gage))` instead:
+
+    ```py
     import daspi as dsp
-    
     df = dsp.load_dataset('grnr_layer_thickness')
     gage = dsp.GageStudyModel(
         source=df,
@@ -1088,8 +1115,10 @@ class GageStudyCharts(JointChart):
         reference='reference',
         U_cal=df['U_cal'][0],
         tolerance=df['tolerance'][0],
-        resolution=df['resolution'][0])
-    chart = dsp.GageStudyCharts(gage).plot().label()
+        resolution=df['resolution'][0],
+        bias_corrected=True,)
+    chart = dsp.GageStudyCharts(gage, stretch_figsize=1.5).plot().stripes().label()
+    gage
     ```
     """
     
@@ -1111,37 +1140,135 @@ class GageStudyCharts(JointChart):
             model: GageStudyModel,
             *,
             dist: rv_continuous | str = 'norm',
-            stretch_figsize: bool = False
+            stretch_figsize: bool | float | Tuple[float, float] = False
             ) -> None:
+        self.model = model
         source = model.source.copy()
         reference = model.reference
+        df_cap = model.capabilities()
+        cap_target = ANOVA.CAPABILITY_COLNAMES[0]
+        cap_features = (df_cap.reset_index(drop=False).columns[0], )*4
         self.dist = dist
         self.has_multiple_references = source[reference].nunique() > 1
+        
         if self.has_multiple_references:
-            feature = (reference, '', '')
-            hue = ('', reference, reference)
+            feature = (reference, '', '', *cap_features)
+            hue = tuple('' if f == reference else reference for f in feature)
+            categorical_feature = (True, False, False, True, True, True, True)
         else:
-            feature = (STR['charts_flabel_observed'], '', '')
-            hue = ('', ) * 3
+            feature = (STR['charts_flabel_observed'], '', '', *cap_features)
+            hue = ('', ) * 7
+            categorical_feature = (False, False, False, True, True, True, True)
             source[feature[0]] = [i + 1 for i in range(len(source))]
 
+        dfs = tuple(
+            df_cap.loc[[r], :].reset_index(drop=False)
+            for r in ANOVA.CAPABILITY_ROWS)
+
         super().__init__(
-            source=source,
-            target=model.target,
+            source=(source, ) * 3 + dfs,
+            target=(model.target, ) * 3 + (cap_target, ) * 4,
             feature=feature,
             hue=hue,
-            mosaic=('rr', 'pd'),
+            mosaic=('oooo', 'ppdd', 'gkrb'),
+            target_on_y=(True, False, False, True, True, True, True),
+            categorical_feature=categorical_feature,
             stretch_figsize=stretch_figsize)
     
     def plot(self) -> Self: # type: ignore
         if self.has_multiple_references:
-            super().plot(Scatter)
-            super().plot(Line, on_last_axes=True)
-        else:
             super().plot(
                 CategoricalObservation, show_line=True, show_scatter=True)
+        else:
+            super().plot(Line)
+            super().plot(Scatter, on_last_axes=True)
         super().plot(Probability, dist=self.dist)
         super().plot(GaussianKDE, hide_axis='feature', visible_spines='target')
+        super().plot(Bar)
+        super().plot(Bar)
+        super().plot(Bar)
+        super().plot(Bar)
+        return self
+    
+    def stripes(self) -> Self:
+        df_cap = self.model.capabilities()
+
+        for idx in range(3):
+            self.charts[idx].stripes(
+                mean=True)
+
+        idx = -4
+        for name, limit in df_cap[ANOVA.CAPABILITY_COLNAMES[1]].items():
+            if name == ANOVA.CAPABILITY_ROWS[2]:
+                accepted = StripeSpan(
+                    label=STR['accepted'],
+                    lower_position=0,
+                    upper_position=limit,
+                    orientation='horizontal',
+                    color=COLOR.GOOD,)
+                rejected = StripeSpan(
+                    label=STR['rejected'],
+                    orientation='horizontal',
+                    lower_position=limit,
+                    upper_position=1,
+                    color=COLOR.BAD,)
+            else:
+                rejected = StripeSpan(
+                    label=STR['rejected'],
+                    lower_position=0,
+                    upper_position=limit,
+                    orientation='horizontal',
+                    color=COLOR.BAD,)
+                accepted = StripeSpan(
+                    label=STR['accepted'],
+                    lower_position=limit,
+                    upper_position=5,
+                    orientation='horizontal',
+                    color=COLOR.GOOD,)
+            self.charts[idx].stripes([accepted, rejected])
+            idx += 1
+        return self
+
+    def label(self, info: bool | str = False, **kwds) -> Self: # type: ignore
+        """Adds titles and labels to the charts generated by the 
+        `plot()` method.
+        
+        Parameters
+        ----------
+        info : bool | str, optional
+            If `True`, the method will add an informative subtitle to 
+            the chart. If a string is provided, it will be used as the 
+            subtitle, by default False.
+        **kwds
+            Additional keyword arguments to be passed to the `label()`
+            method of the `JointChart` instance.
+        
+        Returns
+        -------
+        Self
+            The `ParameterRelevanceCharts` instance, for method chaining.
+        """      
+        labels: Dict[str, Any] = dict(
+                fig_title=STR['gstudycharts_fig_title'],
+                sub_title=STR['gstudycharts_sub_title'],
+                target_label=(
+                    self.model.target,
+                    self.model.target,
+                    self.model.target,
+                    '', '', '', ''),
+                feature_label=(
+                    STR['charts_flabel_observed'],
+                    STR['charts_flabel_quantiles'],
+                    '', '', '', '', ''),
+                info = info
+            ) | kwds
+        super().label(**labels)
+
+        for idx, lim in zip((-4, -3, -2, -1), (5, 5, 0.2, 0.2)):
+            ax = self.axes[idx]
+            if idx in (-2, ):
+                ax.yaxis.set_major_formatter(PercentFormatter(xmax=1))
+            ax.set(ylim=(0, lim))
         return self
 
 
@@ -1162,9 +1289,13 @@ class GageRnRCharts(JointChart):
     u_accepted_limit: float, optional
         The maximum value for the the u proportion where it is accepted.
         Default is 0.15 (15 %).
-    stretch_figsize : bool, optional
-        If True, stretch the figure height and width based on the number of
-        rows and columns, by default False.
+    stretch_figsize : bool | float | Tuple[float, float], optional
+        If True, the height and width of the figure are stretched based 
+        on the number rows and columns in the axes grid. If a float is 
+        provided, the figure size is stretched by the given factor. If a 
+        tuple of two floats is provided, the figure size is stretched by 
+        the given factors for the x and y axis, respectively.
+        by default False.
     
     Examples
     --------
@@ -1219,7 +1350,7 @@ class GageRnRCharts(JointChart):
             spread_accepted_limit: float = 0.1,
             spread_rejected_limit: float = 0.3,
             u_accepted_limit: float = 0.15,
-            stretch_figsize: bool = False,
+            stretch_figsize: bool | float | Tuple[float, float] = False,
             ) -> None:
         self.model = rnr_model
         self.spread_accepted_limit = spread_accepted_limit

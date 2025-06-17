@@ -2600,13 +2600,13 @@ class Bar(TransformPlotter):
         if self.method is not None:
             t_value = getattr(target_data, self.method)(**self.kw_method)
             assert is_scalar(t_value), (
-                f'{self.method} does not return a scalar')
+                f'{self.method} does not return a scalar, got {t_value}')
             t_value = [t_value]
         else:
             t_value = target_data
             assert len(t_value) <= 1, (
                 'Each feature level must contain only one target value, '
-                'as the length of the bar')
+                f'as the length of the bar, got {t_value}')
         
         data = pd.DataFrame({
             self.target: t_value,
