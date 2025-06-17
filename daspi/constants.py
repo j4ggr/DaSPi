@@ -552,7 +552,7 @@ class _Anova_:
     def CAPABILITY_ROWS(self) -> List[str]:
         """Row names (indices) when crating the capability table using
         the `capability` method of GageStudyModel."""
-        return ['Cg', 'Cgk', 'RE_ratio', 'p_Bi']
+        return ['Cg', 'Cgk', 'RE_ratio', 'p_BI']
 
     @property
     def UNCERTAINTY_COLNAMES(self) -> List[str]:
@@ -564,7 +564,7 @@ class _Anova_:
     def UNCERTAINTY_ROWS(self) -> List[str]:
         """Row names (indices) when crating the uncertainty table using
         the `uncertainties` method of GageRnRModel."""
-        return ['RE', 'Bi', 'EVR', 'LIN', 'MS', 'EVO', 'AV', 'IA', 'MP']
+        return ['RE', 'BI', 'EVR', 'LIN', 'MS', 'EVO', 'AV', 'IA', 'MP']
     
     @property
     def REFERENCE_ANALYSIS_COLNAMES(self) -> List[str]:

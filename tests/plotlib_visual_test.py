@@ -18,7 +18,10 @@ sys.path.append(Path(__file__).parent.resolve()) # type: ignore
 from daspi import STR
 from daspi import COLOR
 from daspi import SpecLimits
+from daspi import LinearModel
 from daspi import load_dataset
+from daspi import GageRnRModel
+from daspi import GageStudyModel
 
 from daspi.plotlib.chart import Chart
 from daspi.plotlib.chart import JointChart
@@ -1566,9 +1569,9 @@ class TestMultivariateChart:
         assert self.file_name.is_file()
 
 
-class TestTemplates:
+class TestPrecasts:
 
-    fig_title: str = 'Templates'
+    fig_title: str = 'Precasts'
     _sub_title: str = 'Aspirin Dissolution Dataset'
     target_label: str = 'Dissolution time (s)'
     feature_label: str = 'Water temperature (°C)'
@@ -1824,3 +1827,99 @@ class TestTemplates:
         assert STR.TODAY in info_msg
         assert STR.USERNAME in info_msg
         assert self.info_msg in info_msg
+    
+    def test_parameter_relevance_charts(self) -> None:
+        df = load_dataset('aspirin-dissolution')
+        model = LinearModel(
+            source=df,
+            target='dissolution',
+            features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+            disturbances=['temperature', 'preparation'],
+            order=2)
+        df_gof = pd.concat(model.recursive_elimination())
+        
+        self.base = f'{self.fig_title}_parameter_relevance_charts'
+        self.kind = 'basic'
+        chart = ParameterRelevanceCharts(model
+            ).plot(
+            ).stripes(
+            ).label(info=True
+            ).save(self.file_name)
+        assert self.file_name.is_file()
+    
+    def test_pair_comparison_charts(self) -> None:
+        df = load_dataset('shoe-sole')
+        
+        self.base = f'{self.fig_title}_pair_comparison_charts'
+        self.kind = 'basic'
+        chart = PairComparisonCharts(
+                source=df,
+                target='wear',
+                feature='status',
+                identity='tester'
+            ).plot(
+            ).label(
+                info=True
+            ).save(self.file_name)
+        assert self.file_name.is_file()
+
+    def test_residual_charts(self) -> None:
+        df = load_dataset('aspirin-dissolution')
+        model = LinearModel(
+            source=df,
+            target='dissolution',
+            features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+            disturbances=['temperature', 'preparation'],
+            order=2)
+        df_gof = pd.concat(model.recursive_elimination())
+        
+        self.base = f'{self.fig_title}_residual_charts'
+        self.kind = 'basic'
+        chart = ResidualsCharts(model
+            ).plot(
+            ).stripes(
+            ).label(info=True
+            ).save(self.file_name)
+        assert self.file_name.is_file()
+
+    def test_gage_study_model(self) -> None:
+        df = load_dataset('grnr_layer_thickness')
+        gage = GageStudyModel(
+            source=df,
+            target='result_gage',
+            reference='reference',
+            U_cal=df['U_cal'][0],
+            tolerance=df['tolerance'][0],
+            resolution=df['resolution'][0],
+            bias_corrected=True,)
+        
+        self.base = f'{self.fig_title}_gage_study_model'
+        self.kind = 'basic'
+        chart = GageStudyCharts(gage, stretch_figsize=1.5
+            ).plot(
+            ).stripes(
+            ).label(
+            ).save(self.file_name)
+        assert self.file_name.is_file()
+    
+    def test_gage_rnr_charts(self) -> None:
+        df = load_dataset('grnr_layer_thickness')
+        gage = GageStudyModel(
+            source=df,
+            target='result_gage',
+            reference='reference',
+            U_cal=df['U_cal'][0],
+            tolerance=df['tolerance'][0],
+            resolution=df['resolution'][0])
+        model = GageRnRModel(
+            source=df,
+            target='result_rnr',
+            part='part',
+            reproducer='operator',
+            gage=gage)
+        chart = GageRnRCharts(model, stretch_figsize=True
+            ).plot(
+            ).stripes(
+            ).label(
+            ).save(self.file_name)
+        assert self.file_name.is_file()

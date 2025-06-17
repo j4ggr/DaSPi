@@ -499,9 +499,10 @@ class TestGageRnRModel:
 
     @pytest.fixture
     def rnr_thick_model(self) -> GageRnRModel:
-        gage = GageEstimator(
-            samples=self.df_thick['result_gage'],
-            reference=self.df_thick['reference'][0],
+        gage = GageStudyModel(
+            source=self.df_thick,
+            target='result_gage',
+            reference='reference',
             U_cal=self.df_thick['U_cal'][0],
             tolerance=self.df_thick['tolerance'][0],
             resolution=self.df_thick['resolution'][0])
@@ -515,9 +516,10 @@ class TestGageRnRModel:
 
     @pytest.fixture
     def rnr_adj_model(self) -> GageRnRModel:
-        gage = GageEstimator(
-            samples=self.df_adj['result_gage'],
-            reference=self.df_adj['reference'][0],
+        gage = GageStudyModel(
+            source=self.df_adj,
+            target='result_gage',
+            reference='reference',
             U_cal=self.df_adj['U_cal'][0],
             tolerance=self.df_adj['tolerance'][0],
             resolution=self.df_adj['resolution'][0])
@@ -604,12 +606,13 @@ class TestGageRnRModel:
         https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-2/
         """
         df = load_dataset('grnr_spc')
-        gage = GageEstimator(
-            samples=df['result'],
-            reference=None,
-            U_cal=None,
-            tolerance=15,
-            resolution=None)
+        gage = GageStudyModel.from_gage_estimators(
+            GageEstimator(
+                samples=df['result'],
+                reference=None,
+                U_cal=None,
+                tolerance=15,
+                resolution=None))
         rnr_thick_model = GageRnRModel(
             source=df,
             target='result',
@@ -632,6 +635,6 @@ class TestGageRnRModel:
         assert var_tot[ANOVA.PART] == approx(0.8786, abs=1e-4)
         assert var_tot[ANOVA.TOTAL] == approx(1.0000, abs=1e-4)
 
-    def test_unsertainties(self, rnr_adj_model: GageRnRModel) -> None:
+    def test_uncertainties(self, rnr_adj_model: GageRnRModel) -> None:
         df_u = rnr_adj_model.uncertainties()
         assert not df_u.empty

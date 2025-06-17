@@ -201,7 +201,9 @@ class AxesFacets:
 
         figsize = kwds.pop('figsize', plt.rcParams['figure.figsize'])
         
-        if stretch_figsize is True:
+        if stretch_figsize is False:
+            stretch_x = stretch_y = 1
+        elif stretch_figsize is True:
             stretch_x = (1 + math.log(self._ncols, math.e))
             stretch_y = (1 + math.log(self._nrows, math.e))
         elif isinstance(stretch_figsize, (tuple, list)):
@@ -209,7 +211,7 @@ class AxesFacets:
         elif isinstance(stretch_figsize, (int, float)):
             stretch_x = stretch_y = stretch_figsize
         else:
-            stretch_x = stretch_y = 1
+            raise TypeError(f'{stretch_figsize=} is not supported.')
         self.figsize = (
             (stretch_x * figsize[0], stretch_y * figsize[1]))
 

@@ -1697,8 +1697,8 @@ class GageStudyModel(LinearModel):
         self._reset_tables_()
         self.print_formula = False
     
+    @staticmethod
     def from_gage_estimators(
-            self,
             gages: GageEstimator | List[GageEstimator],
             k: int = 2,
             bias_corrected: bool = False) -> 'GageStudyModel':
@@ -1917,7 +1917,7 @@ class GageStudyModel(LinearModel):
 
         u = pd.Series({
             'RE': self.gage.u_re,
-            'Bi': self.gage.u_bias,
+            'BI': self.gage.u_bias,
             'EVR': self.gage.std,
             'LIN': 0.0,
             'MS': None,})
@@ -1925,7 +1925,7 @@ class GageStudyModel(LinearModel):
         if len(self.ref_gages) > 1:
             u['LIN'] = float(np.std([g.u_bias for g in self.ref_gages], ddof=1))
         
-        u['MS'] = root_sum_squares(u['Bi'], max(u['RE'], u['EVR']), u['LIN'])
+        u['MS'] = root_sum_squares(u['BI'], max(u['RE'], u['EVR']), u['LIN'])
 
         df_u = pd.DataFrame(
             index=u.index,
@@ -2330,11 +2330,9 @@ class GageRnRModel(LinearModel):
 
         - RE: Resolution uncertainty
         - Bi: Bias uncertainty
-        - EVR: Reference-based uncertainty
-          (Erweiterte Vergleichsmessung mit Referenz)
+        - EVR: Measurement evolution (repeatability) on the reference
         - MS: Measurement System uncertainty
-        - EVO: Internal comparison uncertainty
-          (Erweiterte Vergleichsmessung ohne Referenz)
+        - EVO: Measurement evolution (repeatability) on the object 
         - AV: Appraiser Variation uncertainty
         - IA: Interaction uncertainty
         - MP: Measurement Process (or Precision) uncertainty
