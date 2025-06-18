@@ -10,6 +10,7 @@ from typing import Dict
 from typing import Type
 from typing import Self
 from typing import Tuple
+from typing import TypeVar
 from typing import Literal
 from typing import overload
 from typing import Callable
@@ -52,6 +53,21 @@ from .hypothesis import anderson_darling_test
 from .hypothesis import variance_stability_test
 from .hypothesis import kolmogorov_smirnov_test
 
+T = TypeVar('T')
+
+def compare_measurement_uncertainty(
+        func: Callable[[T, Any], Any]
+        ) -> Callable[[T, Any], Any]:
+    """Decorator to check if the other object is an instance of 
+    MeasurementUncertainty for comparison methods."""
+    def wrapper(self: T, other: Any) -> Any:
+        if not isinstance(other, MeasurementUncertainty):
+            warnings.warn(
+                f'Cannot compare MeasurementUncertainty with {type(other)}',
+                UserWarning)
+            return False
+        return func(self, other)
+    return wrapper
 
 def root_sum_squares(*args: float | int,) -> float:
     """Calculate the root sum of squares of the given arguments.
@@ -109,7 +125,14 @@ class MeasurementUncertainty:
         The standard uncertainty (u). If provided, other parameters are 
         ignored.
     error_limit : float, optional
-        The error limit or tolerance range.
+        The maximum allowable deviation from the true value, also known 
+        as the tolerance range. This parameter represents the worst-case 
+        scenario for measurement error, indicating how much the measured 
+        value can differ from the actual value. It is used to calculate 
+        the standard uncertainty based on the specified distribution 
+        factor. The value must be positive, as a negative error limit 
+        does not have a physical meaning in the context of measurement 
+        uncertainty.
     distribution_factor : float, optional
         The distribution factor based on the assumed distribution.
         Common values:
@@ -136,25 +159,25 @@ class MeasurementUncertainty:
     
     ```python
     # Error limit ±0.1, rectangular distribution
-    unc1 = dsp.MeasurementUncertainty(error_limit=0.1)
-    print(f"Standard uncertainty: {unc1.standard:.4f}")
+    u_1 = dsp.MeasurementUncertainty(error_limit=0.1)
+    print(f"Standard uncertainty: {u_1.standard:.4f}")
     ```
     
     Create uncertainty from expanded uncertainty:
     
     ```python
     # Expanded uncertainty U = 0.2 with k = 2
-    unc2 = dsp.MeasurementUncertainty(
+    u_2 = dsp.MeasurementUncertainty(
         expanded=0.2, k=2)
-    print(f"Standard uncertainty: {unc2.standard:.4f}")
+    print(f"Standard uncertainty: {u_2.standard:.4f}")
     ```
     
     Create uncertainty directly:
     
     ```python
     # Direct standard uncertainty
-    unc3 = dsp.MeasurementUncertainty(standard=0.05)
-    print(f"Expanded uncertainty (k=2): {unc3.expanded(2):.4f}")
+    u_3 = dsp.MeasurementUncertainty(standard=0.05)
+    print(f"Expanded uncertainty (k=2): {u_3.expanded(2):.4f}")
     ```
     
     Raises
@@ -197,6 +220,7 @@ class MeasurementUncertainty:
         assert distribution in DIST.UNCERTAINTY_FACTORS, (
             f'Invalid distribution: {distribution}. '
             f'Must be one of {DIST.UNCERTAINTY_FACTORS.keys()}')
+        self._distribution = distribution
 
         assert 0 < confidence_level < 1, (
             f'Confidence level must be between 0 and 1, got {confidence_level}')
@@ -264,9 +288,15 @@ class MeasurementUncertainty:
     
     @property
     def error_limit(self) -> float:
-        """Get the error limit. If it was not provided during 
-        initialization, it will be calculated from the standard 
-        uncertainty and distribution factor 
+        """Get the error limit associated with the measurement 
+        uncertainty.
+
+        This property returns the maximum allowable deviation from the 
+        true value, which is also known as the tolerance range. If the 
+        error limit was not provided during initialization, it will be 
+        calculated from the standard uncertainty and the distribution 
+        factor. The calculation is based on the assumption that the 
+        error follows the specified probability distribution.
         (error_limit = u × distribution_factor) (read-only)."""
         if self._error_limit is None:
             self._error_limit = self.standard * self.distribution_factor
@@ -333,15 +363,15 @@ class MeasurementUncertainty:
         Examples
         --------
         ```python
-        unc1 = dsp.MeasurementUncertainty(standard=0.1)
-        unc2 = dsp.MeasurementUncertainty(error_limit=0.05)
-        unc3 = dsp.MeasurementUncertainty(expanded=0.2, k=2)
+        u_1 = dsp.MeasurementUncertainty(standard=0.1)
+        u_2 = dsp.MeasurementUncertainty(error_limit=0.05)
+        u_3 = dsp.MeasurementUncertainty(expanded=0.2, k=2)
         
         # Combine using root sum of squares (default)
-        combined_rss = unc1.combine_with(unc2, unc3)
+        combined_rss = u_1.combine_with(u_2, u_3)
         
         # Combine using linear addition
-        combined_linear = unc1.combine_with(unc2, unc3, method='linear')
+        combined_linear = u_1.combine_with(u_2, u_3, method='linear')
         ```
         """
         assert method in ('rss', 'linear'), (
@@ -387,6 +417,34 @@ class MeasurementUncertainty:
         """Right multiplication (factor * uncertainty)."""
         return self.__mul__(factor)
     
+    @compare_measurement_uncertainty
+    def __eq__(self, other: Any) -> bool:
+        """Check if uncertainties are equal."""
+        return (self.standard == other.standard and
+                self.confidence_level == other.confidence_level)
+    
+    @compare_measurement_uncertainty
+    def __lt__(self, other: Any) -> bool:
+        """Check if uncertainty is less than another."""
+        return self.standard < other.standard
+    
+    @compare_measurement_uncertainty
+    def __gt__(self, other: Any) -> bool:
+        """Check if uncertainty is greater than another."""
+        return self.standard > other.standard
+    
+    def __ne__(self, other: Any) -> bool:
+        """Check if uncertainties are not equal."""
+        return not self.__eq__(other)
+    
+    def __le__(self, other: Any) -> bool:
+        """Check if uncertainty is less than or equal to another."""
+        return self.__lt__(other) or self.__eq__(other)
+    
+    def __ge__(self, other: Any) -> bool:
+        """Check if uncertainty is greater than or equal to another."""
+        return self.__gt__(other) or self.__eq__(other)
+    
     def summary(self) -> Dict[str, float | str]:
         """Get a summary of uncertainty values.
         
@@ -404,7 +462,7 @@ class MeasurementUncertainty:
 
 
 class BaseEstimator:
-    """
+    """Base class for statistical estimators.
 
     Parameters
     ----------

@@ -19,3 +19,4 @@ The following table shows the typical standard uncertainties as they affect meas
 |   `T`    | Temperature                                            |   MP   |  A/B   |
 |  `STAB`  | Stability over time                                    |   MP   |   A    |
 |  `OBJ`   | Inhomogeneity of the object                            |   MP   |  A/B   |
+|  `REST`  | Other uncertainties not covered by the above           | MS/MP  |   B    |

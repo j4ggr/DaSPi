@@ -32,6 +32,90 @@ df_valid25: DataFrame = pd.read_csv(
     source/f'dists_25-samples.csv', skiprows=29, **KW_READ)
 
 
+class TestMeasurementUncertainty:
+    """Test the MeasurementUncertainty class."""
+    
+    def test_initialization_with_standard(self) -> None:
+        """Test initialization with standard uncertainty."""
+        uncertainty = MeasurementUncertainty(standard=0.05)
+        assert uncertainty.standard == 0.05
+        assert uncertainty.expanded == 0.1  # Default k=2
+        assert uncertainty.error_limit == approx(0.086602, rel=1e-5)  # √3 * standard
+
+    def test_initialization_with_error_limit(self) -> None:
+        """Test initialization with error limit."""
+        uncertainty = MeasurementUncertainty(error_limit=0.1)
+        assert uncertainty.standard == approx(0.057735, rel=1e-5)  # √3 ≈ 1.732
+        assert uncertainty.expanded == approx(0.11547, rel=1e-5)  # Default k=2
+        assert uncertainty.k == 2
+
+    def test_initialization_with_expanded(self) -> None:
+        """Test initialization with expanded uncertainty."""
+        uncertainty = MeasurementUncertainty(expanded=0.2, k=2)
+        assert uncertainty.standard == approx(0.1, rel=1e-5)
+        assert uncertainty.expanded == 0.2
+        assert uncertainty.error_limit == approx(0.173205, rel=1e-5)  # √3 * standard
+
+    def test_initialization_with_invalid_distribution(self) -> None:
+        """Test initialization with invalid distribution."""
+        with pytest.raises(AssertionError):
+            MeasurementUncertainty(distribution='invalid') # type: ignore
+
+    def test_initialization_with_confidence_level(self) -> None:
+        """Test initialization with confidence level."""
+        uncertainty = MeasurementUncertainty(standard=0.05, confidence_level=0.99)
+        assert uncertainty.confidence_level == 0.99
+
+    def test_relative_uncertainty(self) -> None:
+        """Test calculation of relative uncertainty."""
+        uncertainty = MeasurementUncertainty(standard=0.1)
+        relative = uncertainty.relative(1.0)
+        assert relative == 10.0
+
+    def test_combine_with_rss(self) -> None:
+        """Test combining uncertainties using root sum of squares."""
+        u1 = MeasurementUncertainty(standard=0.1)
+        u2 = MeasurementUncertainty(standard=0.2)
+        combined = u1.combine_with(u2)
+        assert combined.standard == approx(0.223607, rel=1e-5)  # √(0.1² + 0.2²)
+
+    def test_combine_with_linear(self) -> None:
+        """Test combining uncertainties using linear addition."""
+        u1 = MeasurementUncertainty(standard=0.1)
+        u2 = MeasurementUncertainty(standard=0.2)
+        combined = u1.combine_with(u2, method='linear')
+        assert combined.standard == approx(0.3)
+
+    def test_multiplication(self) -> None:
+        """Test multiplication of uncertainty."""
+        uncertainty = MeasurementUncertainty(standard=0.1)
+        result = uncertainty * 2
+        assert result.standard == 0.2
+
+    def test_equality(self) -> None:
+        """Test equality comparison."""
+        u1 = MeasurementUncertainty(standard=0.1)
+        u2 = MeasurementUncertainty(standard=0.1)
+        u3 = MeasurementUncertainty(standard=0.2)
+        assert u1 == u2
+        assert u1 != u3
+        assert u2 <= u1
+        assert u1 >= u2
+        assert u3 > u1
+        assert u2 < u3
+        assert not u3 < u2
+        assert not u1 > u3
+
+    def test_summary(self) -> None:
+        """Test summary method."""
+        uncertainty = MeasurementUncertainty(standard=0.1)
+        summary = uncertainty.summary()
+        assert summary['standard'] == 0.1
+        assert summary['expanded'] == 0.2  # Default k=2
+        assert summary['error_limit'] == approx(0.173205, rel=1e-5)  # √3 * standard
+        assert summary['distribution'] == 'rectangular'
+
+
 class TestDistributionEstimator:
 
     # source data contains 8 decimal places

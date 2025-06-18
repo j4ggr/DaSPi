@@ -16,11 +16,17 @@ from ._typing import LineStyle
 
 SIGMA_DIFFERENCE: float = 1.5
 """In order to make statements about long-term capabilities, the value 
-of 1.5 is subtracted from the Sigma level from short-term data. This 
+of 1.5 is subtracted from the Sigma Level from short-term data. This 
 value was determined empirically from manufacturing processes and takes 
 into account that there are more influences on the process in the long 
 term than in the short term. This value is the average of the short-term 
-and long-term differences."""
+and long-term differences.
+
+Sources
+-------
+Melzer, A. (2015) Six Sigma - Kompakt und praxisnah: 
+Prozessverbesserung effizient und erfolgreich implementieren
+(1. Aufl.). Springer Gabler, S. 107."""
 
 
 @dataclass(frozen=True)
