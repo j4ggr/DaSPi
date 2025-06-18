@@ -1917,13 +1917,13 @@ class GageStudyModel(LinearModel):
 
         u = pd.Series({
             'RE': self.gage.u_re,
-            'BI': self.gage.u_bias,
+            'BI': self.gage.u_bi,
             'EVR': self.gage.std,
             'LIN': 0.0,
             'MS': None,})
 
         if len(self.ref_gages) > 1:
-            u['LIN'] = float(np.std([g.u_bias for g in self.ref_gages], ddof=1))
+            u['LIN'] = float(np.std([g.u_bi for g in self.ref_gages], ddof=1))
         
         u['MS'] = root_sum_squares(u['BI'], max(u['RE'], u['EVR']), u['LIN'])
 

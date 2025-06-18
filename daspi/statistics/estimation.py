@@ -271,7 +271,14 @@ class MeasurementUncertainty:
     
     @property
     def k(self) -> float:
-        """Get the coverage factor k (read-only)."""
+        """Get the coverage factor `k` used in uncertainty 
+        calculations (read-only).
+
+        This property returns the coverage factor, which is a multiplier 
+        used to determine the expanded uncertainty based on the standard 
+        uncertainty. The value of `k` is typically set to reflect the 
+        desired confidence level in the measurement results.
+        """
         if self._k is None:
             self._k = float(
                 stats.norm.ppf(1 - (1 - self.confidence_level) / 2))
@@ -1489,21 +1496,39 @@ class LocationDispersionEstimator(DistributionEstimator):
 
     @property
     def agreement(self) -> float:
-        """Get the multiplier of the σ agreement for Cp and Cpk 
-        value (default 6). By setting this value the cp and cpk values
-        are resetted to None.
-        
-        If setting agreement by giving the percentile, enter the 
-        acceptable proportion for the spread, e.g. 0.9973 
-        (which corresponds to ~ 6 σ).
-        
-        A special case occurs when the agreement is 1. For a
-        corresponding standard deviation, enter 1 as an integer. If you
-        want percentiles or the entire range, enter it as a
-        floating-point number (1.0) or as `float('inf')`."""
+        """Get the agreement multiplier for the σ (standard deviation) 
+        used in calculating Cp and Cpk values.
+
+        The agreement is defined as twice the coverage factor `k`. 
+        Setting this value will reset the Cp and Cpk values to None, 
+        reflecting that the underlying uncertainty parameters have 
+        changed.
+
+        When setting the agreement using a percentile, provide the 
+        acceptable proportion for the spread, such as 0.9973, 
+        which corresponds to approximately 6σ (six standard deviations).
+        The agreement value must be specified as either:
+        - A percentage (0.0 < agreement <= 1.0) indicating the
+          acceptable proportion for the spread.
+        - A multiple of the standard deviation (agreement >= 1).
+
+        Special Case:
+        - If the agreement is set to 1 (indicating a standard deviation 
+          multiplier), enter it as an integer (1). 
+        - For percentiles or a broader range, use a floating-point 
+          representation (e.g., 1.0) or `float('inf')` for an infinite
+          range.
+          
+        Raises
+        ------
+        AssertionError
+            If the provided agreement value is not in the valid range 
+            (0.0 < agreement <= 1.0 for percentiles or agreement >= 1 
+            for standard deviation multipliers)."""
         return self._agreement
     @agreement.setter
     def agreement(self, agreement: int | float) -> None:
+
         assert agreement > 0, (
             'Agreement must be set as a percentage (0.0 < agreement <= 1.0) '
             + 'or as a multiple of the standard deviation (agreement >= 1), '
@@ -1513,13 +1538,25 @@ class LocationDispersionEstimator(DistributionEstimator):
             agreement < 1 or (agreement == 1 and isinstance(agreement, float)))
         if is_percentile:
             self._k = float(stats.norm.ppf((1 + agreement) / 2))
-            agreement = 2 * self._k
+            agreement = 2 * self.k
         else:
             self._k = agreement / 2
         
         if self._agreement != agreement:
             self._agreement = agreement
             self._reset_values_()
+    
+    @property
+    def k(self) -> float:
+        """Get the coverage factor `k` used in uncertainty 
+        calculations (read-only).
+
+        This property returns the coverage factor, which is a multiplier 
+        used to determine the expanded uncertainty based on the standard 
+        uncertainty. The value of `k` is typically set to reflect the 
+        desired confidence level in the measurement results.
+        """
+        return self._k
 
     def z_transform(self, x: float) -> float:
         """Transform value to z-score.
@@ -1651,8 +1688,8 @@ class LocationDispersionEstimator(DistributionEstimator):
                 lcl = float(self.dist.ppf(self.q_low, *self.shape_params))
                 ucl = float(self.dist.ppf(self.q_upp, *self.shape_params))
             case 'norm':
-                lcl = self.mean - self._k * self.std
-                ucl = self.mean + self._k * self.std
+                lcl = self.mean - self.k * self.std
+                ucl = self.mean + self.k * self.std
             case 'data':
                 lcl = float(np.quantile(self.filtered, self.q_low))
                 ucl = float(np.quantile(self.filtered, self.q_upp))
@@ -2156,12 +2193,13 @@ class GageEstimator(LocationDispersionEstimator):
         The proportion of the tolerance range (between 0 and 1) used 
         to calculate the adjusted limits, default is 0.2 (20%).
     aggreement : int | float, optional
-        The multiplier of the standard deviation for Cp and Cpk
+        The multiplier of the standard deviation for Cg and Cgk
         values. If an integer is given, the value is interpreted as
-        the number of standard deviations (e.g., 6 for 6σ). If a float
+        the number of standard deviations (e.g., 4 for 4σ). If a float
         is given, it is interpreted as the acceptable proportion for
-        the spread, e.g. 0.9973 (which corresponds to ~ 6 σ). Default
-        is 6.
+        the spread, e.g. 0.9544 (which corresponds to ~ 4 σ). Simply put, 
+        this is twice the coverage factor k. Default is 4, because 
+        a common coverage faktor is 2.
     cg_limit : float, optional
         The limit for the capability index, default is 1.33.
     cgk_limit : float, optional
@@ -2218,7 +2256,7 @@ class GageEstimator(LocationDispersionEstimator):
     T_min_res         2.000000e-03
     resolution_ratio  7.692308e-04
     u_re              2.886751e-05
-    u_bias            1.014135e-04
+    u_bi              1.014135e-04
     u_evr             1.306999e-04
     u_ms              1.654302e-04
     ```
@@ -2263,7 +2301,7 @@ class GageEstimator(LocationDispersionEstimator):
         '_T_min_res', 
         '_process',
         '_u_re',
-        '_u_bias',
+        '_u_bi',
         '_u_evr',
         '_u_ms',
         '_bias_corrected')
@@ -2285,7 +2323,7 @@ class GageEstimator(LocationDispersionEstimator):
     _T_min_res: float | None
     _process: ProcessEstimator | None
     _u_re: float | None
-    _u_bias: float | None
+    _u_bi: float | None
     _u_evr: float | None
     _u_ms: float | None
     _bias_corrected: bool
@@ -2297,7 +2335,7 @@ class GageEstimator(LocationDispersionEstimator):
             tolerance: float | SpecLimits | Specification,
             resolution: float | None,
             tolerance_ratio: float = 0.2,
-            agreement: float | int = 6,
+            agreement: float | int = 4,
             cg_limit: float = 1.33,
             cgk_limit: float = 1.33,
             resolution_ratio_limit: float = 0.05,
@@ -2343,7 +2381,7 @@ class GageEstimator(LocationDispersionEstimator):
             'T_min_res',
             'resolution_ratio',
             'u_re',
-            'u_bias',
+            'u_bi',
             'u_evr',
             'u_ms')
         self._reset_values_()
@@ -2427,7 +2465,7 @@ class GageEstimator(LocationDispersionEstimator):
     @bias_corrected.setter
     def bias_corrected(self, bias_corrected: bool) -> None:
         self._bias_corrected = bias_corrected
-        self._u_bias = None
+        self._u_bi = None
     
     @property
     def limits(self) -> SpecLimits:
@@ -2575,13 +2613,13 @@ class GageEstimator(LocationDispersionEstimator):
         return self._u_re
     
     @property
-    def u_bias(self) -> float:
+    def u_bi(self) -> float:
         """The uncertainty of the bias of the testing system (read-only)."""
-        if self._u_bias is None:
+        if self._u_bi is None:
             bias = 0 if self.bias_corrected else self.bias
-            self._u_bias = root_sum_squares(
+            self._u_bi = root_sum_squares(
                 bias, self.U_cal/2, self.std/(self.n_samples**0.5))
-        return self._u_bias # type: ignore
+        return self._u_bi # type: ignore
     
     @property
     def u_evr(self) -> float:
@@ -2596,7 +2634,7 @@ class GageEstimator(LocationDispersionEstimator):
         """The uncertainty of the measurement system (read-only)."""
         if self._u_ms is None:
             u_equipement = max(self.u_re, self.u_evr)
-            self._u_ms = root_sum_squares(self.u_bias, u_equipement)
+            self._u_ms = root_sum_squares(self.u_bi, u_equipement)
         return self._u_ms # type: ignore
     
     def check(self) -> Dict[str, bool]:
@@ -2632,7 +2670,7 @@ class GageEstimator(LocationDispersionEstimator):
         self._T_min_res = None
         self._process = None
         self._u_re = None
-        self._u_bias = None
+        self._u_bi = None
         self._u_evr = None
         self._u_ms = None
 
