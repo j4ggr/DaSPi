@@ -51,8 +51,8 @@ class TestMeasurementUncertainty:
 
     def test_initialization_with_expanded(self) -> None:
         """Test initialization with expanded uncertainty."""
-        uncertainty = MeasurementUncertainty(expanded=0.2, k=2)
-        assert uncertainty.standard == approx(0.1, rel=1e-5)
+        uncertainty = MeasurementUncertainty(expanded=0.2)
+        assert uncertainty.standard == approx(0.1, rel=1e-5) # Default k=2
         assert uncertainty.expanded == 0.2
         assert uncertainty.error_limit == approx(0.173205, rel=1e-5)  # √3 * standard
 
@@ -65,6 +65,19 @@ class TestMeasurementUncertainty:
         """Test initialization with confidence level."""
         uncertainty = MeasurementUncertainty(standard=0.05, confidence_level=0.99)
         assert uncertainty.confidence_level == 0.99
+    
+    def test_with_zero_standard(self) -> None:
+        """Test initialization with zero standard uncertainty."""
+        u_0 = MeasurementUncertainty(standard=0.0)
+        u_1 = MeasurementUncertainty(standard=0.1)
+        assert u_0.standard == 0
+        assert u_0.expanded == 0
+        assert u_0.error_limit == 0
+
+        u_tot = u_0.combine_with(u_1)
+        assert u_tot.standard == u_1.standard
+        assert u_tot.expanded == u_1.expanded
+        assert u_tot.error_limit == u_1.error_limit
 
     def test_relative_uncertainty(self) -> None:
         """Test calculation of relative uncertainty."""
@@ -583,7 +596,7 @@ class TestGageEstimator:
         estimator = GageEstimator(
             self.df['result_gage'].dropna(),
             reference=0.101,
-            U_cal=0.0002,
+            u_cal=0.0002,
             tolerance=Specification(limits=(0.085, 0.115)),
             resolution=0.001)
         return estimator
@@ -604,32 +617,31 @@ class TestGageEstimator:
     def test_statistic_values(self, estimator_gage: GageEstimator) -> None:
         assert estimator_gage.mean == pytest.approx(0.10066000, abs=1e-8)
         assert estimator_gage.std == pytest.approx(0.00068839, abs=1e-8)
-        assert estimator_gage.lcl == pytest.approx(0.09859484, abs=1e-8)
-        assert estimator_gage.ucl == pytest.approx(0.10272516, abs=1e-8)
+        assert estimator_gage.lcl == pytest.approx(0.09928322, abs=1e-8)
+        assert estimator_gage.ucl == pytest.approx(0.10203677, abs=1e-8)
         assert estimator_gage.bias == pytest.approx(-0.00034000, abs=1e-8)
     
     def test_capable_values(self, estimator_gage: GageEstimator) -> None:
-        assert estimator_gage.cg == pytest.approx(1.45266988, abs=1e-8)
-        assert estimator_gage.cgk == pytest.approx(1.28803396, abs=1e-8)
+        assert estimator_gage.cg == pytest.approx(2.17900482, abs=1e-8)
+        assert estimator_gage.cgk == pytest.approx(1.93205094, abs=1e-8)
         assert estimator_gage.resolution_ratio == pytest.approx(1/30)
-        assert estimator_gage.T_min_cg == pytest.approx(0.02746667, abs=1e-8)
-        assert estimator_gage.T_min_cgk == pytest.approx(0.03086667, abs=1e-8)
+        assert estimator_gage.T_min_cg == pytest.approx(0.01831111, abs=1e-8)
+        assert estimator_gage.T_min_cgk == pytest.approx(0.02171111, abs=1e-8)
         assert estimator_gage.T_min_res == pytest.approx(0.02000000, abs=1e-8)
 
     def test_check(self, estimator_gage: GageEstimator) -> None:
         assert estimator_gage.check() == {
-            'n_samples': True,
             'U_cal': True,
             'resolution': True,
             'cg': True,
-            'cgk': False,}
+            'cgk': True,}
 
     def test_estimate_resolution(self) -> None:
         specification=SpecLimits(lower=20.15, upper=20.45)
         estimator = GageEstimator(
             self.df['result_gage'],
             reference=0.101,
-            U_cal=0.0002,
+            u_cal=0.0002,
             tolerance=specification,
             resolution=None)
         assert estimator.resolution == 0.001
@@ -637,7 +649,7 @@ class TestGageEstimator:
         estimator = GageEstimator(
             [1.0, 1.01, 1.002, 1.0003],
             reference=0.101,
-            U_cal=0.0002,
+            u_cal=0.0002,
             tolerance=specification,
             resolution=None)
         assert estimator.resolution == 0.0001
@@ -645,7 +657,7 @@ class TestGageEstimator:
         estimator = GageEstimator(
             [1, 20, 300, 4000],
             reference=0.101,
-            U_cal=0.0002,
+            u_cal=0.0002,
             tolerance=specification,
             resolution=None)
         assert estimator.resolution == 1

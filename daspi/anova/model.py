@@ -109,6 +109,7 @@ from ..statistics.montecarlo import SpecLimits
 from ..statistics.montecarlo import Specification
 from ..statistics.estimation import GageEstimator
 from ..statistics.estimation import root_sum_squares
+from ..statistics.estimation import MeasurementUncertainty
 
 
 def is_main_parameter(parameter: str) -> bool:
@@ -1542,11 +1543,12 @@ class GageStudyModel(LinearModel):
         values belong to which reference part. If the column has missing 
         values, the pandas method `ffill()` is used to ensure that the 
         column is filled.
-    U_cal : float | Tuple[float, ...]
-        The calibration uncertainty for the measured parts. If multiple
-        reference parts are measured, this must be a tuple of floats
-        with the same length as the number of unique values in the
-        reference column.
+    u_cal : MeasurementUncertainty | float
+        The measurement uncertainty of the gage used to measure the 
+        reference value. If a float is specified, it is assumed to be 
+        the expanded uncertainty with a coverage factor of `k = 2`.
+        Please note that the coverage factor of the calibration is not 
+        dependent on the coverage factor selected here.
     tolerance : float | SpecLimits | Specification
         The specification limits for the measurement system. This can 
         be a float, a `SpecLimits` instance or a `Specification` 
@@ -1561,13 +1563,6 @@ class GageStudyModel(LinearModel):
         The ratio of the tolerance to the standard deviation of the
         measurement system. If the ratio is below this limit, the
         measurement system is considered unacceptable. Default is 0.2.
-    agreement : int | float, optional
-        The multiplier of the standard deviation for Cp and Cpk
-        values. If an integer is given, the value is interpreted as
-        the number of standard deviations (e.g., 6 for 6σ). If a float
-        is given, it is interpreted as the acceptable proportion for
-        the spread, e.g. 0.9973 (which corresponds to ~ 6 σ). Default
-        is 6.
     cg_limit : float, optional
         The limit for the Gage R&R study's Cg value. If the Cg value is
         below this limit, the measurement system is considered
@@ -1580,8 +1575,14 @@ class GageStudyModel(LinearModel):
         The ratio of the resolution to the standard deviation of the
         measurement system. If the ratio is below this limit, the
         measurement system is considered unacceptable. Default is 0.05.
-    k : int, optional
-        Coverage factor for expanded uncertainty (default 2).
+    k : int | float, optional
+        The coverage factor for expanded uncertainty. It is used as a 
+        multiplier to determine the expanded uncertainty based on the 
+        standard uncertainty. The value of `k` is typically set to 
+        reflect the desired confidence level in the  measurement 
+        results. Default is 2, typical values are:
+        - k=2 corresponds to a confidence interval of 95.45%
+        - k=3 corresponds to a confidence interval of 99.73%
     bias_corrected : bool, optional
         Indicates whether the bias is corrected for the Gage R&R study. 
         If True, the bias is not included in the measurement uncertainty; 
@@ -1602,7 +1603,7 @@ class GageStudyModel(LinearModel):
         source=df,
         target='result_gage',
         reference='reference',
-        U_cal=df['U_cal'][0],
+        u_cal=df['U_cal'][0],
         tolerance=df['tolerance'][0],
         resolution=df['resolution'][0],
         bias_corrected=True,)
@@ -1616,42 +1617,41 @@ class GageStudyModel(LinearModel):
         'reference',
         '_gage',
         '_ref_gages',
-        '_U_cal',
         '_references_analysis',
         '_capabilities',
         '_uncertainties',
         '_alpha',
         '_k',
-        '_bias_corrected')
+        '_bias_corrected',
+        '_u_cal',)
     
     source: DataFrame
     target: str
     reference: str
     _gage: GageEstimator
     _ref_gages: List[GageEstimator]
-    _U_cal: Tuple[float, ...]
     _references_analysis: DataFrame
     _capabilities: DataFrame
     _uncertainties: DataFrame
     _alpha: float
-    _k: int
+    _k: int | float
     _bias_corrected: bool
+    _u_cal: MeasurementUncertainty
 
     def __init__(
             self,
             source: DataFrame,
             target: str,
             reference: str,
-            U_cal: float | Tuple[float, ...],
+            u_cal: MeasurementUncertainty | float,
             tolerance: float | SpecLimits | Specification,
             resolution: float | None,
             tolerance_ratio: float = 0.2,
-            agreement: int | float = 6,
             cg_limit: float = 1.33,
             cgk_limit: float = 1.33,
             resolution_ratio_limit: float = 0.05,
             alpha: float = 0.05,
-            k: int = 2,
+            k: int | float = 2,
             bias_corrected: bool = False,) -> None:
 
         self.target = target
@@ -1659,10 +1659,6 @@ class GageStudyModel(LinearModel):
         source = source[[target, reference]].copy()
         source[reference] = source[reference].ffill()
         self.source = source
-
-        if not isinstance(U_cal, (float, int)):
-            U_cal = root_sum_squares(*U_cal)
-        self._U_cal = self._ensure_tuple_(U_cal, len(source[reference].unique()))
 
         super().__init__(
             source=source,
@@ -1676,11 +1672,11 @@ class GageStudyModel(LinearModel):
         self._gage = GageEstimator(
             samples=source[target] - source[reference],
             reference=0.0,
-            U_cal=U_cal,
+            u_cal=u_cal,
             tolerance=tolerance,
             resolution=resolution,
             tolerance_ratio=tolerance_ratio,
-            agreement=agreement,
+            agreement=2*k,
             cg_limit=cg_limit,
             cgk_limit=cgk_limit,
             resolution_ratio_limit=resolution_ratio_limit,
@@ -1700,7 +1696,7 @@ class GageStudyModel(LinearModel):
     @staticmethod
     def from_gage_estimators(
             gages: GageEstimator | List[GageEstimator],
-            k: int = 2,
+            k: int | float = 2,
             bias_corrected: bool = False) -> 'GageStudyModel':
         """Create a GageStudyModel from a list of GageEstimator 
         instances. This method is useful when you already have 
@@ -1712,8 +1708,14 @@ class GageStudyModel(LinearModel):
         ----------
         gages : GageEstimator | List[GageEstimator]
             A list of GageEstimator instances to create the model from.
-        k : int, optional
-            The coverage factor for expanded uncertainty (default 2).
+        k : int | float, optional
+            The coverage factor for expanded uncertainty. It is used as 
+            a multiplier to determine the expanded uncertainty based on 
+            the standard uncertainty. The value of `k` is typically set 
+            to reflect the desired confidence level in the  measurement 
+            results. Default is 2, typical values are:
+            - k=2 corresponds to a confidence interval of 95.45%
+            - k=3 corresponds to a confidence interval of 99.73%
         bias_corrected : bool, optional
             Indicates whether the bias is corrected for the Gage R&R 
             study. If True, the bias is not included in the measurement 
@@ -1742,10 +1744,9 @@ class GageStudyModel(LinearModel):
             source=source,
             target=target,
             reference=ANOVA.REFERENCE,
-            U_cal=tuple(g.U_cal for g in gages),
+            u_cal=gage0.u_cal,
             tolerance=gage0.tolerance,
             resolution=gage0.resolution,
-            agreement=gage0.agreement,
             cg_limit=gage0.cg_limit,
             cgk_limit=gage0.cgk_limit,
             tolerance_ratio=gage0.tolerance_ratio,
@@ -1791,7 +1792,7 @@ class GageStudyModel(LinearModel):
                 gage = GageEstimator(
                     samples=group[self.target],
                     reference=float(reference), # type: ignore
-                    U_cal=self.gage.U_cal,
+                    u_cal=self.gage.u_cal,
                     tolerance=self.gage.tolerance,
                     resolution=self.gage.resolution,
                     tolerance_ratio=self.gage.tolerance_ratio,
@@ -1822,13 +1823,23 @@ class GageStudyModel(LinearModel):
         return self._gage.resolution
 
     @property
-    def k(self) -> int:
-        """Get and set the coverage factor (k) for expanded uncertainty.
-        The coverage factor is used to calculate the expanded 
-        measurement uncertainty."""
+    def k(self) -> int | float:
+        """Get the coverage factor `k` used in uncertainty 
+        calculations.
+
+        This property returns the coverage factor, which is a multiplier 
+        used to determine the expanded uncertainty based on the standard 
+        uncertainty. The value of `k` is typically set to reflect the 
+        desired confidence level in the measurement results.
+
+        Set the coverage factor with a positive number, typical values 
+        are:
+        - k=2 corresponds to a confidence interval of 95.45%
+        - k=3 corresponds to a confidence interval of 99.73%
+        """
         return self._k
     @k.setter
-    def k(self, k: int) -> None:
+    def k(self, k: int | float) -> None:
         assert k > 0, f'k must be positive, typically 2 or 3. Got {k=}'
         self._k = k
         self._reset_tables_()
@@ -1923,7 +1934,8 @@ class GageStudyModel(LinearModel):
             'MS': None,})
 
         if len(self.ref_gages) > 1:
-            u['LIN'] = float(np.std([g.u_bi for g in self.ref_gages], ddof=1))
+            u['LIN'] = float(
+                np.std([g.u_bi.standard for g in self.ref_gages], ddof=1))
         
         u['MS'] = root_sum_squares(u['BI'], max(u['RE'], u['EVR']), u['LIN'])
 
@@ -1982,9 +1994,12 @@ class GageRnRModel(LinearModel):
         system analysis type 1. To calculate the uncertainty for 
         linearity, provide multiple reference parts in the
         `GageStudyModel` instance.
-    k : int, optional
-        The coverage factor for the expanded measurement uncertainty. 
-        Default is 2. Typical values are:
+    k : int | float, optional
+        The coverage factor for expanded uncertainty. It is used as a 
+        multiplier to determine the expanded uncertainty based on the 
+        standard uncertainty. The value of `k` is typically set to 
+        reflect the desired confidence level in the  measurement 
+        results. Default is 2, typical values are:
         - k=2 corresponds to a confidence interval of 95.45%
         - k=3 corresponds to a confidence interval of 99.73%
     fit_at_init : bool, optional
@@ -2003,7 +2018,7 @@ class GageRnRModel(LinearModel):
         source=df,
         target='result_gage',
         reference='reference',
-        U_cal=df['U_cal'][0],
+        u_cal=df['U_cal'][0],
         tolerance=df['tolerance'][0],
         resolution=df['resolution'][0],
         bias_corrected=True,)
@@ -2053,7 +2068,7 @@ class GageRnRModel(LinearModel):
     _rnr: DataFrame
     _uncertainties: DataFrame
     _gage: GageStudyModel
-    _k: int
+    _k: int | float
     _u_ia: float
 
     def __init__(
@@ -2063,7 +2078,7 @@ class GageRnRModel(LinearModel):
             part: str,
             reproducer: str,
             gage: GageStudyModel,
-            k: int = 2,
+            k: int | float = 2,
             fit_at_init: bool = True
             ) -> None:
         self.part = part
@@ -2092,11 +2107,11 @@ class GageRnRModel(LinearModel):
         return self._gage
     
     @property
-    def k(self) -> int:
+    def k(self) -> int | float:
         """The coverage factor for the expanded measurement uncertainty."""
         return self._k
     @k.setter
-    def k(self, k: int) -> None:
+    def k(self, k: int | float) -> None:
         assert k > 0, f'k must be greater than 0, got {k}'
         if hasattr(self, '_uncertainties') and k != getattr(self, '_k', 0):
             self._uncertainties = pd.DataFrame()
@@ -2168,7 +2183,7 @@ class GageRnRModel(LinearModel):
             source=df,
             target='result_gage',
             reference='reference',
-            U_cal=df['U_cal'][0],
+            u_cal=df['U_cal'][0],
             tolerance=df['tolerance'][0],
             resolution=df['resolution'][0],
             bias_corrected=True,)
@@ -2357,7 +2372,7 @@ class GageRnRModel(LinearModel):
             source=df,
             target='result_gage',
             reference='reference',
-            U_cal=df['U_cal'][0],
+            u_cal=df['U_cal'][0],
             tolerance=df['tolerance'][0],
             resolution=df['resolution'][0],
             bias_corrected=True,)

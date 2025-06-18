@@ -1888,7 +1888,7 @@ class TestPrecasts:
             source=df,
             target='result_gage',
             reference='reference',
-            U_cal=df['U_cal'][0],
+            u_cal=df['U_cal'][0],
             tolerance=df['tolerance'][0],
             resolution=df['resolution'][0],
             bias_corrected=True,)
@@ -1908,7 +1908,7 @@ class TestPrecasts:
             source=df,
             target='result_gage',
             reference='reference',
-            U_cal=df['U_cal'][0],
+            u_cal=df['U_cal'][0],
             tolerance=df['tolerance'][0],
             resolution=df['resolution'][0])
         model = GageRnRModel(

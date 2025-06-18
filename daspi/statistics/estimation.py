@@ -10,6 +10,7 @@ from typing import Dict
 from typing import Type
 from typing import Self
 from typing import Tuple
+from typing import Union
 from typing import TypeVar
 from typing import Literal
 from typing import overload
@@ -30,7 +31,6 @@ from scipy.stats import kurtosis
 from .._typing import NumericSample1D
 
 from ..constants import DIST
-from ..constants import ANOVA
 from ..constants import DEFAULT
 from ..constants import SIGMA_DIFFERENCE
 
@@ -122,8 +122,9 @@ class MeasurementUncertainty:
     Parameters
     ----------
     standard : float, optional
-        The standard uncertainty (u). If provided, other parameters are 
-        ignored.
+        The standard uncertainty (u). If provided the parameters 
+        expanded and error_limit are ignored. To initialize a 
+        non-significant measurement uncertainty, set standard to 0.
     error_limit : float, optional
         The maximum allowable deviation from the true value, also known 
         as the tolerance range. This parameter represents the worst-case 
@@ -141,10 +142,14 @@ class MeasurementUncertainty:
         - 1 for normal distribution (if error_limit is already 1σ)
     expanded : float, optional
         The expanded uncertainty (U).
-    k : float, optional
-        The coverage factor (k), typically 2 for ~95% confidence.
-        If not provided, it will be calculated from confidence level 
-        assuming normal distribution. Default is 2.
+    k : int | float, optional
+        The coverage factor for expanded uncertainty. It is used as a 
+        multiplier to determine the expanded uncertainty based on the 
+        standard uncertainty. The value of `k` is typically set to 
+        reflect the desired confidence level in the  measurement 
+        results. Default is 2, typical values are:
+        - k=2 corresponds to a confidence interval of 95.45%
+        - k=3 corresponds to a confidence interval of 99.73%
     confidence_level : float, optional
         The confidence level (0 to 1) to calculate coverage factor for 
         normal distribution. Default is 0.95 (95% confidence).
@@ -152,6 +157,13 @@ class MeasurementUncertainty:
         The assumed probability distribution for calculating 
         distribution factor. Only used if distribution_factor is not 
         explicitly provided. Default is 'rectangular'.
+    
+    Notes
+    -----
+    To initialize a non-significant measurement uncertainty, set 
+    standard to 0. This uncertainty can then be used for further 
+    calculations and combined with others, but it does not affect the 
+    "addition" of uncertainties.
     
     Examples
     --------
@@ -199,8 +211,8 @@ class MeasurementUncertainty:
     
     _standard: float
     _expanded: float | None
-    _k: float | None
-    _confidence_level: float
+    _k: float
+    _confidence_level: float | None
     _error_limit: float | None
     _distribution: Literal['rectangular', 'triangular', 'normal']
     _distribution_factor: float | None
@@ -209,11 +221,11 @@ class MeasurementUncertainty:
             self,
             *,
             standard: float | None = None,
+            expanded: float | None = None,
             error_limit: float | None = None,
             distribution_factor: float | None = None,
-            expanded: float | None = None,
-            k: float | None = 2,
-            confidence_level: float = 0.95,
+            k: float = 2,
+            confidence_level: float | None = None,
             distribution: Literal['rectangular', 'triangular', 'normal'] = 'rectangular'
             ) -> None:
         
@@ -222,12 +234,13 @@ class MeasurementUncertainty:
             f'Must be one of {DIST.UNCERTAINTY_FACTORS.keys()}')
         self._distribution = distribution
 
-        assert 0 < confidence_level < 1, (
-            f'Confidence level must be between 0 and 1, got {confidence_level}')
+        assert confidence_level is None or (0 < confidence_level < 1), (
+            'Confidence level must be None or between 0 and 1, '
+            f'got {confidence_level}')
         self._confidence_level = confidence_level
         
-        assert k is None or k > 0, (
-            f'Coverage factor must be None or positive, got {k}')
+        assert k > 0, (
+            f'Coverage factor must be positive, got {k}')
         self._k = k
 
         assert expanded is None or expanded > 0, (
@@ -238,8 +251,8 @@ class MeasurementUncertainty:
             f'Error limit must be None or positive, got {error_limit}')
         self._error_limit = error_limit
 
-        assert standard is None or standard > 0, (
-            f'Standard uncertainty must be None or positive, got {standard}')
+        assert standard is None or standard >= 0, (
+            f'Standard uncertainty must be None or >= 0, got {standard}')
         
         assert distribution_factor is None or distribution_factor > 0, (
             'Distribution factor must be None or positive, '
@@ -267,6 +280,8 @@ class MeasurementUncertainty:
     @property
     def confidence_level(self) -> float:
         """Get the confidence level used for calculations (read-only)."""
+        if self._confidence_level is None:
+            self._confidence_level = float(2 * stats.norm.cdf(self.k / 2) - 1)
         return self._confidence_level
     
     @property
@@ -279,9 +294,6 @@ class MeasurementUncertainty:
         uncertainty. The value of `k` is typically set to reflect the 
         desired confidence level in the measurement results.
         """
-        if self._k is None:
-            self._k = float(
-                stats.norm.ppf(1 - (1 - self.confidence_level) / 2))
         return self._k
     
     @property
@@ -347,14 +359,14 @@ class MeasurementUncertainty:
     
     def combine_with(
             self, 
-            *others: 'MeasurementUncertainty',
+            *others: Union[float, 'MeasurementUncertainty'],
             method: Literal['rss', 'linear'] = 'rss'
             ) -> 'MeasurementUncertainty':
         """Combine this uncertainty with other uncertainties.
         
         Parameters
         ----------
-        *others : MeasurementUncertainty
+        *others : MeasurementUncertainty | float
             Other uncertainty instances to combine with.
         method : {'rss', 'linear'}, optional
             Combination method:
@@ -385,7 +397,7 @@ class MeasurementUncertainty:
             f'Method must be "rss" or "linear", got {method}')
         
         uncertainties = [self.standard] + [
-            other.standard for other in others]
+            o if isinstance(o, (int, float)) else o.standard for o in others]
         
         if method == 'rss':
             combined_u = root_sum_squares(*uncertainties)
@@ -2181,9 +2193,10 @@ class GageEstimator(LocationDispersionEstimator):
         The samples used to estimate the process capability.
     reference : float | None
         The reference value of the sample under test.
-    U_cal : float | None
-        The expanded measurement uncertainty of the gage used to 
-        measure the reference value.
+    u_cal : MeasurementUncertainty | float
+        The measurement uncertainty of the gage used to measure the 
+        reference value. If a float is specified, it is assumed to be 
+        the expanded uncertainty with a coverage factor of `k = 2`.
     tolerance : float | SpecLimits | Specification
         The tolerance range for the measurement.
     resolution : float | None
@@ -2199,7 +2212,7 @@ class GageEstimator(LocationDispersionEstimator):
         is given, it is interpreted as the acceptable proportion for
         the spread, e.g. 0.9544 (which corresponds to ~ 4 σ). Simply put, 
         this is twice the coverage factor k. Default is 4, because 
-        a common coverage faktor is 2.
+        a common coverage factor k is 2.
     cg_limit : float, optional
         The limit for the capability index, default is 1.33.
     cgk_limit : float, optional
@@ -2226,7 +2239,7 @@ class GageEstimator(LocationDispersionEstimator):
     gage = dsp.GageEstimator(
         samples=df['result_gage'],
         reference=df['reference'][0],
-        U_cal=df['U_cal'][0],
+        u_cal=df['U_cal'][0],
         tolerance=df['tolerance'][0],
         resolution=df['resolution'][0])
     print(gage.describe())
@@ -2284,7 +2297,7 @@ class GageEstimator(LocationDispersionEstimator):
     __slots__ = (
         '_specification',
         '_reference',
-        '_U_cal',
+        '_u_cal',
         '_resolution',
         '_cg_limit', 
         '_cgk_limit',
@@ -2302,12 +2315,15 @@ class GageEstimator(LocationDispersionEstimator):
         '_process',
         '_u_re',
         '_u_bi',
+        '_u_lin',
         '_u_evr',
+        '_u_mpe',
+        '_u_rest',
         '_u_ms',
         '_bias_corrected')
     _specification: Specification
     _reference: float
-    _U_cal: float
+    _u_cal: MeasurementUncertainty
     _resolution: float
     _cg_limit: float
     _cgk_limit: float
@@ -2322,16 +2338,19 @@ class GageEstimator(LocationDispersionEstimator):
     _T_min_cgk: float | None
     _T_min_res: float | None
     _process: ProcessEstimator | None
-    _u_re: float | None
-    _u_bi: float | None
-    _u_evr: float | None
-    _u_ms: float | None
+    _u_re: MeasurementUncertainty | None
+    _u_bi: MeasurementUncertainty | None
+    _u_lin: MeasurementUncertainty | None
+    _u_evr: MeasurementUncertainty | None
+    _u_mpe: MeasurementUncertainty | None
+    _u_rest: MeasurementUncertainty | None
+    _u_ms: MeasurementUncertainty | None
     _bias_corrected: bool
 
     def __init__(self,
             samples: NumericSample1D,
             reference: float | None,
-            U_cal: float | None,
+            u_cal: MeasurementUncertainty | float,
             tolerance: float | SpecLimits | Specification,
             resolution: float | None,
             tolerance_ratio: float = 0.2,
@@ -2341,6 +2360,9 @@ class GageEstimator(LocationDispersionEstimator):
             resolution_ratio_limit: float = 0.05,
             bias_corrected: bool = False,
             nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
+            u_lin: MeasurementUncertainty | None = None,
+            u_mpe: MeasurementUncertainty | None = None,
+            u_rest: MeasurementUncertainty | None = None,
             ) -> None:
         super().__init__(
             samples=samples,
@@ -2351,7 +2373,12 @@ class GageEstimator(LocationDispersionEstimator):
             nan_policy=nan_policy)
         self.resolution = resolution
         self.reference = reference
-        self.U_cal = U_cal
+        if not isinstance(u_cal, MeasurementUncertainty):
+            u_cal = MeasurementUncertainty(expanded=u_cal, k=2)
+        self._u_cal = u_cal
+        self._u_lin = u_lin
+        self._u_mpe = u_mpe
+        self._u_rest = u_rest
         self.specification = tolerance
         self._cg_limit = cg_limit
         self._cgk_limit = cgk_limit
@@ -2382,7 +2409,10 @@ class GageEstimator(LocationDispersionEstimator):
             'resolution_ratio',
             'u_re',
             'u_bi',
+            'u_lin',
             'u_evr',
+            'u_mpe',
+            'u_rest',
             'u_ms')
         self._reset_values_()
     
@@ -2407,13 +2437,9 @@ class GageEstimator(LocationDispersionEstimator):
         self._reset_values_()
     
     @property
-    def U_cal(self) -> float:
+    def u_cal(self) -> MeasurementUncertainty:
         """The expanded uncertainty of the calibration."""
-        return self._U_cal
-    @U_cal.setter
-    def U_cal(self, U_cal: float | None) -> None:
-        self._U_cal = 2 * self.resolution if U_cal is None else U_cal
-        self._reset_values_()
+        return self._u_cal
 
     @property
     def specification(self) -> Specification:
@@ -2605,44 +2631,70 @@ class GageEstimator(LocationDispersionEstimator):
         return self._T_min_res
     
     @property
-    def u_re(self) -> float:
+    def u_re(self) -> MeasurementUncertainty:
         """The uncertainty of the resolution of the testing system
         (read-only)."""
         if self._u_re is None:
-            self._u_re = self.resolution * ANOVA.RESOLUTION_TO_UNCERTAINTY
+            self._u_re = MeasurementUncertainty(
+                error_limit=self.resolution/2,
+                distribution='rectangular')
         return self._u_re
     
     @property
-    def u_bi(self) -> float:
+    def u_bi(self) -> MeasurementUncertainty:
         """The uncertainty of the bias of the testing system (read-only)."""
         if self._u_bi is None:
             bias = 0 if self.bias_corrected else self.bias
-            self._u_bi = root_sum_squares(
-                bias, self.U_cal/2, self.std/(self.n_samples**0.5))
-        return self._u_bi # type: ignore
+            self._u_bi = self.u_cal.combine_with(
+                bias, self.std/(self.n_samples**0.5))
+        return self._u_bi
+
+    @property
+    def u_lin(self) -> MeasurementUncertainty:
+        """The uncertainty of linearity of the measurement system 
+        (read-only)."""
+        if self._u_lin is None:
+            self._u_lin = MeasurementUncertainty(standard=self.std)
+        return self._u_lin
     
     @property
-    def u_evr(self) -> float:
+    def u_evr(self) -> MeasurementUncertainty:
         """The uncertainty of the expanded variance ratio of the testing
         system (read-only)."""
         if self._u_evr is None:
-            self._u_evr = self.std
+            self._u_evr = MeasurementUncertainty(standard=self.std)
         return self._u_evr
     
     @property
-    def u_ms(self) -> float:
+    def u_mpe(self) -> MeasurementUncertainty:
+        """Get the uncertainty for the maximum permissible error 
+        (error_limit) that was specified during initialization 
+        (read-only.)"""
+        if self._u_mpe is None:
+            self._u_mpe = MeasurementUncertainty(expanded=0)
+        return self._u_mpe
+    
+    @property
+    def u_rest(self) -> MeasurementUncertainty:
+        """Get the other uncertainties that were specified during 
+        initialization. It represent the uncertainties that are not 
+        covered by the other defined uncertainties (read-only)."""
+        if self._u_rest is None:
+            self._u_rest = MeasurementUncertainty(expanded=0)
+        return self._u_rest
+    
+    @property
+    def u_ms(self) -> MeasurementUncertainty:
         """The uncertainty of the measurement system (read-only)."""
         if self._u_ms is None:
-            u_equipement = max(self.u_re, self.u_evr)
-            self._u_ms = root_sum_squares(self.u_bi, u_equipement)
-        return self._u_ms # type: ignore
+            self._u_ms = self.u_bi + max(self.u_re, self.u_evr)
+        return self._u_ms
     
     def check(self) -> Dict[str, bool]:
         """Perform a few checks to determine if the testing system is 
         capable of measuring the process."""
         checks = dict(
-            n_samples=self.n_samples >= 50,
-            U_cal=self.U_cal <= self.tolerance * self.tolerance_ratio / 2,
+            U_cal=self.u_cal.expanded <= self.tolerance*self.tolerance_ratio/2,
             resolution=self.resolution_ratio <= self.resolution_ratio_limit,
             cg=True if self.cg is None else self.cg >= self.cg_limit,
             cgk=True if self.cgk is None else self.cgk >= self.cgk_limit,)

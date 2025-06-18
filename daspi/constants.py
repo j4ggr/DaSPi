@@ -437,7 +437,19 @@ class _Distribution_:
     def UNCERTAINTY_FACTORS(self) -> Dict[str, float]:
         """Factors used to calculate the measurement uncertainty 
         (equivalent to the standard deviation) of a distribution using 
-        the error limit."""
+        the error limit. 
+        
+        If you have a rectangular distribution, such as the resolution, 
+        the entire width is specified. With uncertainties, the scatter 
+        is always specified in only one direction. Therefore, the 
+        resolution is first divided by the coverage factor (k = 2), then 
+        by the rectangular factor, i.e., 1/(2 × √3). In the literature, 
+        you often see 1/√12, which is the same (if k = 2).
+        
+        Sources
+        -------
+        - https://de.wikipedia.org/wiki/Stetige_Gleichverteilung
+        - https://www.versuchsmethoden.de/Mess-System-Analyse.pdf"""
         factors = dict(
             rectangular=3**0.5,  # ≈ 1.732
             triangular=2.0,
@@ -533,13 +545,6 @@ class _Anova_:
     """Name in anova table for interaction values."""
     RNR: Literal['R&R'] = 'R&R'
     """Name in rnr table for sum of R&R."""
-    RESOLUTION_TO_UNCERTAINTY: float = 1 / 12**0.5
-    """Factor for calculating the measurement uncertainty component for 
-    the resolution. The uncertainty is assumed to be a rectangular 
-    (uniformly distributed) distribution. The standard deviation of a 
-    rectangular distribution is calculated using this factor. see:
-    - https://de.wikipedia.org/wiki/Stetige_Gleichverteilung
-    - https://www.versuchsmethoden.de/Mess-System-Analyse.pdf"""
 
     @property
     def TABLE_COLNAMES(self) -> List[str]:

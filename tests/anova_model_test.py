@@ -503,7 +503,7 @@ class TestGageRnRModel:
             source=self.df_thick,
             target='result_gage',
             reference='reference',
-            U_cal=self.df_thick['U_cal'][0],
+            u_cal=self.df_thick['U_cal'][0],
             tolerance=self.df_thick['tolerance'][0],
             resolution=self.df_thick['resolution'][0])
         model = GageRnRModel(
@@ -520,7 +520,7 @@ class TestGageRnRModel:
             source=self.df_adj,
             target='result_gage',
             reference='reference',
-            U_cal=self.df_adj['U_cal'][0],
+            u_cal=self.df_adj['U_cal'][0],
             tolerance=self.df_adj['tolerance'][0],
             resolution=self.df_adj['resolution'][0])
         model = GageRnRModel(
@@ -610,7 +610,7 @@ class TestGageRnRModel:
             GageEstimator(
                 samples=df['result'],
                 reference=None,
-                U_cal=None,
+                u_cal=0.002,
                 tolerance=15,
                 resolution=None))
         rnr_thick_model = GageRnRModel(
