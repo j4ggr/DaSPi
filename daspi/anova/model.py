@@ -1808,7 +1808,7 @@ class GageStudyModel(LinearModel):
             source=source,
             target=target,
             reference=ANOVA.REFERENCE,
-            u_cal=gage0.u_cal,
+            u_cal=max(g.u_cal for g in gages),
             tolerance=gage0.tolerance,
             resolution=gage0.resolution,
             cg_limit=gage0.cg_limit,
@@ -2142,7 +2142,7 @@ class GageRnRModel(LinearModel):
     operator : str
         Column name of the variable that identifies the operator for 
         type 2 Gage R&R.
-    gages : GageStudyModel
+    gage : GageStudyModel
         The provided GageStudyModel instance contains the measurement 
         system's statistics. This class corresponds to measurement 
         system analysis type 1. To calculate the uncertainty for 
@@ -2156,9 +2156,54 @@ class GageRnRModel(LinearModel):
         results. Default is 2, typical values are:
         - k=2 corresponds to a confidence interval of 95.45%
         - k=3 corresponds to a confidence interval of 99.73%
+
     fit_at_init : bool, optional
         If True, the model is fitted at initialization. Otherwise, the
         model is fitted after calling the `fit` method. Default is True.
+    u_gv: str | None, optional
+        Specifies the measurement uncertainty of gage variation, which 
+        reflects the comparability of the measurement system. This 
+        uncertainty is determined based on the data. To account for this 
+        uncertainty, provide the column name containing the categorical 
+        variables for the different measurement systems, test nests, or 
+        similar. If not specified, the default value is 'None'.
+    u_t: MeasurementUncertainty | str | None, optional
+        Indicates the measurement uncertainty related to temperature 
+        dependence. This uncertainty can be assessed using the data 
+        (Method A) or specified directly if known (Method B).
+
+        - Method A: Enter the column name containing the categorical 
+          variables for different temperatures. If the data is 
+          continuous, set the 'continuous_temperature' flag to True.
+        - Method B: Specify a MeasurementUncertainty instance directly.
+
+        If neither method is applied, the default value is 'None'.
+    u_stab: str | None, optional
+        Represents the measurement uncertainty related to the stability 
+        of the measurement system. This uncertainty is determined from 
+        the data. To include this uncertainty, enter the column name 
+        containing the categorical variables for the relevant 
+        conditions. If not specified, the default value is 'None'.
+    u_obj: MeasurementUncertainty | str | None, optional
+        Specifies the measurement uncertainty associated with the 
+        inhomogeneity of the object. This uncertainty can be determined 
+        from the data (Method A) or directly specified if known 
+        (Method B).
+
+        - Method A: Provide the column name containing the relevant 
+          categorical variables for calculation from the data.
+        - Method B: Specify a MeasurementUncertainty instance directly.
+
+        If neither method is applied, the default value is 'None'.
+    u_rest: MeasurementUncertainty | None, optional
+        Accounts for uncertainties not covered by the parameters above. 
+        This parameter considers additional sources of uncertainty that 
+        may impact the overall measurement, such as environmental 
+        conditions, operator influences, or other unknown variables. If 
+        known, specify the uncertainty here; otherwise, the default 
+        value is 'None'.
+    continuous_temperature: bool, optional
+        Set this flag to True if the temperature data is continuous.
     
     Examples
     --------
@@ -2182,7 +2227,7 @@ class GageRnRModel(LinearModel):
         part='part',
         operator='operator',
         gage=gage)
-    rnr_model
+    rnr_model # or print(repr(rnr_model))
     ```
     
     References
@@ -2218,6 +2263,7 @@ class GageRnRModel(LinearModel):
         '_u_obj',
         '_u_rest',
         '_u_mp',
+        '_keep_interaction'
         )
     
     part: str
@@ -2231,7 +2277,16 @@ class GageRnRModel(LinearModel):
     _df_u: DataFrame
     _gage: GageStudyModel
     _k: int | float
-    _u_ia: float
+    _u_evo: MeasurementUncertainty | None
+    _u_av: MeasurementUncertainty | None
+    _u_gv: MeasurementUncertainty | str | None
+    _u_ia: MeasurementUncertainty | None
+    _u_t: MeasurementUncertainty | str | None
+    _u_stab: MeasurementUncertainty | str | None
+    _u_obj: MeasurementUncertainty | str | None
+    _u_rest: MeasurementUncertainty | None
+    _u_mp: MeasurementUncertainty | None
+    _keep_interaction: bool | Literal['auto']
 
     def __init__(
             self,
@@ -2241,23 +2296,51 @@ class GageRnRModel(LinearModel):
             operator: str,
             gage: GageStudyModel,
             k: int | float = 2,
-            fit_at_init: bool = True
+            fit_at_init: bool = True,
+            u_gv: str | None = None,
+            u_t: MeasurementUncertainty | str | None = None,
+            u_stab: str | None = None,
+            u_obj: MeasurementUncertainty | str | None = None,
+            u_rest: MeasurementUncertainty | None = None,
+            continuous_temperature: bool = False,
             ) -> None:
         self.part = part
         self.operator = operator
         self.k = k
         self._gage = gage
+        self._u_evo = None
+        self._u_av = None
+        self._u_gv = u_gv
+        self._u_ia = None
+        self._u_t = u_t
+        self._u_stab = u_stab
+        self._u_obj = u_obj
+        self._u_rest = u_rest
+        self._u_mp = None
+        self._keep_interaction = 'auto'
+
+        u_old = (u_gv, u_t, u_stab, u_obj)
+        u_new = ('GV', 'T', 'STAB', 'OBJ')
+        u_names_map: Dict[str, str] = {
+            old: new for old, new in zip(u_old, u_new) if isinstance(old, str)}
+
+        features = [part, operator] + list(u_names_map.values())
+        disturbances = []
+        if 'T' in features and continuous_temperature:
+            disturbances = [features.pop(features.index('T'))]
+            
         super().__init__(
-            source=source,
+            source=source.rename(columns=u_names_map),
             target=target,
-            features=[part, operator],
+            features=features,
+            disturbances=disturbances,
             order=2,
             fit_at_init=fit_at_init)
         self._captions = (
             STR['lm_table_caption_summary'],
             STR['lm_table_caption_anova'],
             STR['lm_table_caption_rnr'],
-            STR['lm_table_caption_uncertainty'])
+            STR['lm_table_caption_mp_uncertainty'],)
         self._reset_tables_()
         self.print_formula = False
     
@@ -2291,6 +2374,109 @@ class GageRnRModel(LinearModel):
         """The tolerance of the specification (read-only)."""
         return self.gage.tolerance
     
+    @property
+    def u_evo(self) -> MeasurementUncertainty:
+        """Get the measurement uncertainty of the measurement evolution 
+        (repeatability) on the object (read-only)."""
+        if self._u_evo is None:
+            rnr = self.rnr(keep_interaction=self._keep_interaction)
+            self._u_evo = MeasurementUncertainty(
+                standard=rnr['s'][ANOVA.REPEATABILITY],
+                k=self.k)
+        return self._u_evo
+    
+    @property
+    def u_av(self) -> MeasurementUncertainty:
+        """Get the measurement uncertainty of the appraiser variation 
+        (comparability of operators) (read-only)."""
+        if self._u_av is None:
+            rnr = self.rnr(keep_interaction=self._keep_interaction)
+            self._u_av = MeasurementUncertainty(
+                standard=rnr['s'][ANOVA.REPRODUCIBILITY],
+                k=self.k)
+        return self._u_av
+    
+    @property
+    def u_gv(self) -> MeasurementUncertainty:
+        """Get the measurement uncertainty of the gage variation 
+        (compareability of measurement system) (read-only)."""
+        if self._u_gv is None:
+            self._u_gv = MeasurementUncertainty(standard=0, k=self.k)
+        elif isinstance(self._u_gv, str):
+            self._u_gv = MeasurementUncertainty(
+                standard=self.anova('II')['MS'].get('GV', 0)**0.5,
+                k=self.k)
+        return self._u_gv
+
+    @property
+    def u_ia(self) -> MeasurementUncertainty:
+        """Get the measurement uncertainty of the interaction 
+        (read-only)."""
+        if self._u_ia is None:
+            self._u_ia = MeasurementUncertainty(
+                standard=self.anova('II')['MS'].get(self.interaction, 0)**0.5,
+                k=self.k)
+        return self._u_ia
+    
+    @property
+    def u_t(self) -> MeasurementUncertainty:
+        """Get the measurement uncertainty of the temperature
+        (read-only)."""
+        if self._u_t is None:
+            self._u_t = MeasurementUncertainty(standard=0, k=self.k)
+        elif isinstance(self._u_t, str):
+            self._u_t = MeasurementUncertainty(
+                standard=self.anova('II')['MS'].get('T', 0)**0.5,
+                k=self.k)
+        return self._u_t
+
+    @property
+    def u_stab(self) -> MeasurementUncertainty:
+        """Get the measurement uncertainty of the stability over time
+        (read-only)."""
+        if self._u_stab is None:
+            self._u_stab = MeasurementUncertainty(standard=0, k=self.k)
+        elif isinstance(self._u_stab, str):
+            self._u_stab = MeasurementUncertainty(
+                standard=self.anova('II')['MS'].get('STAB', 0)**0.5,
+                k=self.k)
+        return self._u_stab
+    
+    @property
+    def u_obj(self) -> MeasurementUncertainty:
+        """Get the measurement uncertainty of the inhomogeneity of the 
+        object (read-only)."""
+        if self._u_obj is None:
+            self._u_obj = MeasurementUncertainty(standard=0, k=self.k)
+        elif isinstance(self._u_obj, str):
+            self._u_obj = MeasurementUncertainty(
+                standard=self.anova('II')['MS'].get('OBJ', 0)**0.5,
+                k=self.k)
+        return self._u_obj
+    
+    @property
+    def u_rest(self) -> MeasurementUncertainty:
+        """Get the measurement uncertainty of the remaining 
+        (read-only)."""
+        if self._u_rest is None:
+            self._u_rest = MeasurementUncertainty(standard=0, k=self.k)
+        return self._u_rest
+    
+    @property
+    def u_mp(self) -> MeasurementUncertainty:
+        """Get the measurement uncertainty of the measurement process
+        (read-only)."""
+        if self._u_mp is None:
+            self._u_mp = self.u_av.combine_with(
+                max(self.gage.u_re, self.gage.u_evr, self.u_evo),
+                self.u_ia,
+                self.u_t,
+                self.u_obj,
+                self.u_stab,
+                self.u_obj,
+                self.u_rest,)
+        return self._u_mp
+
     def anova(
             self,
             typ: Literal['', 'I', 'II', 'III'] = 'II',
@@ -2426,9 +2612,13 @@ class GageRnRModel(LinearModel):
         assert keep_interaction in (True, False, 'auto'), (
             'keep_interaction must be True, False, or auto')
         
+        if not self._rnr.empty and self._keep_interaction == keep_interaction:
+            return self._rnr
+
+        self._keep_interaction = keep_interaction
         self._u_ia = self.anova('II')['MS'].get(self.interaction, 0)**0.5
-        if keep_interaction == 'auto':
-            keep_interaction = self.has_significant_interactions()
+        if self._keep_interaction == 'auto':
+            self._keep_interaction = self.has_significant_interactions()
         index_map = {
             ANOVA.RESIDUAL: ANOVA.REPEATABILITY,
             self.operator: ANOVA.REPRODUCIBILITY,
@@ -2442,7 +2632,7 @@ class GageRnRModel(LinearModel):
             ANOVA.PART,
             ANOVA.TOTAL]
         columns = ANOVA.RNR_COLNAMES
-        if keep_interaction:
+        if self._keep_interaction:
             indices_rnr_sum.append(ANOVA.INTERACTION)
         else:
             index_map.pop(self.interaction)
@@ -2461,7 +2651,7 @@ class GageRnRModel(LinearModel):
         n_operator = dof[ANOVA.REPRODUCIBILITY] + 1
         n_replication = dof[ANOVA.REPEATABILITY] // (n_operator * n_parts) + 1
         
-        if keep_interaction:
+        if self._keep_interaction:
             var_operator = (
                     (ms[ANOVA.REPRODUCIBILITY] - ms[ANOVA.INTERACTION])
                     / (n_parts * n_replication))
@@ -2564,29 +2754,26 @@ class GageRnRModel(LinearModel):
         MP   0.001335  0.002670  0.178009
         ```
         """
+        
         if not self._df_u.empty:
             return self._df_u
-        
-        rnr = self.rnr()
 
-        u_ms = self.gage.uncertainties()[ANOVA.UNCERTAINTY_COLNAMES[0]]
-        u_mp = pd.Series({
-            'EVO': rnr.loc[ANOVA.REPEATABILITY, 's'],
-            'AV': rnr.loc[ANOVA.REPRODUCIBILITY, 's'],
-            'IA': self._u_ia,
-            'MP': None})
-        u_equipement = max(u_ms['RE'], u_ms['EVR'], u_mp['EVO'])
-        u_mp['MP'] = root_sum_squares(
-            u_mp['EVO'], u_equipement, u_mp['AV'], u_mp['IA'])
+        df_ums = self.gage.uncertainties().rename(index={'REST': 'MS_REST'})
         
-        u = pd.concat([u_ms, u_mp])
-        df_u = pd.DataFrame(
-            index=u.index,
-            columns=ANOVA.UNCERTAINTY_COLNAMES,)
-        df_u[df_u.columns[0]] = u
-        df_u[df_u.columns[1]] = self.k * u
-        df_u[df_u.columns[2]] = df_u[df_u.columns[1]] * 2 / self.tolerance
-        df_u[df_u.columns[3]] = u.rank(ascending=False)
+        _us = tuple(
+            getattr(self, f'u_{r.lower()}') for r in ANOVA.UNCERTAINTY_ROWS_MP)
+        cols=ANOVA.UNCERTAINTY_COLNAMES
+        rows=ANOVA.UNCERTAINTY_ROWS_MP
+        df_ump = pd.DataFrame({
+            cols[0]: [u.standard for u in _us],
+            cols[1]: [u.expanded for u in _us],
+            cols[2]: [u.quality_indicator(self.tolerance) for u in _us]},
+            index=['MP_REST' if r == 'REST' else r for r in rows])
+        
+        df_u = pd.concat([df_ums, df_ump], axis=0)
+
+        mask = (~df_u.index.isin(('MS', 'MP'))) & (df_u[cols[0]] > 0) 
+        df_u.loc[mask, cols[3]] = df_u.loc[mask, cols[0]].rank(ascending=False)
         self._df_u = df_u
         return self._df_u
     

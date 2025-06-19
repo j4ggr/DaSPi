@@ -242,11 +242,16 @@ class _String_:
         'en': 'Reference analysis',
         'de': 'Analyse der Referenzen',
         'fr': 'Analyse des références'}
+
+    lm_table_caption_ms_uncertainty: Dict[str, str] = {
+        'en': 'Measurement uncertainty budget measuring system',
+        'de': 'Messunsicherheitsbudget Messsystem',
+        'fr': 'Système de mesure du budget d\'incertitude de mesure'}
     
-    lm_table_caption_uncertainty: Dict[str, str] = {
-        'en': 'Measurement uncertainty',
-        'de': 'Messunsicherheit',
-        'fr': 'Incertitude de mesure'}
+    lm_table_caption_mp_uncertainty: Dict[str, str] = {
+        'en': 'Measurement uncertainty budget measuring process',
+        'de': 'Messunsicherheitsbudget Messprozess',
+        'fr': 'Budget d\'incertitude de mesure de la méthode de mesure'}
     
     lm_table_caption_capabilities: Dict[str, str] = {
         'en': 'Gage capability',
