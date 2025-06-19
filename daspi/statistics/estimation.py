@@ -334,6 +334,22 @@ class MeasurementUncertainty:
                 self.distribution]
         return self._distribution_factor
     
+    def quality_indicator(self, tolerance: float) -> float:
+        """Calculate the quality indicator Q.
+        
+        Q serves as a quality indicator for the measurement process, 
+        reflecting how well the measurement system performs in relation 
+        to the specified requirements and tolerances. 
+        
+        $$
+        U = k * u
+        $$
+        
+        $$
+        Q_{MP} = \\frac{2*U}{T}
+        $$"""
+        return 2 * self.expanded / tolerance
+    
     def relative(self, measured_value: float) -> float:
         """Calculate the relative standard uncertainty as a percentage.
         
@@ -2268,10 +2284,6 @@ class GageEstimator(LocationDispersionEstimator):
     T_min_cgk         1.330752e-02
     T_min_res         2.000000e-03
     resolution_ratio  7.692308e-04
-    u_re              2.886751e-05
-    u_bi              1.014135e-04
-    u_evr             1.306999e-04
-    u_ms              1.654302e-04
     ```
     
     Raises
@@ -2313,13 +2325,6 @@ class GageEstimator(LocationDispersionEstimator):
         '_T_min_cgk',
         '_T_min_res', 
         '_process',
-        '_u_re',
-        '_u_bi',
-        '_u_lin',
-        '_u_evr',
-        '_u_mpe',
-        '_u_rest',
-        '_u_ms',
         '_bias_corrected')
     _specification: Specification
     _reference: float
@@ -2338,13 +2343,6 @@ class GageEstimator(LocationDispersionEstimator):
     _T_min_cgk: float | None
     _T_min_res: float | None
     _process: ProcessEstimator | None
-    _u_re: MeasurementUncertainty | None
-    _u_bi: MeasurementUncertainty | None
-    _u_lin: MeasurementUncertainty | None
-    _u_evr: MeasurementUncertainty | None
-    _u_mpe: MeasurementUncertainty | None
-    _u_rest: MeasurementUncertainty | None
-    _u_ms: MeasurementUncertainty | None
     _bias_corrected: bool
 
     def __init__(self,
@@ -2360,9 +2358,6 @@ class GageEstimator(LocationDispersionEstimator):
             resolution_ratio_limit: float = 0.05,
             bias_corrected: bool = False,
             nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
-            u_lin: MeasurementUncertainty | None = None,
-            u_mpe: MeasurementUncertainty | None = None,
-            u_rest: MeasurementUncertainty | None = None,
             ) -> None:
         super().__init__(
             samples=samples,
@@ -2376,9 +2371,6 @@ class GageEstimator(LocationDispersionEstimator):
         if not isinstance(u_cal, MeasurementUncertainty):
             u_cal = MeasurementUncertainty(expanded=u_cal, k=2)
         self._u_cal = u_cal
-        self._u_lin = u_lin
-        self._u_mpe = u_mpe
-        self._u_rest = u_rest
         self.specification = tolerance
         self._cg_limit = cg_limit
         self._cgk_limit = cgk_limit
@@ -2406,14 +2398,7 @@ class GageEstimator(LocationDispersionEstimator):
             'T_min_cg',
             'T_min_cgk',
             'T_min_res',
-            'resolution_ratio',
-            'u_re',
-            'u_bi',
-            'u_lin',
-            'u_evr',
-            'u_mpe',
-            'u_rest',
-            'u_ms')
+            'resolution_ratio',)
         self._reset_values_()
     
     @property
@@ -2483,17 +2468,6 @@ class GageEstimator(LocationDispersionEstimator):
         self._reset_values_()
     
     @property
-    def bias_corrected(self) -> bool:
-        """Whether the bias is corrected for the Gage R&R study. If 
-        True, the bias itself is not included in the measurement 
-        uncertainty for the bias; otherwise, it is."""
-        return self._bias_corrected
-    @bias_corrected.setter
-    def bias_corrected(self, bias_corrected: bool) -> None:
-        self._bias_corrected = bias_corrected
-        self._u_bi = None
-    
-    @property
     def limits(self) -> SpecLimits:
         """The adjusted specification limits of the process (read-only)."""
         if self._limits is None:
@@ -2547,8 +2521,8 @@ class GageEstimator(LocationDispersionEstimator):
 
     @property
     def tolerance_adj(self) -> float:
-        """The adjusted (0.2*T) tolerance of the specification 
-        (read-only)."""
+        """The adjusted tolerance of the specification 
+        (tolerance_ratio * tolerance) (read-only)."""
         return self.limits.tolerance
 
     @property
@@ -2630,66 +2604,6 @@ class GageEstimator(LocationDispersionEstimator):
                 self.resolution / self.resolution_ratio_limit)
         return self._T_min_res
     
-    @property
-    def u_re(self) -> MeasurementUncertainty:
-        """The uncertainty of the resolution of the testing system
-        (read-only)."""
-        if self._u_re is None:
-            self._u_re = MeasurementUncertainty(
-                error_limit=self.resolution/2,
-                distribution='rectangular')
-        return self._u_re
-    
-    @property
-    def u_bi(self) -> MeasurementUncertainty:
-        """The uncertainty of the bias of the testing system (read-only)."""
-        if self._u_bi is None:
-            bias = 0 if self.bias_corrected else self.bias
-            self._u_bi = self.u_cal.combine_with(
-                bias, self.std/(self.n_samples**0.5))
-        return self._u_bi
-
-    @property
-    def u_lin(self) -> MeasurementUncertainty:
-        """The uncertainty of linearity of the measurement system 
-        (read-only)."""
-        if self._u_lin is None:
-            self._u_lin = MeasurementUncertainty(standard=self.std)
-        return self._u_lin
-    
-    @property
-    def u_evr(self) -> MeasurementUncertainty:
-        """The uncertainty of the expanded variance ratio of the testing
-        system (read-only)."""
-        if self._u_evr is None:
-            self._u_evr = MeasurementUncertainty(standard=self.std)
-        return self._u_evr
-    
-    @property
-    def u_mpe(self) -> MeasurementUncertainty:
-        """Get the uncertainty for the maximum permissible error 
-        (error_limit) that was specified during initialization 
-        (read-only.)"""
-        if self._u_mpe is None:
-            self._u_mpe = MeasurementUncertainty(expanded=0)
-        return self._u_mpe
-    
-    @property
-    def u_rest(self) -> MeasurementUncertainty:
-        """Get the other uncertainties that were specified during 
-        initialization. It represent the uncertainties that are not 
-        covered by the other defined uncertainties (read-only)."""
-        if self._u_rest is None:
-            self._u_rest = MeasurementUncertainty(expanded=0)
-        return self._u_rest
-    
-    @property
-    def u_ms(self) -> MeasurementUncertainty:
-        """The uncertainty of the measurement system (read-only)."""
-        if self._u_ms is None:
-            self._u_ms = self.u_bi + max(self.u_re, self.u_evr)
-        return self._u_ms
-    
     def check(self) -> Dict[str, bool]:
         """Perform a few checks to determine if the testing system is 
         capable of measuring the process."""
@@ -2721,10 +2635,6 @@ class GageEstimator(LocationDispersionEstimator):
         self._T_min_cgk = None
         self._T_min_res = None
         self._process = None
-        self._u_re = None
-        self._u_bi = None
-        self._u_evr = None
-        self._u_ms = None
 
 
 def estimate_distribution(

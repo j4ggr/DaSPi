@@ -580,13 +580,19 @@ class _Anova_:
     def UNCERTAINTY_COLNAMES(self) -> List[str]:
         """Column names when crating the uncertainty table using the 
         `uncertainties` method of GageRnRModel."""
-        return ['u', 'U', 'Q']
+        return ['u', 'U', 'Q', 'rank']
 
     @property
-    def UNCERTAINTY_ROWS(self) -> List[str]:
+    def UNCERTAINTY_ROWS_MS(self) -> List[str]:
+        """Row names (indices) when crating the uncertainty table using
+        the `uncertainties` method of GageStudyModel."""
+        return ['RE', 'BI', 'LIN', 'EVR', 'MPE', 'REST', 'MS']
+
+    @property
+    def UNCERTAINTY_ROWS_MP(self) -> List[str]:
         """Row names (indices) when crating the uncertainty table using
         the `uncertainties` method of GageRnRModel."""
-        return ['RE', 'BI', 'EVR', 'LIN', 'MS', 'EVO', 'AV', 'IA', 'MP']
+        return ['EVO', 'AV', 'GV', 'IA', 'T', 'STAB', 'OBJ', 'REST', 'MP']
     
     @property
     def REFERENCE_ANALYSIS_COLNAMES(self) -> List[str]:

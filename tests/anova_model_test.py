@@ -510,7 +510,7 @@ class TestGageRnRModel:
             source=self.df_thick,
             target='result_rnr',
             part='part',
-            reproducer='operator',
+            operator='operator',
             gage=gage)
         return model
 
@@ -527,7 +527,7 @@ class TestGageRnRModel:
             source=self.df_adj,
             target='result_rnr',
             part='part',
-            reproducer='operator',
+            operator='operator',
             gage=gage)
         return model
 
@@ -617,7 +617,7 @@ class TestGageRnRModel:
             source=df,
             target='result',
             part='part',
-            reproducer='operator',
+            operator='operator',
             gage=gage)
         rnr = rnr_thick_model.rnr(keep_interaction=True)
         

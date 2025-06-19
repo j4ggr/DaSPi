@@ -1542,13 +1542,9 @@ class GageStudyModel(LinearModel):
         This column is also used to identify which measured 
         values belong to which reference part. If the column has missing 
         values, the pandas method `ffill()` is used to ensure that the 
-        column is filled.
-    u_cal : MeasurementUncertainty | float
-        The measurement uncertainty of the gage used to measure the 
-        reference value. If a float is specified, it is assumed to be 
-        the expanded uncertainty with a coverage factor of `k = 2`.
-        Please note that the coverage factor of the calibration is not 
-        dependent on the coverage factor selected here.
+        column is filled. The uncertainty u_lin is determined if the 
+        column contains several reference values, unless a known 
+        measurement uncertainty is given with the argument `u_lin`.
     tolerance : float | SpecLimits | Specification
         The specification limits for the measurement system. This can 
         be a float, a `SpecLimits` instance or a `Specification` 
@@ -1559,6 +1555,55 @@ class GageStudyModel(LinearModel):
         resolution is estimated from the data. If a float is given, it
         is interpreted as the resolution (e.g., 0.01 for a resolution of
         0.01).
+    u_cal : MeasurementUncertainty | float
+        The measurement uncertainty of the gage used to measure the 
+        reference value. This parameter quantifies the uncertainty 
+        associated with the measurement device itself, reflecting how 
+        much the measured value could vary due to the inherent 
+        limitations of the gage. If a float is specified, it is assumed 
+        to be the expanded uncertainty with a coverage factor of 
+        `k = 2`, which typically corresponds to a 95% confidence level. 
+        Please note that the coverage factor of the calibration is 
+        independent of the coverage factor selected here.
+    u_bi : MeasurementUncertainty | None, optional
+        The uncertainty for bias `u_BI` can be specified here if it is 
+        known; otherwise, it will be determined from the data. This
+        parameter represents the systematic error that may affect the 
+        measurement results, indicating how much the measured values 
+        deviate from the true value due to consistent inaccuracies.
+        The default is None.
+    u_lin : MeasurementUncertainty | None, optional
+        The measurement uncertainty for linearity `u_LIN` is determined 
+        if multiple reference values are provided. This parameter 
+        assesses how well the measured values conform to a linear 
+        relationship with the reference values. However, it will not be 
+        determined if a known measurement uncertainty is provided here. 
+        The default is None.
+    u_mpe : MeasurementUncertainty | None, optional
+        The measurement uncertainty for the maximum permissible error 
+        `u_MPE` can be specified here if it is known. This parameter 
+        defines the maximum allowable deviation from the true value that 
+        a measurement device can have, ensuring that measurements stay 
+        within acceptable limits. Otherwise, it will not be considered. 
+        The default is None.
+    u_rest : MeasurementUncertainty | None, optional
+        The uncertainty for further uncertainties not covered by the 
+        parameters above. This parameter accounts for all additional 
+        sources of uncertainty that may affect the overall measurement 
+        but are not specifically addressed by the default uncertainties 
+        provided here. It provides a more comprehensive assessment of 
+        measurement uncertainty by considering factors that may arise 
+        from environmental conditions, operator influences, or other 
+        unknown variables. If known, it can be specified here; 
+        otherwise, the default value is None.
+    k : int | float, optional
+        The coverage factor for expanded uncertainty. It is used as a 
+        multiplier to determine the expanded uncertainty based on the 
+        standard uncertainty. The value of `k` is typically set to 
+        reflect the desired confidence level in the  measurement 
+        results. Default is 2, typical values are:
+        - k=2 corresponds to a confidence interval of 95.45%
+        - k=3 corresponds to a confidence interval of 99.73%
     tolerance_ratio : float, optional
         The ratio of the tolerance to the standard deviation of the
         measurement system. If the ratio is below this limit, the
@@ -1575,21 +1620,10 @@ class GageStudyModel(LinearModel):
         The ratio of the resolution to the standard deviation of the
         measurement system. If the ratio is below this limit, the
         measurement system is considered unacceptable. Default is 0.05.
-    k : int | float, optional
-        The coverage factor for expanded uncertainty. It is used as a 
-        multiplier to determine the expanded uncertainty based on the 
-        standard uncertainty. The value of `k` is typically set to 
-        reflect the desired confidence level in the  measurement 
-        results. Default is 2, typical values are:
-        - k=2 corresponds to a confidence interval of 95.45%
-        - k=3 corresponds to a confidence interval of 99.73%
     bias_corrected : bool, optional
         Indicates whether the bias is corrected for the Gage R&R study. 
         If True, the bias is not included in the measurement uncertainty; 
         otherwise, it is included. Default is False.
-    n_samples_min : int, optional
-        The minimum number of samples required to perform a 
-        Measurement System Analysis Type 1, default is 50.
     
     Examples
     --------
@@ -1619,11 +1653,17 @@ class GageStudyModel(LinearModel):
         '_ref_gages',
         '_references_analysis',
         '_capabilities',
-        '_uncertainties',
-        '_alpha',
+        '_df_u',
+        '_u_re',
+        '_u_bi',
+        '_u_lin',
+        '_u_evr',
+        '_u_mpe',
+        '_u_rest',
+        '_u_ms',
         '_k',
         '_bias_corrected',
-        '_u_cal',)
+        '_alpha',)
     
     source: DataFrame
     target: str
@@ -1632,26 +1672,36 @@ class GageStudyModel(LinearModel):
     _ref_gages: List[GageEstimator]
     _references_analysis: DataFrame
     _capabilities: DataFrame
-    _uncertainties: DataFrame
-    _alpha: float
+    _df_u: DataFrame
+    _u_re: MeasurementUncertainty | None
+    _u_bi: MeasurementUncertainty | None
+    _u_lin: MeasurementUncertainty | None
+    _u_evr: MeasurementUncertainty | None
+    _u_mpe: MeasurementUncertainty | None
+    _u_rest: MeasurementUncertainty | None
+    _u_ms: MeasurementUncertainty | None
     _k: int | float
     _bias_corrected: bool
-    _u_cal: MeasurementUncertainty
+    _alpha: float
 
     def __init__(
             self,
             source: DataFrame,
             target: str,
             reference: str,
-            u_cal: MeasurementUncertainty | float,
             tolerance: float | SpecLimits | Specification,
             resolution: float | None,
+            u_cal: MeasurementUncertainty | float,
+            u_bi: MeasurementUncertainty | None = None,
+            u_lin: MeasurementUncertainty | None = None,
+            u_mpe: MeasurementUncertainty | None = None,
+            u_rest: MeasurementUncertainty | None = None,
+            k: int | float = 2,
             tolerance_ratio: float = 0.2,
             cg_limit: float = 1.33,
             cgk_limit: float = 1.33,
             resolution_ratio_limit: float = 0.05,
             alpha: float = 0.05,
-            k: int | float = 2,
             bias_corrected: bool = False,) -> None:
 
         self.target = target
@@ -1659,6 +1709,13 @@ class GageStudyModel(LinearModel):
         source = source[[target, reference]].copy()
         source[reference] = source[reference].ffill()
         self.source = source
+        self._u_re = None
+        self._u_bi = u_bi
+        self._u_lin = u_lin
+        self._u_evr = None
+        self._u_mpe = u_mpe
+        self._u_rest = u_rest
+        self._u_ms = None
 
         super().__init__(
             source=source,
@@ -1806,21 +1863,26 @@ class GageStudyModel(LinearModel):
     
     @property
     def bias_corrected(self) -> bool:
-        """Indicates whether the bias is corrected for the Gage R&R study
-        (read-only)."""
+        """Whether the bias is corrected for the Gage R&R study. If 
+        True, the bias itself is not included in the measurement 
+        uncertainty for the bias; otherwise, it is."""
         return self._bias_corrected
+    @bias_corrected.setter
+    def bias_corrected(self, bias_corrected: bool) -> None:
+        self._bias_corrected = bias_corrected
+        self._u_bi = None
 
     @property
     def tolerance(self) -> float:
         """Returns the tolerance of the first GageEstimator instance 
         (read-only)."""
-        return self._gage.tolerance
+        return self.gage.tolerance
     
     @property
     def resolution(self) -> float:
         """Returns the resolution of the first GageEstimator instance
         (read-only)."""
-        return self._gage.resolution
+        return self.gage.resolution
 
     @property
     def k(self) -> int | float:
@@ -1847,7 +1909,80 @@ class GageStudyModel(LinearModel):
     @property
     def n_samples(self) -> int:
         """The number of samples used in the Gage study (read-only)."""
-        return self.gage.n_samples
+        return self.gage.n_filtered
+    
+    @property
+    def u_cal(self) -> MeasurementUncertainty:
+        """The expanded uncertainty of the calibration."""
+        return self.gage.u_cal
+    
+    @property
+    def u_re(self) -> MeasurementUncertainty:
+        """The uncertainty of the resolution of the testing system
+        (read-only)."""
+        if self._u_re is None:
+            self._u_re = MeasurementUncertainty(
+                error_limit=self.resolution / 2,
+                distribution='rectangular',
+                k=self.k)
+        return self._u_re
+    
+    @property
+    def u_bi(self) -> MeasurementUncertainty:
+        """The uncertainty of the bias of the testing system (read-only)."""
+        if self._u_bi is None:
+            bias = 0 if self.bias_corrected else self.gage.bias
+            self._u_bi = self.u_cal.combine_with(bias, self.gage.sem)
+        return self._u_bi
+
+    @property
+    def u_lin(self) -> MeasurementUncertainty:
+        """The uncertainty of linearity of the measurement system 
+        (read-only)."""
+        if self._u_lin is None:
+            if len(self.ref_gages) > 1:
+                s_bias = pd.Series([g.bias for g in self.ref_gages]).std()
+            else:
+                s_bias = 0
+            self._u_lin = MeasurementUncertainty(standard=s_bias, k=self.k)
+        return self._u_lin
+    
+    @property
+    def u_evr(self) -> MeasurementUncertainty:
+        """The uncertainty of the expanded variance ratio of the testing
+        system (read-only)."""
+        if self._u_evr is None:
+            std = root_sum_squares(*[g.std for g in self.ref_gages])
+            self._u_evr = MeasurementUncertainty(standard=std, k=self.k)
+        return self._u_evr
+    
+    @property
+    def u_mpe(self) -> MeasurementUncertainty:
+        """The uncertainty of the maximum permissible error of the 
+        testing system (read-only)."""
+        if self._u_mpe is None:
+            self._u_mpe = MeasurementUncertainty(standard=0, k=self.k)
+        return self._u_mpe
+    
+    @property
+    def u_rest(self) -> MeasurementUncertainty:
+        """The uncertainty of the repeatability of the testing system
+        (read-only)."""
+        if self._u_rest is None:
+            self._u_rest = MeasurementUncertainty(standard=0, k=self.k)
+        return self._u_rest
+    
+    @property
+    def u_ms(self) -> MeasurementUncertainty:
+        """The uncertainty of the measurement system (read-only)."""
+        if self._u_ms is None:
+            self._u_ms = (
+                self.u_bi
+                + max(self.u_re, self.u_evr)
+                + self.u_lin
+                + self.u_mpe
+                + self.u_rest)
+        return self._u_ms
     
     def references_analysis(self,) -> DataFrame:
         """Returns a DataFrame with the analysis of the reference 
@@ -1923,31 +2058,22 @@ class GageStudyModel(LinearModel):
         DataFrame
             Uncertainties for RE, Bi, EVR, MS, LIN and MP.
         """
-        if not self._uncertainties.empty:
-            return self._uncertainties
-
-        u = pd.Series({
-            'RE': self.gage.u_re,
-            'BI': self.gage.u_bi,
-            'EVR': self.gage.std,
-            'LIN': 0.0,
-            'MS': None,})
-
-        if len(self.ref_gages) > 1:
-            u['LIN'] = float(
-                np.std([g.u_bi.standard for g in self.ref_gages], ddof=1))
+        if not self._df_u.empty:
+            return self._df_u
         
-        u['MS'] = root_sum_squares(u['BI'], max(u['RE'], u['EVR']), u['LIN'])
-
-        df_u = pd.DataFrame(
-            index=u.index,
-            columns=ANOVA.UNCERTAINTY_COLNAMES)
-        df_u[df_u.columns[0]] = u
-        df_u[df_u.columns[1]] = self.k * u
-        df_u[df_u.columns[2]] = df_u[df_u.columns[1]] * 2 / self.tolerance
-
-        self._uncertainties = df_u
-        return self._uncertainties
+        _us = tuple(
+            getattr(self, f'u_{r.lower()}') for r in ANOVA.UNCERTAINTY_ROWS_MS)
+        cols=ANOVA.UNCERTAINTY_COLNAMES
+        rows=ANOVA.UNCERTAINTY_ROWS_MS
+        df_u = pd.DataFrame({
+            cols[0]: [u.standard for u in _us],
+            cols[1]: [u.expanded for u in _us],
+            cols[2]: [u.quality_indicator(self.tolerance) for u in _us]},
+            index=rows)
+        mask = (df_u.index != rows[-1]) & (df_u[cols[0]] > 0) 
+        df_u.loc[mask, cols[3]] = df_u.loc[mask, cols[0]].rank(ascending=False)
+        self._df_u = df_u
+        return self._df_u
     
     def anova(
             self,
@@ -1968,7 +2094,7 @@ class GageStudyModel(LinearModel):
         super()._reset_tables_()
         self._references_analysis = pd.DataFrame()
         self._capabilities = pd.DataFrame()
-        self._uncertainties = pd.DataFrame()
+        self._df_u = pd.DataFrame()
 
 
 class GageRnRModel(LinearModel):
@@ -1984,10 +2110,9 @@ class GageRnRModel(LinearModel):
         Column name for source data holding the measurement values.
     part : str
         Column name of the part (unit under test) variable.
-    reproducer : str
-        Column name of the reproducer. That is, the variable that
-        identifies the operator for type 2 or the block for type 3 
-        Gage R&R.
+    operator : str
+        Column name of the variable that identifies the operator for 
+        type 2 Gage R&R.
     gages : GageStudyModel
         The provided GageStudyModel instance contains the measurement 
         system's statistics. This class corresponds to measurement 
@@ -2026,7 +2151,7 @@ class GageRnRModel(LinearModel):
         source=df,
         target='result_rnr',
         part='part',
-        reproducer='operator',
+        operator='operator',
         gage=gage)
     rnr_model
     ```
@@ -2050,23 +2175,31 @@ class GageRnRModel(LinearModel):
 
     __slots__ = (
         'part',
-        'reproducer',
+        'operator',
         '_rnr',
-        '_uncertainties',
+        '_df_u',
         '_gage',
         '_k',
-        '_u_ia')
+        '_u_evo',
+        '_u_av',
+        '_u_gv',
+        '_u_ia',
+        '_u_t',
+        '_u_stab',
+        '_u_obj',
+        '_u_rest',
+        '_u_mp',
+        )
     
     part: str
     """Column name of the part (unit under test) variable."""
     
-    reproducer: str
-    """Column name of the reproducer. That is, the variable that
-    identifies the operator for type 2 or the block for type 3 
-    Gage R&R."""
+    operator: str
+    """Column name of the variable that identifies the operator for 
+    type 2 Gage R&R."""
     
     _rnr: DataFrame
-    _uncertainties: DataFrame
+    _df_u: DataFrame
     _gage: GageStudyModel
     _k: int | float
     _u_ia: float
@@ -2076,19 +2209,19 @@ class GageRnRModel(LinearModel):
             source: DataFrame,
             target: str,
             part: str,
-            reproducer: str,
+            operator: str,
             gage: GageStudyModel,
             k: int | float = 2,
             fit_at_init: bool = True
             ) -> None:
         self.part = part
-        self.reproducer = reproducer
+        self.operator = operator
         self.k = k
         self._gage = gage
         super().__init__(
             source=source,
             target=target,
-            features=[part, reproducer],
+            features=[part, operator],
             order=2,
             fit_at_init=fit_at_init)
         self._captions = (
@@ -2113,8 +2246,8 @@ class GageRnRModel(LinearModel):
     @k.setter
     def k(self, k: int | float) -> None:
         assert k > 0, f'k must be greater than 0, got {k}'
-        if hasattr(self, '_uncertainties') and k != getattr(self, '_k', 0):
-            self._uncertainties = pd.DataFrame()
+        if hasattr(self, '_df_u') and k != getattr(self, '_k', 0):
+            self._df_u = pd.DataFrame()
         self._k = k
     
     @property
@@ -2191,7 +2324,7 @@ class GageRnRModel(LinearModel):
             source=df,
             target='result_rnr',
             part='part',
-            reproducer='operator',
+            operator='operator',
             gage=gage)
         print(rnr_model.rnr())
         ```
@@ -2222,7 +2355,7 @@ class GageRnRModel(LinearModel):
         $$
 
         $$
-        s^2_{reproducer} = \\frac{MS_{reproducer} - MS_{interaction}}{n_{parts} n_{replication}}
+        s^2_{operator} = \\frac{MS_{operator} - MS_{interaction}}{n_{parts} n_{replication}}
         $$
 
         $$
@@ -2230,11 +2363,11 @@ class GageRnRModel(LinearModel):
         $$
 
         $$
-        s^2_{part} = \\frac{MS_{part} - MS_{interaction}}{n_{reproducer} n_{replication}}
+        s^2_{part} = \\frac{MS_{part} - MS_{interaction}}{n_{operator} n_{replication}}
         $$
 
         $$
-        s^2_{reproducibility} = s^2_{reproducer} + s^2_{interaction}
+        s^2_{reproducibility} = s^2_{operator} + s^2_{interaction}
         $$
 
         **Without interaction term:**
@@ -2244,11 +2377,11 @@ class GageRnRModel(LinearModel):
         $$
 
         $$
-        s^2_{reproducer} = \\frac{MS_{reproducer} - MS_{repeatability}}{n_{parts} n_{replication}}
+        s^2_{operator} = \\frac{MS_{operator} - MS_{repeatability}}{n_{parts} n_{replication}}
         $$
 
         $$
-        s^2_{part} = \\frac{MS_{part} - MS_{repeatability}}{n_{reproducer} n_{replication}}
+        s^2_{part} = \\frac{MS_{part} - MS_{repeatability}}{n_{operator} n_{replication}}
         $$
 
         **Variance summary:**
@@ -2269,7 +2402,7 @@ class GageRnRModel(LinearModel):
             keep_interaction = self.has_significant_interactions()
         index_map = {
             ANOVA.RESIDUAL: ANOVA.REPEATABILITY,
-            self.reproducer: ANOVA.REPRODUCIBILITY,
+            self.operator: ANOVA.REPRODUCIBILITY,
             self.interaction: ANOVA.INTERACTION,
             self.part: ANOVA.PART}
         indices_rnr_sum = [ANOVA.REPEATABILITY, ANOVA.REPRODUCIBILITY]
@@ -2296,11 +2429,11 @@ class GageRnRModel(LinearModel):
         ms = anova['MS']
         dof = anova['DF']
         n_parts = dof[ANOVA.PART] + 1
-        n_reproducer = dof[ANOVA.REPRODUCIBILITY] + 1
-        n_replication = dof[ANOVA.REPEATABILITY] // (n_reproducer * n_parts) + 1
+        n_operator = dof[ANOVA.REPRODUCIBILITY] + 1
+        n_replication = dof[ANOVA.REPEATABILITY] // (n_operator * n_parts) + 1
         
         if keep_interaction:
-            var_reproducer = (
+            var_operator = (
                     (ms[ANOVA.REPRODUCIBILITY] - ms[ANOVA.INTERACTION])
                     / (n_parts * n_replication))
             var_interaction = max(0, (
@@ -2308,10 +2441,10 @@ class GageRnRModel(LinearModel):
                     / n_replication))
             variation = pd.Series({
                 ANOVA.REPEATABILITY: ms[ANOVA.REPEATABILITY],
-                ANOVA.REPRODUCIBILITY: var_reproducer + var_interaction,
+                ANOVA.REPRODUCIBILITY: var_operator + var_interaction,
                 ANOVA.PART: (
                     (ms[ANOVA.PART] - ms[ANOVA.INTERACTION])
-                    / (n_reproducer * n_replication))})
+                    / (n_operator * n_replication))})
         else:
             variation = pd.Series({
                 ANOVA.REPEATABILITY: ms[ANOVA.REPEATABILITY],
@@ -2320,7 +2453,7 @@ class GageRnRModel(LinearModel):
                     / (n_parts * n_replication)),
                 ANOVA.PART: (
                     (ms[ANOVA.PART] - ms[ANOVA.REPEATABILITY])
-                    / (n_reproducer * n_replication))})
+                    / (n_operator * n_replication))})
         variation = variation.clip(lower=0)
         
         rnr = pd.DataFrame(
@@ -2356,6 +2489,10 @@ class GageRnRModel(LinearModel):
 
         - u: The measurement uncertainty for the respective components
         - U: The expanded uncertainty as k * u
+        - Q: The Quality Indicator serves as a quality indicator for the 
+          measurement process, reflecting how well the measurement 
+          system performs in relation to the specified requirements and 
+          tolerances.
 
         Returns
         -------
@@ -2380,7 +2517,7 @@ class GageRnRModel(LinearModel):
             source=df,
             target='result_rnr',
             part='part',
-            reproducer='operator',
+            operator='operator',
             gage=gage)
         print(rnr_model.uncertainties())
         ```
@@ -2398,8 +2535,8 @@ class GageRnRModel(LinearModel):
         MP   0.001335  0.002670  0.178009
         ```
         """
-        if not self._uncertainties.empty:
-            return self._uncertainties
+        if not self._df_u.empty:
+            return self._df_u
         
         rnr = self.rnr()
 
@@ -2420,8 +2557,9 @@ class GageRnRModel(LinearModel):
         df_u[df_u.columns[0]] = u
         df_u[df_u.columns[1]] = self.k * u
         df_u[df_u.columns[2]] = df_u[df_u.columns[1]] * 2 / self.tolerance
-        self._uncertainties = df_u
-        return self._uncertainties
+        df_u[df_u.columns[3]] = u.rank(ascending=False)
+        self._df_u = df_u
+        return self._df_u
     
     def _dfs_repr_(self) -> List[DataFrame]:
         """Returns a list of DataFrames containing the goodness-of-fit 
@@ -2451,7 +2589,7 @@ class GageRnRModel(LinearModel):
         """Reset the anova table, the p_values and the effects."""
         super()._reset_tables_()
         self._rnr = pd.DataFrame()
-        self._uncertainties = pd.DataFrame()
+        self._df_u = pd.DataFrame()
 
 
 __all__ = [

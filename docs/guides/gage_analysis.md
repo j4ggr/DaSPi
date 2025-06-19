@@ -6,10 +6,10 @@ The following table shows the typical standard uncertainties as they affect meas
 
 | Shortcut | Uncertainty Component                                  | Impact | Method |
 | :------: | :----------------------------------------------------- | :----: | :----: |
-|   `RE`   | Display resolution                                     |   MS   |   B    |
 |  `CAL`   | Calibration of the reference                           |   MS   |   B    |
-|  `LIN`   | Linearity deviation                                    |   MS   |  A/B   |
+|   `RE`   | Display resolution                                     |   MS   |   B    |
 |   `BI`   | Bias                                                   |   MS   |  A/B   |
+|  `LIN`   | Linearity deviation                                    |   MS   |  A/B   |
 |  `EVR`   | Measurement evolution (repeatability) on the reference |   MS   |   A    |
 |  `MPE`   | Maximum Permissible Error (error limit)                |   MS   |   B    |
 |  `EVO`   | Measurement evolution (repeatability) on the object    |   MP   |   A    |

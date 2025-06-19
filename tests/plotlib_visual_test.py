@@ -1915,7 +1915,7 @@ class TestPrecasts:
             source=df,
             target='result_rnr',
             part='part',
-            reproducer='operator',
+            operator='operator',
             gage=gage)
         chart = GageRnRCharts(model, stretch_figsize=True
             ).plot(

@@ -1310,7 +1310,7 @@ class GageRnRCharts(JointChart):
         source=df,
         target='Messwerte',
         part='Teil',
-        reproducer='Mitarbeiter',
+        operator='Mitarbeiter',
         gage=gage)
     chart = dsp.GageRnRCharts(model, stretch_figsize=True
         ).plot(
@@ -1366,14 +1366,14 @@ class GageRnRCharts(JointChart):
             [list(columns_map.values())])
         
         df_mean = (df_model
-                .groupby([self.reproducer, self.part], observed=True)
+                .groupby([self.operator, self.part], observed=True)
                 [target]
                 .mean()
                 .to_frame()
                 .reset_index(drop=False))
         
         df_span = (df_model
-                .groupby([self.reproducer, self.part], observed=True)
+                .groupby([self.operator, self.part], observed=True)
                 [target]
                 .agg(['min', 'max'])
                 .diff(axis=1)
@@ -1403,9 +1403,9 @@ class GageRnRCharts(JointChart):
             source=(df_model, df_mean, df_span, df_span, df_rnr, df_u),
             target=target,
             feature=(
-                self.part, self.reproducer, self.part, self.reproducer, 
+                self.part, self.operator, self.part, self.operator, 
                 feature_spread, feature_spread),
-            hue=(self.reproducer, '', self.reproducer, '', hue_spread, ''),
+            hue=(self.operator, '', self.operator, '', hue_spread, ''),
             ncols=2,
             nrows=3,
             stretch_figsize=stretch_figsize,
@@ -1426,11 +1426,10 @@ class GageRnRCharts(JointChart):
         return self.model.part
     
     @property
-    def reproducer(self) -> str:
-        """Column name of the reproducer. That is, the variable 
-        that identifies the operator for type 2 or the block for type 3 
-        Gage R&R (read-only)."""
-        return self.model.reproducer
+    def operator(self) -> str:
+        """Column name of the variable that identifies the operator for 
+        type 2 Gage R&R. (read-only)."""
+        return self.model.operator
 
     def plot(self) -> Self:
         """Plot the GageRnR charts."""
