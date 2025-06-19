@@ -56,7 +56,7 @@ def load_dataset(dataset_name: str) -> DataFrame:
     df
     ```
 
-    ```
+    ```console
         species   leaf  width  length
     0       setosa  sepal    3.5     5.1
     1       setosa  sepal    3.0     4.9
@@ -89,40 +89,31 @@ def list_dataset():
     Examples
     --------
     ```python
-    import daspi as pg
-    all_datasets = pg.list_dataset()
+    import daspi as dsp
+    all_datasets = dsp.list_dataset()
     all_datasets.index.tolist()
     ```
     ```console
     ['ancova',
-     'anova',
-     'anova2',
-     'anova2_unbalanced',
-     'anova3',
-     'anova3_unbalanced',
-     'blandaltman',
-     'chi2_independence',
-     'chi2_mcnemar',
-     'circular',
-     'cochran',
-     'cronbach_alpha',
-     'cronbach_wide_missing',
-     'icc',
-     'mediation',
-     'mixed_anova',
-     'mixed_anova_unbalanced',
-     'multivariate',
-     'pairwise_corr',
-     'pairwise_tests',
-     'pairwise_tests_missing',
-     'partial_corr',
-     'penguins',
-     'rm_anova',
-     'rm_anova_wide',
-     'rm_anova2',
-     'rm_corr',
-     'rm_missing',
-     'tips']
+    'anova',
+    'anova2',
+    'anova2_unbalanced',
+    'anova3',
+    'anova3_unbalanced',
+    'aspirin-dissolution',
+    'carpet_full-factorial',
+    'drop_card',
+    'eeprom_full-factorial',
+    'eeprom_partial-factorial',
+    'grnr_spc',
+    'grnr_layer_thickness',
+    'grnr_adjustment',
+    'iris',
+    'mpg',
+    'partial-factorial',
+    'salt_sticks',
+    'shoe-sole',
+    'tips']
     ```
     """
     return df_info.set_index("dataset")

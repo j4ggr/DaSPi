@@ -44,6 +44,7 @@ def uniques(seq: Iterable) -> list[Any]:
     unique_elements = uniques(sequence)
     print(unique_elements)
     ```
+    
     ```console
     [1, 2, 3, 4, 5]
     ```

@@ -1102,7 +1102,7 @@ class GageStudyCharts(JointChart):
     Run the following command in a jupyter notebook to get the html
     output of `gage` or you can also use `print(repr(gage))` instead:
 
-    ```py
+    ```python
     import daspi as dsp
     df = dsp.load_dataset('grnr_layer_thickness')
     gage = dsp.GageStudyModel(

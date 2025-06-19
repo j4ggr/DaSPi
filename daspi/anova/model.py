@@ -1471,7 +1471,7 @@ class LinearModel(BaseHTMLReprModel):
         print(lm.residual_data())
         ```
 
-        ```
+        ```console
             Observation      Residuals  Prediction
         0             1  9.250000e+00       46.75
         1             2  2.000000e+00       51.00
@@ -1630,7 +1630,7 @@ class GageStudyModel(LinearModel):
     Run the following command in a jupyter notebook to get the html
     output of `gage` or you can also use `print(repr(gage))` instead:
 
-    ```py
+    ```python
     import daspi as dsp
     df = dsp.load_dataset('grnr_layer_thickness')
     gage = dsp.GageStudyModel(
@@ -1642,8 +1642,15 @@ class GageStudyModel(LinearModel):
         resolution=df['resolution'][0],
         bias_corrected=True,)
     chart = dsp.GageStudyCharts(gage, stretch_figsize=1.5).plot().stripes().label()
-    gage
+    gage # or print(repr(gage))
     ```
+
+    Notes
+    -----
+    If only one reference is provided, the uncertainty for linearity 
+    (LIN) will be 0.0. If multiple references are provided, the 
+    uncertainty for linearity will be calculated based on the 
+    standard deviation of the biases of the GageEstimator instances.
     """
     __slots__ = (
         'source',
@@ -2046,17 +2053,39 @@ class GageStudyModel(LinearModel):
     def uncertainties(self) -> DataFrame:
         """Returns a DataFrame with the uncertainties for the 
         measurement system. 
-        
-        If only one GageEstimator is provided, the
-        uncertainty for linearity (LIN) will be 0.0. If multiple
-        GageEstimator instances are provided, the uncertainty for
-        linearity will be calculated based on the standard deviation of
-        the biases of the GageEstimator instances.
 
         Returns
         -------
         DataFrame
-            Uncertainties for RE, Bi, EVR, MS, LIN and MP.
+            Uncertainties for RE, BI, LIN, EVR, MPE, REST, MS.
+        
+        Examples
+        --------
+
+        ```python
+        import daspi as dsp
+        df = dsp.load_dataset('grnr_layer_thickness')
+        gage = dsp.GageStudyModel(
+            source=df,
+            target='result_gage',
+            reference='reference',
+            u_cal=df['U_cal'][0],
+            tolerance=df['tolerance'][0],
+            resolution=df['resolution'][0],
+            bias_corrected=True,)
+        print(gage.uncertainties())
+        ```
+
+        ```console
+                     u         U         Q  rank
+        RE    0.000289  0.000577  0.038490   2.0
+        BI    0.000140  0.000279  0.018608   3.0
+        LIN   0.000000  0.000000  0.000000   NaN
+        EVR   0.000688  0.001377  0.091785   1.0
+        MPE   0.000000  0.000000  0.000000   NaN
+        REST  0.000000  0.000000  0.000000   NaN
+        MS    0.000702  0.001405  0.093652   NaN
+        ```
         """
         if not self._df_u.empty:
             return self._df_u
