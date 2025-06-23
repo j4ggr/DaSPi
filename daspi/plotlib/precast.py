@@ -1143,18 +1143,20 @@ class GageStudyCharts(JointChart):
         reference = model.reference
         df_cap = model.capabilities()
         cap_target = ANOVA.CAPABILITY_COLNAMES[0]
-        cap_features = (df_cap.reset_index(drop=False).columns[0], )*4
+        cap_features = (df_cap.reset_index(drop=False).columns[0], )*5
         self.dist = dist
         self.has_multiple_references = source[reference].nunique() > 1
         
         if self.has_multiple_references:
             feature = (reference, '', '', *cap_features)
             hue = tuple('' if f == reference else reference for f in feature)
-            categorical_feature = (True, False, False, True, True, True, True)
+            categorical_feature = (
+                True, False, False, True, True, True, True, True)
         else:
             feature = (STR['charts_flabel_observed'], '', '', *cap_features)
-            hue = ('', ) * 7
-            categorical_feature = (False, False, False, True, True, True, True)
+            hue = ('', ) * 8
+            categorical_feature = (
+                False, False, False, True, True, True, True, True)
             source[feature[0]] = [i + 1 for i in range(len(source))]
 
         dfs = tuple(
@@ -1163,11 +1165,11 @@ class GageStudyCharts(JointChart):
 
         super().__init__(
             source=(source, ) * 3 + dfs,
-            target=(model.target, ) * 3 + (cap_target, ) * 4,
+            target=(model.target, ) * 3 + (cap_target, ) * 5,
             feature=feature,
             hue=hue,
-            mosaic=('oooo', 'ppdd', 'gkrb'),
-            target_on_y=(True, False, False, True, True, True, True),
+            mosaic=('ooooo', 'ppddd', 'gkrtb'),
+            target_on_y=(True, False, False, True, True, True, True, True),
             categorical_feature=categorical_feature,
             stretch_figsize=stretch_figsize)
     
@@ -1184,6 +1186,7 @@ class GageStudyCharts(JointChart):
         super().plot(Bar)
         super().plot(Bar)
         super().plot(Bar)
+        super().plot(Bar)
         return self
     
     def stripes(self) -> Self:
@@ -1193,9 +1196,9 @@ class GageStudyCharts(JointChart):
             self.charts[idx].stripes(
                 mean=True)
 
-        idx = -4
+        idx = -5
         for name, limit in df_cap[ANOVA.CAPABILITY_COLNAMES[1]].items():
-            if name == ANOVA.CAPABILITY_ROWS[2]:
+            if name in ANOVA.CAPABILITY_ROWS[2:4]:
                 accepted = StripeSpan(
                     label=STR['accepted'],
                     lower_position=0,
@@ -1260,9 +1263,9 @@ class GageStudyCharts(JointChart):
             ) | kwds
         super().label(**labels)
 
-        for idx, lim in zip((-4, -3, -2, -1), (5, 5, 0.2, 0.2)):
+        for idx, lim in zip((-5, -4, -3, -2, -1), (5, 5, 0.2, 0.6, 0.2)):
             ax = self.axes[idx]
-            if idx in (-2, ):
+            if idx in (-3, -2,):
                 ax.yaxis.set_major_formatter(PercentFormatter(xmax=1))
             ax.set(ylim=(0, lim))
         return self

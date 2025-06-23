@@ -1638,7 +1638,12 @@ class GageStudyModel(LinearModel):
         u_cal=df['U_cal'][0],
         tolerance=df['tolerance'][0],
         resolution=df['resolution'][0],)
-    chart = dsp.GageStudyCharts(gage, stretch_figsize=1.5).plot().stripes().label()
+    chart = dsp.GageStudyCharts(
+            gage, stretch_figsize=1.5
+        ).plot(
+        ).stripes(
+        ).label(
+        ) # .save('path/to/file.png')
     gage # or print(repr(gage))
     ```
 
@@ -2015,7 +2020,7 @@ class GageStudyModel(LinearModel):
             self._T_min_UMS = 2 * self.u_ms.expanded / self.q_ms_limit
         return self._T_min_UMS
     
-    def references_analysis(self,) -> DataFrame:
+    def references_analysis(self) -> DataFrame:
         """Returns a DataFrame with the analysis of the reference 
         parts. 
         
@@ -2025,7 +2030,29 @@ class GageStudyModel(LinearModel):
         Returns
         -------
         DataFrame
-            Analysis of the reference parts with GageEstimator statistics.
+            Analysis of the reference parts with GageEstimator 
+            statistics.
+        
+        Examples
+        --------
+
+        ```python
+        import daspi as dsp
+        df = dsp.load_dataset('grnr_layer_thickness')
+        gage = dsp.GageStudyModel(
+            source=df,
+            target='result_gage',
+            reference='reference',
+            u_cal=df['U_cal'][0],
+            tolerance=df['tolerance'][0],
+            resolution=df['resolution'][0],)
+        print(gage.references_analysis())
+        ```
+
+        ```console
+             Ref     mean     Bias         s      R
+        1  0.101  0.10066 -0.00034  0.000688  0.003
+        ```
         """
         if not self._references_analysis.empty:
             return self._references_analysis
@@ -2053,6 +2080,31 @@ class GageStudyModel(LinearModel):
         DataFrame
             Capabilities for Cp, Cpk, Cg, Cgk and the ratio of 
             resolution to standard deviation.
+        
+        Examples
+        --------
+
+        ```python
+        import daspi as dsp
+        df = dsp.load_dataset('grnr_layer_thickness')
+        gage = dsp.GageStudyModel(
+            source=df,
+            target='result_gage',
+            reference='reference',
+            u_cal=df['U_cal'][0],
+            tolerance=df['tolerance'][0],
+            resolution=df['resolution'][0],)
+        print(gage.capabilities())
+        ```
+
+        ```console
+                    Value  Limit  Capable     T_min
+        Cg        2.179005   1.33     True  0.018311
+        Cgk       1.932051   1.33     True  0.021711
+        RE_ratio  0.033333   0.05     True  0.020000
+        U_MS      0.096371   0.15     True  0.019274
+        p_BI      0.001024   0.05    False       NaN
+        ```
         """
         if not self._capabilities.empty:
             return self._capabilities
@@ -2115,13 +2167,13 @@ class GageStudyModel(LinearModel):
 
         ```console
                      u         U         Q  rank
-        CAL   0.000100  0.000200  0.013333   NaN
+        CAL   0.000100  0.000200  0.013333   4.0
         RE    0.000289  0.000577  0.038490   2.0
-        BI    0.000140  0.000279  0.018608   3.0
+        BI    0.000196  0.000393  0.026173   3.0
         LIN   0.000000  0.000000  0.000000   NaN
         EVR   0.000688  0.001377  0.091785   1.0
         REST  0.000000  0.000000  0.000000   NaN
-        MS    0.000702  0.001405  0.093652   NaN
+        MS    0.000723  0.001446  0.096371   NaN
         ```
         """
         if not self._df_u.empty:
