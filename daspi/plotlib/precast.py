@@ -1383,7 +1383,7 @@ class GageRnRCharts(JointChart):
         
         df_rnr = (self.model
             .rnr()
-            .loc[[ANOVA.RNR, ANOVA.REPEATABILITY, ANOVA.REPRODUCIBILITY], :]
+            .loc[[ANOVA.RNR, ANOVA.EV, ANOVA.AV], :]
             .reset_index(drop=False)
             .rename(columns={'index':feature_spread}))
         datas = []

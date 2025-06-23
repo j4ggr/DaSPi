@@ -10,9 +10,9 @@ The following table shows the typical standard uncertainties as they affect meas
 |   `RE`   | Display resolution                                     |   MS   |   B    |
 |   `BI`   | Bias                                                   |   MS   |  A/B   |
 |  `LIN`   | Linearity deviation                                    |   MS   |  A/B   |
-|  `EVR`   | Measurement evolution (repeatability) on the reference |   MS   |   A    |
+|  `EVR`   | Equipement Variation (repeatability) on the reference  |   MS   |   A    |
 |  `MPE`   | Maximum Permissible Error (error limit)                |   MS   |   B    |
-|  `EVO`   | Measurement evolution (repeatability) on the object    |   MP   |   A    |
+|  `EVO`   | Equipement Variation (repeatability) on the object     |   MP   |   A    |
 |   `AV`   | Appraiser Variation (comparability of operators)       |   MP   |   A    |
 |   `GV`   | Gage Variation (comparability of measurement system)   |   MP   |   A    |
 |   `IA`   | Interactions                                           |   MP   |   A    |

@@ -535,13 +535,15 @@ class _Anova_:
     """Name in residual table for predicted values."""
     TOTAL: Literal['Total'] = 'Total'
     """Name in anova table for total (sum of the others) values."""
-    PART: Literal['Part'] = 'Part'
-    """Name in anova table for part values."""
-    REPEATABILITY: Literal['EV'] = 'EV'
-    """Name in anova table for repeatability values."""
-    REPRODUCIBILITY: Literal['AV'] = 'AV'
-    """Name in anova table for reproducibility values."""
-    INTERACTION: Literal['Interaction'] = 'Interaction'
+    PV: Literal['PV'] = 'PV'
+    """Name in anova table for part values (Part Variation)."""
+    EV: Literal['EV'] = 'EV'
+    """Name in anova table for repeatability values 
+    (Equipement Variation)."""
+    AV: Literal['AV'] = 'AV'
+    """Name in anova table for reproducibility values 
+    (Appraiser Variation)."""
+    IA: Literal['Interaction'] = 'Interaction'
     """Name in anova table for interaction values."""
     RNR: Literal['R&R'] = 'R&R'
     """Name in rnr table for sum of R&R."""
@@ -586,7 +588,7 @@ class _Anova_:
     def UNCERTAINTY_ROWS_MS(self) -> List[str]:
         """Row names (indices) when crating the uncertainty table using
         the `uncertainties` method of GageStudyModel."""
-        return ['RE', 'BI', 'LIN', 'EVR', 'MPE', 'REST', 'MS']
+        return ['CAL', 'RE', 'BI', 'LIN', 'EVR', 'REST', 'MS']
 
     @property
     def UNCERTAINTY_ROWS_MP(self) -> List[str]:

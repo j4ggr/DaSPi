@@ -493,6 +493,106 @@ class TestLinearModel:
         assert parameters == ['B:C', 'A']
 
 
+class TestGageStudyModel:
+
+    df_single = pd.read_csv(
+        valid_data_dir/'gage_study.csv', skiprows=1, sep=';', skipfooter=33)
+
+    df_lin = pd.read_csv(
+        valid_data_dir/'gage_study.csv', skiprows=54, sep=';')
+    
+    @pytest.fixture
+    def gage_single(self) -> GageStudyModel:
+        """Get GageStudyModel with a single reference"""
+        return GageStudyModel(
+            source=self.df_single,
+            target='result',
+            reference='reference',
+            u_cal=self.df_single['U_cal'][0],
+            tolerance=self.df_single['tolerance'][0],
+            resolution=self.df_single['resolution'][0],
+            k=2)
+    
+    @pytest.fixture
+    def gage_lin(self) -> GageStudyModel:
+        """Get GageStudyModel with six references to calculate the
+        uncertainty of linearity"""
+        return GageStudyModel(
+            source=self.df_lin,
+            target='result',
+            reference='reference',
+            u_cal=self.df_lin['U_cal'][0],
+            tolerance=self.df_lin['tolerance'][0],
+            resolution=self.df_lin['resolution'][0],
+            bias_corrected=True,
+            k=2)
+    
+    @pytest.fixture
+    def df_vsingle(self) -> DataFrame:
+        """Get validation data of df_single"""
+        df = (self.df_single
+            .loc[:, 'influence': 'rank']
+            .dropna(how='all')
+            .set_index('influence'))
+        return df
+    
+    @pytest.fixture
+    def df_vlin(self) -> DataFrame:
+        """Get validation data of df_lin"""
+        df = (self.df_lin
+            .loc[:, 'influence': 'rank']
+            .dropna(how='all')
+            .set_index('influence'))
+        return df
+    
+    def test_init(self, gage_lin: GageStudyModel) -> None:
+        assert gage_lin.target == 'result'
+        assert gage_lin.reference == 'reference'
+        assert gage_lin.u_cal.standard == approx(self.df_lin['U_cal'][0]/2)
+        assert gage_lin.tolerance == self.df_lin['tolerance'][0]
+        assert gage_lin.resolution == self.df_lin['resolution'][0]
+    
+    def test_uncertainties_single(
+            self, gage_single: GageStudyModel, df_vsingle: DataFrame) -> None:
+        df_u = gage_single.uncertainties()
+        
+        assert list(df_u.index) == ANOVA.UNCERTAINTY_ROWS_MS
+        for u_is, u_valid in zip(df_u['u'], df_vsingle['u']):
+            assert u_is == approx(u_valid, abs=1e-5)
+        
+        for U_is, U_valid in zip(df_u['U'], df_vsingle['U']):
+            assert U_is == approx(U_valid, abs=1e-5)
+        
+        for Q_is, Q_valid in zip(df_u['Q'], df_vsingle['Q']):
+            assert Q_is == approx(Q_valid, abs=1e-3)
+        
+        for r_is, r_valid in zip(df_u['rank'], df_vsingle['rank']):
+            if pd.isna(r_is):
+                assert pd.isna(r_valid)
+            else:
+                assert r_is == r_valid
+    
+    def test_uncertainties_lin(
+            self, gage_lin: GageStudyModel, df_vlin: DataFrame) -> None:
+        df_u = gage_lin.uncertainties()
+        
+        assert list(df_u.index) == ANOVA.UNCERTAINTY_ROWS_MS
+        for u_is, u_valid in zip(df_u['u'], df_vlin['u']):
+            assert u_is == approx(u_valid, abs=1e-3)
+        
+        for U_is, U_valid in zip(df_u['U'], df_vlin['U']):
+            assert U_is == approx(U_valid, abs=1e-3)
+        
+        for Q_is, Q_valid in zip(df_u['Q'], df_vlin['Q']):
+            assert Q_is == approx(Q_valid, abs=1e-3)
+        
+        for r_is, r_valid in zip(df_u['rank'], df_vlin['rank']):
+            if pd.isna(r_is):
+                assert pd.isna(r_valid)
+            else:
+                assert r_is == r_valid
+
+
 class TestGageRnRModel:
     df_thick = load_dataset('grnr_layer_thickness')
     df_adj = load_dataset('grnr_adjustment')
@@ -565,37 +665,37 @@ class TestGageRnRModel:
 
         var = rnr['MS']
         assert var[ANOVA.RNR] == approx(0.00000067, abs=1e-8)
-        assert var[ANOVA.REPEATABILITY] == approx(0.00000067, abs=1e-8)
-        assert var[ANOVA.REPRODUCIBILITY] == approx(0.00000000, abs=1e-8)
-        assert var[ANOVA.PART] == approx(0.00002929, abs=1e-8)
+        assert var[ANOVA.EV] == approx(0.00000067, abs=1e-8)
+        assert var[ANOVA.AV] == approx(0.00000000, abs=1e-8)
+        assert var[ANOVA.PV] == approx(0.00002929, abs=1e-8)
         assert var[ANOVA.TOTAL] == approx(0.00002997, abs=1e-8)
 
         var_tot = rnr['MS/Total']
         assert var_tot[ANOVA.RNR] == approx(0.02247966, abs=1e-8)
-        assert var_tot[ANOVA.REPEATABILITY] == approx(0.02247966, abs=1e-8)
-        assert var_tot[ANOVA.REPRODUCIBILITY] == approx(0.00000000, abs=1e-8)
-        assert var_tot[ANOVA.PART] == approx(0.97752034, abs=1e-8)
+        assert var_tot[ANOVA.EV] == approx(0.02247966, abs=1e-8)
+        assert var_tot[ANOVA.AV] == approx(0.00000000, abs=1e-8)
+        assert var_tot[ANOVA.PV] == approx(0.97752034, abs=1e-8)
         assert var_tot[ANOVA.TOTAL] == approx(1.000000, abs=1e-8)
 
         std = rnr['s']
         assert std[ANOVA.RNR] == approx(0.00082074, abs=1e-8)
-        assert std[ANOVA.REPEATABILITY] == approx(0.00082074, abs=1e-8)
-        assert std[ANOVA.REPRODUCIBILITY] == approx(0.00000000, abs=1e-8)
-        assert std[ANOVA.PART] == approx(0.00541218, abs=1e-8)
+        assert std[ANOVA.EV] == approx(0.00082074, abs=1e-8)
+        assert std[ANOVA.AV] == approx(0.00000000, abs=1e-8)
+        assert std[ANOVA.PV] == approx(0.00541218, abs=1e-8)
         assert std[ANOVA.TOTAL] == approx(0.00547406, abs=1e-8)
 
         spread_tot = rnr['6s/Total']
         assert spread_tot[ANOVA.RNR] == approx(0.14993220, abs=1e-8)
-        assert spread_tot[ANOVA.REPEATABILITY] == approx(0.14993220, abs=1e-8)
-        assert spread_tot[ANOVA.REPRODUCIBILITY] == approx(0.00000000, abs=1e-8)
-        assert spread_tot[ANOVA.PART] == approx(0.98869628, abs=1e-8)
+        assert spread_tot[ANOVA.EV] == approx(0.14993220, abs=1e-8)
+        assert spread_tot[ANOVA.AV] == approx(0.00000000, abs=1e-8)
+        assert spread_tot[ANOVA.PV] == approx(0.98869628, abs=1e-8)
         assert spread_tot[ANOVA.TOTAL] == approx(1.00000000, abs=1e-8)
 
         spread_tol = rnr['6s/Tolerance']
         assert spread_tol[ANOVA.RNR] == approx(0.1641, abs=1e-4)
-        assert spread_tol[ANOVA.REPEATABILITY] == approx(0.1641, abs=1e-4)
-        assert spread_tol[ANOVA.REPRODUCIBILITY] == approx(0.0000, abs=1e-4)
-        assert spread_tol[ANOVA.PART] == approx(1.0824, abs=1e-4)
+        assert spread_tol[ANOVA.EV] == approx(0.1641, abs=1e-4)
+        assert spread_tol[ANOVA.AV] == approx(0.0000, abs=1e-4)
+        assert spread_tol[ANOVA.PV] == approx(1.0824, abs=1e-4)
         assert spread_tol[ANOVA.TOTAL] == approx(1.0948, abs=1e-4)
 
     def test_rnr_table_interaction(self) -> None:
@@ -623,16 +723,16 @@ class TestGageRnRModel:
         
         var = rnr['MS']
         assert var[ANOVA.RNR] == approx(0.1109, abs=1e-4)
-        assert var[ANOVA.REPEATABILITY] == approx(0.0571, abs=1e-4)
-        assert var[ANOVA.REPRODUCIBILITY] == approx(0.0538, abs=1e-4)
-        assert var[ANOVA.PART] == approx(0.8021, abs=1e-4)
+        assert var[ANOVA.EV] == approx(0.0571, abs=1e-4)
+        assert var[ANOVA.AV] == approx(0.0538, abs=1e-4)
+        assert var[ANOVA.PV] == approx(0.8021, abs=1e-4)
         assert var[ANOVA.TOTAL] == approx(0.9130, abs=1e-4)
 
         var_tot = rnr['MS/Total']
         assert var_tot[ANOVA.RNR] == approx(0.1214, abs=1e-4)
-        assert var_tot[ANOVA.REPEATABILITY] == approx(0.0625, abs=1e-4)
-        assert var_tot[ANOVA.REPRODUCIBILITY] == approx(0.0589, abs=1e-4)
-        assert var_tot[ANOVA.PART] == approx(0.8786, abs=1e-4)
+        assert var_tot[ANOVA.EV] == approx(0.0625, abs=1e-4)
+        assert var_tot[ANOVA.AV] == approx(0.0589, abs=1e-4)
+        assert var_tot[ANOVA.PV] == approx(0.8786, abs=1e-4)
         assert var_tot[ANOVA.TOTAL] == approx(1.0000, abs=1e-4)
 
     def test_uncertainties(self, rnr_adj_model: GageRnRModel) -> None:

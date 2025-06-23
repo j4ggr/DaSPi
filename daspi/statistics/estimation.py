@@ -424,6 +424,10 @@ class MeasurementUncertainty:
             standard=combined_u,
             confidence_level=self.confidence_level)
     
+    def __bool__(self) -> bool:
+        """Check if uncertainty is non-zero."""
+        return self.standard > 0
+    
     def __str__(self) -> str:
         """String representation of the uncertainty."""
         return f"u = {self.standard:.4g}"
@@ -1065,7 +1069,8 @@ class DistributionEstimator(BaseEstimator):
 
     @property
     def ss(self) -> float:
-        """Get the sum of squared residuals (read-only)."""
+        """Get the sum of squared residuals (SS) using the sorted
+        values and the predicted values (read-only)."""
         if self._ss is None:
             self._ss = float(np.sum((self.sorted - self.predicted)**2))
         return self._ss
@@ -2235,10 +2240,6 @@ class GageEstimator(LocationDispersionEstimator):
         The limit for the capability index, default is 1.33.
     resolution_ratio_limit : float, optional
         The limit for the resolution proportion, default is 0.05.
-    bias_corrected : bool, optional
-        Indicates whether the bias is corrected for the Gage R&R study. 
-        If True, the bias is not included in the measurement uncertainty; 
-        otherwise, it is included. Default is False.
     nan_policy : {'propagate', 'raise', 'omit'}, optional
         How to handle NaN values in the samples. 
         - 'propagate': NaN values are preserved in the analysis.
@@ -2324,8 +2325,7 @@ class GageEstimator(LocationDispersionEstimator):
         '_T_min_cg',
         '_T_min_cgk',
         '_T_min_res', 
-        '_process',
-        '_bias_corrected')
+        '_process',)
     _specification: Specification
     _reference: float
     _u_cal: MeasurementUncertainty
@@ -2343,7 +2343,6 @@ class GageEstimator(LocationDispersionEstimator):
     _T_min_cgk: float | None
     _T_min_res: float | None
     _process: ProcessEstimator | None
-    _bias_corrected: bool
 
     def __init__(self,
             samples: NumericSample1D,
@@ -2356,7 +2355,6 @@ class GageEstimator(LocationDispersionEstimator):
             cg_limit: float = 1.33,
             cgk_limit: float = 1.33,
             resolution_ratio_limit: float = 0.05,
-            bias_corrected: bool = False,
             nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
             ) -> None:
         super().__init__(
@@ -2376,7 +2374,6 @@ class GageEstimator(LocationDispersionEstimator):
         self._cgk_limit = cgk_limit
         self._tolerance_ratio = tolerance_ratio
         self._resolution_ratio_limit = resolution_ratio_limit
-        self._bias_corrected = bias_corrected
         self._attrs_describe = (
             'n_samples',
             'n_missing',
@@ -2635,7 +2632,7 @@ class GageEstimator(LocationDispersionEstimator):
         self._T_min_cgk = None
         self._T_min_res = None
         self._process = None
-
+        
 
 def estimate_distribution(
         data: NumericSample1D,
