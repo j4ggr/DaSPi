@@ -1602,8 +1602,12 @@ class GageStudyModel(LinearModel):
         The ratio of the tolerance to the standard deviation of the
         measurement system. If the ratio is below this limit, the
         measurement system is considered unacceptable. Default is 0.2.
+    q_ms_limit : float, optional
+        The limit for the Q_MS value. If the Q_MS is below this limit,
+        the measurement system is considered acceptable. 
+        Default is 0.15.
     cg_limit : float, optional
-        The limit for the Gage R&R study's Cg value. If the Cg value is
+        The limit for the Gage R&R study's Cg value. If the Cg value
         below this limit, the measurement system is considered
         unacceptable. Default is 1.33.
     cgk_limit : float, optional
@@ -1663,7 +1667,9 @@ class GageStudyModel(LinearModel):
         '_u_ms',
         '_k',
         '_bias_corrected',
-        '_alpha',)
+        '_q_ms_limit',
+        '_alpha',
+        '_T_min_UMS')
     
     source: DataFrame
     target: str
@@ -1682,7 +1688,9 @@ class GageStudyModel(LinearModel):
     _u_ms: MeasurementUncertainty | None
     _k: int | float
     _bias_corrected: bool
+    _q_ms_limit: float
     _alpha: float
+    _T_min_UMS: float | None
 
     def __init__(
             self,
@@ -1697,6 +1705,7 @@ class GageStudyModel(LinearModel):
             u_rest: MeasurementUncertainty | None = None,
             k: int | float = 2,
             tolerance_ratio: float = 0.2,
+            q_ms_limit: float = 0.15,
             cg_limit: float = 1.33,
             cgk_limit: float = 1.33,
             resolution_ratio_limit: float = 0.05,
@@ -1715,6 +1724,11 @@ class GageStudyModel(LinearModel):
         self._u_evr = None
         self._u_rest = u_rest
         self._u_ms = None
+        self._T_min_UMS = None
+        assert 0 < q_ms_limit < 1, (
+            f'q_ms_limit must be greater than 0 and less than 1, '
+            f'but {q_ms_limit} was provided.')
+        self._q_ms_limit = q_ms_limit
 
         super().__init__(
             source=source,
@@ -1744,7 +1758,7 @@ class GageStudyModel(LinearModel):
         self._captions = (
             STR['lm_table_caption_ref_gages'],
             STR['lm_table_caption_capabilities'],
-            STR['lm_table_caption_uncertainty'],)
+            STR['lm_table_caption_mp_uncertainty'],)
         self._reset_tables_()
         self.print_formula = False
     
@@ -1987,6 +2001,20 @@ class GageStudyModel(LinearModel):
                 + self.u_rest)
         return self._u_ms
     
+    @property
+    def q_ms_limit(self) -> float:
+        """Get the provided limit for the Q_MS as float between 0 and 1
+        (read-only)."""
+        return self._q_ms_limit
+    
+    @property
+    def T_min_UMS(self) -> float:
+        """The minimum allowed tolerance for this testing system based
+        on the uncertainty (read-only)."""
+        if self._T_min_UMS is None:
+            self._T_min_UMS = 2 * self.u_ms.expanded / self.q_ms_limit
+        return self._T_min_UMS
+    
     def references_analysis(self,) -> DataFrame:
         """Returns a DataFrame with the analysis of the reference 
         parts. 
@@ -2030,18 +2058,32 @@ class GageStudyModel(LinearModel):
             return self._capabilities
         
         g = self.gage
+        q_ms = self.u_ms.quality_indicator(self.tolerance)
         self._capabilities  = pd.DataFrame({
             ANOVA.CAPABILITY_COLNAMES[0]: [
-                g.cg, g.cgk, g.resolution_ratio, g.p_bias],
+                g.cg,
+                g.cgk,
+                g.resolution_ratio,
+                q_ms,
+                g.p_bias],
             ANOVA.CAPABILITY_COLNAMES[1]: [
-                g.cg_limit, g.cgk_limit, g.resolution_ratio_limit, self._alpha],
+                g.cg_limit,
+                g.cgk_limit,
+                g.resolution_ratio_limit, 
+                self.q_ms_limit,
+                self._alpha],
             ANOVA.CAPABILITY_COLNAMES[2]: [
                 None if g.cg is None else (g.cg >= g.cg_limit),
                 g.cgk >= g.cgk_limit,
                 g.resolution_ratio <= g.resolution_ratio_limit,
+                q_ms <= self.q_ms_limit,
                 g.p_bias >= self._alpha],
             ANOVA.CAPABILITY_COLNAMES[3]: [
-                g.T_min_cg, g.T_min_cgk, g.T_min_res, None]},
+                g.T_min_cg,
+                g.T_min_cgk,
+                g.T_min_res,
+                self.T_min_UMS,
+                None]},
             index=ANOVA.CAPABILITY_ROWS)
 
         return self._capabilities
@@ -2609,7 +2651,6 @@ class GageRnRModel(LinearModel):
             return self._rnr
 
         self._keep_interaction = keep_interaction
-        self._u_ia = self.anova('II')['MS'].get(self.interaction, 0)**0.5
         if self._keep_interaction == 'auto':
             self._keep_interaction = self.has_significant_interactions()
         index_map = {
