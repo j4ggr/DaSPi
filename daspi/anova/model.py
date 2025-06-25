@@ -2649,6 +2649,11 @@ class GageRnRModel(LinearModel):
             typ: Literal['', 'I', 'II', 'III'] = 'II',
             vif: bool = False) -> DataFrame:
         return super().anova(typ, vif)
+    
+    def _ems_divisor(self, name: str) -> int:
+        """Get the divisor for the mean square estimation for the
+        specified name."""
+        return int(np.prod(self.n_levels[self.n_levels.index != name]))
 
     def rnr(
             self,
@@ -2801,35 +2806,20 @@ class GageRnRModel(LinearModel):
 
         anova = self.anova('II').copy().rename(index=idx_map)
         ms = anova['MS']
-        dof = anova['DF']
-        n_parts = dof[ANOVA.PV] + 1
-        n_reproduction = dof[av_gv] + 1
-        n_replication = dof[ANOVA.EV] // (n_reproduction * n_parts) + 1
-        
-        s2: Dict[str, float] = {ANOVA.EV: ms[ANOVA.EV]}
-        ms_ia = sum(ms[i] for i in self.interactions)
+        ems: Dict[str, float] = {ANOVA.EV: ms[ANOVA.EV]}
         if self._evaluate_ia:
-            s2[av_gv] = (
-                (ms[av_gv] - ms_ia)
-                / (n_parts * n_replication))
-            s2[ANOVA.IA] = (
-                (ms_ia - ms[ANOVA.EV])
-                / n_replication)
-            s2[ANOVA.PV] = (
-                (ms[ANOVA.PV] - ms_ia)
-                / (n_reproduction * n_replication))
+            _ms = sum(ms[i] for i in self.interactions)
+            ems[ANOVA.IA] = (
+                (_ms - ms[ANOVA.EV]) / self.n_levels[ANOVA.EV])
         else:
-            s2[av_gv] = (
-                (ms[av_gv] - ms[ANOVA.EV])
-                / (n_parts * n_replication))
-            s2[ANOVA.PV] = (
-                (ms[ANOVA.PV] - ms[ANOVA.EV])
-                / (n_reproduction * n_replication))
+            _ms = ms[ANOVA.EV]
+        for name in self.u_map.values():
+            ems[name] = (ms[name] - _ms) / self._ems_divisor(name)
         
         rnr = pd.DataFrame(
             columns=ANOVA.RNR_COLNAMES,
             index=idx_order)
-        rnr[columns[0]] = pd.Series(s2).clip(lower=0)
+        rnr[columns[0]] = pd.Series(ems).clip(lower=0)
         rnr.loc[ANOVA.TOTAL, :] = rnr.sum()
         rnr.loc[ANOVA.RNR, :] = rnr.loc[idx_rnr_sum, :].sum()
         rnr[columns[1]] = rnr[columns[0]] / rnr[columns[0]][ANOVA.TOTAL]
