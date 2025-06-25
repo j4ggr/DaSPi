@@ -109,7 +109,6 @@ from ..strings import STR
 from ..statistics.montecarlo import SpecLimits
 from ..statistics.montecarlo import Specification
 from ..statistics.estimation import GageEstimator
-from ..statistics.estimation import root_sum_squares
 from ..statistics.estimation import MeasurementUncertainty
 
 
@@ -1671,6 +1670,7 @@ class GageStudyModel(LinearModel):
         '_u_rest',
         '_u_ms',
         '_k',
+        '_bias',
         '_bias_corrected',
         '_q_ms_limit',
         '_alpha',
@@ -1692,6 +1692,7 @@ class GageStudyModel(LinearModel):
     _u_rest: MeasurementUncertainty | None
     _u_ms: MeasurementUncertainty | None
     _k: int | float
+    _bias: float | None
     _bias_corrected: bool
     _q_ms_limit: float
     _alpha: float
@@ -1734,6 +1735,7 @@ class GageStudyModel(LinearModel):
             f'q_ms_limit must be greater than 0 and less than 1, '
             f'but {q_ms_limit} was provided.')
         self._q_ms_limit = q_ms_limit
+        self._bias = None
 
         super().__init__(
             source=source,
@@ -1881,6 +1883,13 @@ class GageStudyModel(LinearModel):
         return self._bias_corrected
 
     @property
+    def bias(self) -> float:
+        """Returns the bias of the Gage study (read-only)."""
+        if self._bias is None:
+            self._bias = max(g.bias for g in self.ref_gages)
+        return self._bias
+
+    @property
     def n_samples(self) -> int:
         """The number of samples used in the Gage study (read-only)."""
         return self.gage.n_filtered
@@ -1952,9 +1961,8 @@ class GageStudyModel(LinearModel):
             if self.bias_corrected:
                 self._u_bi = MeasurementUncertainty(standard=0, k=self.k)
             else:
-                bias = max(g.bias for g in self.ref_gages)
                 self._u_bi = MeasurementUncertainty(
-                    error_limit=abs(bias),
+                    error_limit=abs(self.bias),
                     distribution='rectangular',
                     k=self.k)
         return self._u_bi
@@ -1981,9 +1989,9 @@ class GageStudyModel(LinearModel):
         """The uncertainty of the expanded variance ratio of the testing
         system (read-only)."""
         if self._u_evr is None:
-            ss = self.anova()['SS']['Residual']
-            ms = ss / (self.n_references * (self.n_replications - 1))
-            self._u_evr = MeasurementUncertainty(standard=ms**0.5, k=self.k)
+            self._u_evr = MeasurementUncertainty(
+                standard=self.anova()['MS']['Residual']**0.5,
+                k=self.k)
         return self._u_evr
     
     @property
@@ -2228,29 +2236,21 @@ class GageRnRModel(LinearModel):
         Column name for source data holding the measurement values.
     part : str
         Column name of the part (unit under test) variable.
-    operator : str
-        Column name of the variable that identifies the operator for 
-        type 2 Gage R&R.
     gage : GageStudyModel
         The provided GageStudyModel instance contains the measurement 
         system's statistics. This class corresponds to measurement 
         system analysis type 1. To calculate the uncertainty for 
         linearity, provide multiple reference parts in the
         `GageStudyModel` instance.
-    k : int | float, optional
-        The coverage factor for expanded uncertainty. It is used as a 
-        multiplier to determine the expanded uncertainty based on the 
-        standard uncertainty. The value of `k` is typically set to 
-        reflect the desired confidence level in the  measurement 
-        results. Default is 2, typical values are:
-        - k=2 corresponds to a confidence interval of 95.45%
-        - k=3 corresponds to a confidence interval of 99.73%
-
-    fit_at_init : bool, optional
-        If True, the model is fitted at initialization. Otherwise, the
-        model is fitted after calling the `fit` method. Default is True.
+    u_av : str | Non
+        Column name of the variable that identifies the operator for 
+        type 2 Gage R&R. If the operator has no influence (MSA Typ III)
+        and was therefore not included in the data acquisition, set
+        `u_av` to `None`. In this case, it is recommended to record 
+        multiple locations, multiple part holders, or other possible 
+        changes to the measuring system and specify them in `u_gv`.
     u_gv: str | None, optional
-        Specifies the measurement uncertainty of gage variation, which 
+        Specifies the measurement uncertainty of gage ss, which 
         reflects the comparability of the measurement system. This 
         uncertainty is determined based on the data. To account for this 
         uncertainty, provide the column name containing the categorical 
@@ -2293,6 +2293,9 @@ class GageRnRModel(LinearModel):
         value is 'None'.
     continuous_temperature: bool, optional
         Set this flag to True if the temperature data is continuous.
+    fit_at_init : bool, optional
+        If True, the model is fitted at initialization. Otherwise, the
+        model is fitted after calling the `fit` method. Default is True.
     
     Examples
     --------
@@ -2313,8 +2316,8 @@ class GageRnRModel(LinearModel):
         source=df,
         target='result_rnr',
         part='part',
-        operator='operator',
-        gage=gage)
+        gage=gage,
+        u_av='operator')
     rnr_model # or print(repr(rnr_model))
     ```
     
@@ -2337,9 +2340,13 @@ class GageRnRModel(LinearModel):
 
     __slots__ = (
         'part',
-        'operator',
+        'has_operator',
+        '_u_av_orig',
+        '_u_gv_orig',
         '_rnr',
         '_df_u',
+        '_df_ump',
+        '_df_ums',
         '_gage',
         '_k',
         '_u_evo',
@@ -2351,22 +2358,24 @@ class GageRnRModel(LinearModel):
         '_u_obj',
         '_u_rest',
         '_u_mp',
-        '_keep_interaction'
+        '_evaluate_ia'
         )
     
     part: str
     """Column name of the part (unit under test) variable."""
-    
-    operator: str
-    """Column name of the variable that identifies the operator for 
-    type 2 Gage R&R."""
+    has_operator: bool
+    """Indicates whether the model has an operator variable."""
+    _u_av_orig: str | None
+    _u_gv_orig: str | None
     
     _rnr: DataFrame
     _df_u: DataFrame
+    _df_ump: DataFrame
+    _df_ums: DataFrame
     _gage: GageStudyModel
     _k: int | float
     _u_evo: MeasurementUncertainty | None
-    _u_av: MeasurementUncertainty | None
+    _u_av: MeasurementUncertainty | str | None
     _u_gv: MeasurementUncertainty | str | None
     _u_ia: MeasurementUncertainty | None
     _u_t: MeasurementUncertainty | str | None
@@ -2374,30 +2383,29 @@ class GageRnRModel(LinearModel):
     _u_obj: MeasurementUncertainty | str | None
     _u_rest: MeasurementUncertainty | None
     _u_mp: MeasurementUncertainty | None
-    _keep_interaction: bool | Literal['auto']
+    _evaluate_ia: bool | Literal['auto']
 
     def __init__(
             self,
             source: DataFrame,
             target: str,
             part: str,
-            operator: str,
             gage: GageStudyModel,
-            k: int | float = 2,
-            fit_at_init: bool = True,
+            u_av: str | None,
             u_gv: str | None = None,
             u_t: MeasurementUncertainty | str | None = None,
             u_stab: str | None = None,
             u_obj: MeasurementUncertainty | str | None = None,
             u_rest: MeasurementUncertainty | None = None,
             continuous_temperature: bool = False,
+            fit_at_init: bool = True,
             ) -> None:
         self.part = part
-        self.operator = operator
-        self.k = k
+        self.has_operator = bool(u_av)
         self._gage = gage
+        self.k = gage.k
         self._u_evo = None
-        self._u_av = None
+        self._u_av = u_av
         self._u_gv = u_gv
         self._u_ia = None
         self._u_t = u_t
@@ -2405,14 +2413,21 @@ class GageRnRModel(LinearModel):
         self._u_obj = u_obj
         self._u_rest = u_rest
         self._u_mp = None
-        self._keep_interaction = 'auto'
+        self._evaluate_ia = 'auto'
+        self._u_av_orig = u_av
+        self._u_gv_orig = u_gv
+        assert self._u_av_orig or self._u_gv_orig, (
+            'Either the u_av (operator) or the u_gv (gage ss) '
+            'must be specified')
 
-        u_old = (u_gv, u_t, u_stab, u_obj)
-        u_new = ('GV', 'T', 'STAB', 'OBJ')
+        u_old = (u_t, u_stab, u_obj)
+        u_new = ('T', 'STAB', 'OBJ')
         u_names_map: Dict[str, str] = {
             old: new for old, new in zip(u_old, u_new) if isinstance(old, str)}
-
-        features = [part, operator] + list(u_names_map.values())
+        features = (
+            [part] 
+            + list(u for u in (u_av, u_gv) if isinstance(u, str))
+            + list(u_names_map.values()))
         disturbances = []
         if 'T' in features and continuous_temperature:
             disturbances = [features.pop(features.index('T'))]
@@ -2428,6 +2443,7 @@ class GageRnRModel(LinearModel):
             STR['lm_table_caption_summary'],
             STR['lm_table_caption_anova'],
             STR['lm_table_caption_rnr'],
+            STR['lm_table_caption_ms_uncertainty'],
             STR['lm_table_caption_mp_uncertainty'],)
         self._reset_tables_()
         self.print_formula = False
@@ -2436,8 +2452,38 @@ class GageRnRModel(LinearModel):
     def gage(self) -> GageStudyModel:
         """The provided GageModel instances contains the measurement 
         system's statistics. This classes corresponds to measurement 
-        system analysis type 1."""
+        system analysis type 1 (read-only)."""
         return self._gage
+    
+    @property
+    def df_u(self) -> DataFrame:
+        """Get the data frame with the whole uncertainty budget as the
+        combination of the data frames of MS and MP (`df_ums` and 
+        `df_ump`). If the uncertainties are not calculated yet, the
+        method `uncertainties()` is called (read-only)."""
+        if self._df_u.empty:
+            self.uncertainties()
+        return self._df_u
+
+    @property
+    def df_ums(self) -> DataFrame:
+        """Get the data frame with the measurement uncertainty of the 
+        measurement system as gage study type 1. If the uncertainties 
+        are not calculated yet, the method `uncertainties()` is called 
+        (read-only)."""
+        if self._df_ums.empty:
+            self.uncertainties()
+        return self._df_ums
+
+    @property
+    def df_ump(self) -> DataFrame:
+        """Get the data frame with the measurement uncertainty of the 
+        measurement process as gage study type 2 or 3. If the 
+        uncertainties are not calculated yet, the method 
+        `uncertainties()` is called (read-only)."""
+        if self._df_ump.empty:
+            self.uncertainties()
+        return self._df_ump
     
     @property
     def k(self) -> int | float:
@@ -2451,11 +2497,10 @@ class GageRnRModel(LinearModel):
         self._k = k
     
     @property
-    def interaction(self) -> str:
-        """Get the interaction parameter name if interaction is present 
+    def interactions(self) -> List[str]:
+        """Get the interaction parameter names if interaction is present 
         in the fitted model (read-only)."""
-        interactions = [p for p in self.parameters if ANOVA.SEP in p]
-        return interactions[0] if interactions else ''
+        return [p for p in self.parameters if ANOVA.SEP in p]
     
     @property
     def tolerance(self) -> float:
@@ -2467,7 +2512,7 @@ class GageRnRModel(LinearModel):
         """Get the measurement uncertainty of the measurement evolution 
         (repeatability) on the object (read-only)."""
         if self._u_evo is None:
-            rnr = self.rnr(keep_interaction=self._keep_interaction)
+            rnr = self.rnr(evaluate_ia=self._evaluate_ia)
             self._u_evo = MeasurementUncertainty(
                 standard=rnr['s'][ANOVA.EV],
                 k=self.k)
@@ -2475,24 +2520,25 @@ class GageRnRModel(LinearModel):
     
     @property
     def u_av(self) -> MeasurementUncertainty:
-        """Get the measurement uncertainty of the appraiser variation 
+        """Get the measurement uncertainty of the appraiser ss 
         (comparability of operators) (read-only)."""
-        if self._u_av is None:
-            rnr = self.rnr(keep_interaction=self._keep_interaction)
+        if self._u_av is None or isinstance(self._u_av, str):
+            rnr = self.rnr(evaluate_ia=self._evaluate_ia)
             self._u_av = MeasurementUncertainty(
-                standard=rnr['s'][ANOVA.AV],
+                standard=rnr['s'].get(ANOVA.AV, 0),
                 k=self.k)
         return self._u_av
     
     @property
     def u_gv(self) -> MeasurementUncertainty:
-        """Get the measurement uncertainty of the gage variation 
+        """Get the measurement uncertainty of the gage ss 
         (compareability of measurement system) (read-only)."""
         if self._u_gv is None:
             self._u_gv = MeasurementUncertainty(standard=0, k=self.k)
         elif isinstance(self._u_gv, str):
+            rnr = self.rnr(evaluate_ia=self._evaluate_ia)
             self._u_gv = MeasurementUncertainty(
-                standard=self.anova('II')['MS'].get('GV', 0)**0.5,
+                standard=rnr['s'].get(ANOVA.GV, 0),
                 k=self.k)
         return self._u_gv
 
@@ -2501,8 +2547,9 @@ class GageRnRModel(LinearModel):
         """Get the measurement uncertainty of the interaction 
         (read-only)."""
         if self._u_ia is None:
+            rnr = self.rnr(evaluate_ia=self._evaluate_ia)
             self._u_ia = MeasurementUncertainty(
-                standard=self.anova('II')['MS'].get(self.interaction, 0)**0.5,
+                standard=rnr['s'].get(ANOVA.IA, 0),
                 k=self.k)
         return self._u_ia
     
@@ -2549,19 +2596,29 @@ class GageRnRModel(LinearModel):
         if self._u_rest is None:
             self._u_rest = MeasurementUncertainty(standard=0, k=self.k)
         return self._u_rest
+
+    @property
+    def u_ms(self) -> MeasurementUncertainty:
+        """Get the measurement uncertainty of the measurement system
+        (read-only)."""
+        return self.gage.u_ms
     
     @property
     def u_mp(self) -> MeasurementUncertainty:
         """Get the measurement uncertainty of the measurement process
         (read-only)."""
         if self._u_mp is None:
-            self._u_mp = self.u_av.combine_with(
+            self._u_mp = self.gage.u_cal.combine_with(
                 max(self.gage.u_re, self.gage.u_evr, self.u_evo),
+                self.gage.u_bi,
+                self.gage.u_lin,
+                self.gage.u_rest,
+                self.u_av,
+                self.u_gv,
                 self.u_ia,
                 self.u_t,
                 self.u_obj,
                 self.u_stab,
-                self.u_obj,
                 self.u_rest,)
         return self._u_mp
 
@@ -2573,7 +2630,7 @@ class GageRnRModel(LinearModel):
 
     def rnr(
             self,
-            keep_interaction: bool | Literal['auto'] = 'auto'
+            evaluate_ia: bool | Literal['auto'] = 'auto'
             ) -> DataFrame:
         """Get the Gage R&R analysis results as table.
         
@@ -2598,7 +2655,7 @@ class GageRnRModel(LinearModel):
 
         Parameters
         ----------
-        keep_interaction: bool | Literal['auto'] = 'auto'
+        evaluate_ia: bool | Literal['auto'] = 'auto'
             Whether to include the interaction term in the analysis.
             If 'auto', the interaction term is included if it is 
             significant. Otherwise, the interaction term is excluded and
@@ -2626,8 +2683,8 @@ class GageRnRModel(LinearModel):
             source=df,
             target='result_rnr',
             part='part',
-            operator='operator',
-            gage=gage)
+            gage=gage,
+            u_av='operator')
         print(rnr_model.rnr())
         ```
 
@@ -2653,121 +2710,118 @@ class GageRnRModel(LinearModel):
         **With interaction term:**
 
         $$
-        s^2_{repeatability} = MS_{repeatability} = MS_{residual}
+        s^2_{EV} = MS_{EV} = MS_{residual}
         $$
 
         $$
-        s^2_{operator} = \\frac{MS_{operator} - MS_{interaction}}{n_{parts} n_{replication}}
+        s^2_{operator} = \\frac{MS_{operator} - MS_{IA}}{n_{parts} n_{replication}}
         $$
 
         $$
-        s^2_{interaction} = \\frac{MS_{interaction} - MS_{repeatability}}{n_{replication}}
+        s^2_{IA} = \\frac{MS_{IA} - MS_{EV}}{n_{replication}}
         $$
 
         $$
-        s^2_{part} = \\frac{MS_{part} - MS_{interaction}}{n_{operator} n_{replication}}
+        s^2_{Part} = \\frac{MS_{Part} - MS_{IA}}{n_{operator} n_{replication}}
         $$
 
         $$
-        s^2_{reproducibility} = s^2_{operator} + s^2_{interaction}
+        s^2_{AV} = s^2_{operator} + s^2_{IA}
         $$
 
         **Without interaction term:**
 
         $$
-        s^2_{repeatability} = MS_{repeatability} = MS_{residual}
+        s^2_{EV} = MS_{EV} = MS_{residual}
         $$
 
         $$
-        s^2_{operator} = \\frac{MS_{operator} - MS_{repeatability}}{n_{parts} n_{replication}}
+        s^2_{operator} = \\frac{MS_{operator} - MS_{EV}}{n_{parts} n_{replication}}
         $$
 
         $$
-        s^2_{part} = \\frac{MS_{part} - MS_{repeatability}}{n_{operator} n_{replication}}
+        s^2_{part} = \\frac{MS_{part} - MS_{EV}}{n_{operator} n_{replication}}
         $$
 
         **Variance summary:**
 
         $$
-        s^2_{RnR} = s^2_{repeatability} + s^2_{reproducibility}
+        s^2_{RnR} = s^2_{EV} + s^2_{AV}
         $$
 
         $$
         s^2_{total} = s^2_{RnR} + s^2_{part}
         $$
         """
-        assert keep_interaction in (True, False, 'auto'), (
-            'keep_interaction must be True, False, or auto')
-        
-        if not self._rnr.empty and self._keep_interaction == keep_interaction:
+        if not self._rnr.empty and self._evaluate_ia == evaluate_ia:
             return self._rnr
+        
+        if evaluate_ia == 'auto':
+            evaluate_ia = self.has_significant_interactions()
+        assert evaluate_ia in (True, False), (
+            f'evaluate_ia must be True, False, or auto, got {evaluate_ia}')
+        self._evaluate_ia = evaluate_ia
 
-        self._keep_interaction = keep_interaction
-        if self._keep_interaction == 'auto':
-            self._keep_interaction = self.has_significant_interactions()
-        index_map = {
+        av_gv_orig = self._u_av_orig if self.has_operator else self._u_gv_orig
+        av_gv = ANOVA.AV if self.has_operator else ANOVA.GV
+        idx_map = {
             ANOVA.RESIDUAL: ANOVA.EV,
-            self.operator: ANOVA.AV,
-            self.interaction: ANOVA.IA,
+            av_gv_orig: av_gv,
             self.part: ANOVA.PV}
-        indices_rnr_sum = [ANOVA.EV, ANOVA.AV]
-        indices_order = [
+        idx_rnr_sum = [
+            ANOVA.EV,
+            av_gv,
+            ANOVA.IA]
+        idx_order = [
             ANOVA.RNR,
             ANOVA.EV,
-            ANOVA.AV,
+            av_gv,
+            ANOVA.IA,
             ANOVA.PV,
             ANOVA.TOTAL]
         columns = ANOVA.RNR_COLNAMES
-        if self._keep_interaction:
-            indices_rnr_sum.append(ANOVA.IA)
-        else:
-            index_map.pop(self.interaction)
+        if not self._evaluate_ia:
+            idx_rnr_sum.pop(idx_rnr_sum.index(ANOVA.IA))
+            idx_order.pop(idx_order.index(ANOVA.IA))
             for parameter in self.parameters:
                 if ANOVA.SEP in parameter:
                     self.eliminate(parameter)
             if self.excluded:
                 self.fit()
-        anova = (self.anova('II')
-            .copy()
-            .loc[list(index_map.keys()), :]
-            .rename(index=index_map))
+
+        anova = self.anova('II').copy().rename(index=idx_map)
         ms = anova['MS']
         dof = anova['DF']
         n_parts = dof[ANOVA.PV] + 1
-        n_operator = dof[ANOVA.AV] + 1
-        n_replication = dof[ANOVA.EV] // (n_operator * n_parts) + 1
+        n_reproduction = dof[av_gv] + 1
+        n_replication = dof[ANOVA.EV] // (n_reproduction * n_parts) + 1
         
-        if self._keep_interaction:
-            var_operator = (
-                    (ms[ANOVA.AV] - ms[ANOVA.IA])
-                    / (n_parts * n_replication))
-            var_interaction = max(0, (
-                    (ms[ANOVA.IA] - ms[ANOVA.EV])
-                    / n_replication))
-            variation = pd.Series({
-                ANOVA.EV: ms[ANOVA.EV],
-                ANOVA.AV: var_operator + var_interaction,
-                ANOVA.PV: (
-                    (ms[ANOVA.PV] - ms[ANOVA.IA])
-                    / (n_operator * n_replication))})
+        s2: Dict[str, float] = {ANOVA.EV: ms[ANOVA.EV]}
+        ms_ia = sum(ms[i] for i in self.interactions)
+        if self._evaluate_ia:
+            s2[av_gv] = (
+                (ms[av_gv] - ms_ia)
+                / (n_parts * n_replication))
+            s2[ANOVA.IA] = (
+                (ms_ia - ms[ANOVA.EV])
+                / n_replication)
+            s2[ANOVA.PV] = (
+                (ms[ANOVA.PV] - ms_ia)
+                / (n_reproduction * n_replication))
         else:
-            variation = pd.Series({
-                ANOVA.EV: ms[ANOVA.EV],
-                ANOVA.AV: (
-                    (ms[ANOVA.AV] - ms[ANOVA.EV])
-                    / (n_parts * n_replication)),
-                ANOVA.PV: (
-                    (ms[ANOVA.PV] - ms[ANOVA.EV])
-                    / (n_operator * n_replication))})
-        variation = variation.clip(lower=0)
+            s2[av_gv] = (
+                (ms[av_gv] - ms[ANOVA.EV])
+                / (n_parts * n_replication))
+            s2[ANOVA.PV] = (
+                (ms[ANOVA.PV] - ms[ANOVA.EV])
+                / (n_reproduction * n_replication))
         
         rnr = pd.DataFrame(
             columns=ANOVA.RNR_COLNAMES,
-            index=list(index_map.values()))
-        rnr[columns[0]] = variation
+            index=idx_order)
+        rnr[columns[0]] = pd.Series(s2).clip(lower=0)
         rnr.loc[ANOVA.TOTAL, :] = rnr.sum()
-        rnr.loc[ANOVA.RNR, :] = rnr.loc[indices_rnr_sum, :].sum()
-        rnr = rnr.loc[indices_order]
+        rnr.loc[ANOVA.RNR, :] = rnr.loc[idx_rnr_sum, :].sum()
         rnr[columns[1]] = rnr[columns[0]] / rnr[columns[0]][ANOVA.TOTAL]
         rnr[columns[2]] = np.sqrt(rnr[columns[0]])
         rnr[columns[3]] = 6 * rnr[columns[2]]
@@ -2821,22 +2875,30 @@ class GageRnRModel(LinearModel):
             source=df,
             target='result_rnr',
             part='part',
-            operator='operator',
-            gage=gage)
-        print(rnr_model.uncertainties())
+            gage=gage,
+            u_av='operator')
+        model.uncertainties()
+        print(model.df_u)
         ```
 
         ```console
-                    u         U         Q
-        RE   0.000289  0.000577  0.038490
-        Bi   0.000134  0.000268  0.017838
-        EVR  0.000688  0.001377  0.091785
-        LIN  0.000000  0.000000  0.000000
-        MS   0.000701  0.001403  0.093502
-        EVO  0.000821  0.001641  0.109432
-        AV   0.000000  0.000000  0.000000
-        IA   0.000660  0.001319  0.087958
-        MP   0.001335  0.002670  0.178009
+                        u         U         Q  rank
+        CAL      0.000100  0.000200  0.013333   5.0
+        RE       0.000289  0.000577  0.038490   3.0
+        BI       0.000196  0.000393  0.026173   4.0
+        LIN      0.000000  0.000000  0.000000   NaN
+        EVR      0.000688  0.001377  0.091785   2.0
+        MS_REST  0.000000  0.000000  0.000000   NaN
+        MS       0.000723  0.001446  0.096371   NaN
+        EVO      0.000821  0.001641  0.109432   1.0
+        AV       0.000000  0.000000  0.000000   NaN
+        GV       0.000000  0.000000  0.000000   NaN
+        IA       0.000000  0.000000  0.000000   NaN
+        T        0.000000  0.000000  0.000000   NaN
+        STAB     0.000000  0.000000  0.000000   NaN
+        OBJ      0.000000  0.000000  0.000000   NaN
+        MP_REST  0.000000  0.000000  0.000000   NaN
+        MP       0.000850  0.001700  0.113305   NaN
         ```
         """
         
@@ -2845,21 +2907,22 @@ class GageRnRModel(LinearModel):
 
         df_ums = self.gage.uncertainties().rename(index={'REST': 'MS_REST'})
         
-        _us = tuple(
-            getattr(self, f'u_{r.lower()}') for r in ANOVA.UNCERTAINTY_ROWS_MP)
         cols=ANOVA.UNCERTAINTY_COLNAMES
         rows=ANOVA.UNCERTAINTY_ROWS_MP
+        uncertainties = tuple(getattr(self, f'u_{r.lower()}') for r in rows)
         df_ump = pd.DataFrame({
-            cols[0]: [u.standard for u in _us],
-            cols[1]: [u.expanded for u in _us],
-            cols[2]: [u.quality_indicator(self.tolerance) for u in _us]},
+            cols[0]: [u.standard for u in uncertainties],
+            cols[1]: [u.expanded for u in uncertainties],
+            cols[2]: [u.quality_indicator(self.tolerance) for u in uncertainties]},
             index=['MP_REST' if r == 'REST' else r for r in rows])
         
         df_u = pd.concat([df_ums, df_ump], axis=0)
-
         mask = (~df_u.index.isin(('MS', 'MP'))) & (df_u[cols[0]] > 0) 
         df_u.loc[mask, cols[3]] = df_u.loc[mask, cols[0]].rank(ascending=False)
+
         self._df_u = df_u
+        self._df_ums = df_u.loc[df_ums.index, :].copy()
+        self._df_ump = df_u.loc[df_ump.index, :].copy()
         return self._df_u
     
     def _dfs_repr_(self) -> List[DataFrame]:
@@ -2883,7 +2946,8 @@ class GageRnRModel(LinearModel):
             self.gof_metrics().drop('formula', axis=1),
             self.anova(),
             self.rnr(),
-            self.uncertainties()]
+            self.df_ums,
+            self.df_ump]
         return dfs
     
     def _reset_tables_(self) -> None:
@@ -2891,6 +2955,8 @@ class GageRnRModel(LinearModel):
         super()._reset_tables_()
         self._rnr = pd.DataFrame()
         self._df_u = pd.DataFrame()
+        self._df_ump = pd.DataFrame()
+        self._df_ums = pd.DataFrame()
 
 
 __all__ = [
