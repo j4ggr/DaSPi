@@ -543,8 +543,10 @@ class _Anova_:
     AV: Literal['AV'] = 'AV'
     """Name in anova table for reproducibility values 
     (Appraiser Variation)."""
-    IA: Literal['Interaction'] = 'Interaction'
-    """Name in anova table for interaction values."""
+    GV: Literal['GV'] = 'GV'
+    """Name in anova table for Gage Variation."""
+    IA: Literal['IA'] = 'IA'
+    """Name in R&R table for interaction values."""
     RNR: Literal['R&R'] = 'R&R'
     """Name in rnr table for sum of R&R."""
 

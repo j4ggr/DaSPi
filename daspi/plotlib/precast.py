@@ -1300,7 +1300,7 @@ class GageRnRCharts(JointChart):
     --------
     ```python
     import daspi as dsp
-    
+
     df = dsp.load_dataset('grnr_layer_thickness')
     gage = dsp.GageStudyModel(
         source=df,
@@ -1311,14 +1311,16 @@ class GageRnRCharts(JointChart):
         resolution=df['resolution'][0])
     model = dsp.GageRnRModel(
         source=df,
-        target='Messwerte',
-        part='Teil',
-        operator='Mitarbeiter',
-        gage=gage)
+        target='result_rnr',
+        part='part',
+        gage=gage,
+        u_av='operator')
+
     chart = dsp.GageRnRCharts(model, stretch_figsize=True
         ).plot(
         ).stripes(
         ).label()
+    model
     ```
     """
     
@@ -1369,14 +1371,14 @@ class GageRnRCharts(JointChart):
             [list(columns_map.values())])
         
         df_mean = (df_model
-                .groupby([self.operator, self.part], observed=True)
+                .groupby([self.av_gv, self.part], observed=True)
                 [target]
                 .mean()
                 .to_frame()
                 .reset_index(drop=False))
         
         df_span = (df_model
-                .groupby([self.operator, self.part], observed=True)
+                .groupby([self.av_gv, self.part], observed=True)
                 [target]
                 .agg(['min', 'max'])
                 .diff(axis=1)
@@ -1384,9 +1386,10 @@ class GageRnRCharts(JointChart):
                 .rename(columns={'max': target})
                 .reset_index(drop=False))
         
+        av_gv = ANOVA.AV if self.model.has_operator else ANOVA.GV
         df_rnr = (self.model
             .rnr()
-            .loc[[ANOVA.RNR, ANOVA.EV, ANOVA.AV], :]
+            .loc[[ANOVA.RNR, ANOVA.EV, av_gv], :]
             .reset_index(drop=False)
             .rename(columns={'index':feature_spread}))
         datas = []
@@ -1406,9 +1409,9 @@ class GageRnRCharts(JointChart):
             source=(df_model, df_mean, df_span, df_span, df_rnr, df_u),
             target=target,
             feature=(
-                self.part, self.operator, self.part, self.operator, 
+                self.part, self.av_gv, self.part, self.av_gv, 
                 feature_spread, feature_spread),
-            hue=(self.operator, '', self.operator, '', hue_spread, ''),
+            hue=(self.av_gv, '', self.av_gv, '', hue_spread, ''),
             ncols=2,
             nrows=3,
             stretch_figsize=stretch_figsize,
@@ -1421,7 +1424,6 @@ class GageRnRCharts(JointChart):
         self.axes[0].sharey(self.axes[1])
         self.axes[2].sharey(self.axes[3])
 
-
     @property
     def part(self) -> str:
         """Column name of the part (unit under test) variable 
@@ -1429,10 +1431,18 @@ class GageRnRCharts(JointChart):
         return self.model.part
     
     @property
-    def operator(self) -> str:
+    def av_gv(self) -> str:
         """Column name of the variable that identifies the operator for 
-        type 2 Gage R&R. (read-only)."""
-        return self.model.operator
+        type 2 Gage R&R or the gage variate for type 3 Gage R&R
+        (read-only)."""
+        if self.model.has_operator:
+            av_gv = self.model._u_av_orig
+        else:
+            av_gv = self.model._u_gv_orig
+        assert av_gv is not None, (
+            'The provided gage study model does not have an operator or '
+            'gage variate.')
+        return av_gv
 
     def plot(self) -> Self:
         """Plot the GageRnR charts."""

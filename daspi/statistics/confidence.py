@@ -394,8 +394,6 @@ def bonferroni_ci(
     referred to as alpha error accumulation or alpha inflation.
     """
     columns = [name, 'lower', 'upper']
-    if isinstance(feature, str):
-        feature = [feature]
     groups = data.groupby(feature)[target]
     n_groups = n_groups if isinstance(n_groups, int) else groups.ngroups
     data = pd.DataFrame(
@@ -403,6 +401,8 @@ def bonferroni_ci(
             columns = columns
         ).dropna()
     
+    if isinstance(feature, str):
+        feature = [feature]
     if len(feature) > 1:
         cat_values = list(map(list, groups.indices.keys())) # type: ignore
     else:

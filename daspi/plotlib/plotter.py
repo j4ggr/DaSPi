@@ -3871,7 +3871,8 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
             Additional keyword arguments to be passed to the Axes 
             `fill_between` method.
         """
-        for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME, observed=True):
+        column = PLOTTER.F_BASE_NAME
+        for f_base, group in self.source.groupby(column, observed=True):
             quantiles = group[self.target]
             lower = group[PLOTTER.LOWER]
             upper = group[PLOTTER.UPPER]
@@ -4191,7 +4192,8 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
             method, by default {}.
         """
         _kw_line = self.kw_default | kw_line
-        for f_base, group in self.source.groupby(PLOTTER.F_BASE_NAME, observed=True):
+        column = PLOTTER.F_BASE_NAME
+        for f_base, group in self.source.groupby(column, observed=True):
             estim_upp = group[self.feature]
             estim_low = self._get_lower_estimation_(f_base, estim_upp) # type: ignore
             sequence = group[self.target]

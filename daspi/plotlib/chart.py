@@ -869,6 +869,8 @@ class SingleChart(Chart):
 
         variate_names = [v for v in self.variate_names if v not in skip_variate]
         if variate_names:
+            if len(variate_names) == 1:
+                variate_names = variate_names[0]
             for combo, data in source.groupby(variate_names, observed=True):
                 self._data = data
                 self.update_variate(combo)
@@ -1944,8 +1946,10 @@ class MultivariateChart(SingleChart):
         axes_data : Series
             Containing all target data for each axes.
         """
-        names = [c for c in (self.row, self.col) if c]
+        names = [n for n in (self.row, self.col) if n]
         if names:
+            if len(names) == 1:
+                names = names[0]
             grouper = self.source.groupby(names, observed=True)
         else:
             grouper = [('', self.source)] 

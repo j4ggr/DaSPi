@@ -1915,8 +1915,11 @@ class TestPrecasts:
             source=df,
             target='result_rnr',
             part='part',
-            operator='operator',
-            gage=gage)
+            gage=gage,
+            u_av='operator')
+        
+        self.base = f'{self.fig_title}_gage_rnr_model'
+        self.kind = 'basic'
         chart = GageRnRCharts(model, stretch_figsize=True
             ).plot(
             ).stripes(

@@ -19,6 +19,7 @@ sys.path.append(str(Path(__file__).parent.resolve()))
 from daspi import ANOVA
 from daspi import load_dataset
 from daspi import GageEstimator
+from daspi import MeasurementUncertainty
 from daspi.anova.model import *
 
 valid_data_dir = Path(__file__).parent/'data'
@@ -496,10 +497,22 @@ class TestLinearModel:
 class TestGageStudyModel:
 
     df_single = pd.read_csv(
-        valid_data_dir/'gage_study.csv', skiprows=1, sep=';', skipfooter=33)
+        valid_data_dir/'gage_study.csv',
+        skiprows=lambda x: x not in list(range(1, 52)),
+        sep=';'
+        ).dropna(how='all', axis=1)
 
     df_lin = pd.read_csv(
-        valid_data_dir/'gage_study.csv', skiprows=54, sep=';')
+        valid_data_dir/'gage_study.csv',
+        skiprows=lambda x: x not in list(range(54, 85)),
+        sep=';'
+        ).dropna(how='all', axis=1)
+    
+    df_mpt = pd.read_csv(
+        valid_data_dir/'gage_study.csv',
+        skiprows=lambda x: x not in list(range(87, 178)),
+        sep=';'
+        ).dropna(how='all', axis=1)
     
     @pytest.fixture
     def gage_single(self) -> GageStudyModel:
@@ -528,11 +541,27 @@ class TestGageStudyModel:
             k=2)
     
     @pytest.fixture
+    def gage_mpt(self) -> GageStudyModel:
+        """Get GageStudyModel with three points at three references, 
+        to calculate the uncertainty with ANOVA."""
+        return GageStudyModel(
+            source=self.df_mpt,
+            target='result',
+            reference='reference',
+            u_cal=self.df_mpt['U_cal'][0],
+            tolerance=self.df_mpt['tolerance'][0],
+            resolution=self.df_mpt['resolution'][0],
+            u_lin=MeasurementUncertainty(standard=0),
+            u_rest=MeasurementUncertainty(
+                error_limit=0.0008, k=2, distribution='rectangular'),
+            k=2,)
+    
+    @pytest.fixture
     def df_vsingle(self) -> DataFrame:
         """Get validation data of df_single"""
         df = (self.df_single
             .loc[:, 'influence': 'rank']
-            .dropna(how='all')
+            .dropna(how='all', axis=0)
             .set_index('influence'))
         return df
     
@@ -541,7 +570,16 @@ class TestGageStudyModel:
         """Get validation data of df_lin"""
         df = (self.df_lin
             .loc[:, 'influence': 'rank']
-            .dropna(how='all')
+            .dropna(how='all', axis=0)
+            .set_index('influence'))
+        return df
+    
+    @pytest.fixture
+    def df_vmpt(self) -> DataFrame:
+        """Get validation data of df_mpt"""
+        df = (self.df_mpt
+            .loc[:, 'influence': 'rank']
+            .dropna(how='all', axis=0)
             .set_index('influence'))
         return df
     
@@ -555,8 +593,8 @@ class TestGageStudyModel:
     def test_uncertainties_single(
             self, gage_single: GageStudyModel, df_vsingle: DataFrame) -> None:
         df_u = gage_single.uncertainties()
-        
         assert list(df_u.index) == ANOVA.UNCERTAINTY_ROWS_MS
+
         for u_is, u_valid in zip(df_u['u'], df_vsingle['u']):
             assert u_is == approx(u_valid, abs=1e-5)
         
@@ -575,18 +613,38 @@ class TestGageStudyModel:
     def test_uncertainties_lin(
             self, gage_lin: GageStudyModel, df_vlin: DataFrame) -> None:
         df_u = gage_lin.uncertainties()
-        
         assert list(df_u.index) == ANOVA.UNCERTAINTY_ROWS_MS
+
         for u_is, u_valid in zip(df_u['u'], df_vlin['u']):
-            assert u_is == approx(u_valid, abs=1e-3)
+            assert u_is == approx(u_valid, abs=1e-5)
         
         for U_is, U_valid in zip(df_u['U'], df_vlin['U']):
-            assert U_is == approx(U_valid, abs=1e-3)
+            assert U_is == approx(U_valid, abs=1e-5)
         
         for Q_is, Q_valid in zip(df_u['Q'], df_vlin['Q']):
             assert Q_is == approx(Q_valid, abs=1e-3)
         
         for r_is, r_valid in zip(df_u['rank'], df_vlin['rank']):
+            if pd.isna(r_is):
+                assert pd.isna(r_valid)
+            else:
+                assert r_is == r_valid
+    
+    def test_uncertainties_mpt(
+            self, gage_mpt: GageStudyModel, df_vmpt: DataFrame) -> None:
+        df_u = gage_mpt.uncertainties()
+        assert list(df_u.index) == ANOVA.UNCERTAINTY_ROWS_MS
+
+        for u_is, u_valid in zip(df_u['u'], df_vmpt['u']):
+            assert u_is == approx(u_valid, abs=1e-5)
+        
+        for U_is, U_valid in zip(df_u['U'], df_vmpt['U']):
+            assert U_is == approx(U_valid, abs=1e-5)
+        
+        for Q_is, Q_valid in zip(df_u['Q'], df_vmpt['Q']):
+            assert Q_is == approx(Q_valid, abs=1e-3)
+        
+        for r_is, r_valid in zip(df_u['rank'], df_vmpt['rank']):
             if pd.isna(r_is):
                 assert pd.isna(r_valid)
             else:
@@ -610,8 +668,26 @@ class TestGageRnRModel:
             source=self.df_thick,
             target='result_rnr',
             part='part',
-            operator='operator',
-            gage=gage)
+            gage=gage,
+            u_av='operator')
+        return model
+
+    @pytest.fixture
+    def rnr_thick_model_gv(self) -> GageRnRModel:
+        gage = GageStudyModel(
+            source=self.df_thick,
+            target='result_gage',
+            reference='reference',
+            u_cal=self.df_thick['U_cal'][0],
+            tolerance=self.df_thick['tolerance'][0],
+            resolution=self.df_thick['resolution'][0])
+        model = GageRnRModel(
+            source=self.df_thick,
+            target='result_rnr',
+            part='part',
+            gage=gage,
+            u_av=None,
+            u_gv='operator')
         return model
 
     @pytest.fixture
@@ -627,8 +703,8 @@ class TestGageRnRModel:
             source=self.df_adj,
             target='result_rnr',
             part='part',
-            operator='operator',
-            gage=gage)
+            gage=gage,
+            u_av='operator')
         return model
 
     def test_anova_table(self, rnr_thick_model: GageRnRModel) -> None:
@@ -636,6 +712,29 @@ class TestGageRnRModel:
 
         Stat > Quality Tools > Gage Study > Gage R&R Study (Crossed)"""
         anova = rnr_thick_model.anova()
+
+        assert anova['DF']['part'] == 9
+        assert anova['DF']['operator'] == 2
+        assert anova['DF']['part:operator'] == 18
+        assert anova['DF'][ANOVA.RESIDUAL] == 30
+        
+        assert anova['SS']['part'] == approx(0.0015878, abs=1e-7)
+        assert anova['SS']['operator'] == approx(0.0000008, abs=1e-7)
+        assert anova['SS']['part:operator'] == approx(0.0000078, abs=1e-7)
+        assert anova['SS'][ANOVA.RESIDUAL] == approx(0.0000232, abs=1e-3)
+ 
+        assert anova['MS']['part'] == approx(0.0001764, abs=1e-7)
+        assert anova['MS']['operator'] == approx(0.0000004, abs=1e-7)
+        assert anova['MS']['part:operator'] == approx(0.0000004, abs=1e-7)
+        assert anova['MS'][ANOVA.RESIDUAL] == approx(0.0000008, abs=1e-7)
+ 
+        assert anova['p']['part:operator'] == approx(0.9183453, abs=1e-7)
+
+    def test_anova_table_gv(self, rnr_thick_model_gv: GageRnRModel) -> None:
+        """Verification done with Minitab v22.2
+
+        Stat > Quality Tools > Gage Study > Gage R&R Study (Crossed)"""
+        anova = rnr_thick_model_gv.anova()
 
         assert anova['DF']['part'] == 9
         assert anova['DF']['operator'] == 2
@@ -663,19 +762,19 @@ class TestGageRnRModel:
         MSA Assistant."""
         rnr = rnr_thick_model.rnr()
 
-        var = rnr['MS']
-        assert var[ANOVA.RNR] == approx(0.00000067, abs=1e-8)
-        assert var[ANOVA.EV] == approx(0.00000067, abs=1e-8)
-        assert var[ANOVA.AV] == approx(0.00000000, abs=1e-8)
-        assert var[ANOVA.PV] == approx(0.00002929, abs=1e-8)
-        assert var[ANOVA.TOTAL] == approx(0.00002997, abs=1e-8)
+        ms = rnr['MS']
+        assert ms[ANOVA.RNR] == approx(0.00000067, abs=1e-8)
+        assert ms[ANOVA.EV] == approx(0.00000067, abs=1e-8)
+        assert ms[ANOVA.AV] == approx(0.00000000, abs=1e-8)
+        assert ms[ANOVA.PV] == approx(0.00002929, abs=1e-8)
+        assert ms[ANOVA.TOTAL] == approx(0.00002997, abs=1e-8)
 
-        var_tot = rnr['MS/Total']
-        assert var_tot[ANOVA.RNR] == approx(0.02247966, abs=1e-8)
-        assert var_tot[ANOVA.EV] == approx(0.02247966, abs=1e-8)
-        assert var_tot[ANOVA.AV] == approx(0.00000000, abs=1e-8)
-        assert var_tot[ANOVA.PV] == approx(0.97752034, abs=1e-8)
-        assert var_tot[ANOVA.TOTAL] == approx(1.000000, abs=1e-8)
+        ms_tot = rnr['MS/Total']
+        assert ms_tot[ANOVA.RNR] == approx(0.02247966, abs=1e-8)
+        assert ms_tot[ANOVA.EV] == approx(0.02247966, abs=1e-8)
+        assert ms_tot[ANOVA.AV] == approx(0.00000000, abs=1e-8)
+        assert ms_tot[ANOVA.PV] == approx(0.97752034, abs=1e-8)
+        assert ms_tot[ANOVA.TOTAL] == approx(1.000000, abs=1e-8)
 
         std = rnr['s']
         assert std[ANOVA.RNR] == approx(0.00082074, abs=1e-8)
@@ -698,6 +797,50 @@ class TestGageRnRModel:
         assert spread_tol[ANOVA.PV] == approx(1.0824, abs=1e-4)
         assert spread_tol[ANOVA.TOTAL] == approx(1.0948, abs=1e-4)
 
+    def test_rnr_table_gv(self, rnr_thick_model_gv: GageRnRModel) -> None:
+        """Verification done with Minitab v22.2
+        
+        Stat > Quality Tools > Gage Study > Gage R&R Study (Crossed)
+        
+        The verification values for 6s/Tolerance coming from the 
+        MSA Assistant."""
+        rnr = rnr_thick_model_gv.rnr()
+
+        ms = rnr['MS']
+        assert ms[ANOVA.RNR] == approx(0.00000067, abs=1e-8)
+        assert ms[ANOVA.EV] == approx(0.00000067, abs=1e-8)
+        assert ms[ANOVA.GV] == approx(0.00000000, abs=1e-8)
+        assert ms[ANOVA.PV] == approx(0.00002929, abs=1e-8)
+        assert ms[ANOVA.TOTAL] == approx(0.00002997, abs=1e-8)
+
+        ms_tot = rnr['MS/Total']
+        assert ms_tot[ANOVA.RNR] == approx(0.02247966, abs=1e-8)
+        assert ms_tot[ANOVA.EV] == approx(0.02247966, abs=1e-8)
+        assert ms_tot[ANOVA.GV] == approx(0.00000000, abs=1e-8)
+        assert ms_tot[ANOVA.PV] == approx(0.97752034, abs=1e-8)
+        assert ms_tot[ANOVA.TOTAL] == approx(1.000000, abs=1e-8)
+
+        std = rnr['s']
+        assert std[ANOVA.RNR] == approx(0.00082074, abs=1e-8)
+        assert std[ANOVA.EV] == approx(0.00082074, abs=1e-8)
+        assert std[ANOVA.GV] == approx(0.00000000, abs=1e-8)
+        assert std[ANOVA.PV] == approx(0.00541218, abs=1e-8)
+        assert std[ANOVA.TOTAL] == approx(0.00547406, abs=1e-8)
+
+        spread_tot = rnr['6s/Total']
+        assert spread_tot[ANOVA.RNR] == approx(0.14993220, abs=1e-8)
+        assert spread_tot[ANOVA.EV] == approx(0.14993220, abs=1e-8)
+        assert spread_tot[ANOVA.GV] == approx(0.00000000, abs=1e-8)
+        assert spread_tot[ANOVA.PV] == approx(0.98869628, abs=1e-8)
+        assert spread_tot[ANOVA.TOTAL] == approx(1.00000000, abs=1e-8)
+
+        spread_tol = rnr['6s/Tolerance']
+        assert spread_tol[ANOVA.RNR] == approx(0.1641, abs=1e-4)
+        assert spread_tol[ANOVA.EV] == approx(0.1641, abs=1e-4)
+        assert spread_tol[ANOVA.GV] == approx(0.0000, abs=1e-4)
+        assert spread_tol[ANOVA.PV] == approx(1.0824, abs=1e-4)
+        assert spread_tol[ANOVA.TOTAL] == approx(1.0948, abs=1e-4)
+
     def test_rnr_table_interaction(self) -> None:
         """Verification done with:
 
@@ -717,24 +860,121 @@ class TestGageRnRModel:
             source=df,
             target='result',
             part='part',
-            operator='operator',
-            gage=gage)
-        rnr = rnr_thick_model.rnr(keep_interaction=True)
+            gage=gage,
+            u_av='operator')
+        rnr = rnr_thick_model.rnr(evaluate_ia=True)
         
-        var = rnr['MS']
-        assert var[ANOVA.RNR] == approx(0.1109, abs=1e-4)
-        assert var[ANOVA.EV] == approx(0.0571, abs=1e-4)
-        assert var[ANOVA.AV] == approx(0.0538, abs=1e-4)
-        assert var[ANOVA.PV] == approx(0.8021, abs=1e-4)
-        assert var[ANOVA.TOTAL] == approx(0.9130, abs=1e-4)
+        ms = rnr['MS']
+        assert ms[ANOVA.RNR] == approx(0.1109, abs=1e-4)
+        assert ms[ANOVA.EV] == approx(0.0571, abs=1e-4)
+        assert ms[ANOVA.AV] == approx(0.0538, abs=1e-4)
+        assert ms[ANOVA.PV] == approx(0.8021, abs=1e-4)
+        assert ms[ANOVA.TOTAL] == approx(0.9130, abs=1e-4)
 
-        var_tot = rnr['MS/Total']
-        assert var_tot[ANOVA.RNR] == approx(0.1214, abs=1e-4)
-        assert var_tot[ANOVA.EV] == approx(0.0625, abs=1e-4)
-        assert var_tot[ANOVA.AV] == approx(0.0589, abs=1e-4)
-        assert var_tot[ANOVA.PV] == approx(0.8786, abs=1e-4)
-        assert var_tot[ANOVA.TOTAL] == approx(1.0000, abs=1e-4)
+        ms_tot = rnr['MS/Total']
+        assert ms_tot[ANOVA.RNR] == approx(0.1214, abs=1e-4)
+        assert ms_tot[ANOVA.EV] == approx(0.0625, abs=1e-4)
+        assert ms_tot[ANOVA.AV] == approx(0.0589, abs=1e-4)
+        assert ms_tot[ANOVA.PV] == approx(0.8786, abs=1e-4)
+        assert ms_tot[ANOVA.TOTAL] == approx(1.0000, abs=1e-4)
 
-    def test_uncertainties(self, rnr_adj_model: GageRnRModel) -> None:
-        df_u = rnr_adj_model.uncertainties()
+    def test_rnr_table_interaction_gv(self) -> None:
+        """Verification done with:
+
+        Dr. Bill McNeese, BPI Consulting, LLC (09.2012)
+        
+        https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-2/
+        """
+        df = load_dataset('grnr_spc')
+        gage = GageStudyModel.from_gage_estimators(
+            GageEstimator(
+                samples=df['result'],
+                reference=None,
+                u_cal=0.002,
+                tolerance=15,
+                resolution=None))
+        rnr_thick_model = GageRnRModel(
+            source=df,
+            target='result',
+            part='part',
+            gage=gage,
+            u_av=None,
+            u_gv='operator')
+        rnr = rnr_thick_model.rnr(evaluate_ia=True)
+        
+        ms = rnr['MS']
+        assert ms[ANOVA.RNR] == approx(0.1109, abs=1e-4)
+        assert ms[ANOVA.EV] == approx(0.0571, abs=1e-4)
+        assert ms[ANOVA.GV] == approx(0.0538, abs=1e-4)
+        assert ms[ANOVA.PV] == approx(0.8021, abs=1e-4)
+        assert ms[ANOVA.TOTAL] == approx(0.9130, abs=1e-4)
+
+        ms_tot = rnr['MS/Total']
+        assert ms_tot[ANOVA.RNR] == approx(0.1214, abs=1e-4)
+        assert ms_tot[ANOVA.EV] == approx(0.0625, abs=1e-4)
+        assert ms_tot[ANOVA.GV] == approx(0.0589, abs=1e-4)
+        assert ms_tot[ANOVA.PV] == approx(0.8786, abs=1e-4)
+        assert ms_tot[ANOVA.TOTAL] == approx(1.0000, abs=1e-4)
+
+    def test_uncertainties(self) -> None:
+        df_gage = pd.read_csv(
+            valid_data_dir/'gage_study.csv',
+            skiprows=lambda x: x not in list(range(87, 178)),
+            sep=';'
+            ).dropna(how='all', axis=1)
+        
+        df_rnr = pd.read_csv(
+            valid_data_dir/'gage_rnr.csv',
+            skiprows=lambda x: x not in list(range(1, 62)),
+            sep=';'
+            ).dropna(how='all', axis=1)
+        
+        df_vmpt = (df_rnr
+            .loc[:, 'influence': 'rank']
+            .dropna(how='all', axis=0)
+            .set_index('influence'))
+        
+        gage = GageStudyModel(
+            source=df_gage,
+            target='result',
+            reference='reference',
+            u_cal=df_gage['U_cal'][0],
+            tolerance=df_gage['tolerance'][0],
+            resolution=df_gage['resolution'][0],
+            u_lin=MeasurementUncertainty(standard=0),
+            u_rest=MeasurementUncertainty(
+                error_limit=0.0008, distribution='rectangular'),
+            k=2,)
+        rnr_model = GageRnRModel(
+            source=df_rnr,
+            target='result',
+            part='part',
+            gage=gage,
+            u_av=None,
+            u_gv='point',
+            u_t=MeasurementUncertainty(standard=0.00126),
+            u_rest=MeasurementUncertainty(
+                error_limit=0.0022, distribution='rectangular'))
+
+        df_u = rnr_model.uncertainties()
         assert not df_u.empty
+        assert list(df_u.index) == [
+            {'REST': 'MP_REST'}.get(r, r) for r in ANOVA.UNCERTAINTY_ROWS_MP]
+        assert list(rnr_model.df_ums.index) == [
+            {'REST': 'MS_REST'}.get(r, r) for r in ANOVA.UNCERTAINTY_ROWS_MS]
+        
+        for name, u_is in df_u['u'].items():
+            u_valid = df_vmpt['u'][str(name)]
+            assert u_is == approx(u_valid, abs=1e-3)
+        
+        # for U_is, U_valid in zip(df_u['U'], df_vmpt['U']):
+        #     assert U_is == approx(U_valid, abs=1e-5)
+        
+        # for Q_is, Q_valid in zip(df_u['Q'], df_vmpt['Q']):
+        #     assert Q_is == approx(Q_valid, abs=1e-3)
+        
+        # for r_is, r_valid in zip(df_u['rank'], df_vmpt['rank']):
+        #     if pd.isna(r_is):
+        #         assert pd.isna(r_valid)
+        #     else:
+        #         assert r_is == r_valid
