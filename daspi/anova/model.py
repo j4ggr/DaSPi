@@ -2389,7 +2389,8 @@ class GageRnRModel(LinearModel):
     """Dictionary for mapping original names of uncertainties in the 
     source data to the uncertainty abbreviations used in the model."""
     n_levels: 'Series[int]'
-    """Series with the number of levels for each variable."""
+    """Series with the number of levels for each variable. The amount
+    of replications are stored under equipment variation 'EV'."""
     _n_samples: int
     _rnr: DataFrame
     _df_u: DataFrame
