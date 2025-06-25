@@ -2006,12 +2006,11 @@ class GageStudyModel(LinearModel):
     def u_ms(self) -> MeasurementUncertainty:
         """The uncertainty of the measurement system (read-only)."""
         if self._u_ms is None:
-            self._u_ms = (
-                self.u_cal
-                + max(self.u_re, self.u_evr)
-                + self.u_bi
-                + self.u_lin
-                + self.u_rest)
+            self._u_ms = self.u_cal.combine_with(
+                max(self.u_re, self.u_evr),
+                self.u_bi,
+                self.u_lin,
+                self.u_rest)
         return self._u_ms
     
     @property
@@ -2150,7 +2149,29 @@ class GageStudyModel(LinearModel):
 
     def uncertainties(self) -> DataFrame:
         """Returns a DataFrame with the uncertainties for the 
-        measurement system. 
+        measurement system.
+
+        The table contains the following rows:
+
+        - CAL: Calibration uncertainty
+        - RE: Resolution uncertainty
+        - BI: Bias uncertainty
+        - LIN: Linearity uncertainty
+        - EVR: Equipment Variation on the Reference
+        - REST: Other known and provided uncertainty
+        - MS: Measurement System uncertainty
+
+        The table contains the following columns:
+
+        - u: The measurement uncertainty for the respective components
+        - U: The expanded uncertainty as k * u
+        - Q: The Quality Indicator serves as a quality indicator for the 
+          measurement process, reflecting how well the measurement 
+          system performs in relation to the specified requirements and 
+          tolerances.
+        - rank: The rank of the uncertainty component, where a lower
+          rank indicates a more significant contribution to the overall 
+          uncertainty.
 
         Returns
         -------
@@ -2242,13 +2263,14 @@ class GageRnRModel(LinearModel):
         system analysis type 1. To calculate the uncertainty for 
         linearity, provide multiple reference parts in the
         `GageStudyModel` instance.
-    u_av : str | Non
+    u_av : str | None, optional
         Column name of the variable that identifies the operator for 
         type 2 Gage R&R. If the operator has no influence (MSA Typ III)
         and was therefore not included in the data acquisition, set
         `u_av` to `None`. In this case, it is recommended to record 
         multiple locations, multiple part holders, or other possible 
         changes to the measuring system and specify them in `u_gv`.
+        Default is None.
     u_gv: str | None, optional
         Specifies the measurement uncertainty of gage ss, which 
         reflects the comparability of the measurement system. This 
@@ -2262,8 +2284,7 @@ class GageRnRModel(LinearModel):
         (Method A) or specified directly if known (Method B).
 
         - Method A: Enter the column name containing the categorical 
-          variables for different temperatures. If the data is 
-          continuous, set the 'continuous_temperature' flag to True.
+          variables for different temperatures.
         - Method B: Specify a MeasurementUncertainty instance directly.
 
         If neither method is applied, the default value is 'None'.
@@ -2291,8 +2312,6 @@ class GageRnRModel(LinearModel):
         conditions, operator influences, or other unknown variables. If 
         known, specify the uncertainty here; otherwise, the default 
         value is 'None'.
-    continuous_temperature: bool, optional
-        Set this flag to True if the temperature data is continuous.
     fit_at_init : bool, optional
         If True, the model is fitted at initialization. Otherwise, the
         model is fitted after calling the `fit` method. Default is True.
@@ -2341,8 +2360,9 @@ class GageRnRModel(LinearModel):
     __slots__ = (
         'part',
         'has_operator',
-        '_u_av_orig',
-        '_u_gv_orig',
+        'u_map',
+        'n_levels',
+        '_n_samples',
         '_rnr',
         '_df_u',
         '_df_ump',
@@ -2358,16 +2378,19 @@ class GageRnRModel(LinearModel):
         '_u_obj',
         '_u_rest',
         '_u_mp',
-        '_evaluate_ia'
+        '_evaluate_ia',
         )
     
     part: str
     """Column name of the part (unit under test) variable."""
     has_operator: bool
     """Indicates whether the model has an operator variable."""
-    _u_av_orig: str | None
-    _u_gv_orig: str | None
-    
+    u_map: Dict[str, str]
+    """Dictionary for mapping original names of uncertainties in the 
+    source data to the uncertainty abbreviations used in the model."""
+    n_levels: 'Series[int]'
+    """Series with the number of levels for each variable."""
+    _n_samples: int
     _rnr: DataFrame
     _df_u: DataFrame
     _df_ump: DataFrame
@@ -2384,6 +2407,7 @@ class GageRnRModel(LinearModel):
     _u_rest: MeasurementUncertainty | None
     _u_mp: MeasurementUncertainty | None
     _evaluate_ia: bool | Literal['auto']
+    names_map: Dict[str, str]
 
     def __init__(
             self,
@@ -2391,15 +2415,18 @@ class GageRnRModel(LinearModel):
             target: str,
             part: str,
             gage: GageStudyModel,
-            u_av: str | None,
+            u_av: str | None = None,
             u_gv: str | None = None,
             u_t: MeasurementUncertainty | str | None = None,
             u_stab: str | None = None,
             u_obj: MeasurementUncertainty | str | None = None,
             u_rest: MeasurementUncertainty | None = None,
-            continuous_temperature: bool = False,
             fit_at_init: bool = True,
             ) -> None:
+        assert u_av or u_gv, (
+            'Either the u_av (operator) or the u_gv (gage variation) '
+            'must be specified')
+        
         self.part = part
         self.has_operator = bool(u_av)
         self._gage = gage
@@ -2414,29 +2441,19 @@ class GageRnRModel(LinearModel):
         self._u_rest = u_rest
         self._u_mp = None
         self._evaluate_ia = 'auto'
-        self._u_av_orig = u_av
-        self._u_gv_orig = u_gv
-        assert self._u_av_orig or self._u_gv_orig, (
-            'Either the u_av (operator) or the u_gv (gage ss) '
-            'must be specified')
-
-        u_old = (u_t, u_stab, u_obj)
-        u_new = ('T', 'STAB', 'OBJ')
-        u_names_map: Dict[str, str] = {
+        u_old = (part, u_av, u_gv, u_t, u_stab, u_obj)
+        u_new = ('PV', 'AV', 'GV', 'T', 'STAB', 'OBJ')
+        self.u_map = {
             old: new for old, new in zip(u_old, u_new) if isinstance(old, str)}
-        features = (
-            [part] 
-            + list(u for u in (u_av, u_gv) if isinstance(u, str))
-            + list(u_names_map.values()))
-        disturbances = []
-        if 'T' in features and continuous_temperature:
-            disturbances = [features.pop(features.index('T'))]
+        features = list(self.u_map.keys())
+        self._n_samples = source[target].notna().sum()
+        self.n_levels = source[features].nunique().rename(self.u_map)
+        self.n_levels[ANOVA.EV] = self.n_samples / np.prod(self.n_levels)
             
         super().__init__(
-            source=source.rename(columns=u_names_map),
+            source=source,
             target=target,
             features=features,
-            disturbances=disturbances,
             order=2,
             fit_at_init=fit_at_init)
         self._captions = (
@@ -2447,6 +2464,11 @@ class GageRnRModel(LinearModel):
             STR['lm_table_caption_mp_uncertainty'],)
         self._reset_tables_()
         self.print_formula = False
+    
+    @property
+    def n_samples(self) -> int:
+        """The number of samples used in the Gage R&R study (read-only)."""
+        return self._n_samples
     
     @property
     def gage(self) -> GageStudyModel:
@@ -2509,7 +2531,7 @@ class GageRnRModel(LinearModel):
     
     @property
     def u_evo(self) -> MeasurementUncertainty:
-        """Get the measurement uncertainty of the measurement evolution 
+        """Get the measurement uncertainty of the equipment variation 
         (repeatability) on the object (read-only)."""
         if self._u_evo is None:
             rnr = self.rnr(evaluate_ia=self._evaluate_ia)
@@ -2638,15 +2660,17 @@ class GageRnRModel(LinearModel):
 
         - R&R: The sum of repeatability and reproducibility.
         - EV: The repeatability component (Equipement Variation).
-        - AV: The reproducibility component (Appriser Variation).
+        - AV or GV: The reproducibility component 
+          (Appriser or Gage Variation).
         - Part: The part-to-part component.
-        - Total: The sum of the repeatability, reproducibility, and part-to-part.
+        - Total: The sum of the repeatability, reproducibility, 
+          and part-to-part.
 
         The table contains the following columns:
 
-        - MS: The variance.
-        - MS/Total: The variance divided by the total variance.
-        - s: The standard deviation.
+        - MS: The variance estimation.
+        - MS/Total: The estimated variance divided by the total variance.
+        - s: The standard deviation as square root of the variance.
         - 6s: The 6 times the standard deviation.
         - 6s/Total: The 6 times the standard deviation divided by the 
             total 6 times the standard deviation.
@@ -2699,10 +2723,6 @@ class GageRnRModel(LinearModel):
         
         Notes
         -----
-        The interaction term is included if it is significant. Otherwise, 
-        the interaction term is excluded and the model is refit without 
-        the interaction term.
-
         The mean squarse used for the calculation of the variances are
         computed using the `anova` method. The variance components are 
         then calculated as follows:
@@ -2762,23 +2782,13 @@ class GageRnRModel(LinearModel):
             f'evaluate_ia must be True, False, or auto, got {evaluate_ia}')
         self._evaluate_ia = evaluate_ia
 
-        av_gv_orig = self._u_av_orig if self.has_operator else self._u_gv_orig
         av_gv = ANOVA.AV if self.has_operator else ANOVA.GV
-        idx_map = {
-            ANOVA.RESIDUAL: ANOVA.EV,
-            av_gv_orig: av_gv,
-            self.part: ANOVA.PV}
-        idx_rnr_sum = [
-            ANOVA.EV,
-            av_gv,
-            ANOVA.IA]
-        idx_order = [
-            ANOVA.RNR,
-            ANOVA.EV,
-            av_gv,
-            ANOVA.IA,
-            ANOVA.PV,
-            ANOVA.TOTAL]
+        idx_map = {ANOVA.RESIDUAL: ANOVA.EV} | self.u_map
+        idx_rnr_sum = (
+            [ANOVA.EV]
+            + [n for n in self.u_map.values() if n != ANOVA.PV]
+            + [ANOVA.IA])
+        idx_order = [ANOVA.RNR] + idx_rnr_sum + [ANOVA.PV, ANOVA.TOTAL]
         columns = ANOVA.RNR_COLNAMES
         if not self._evaluate_ia:
             idx_rnr_sum.pop(idx_rnr_sum.index(ANOVA.IA))
@@ -2836,10 +2846,10 @@ class GageRnRModel(LinearModel):
         The table contains the following rows:
 
         - RE: Resolution uncertainty
-        - Bi: Bias uncertainty
-        - EVR: Measurement evolution (repeatability) on the reference
+        - BI: Bias uncertainty
+        - EVR: Equipment variation on the Reference (repeatability) 
         - MS: Measurement System uncertainty
-        - EVO: Measurement evolution (repeatability) on the object 
+        - EVO: Equipement Variation on the Object(repeatability)
         - AV: Appraiser Variation uncertainty
         - IA: Interaction uncertainty
         - MP: Measurement Process (or Precision) uncertainty
@@ -2852,6 +2862,9 @@ class GageRnRModel(LinearModel):
           measurement process, reflecting how well the measurement 
           system performs in relation to the specified requirements and 
           tolerances.
+        - rank: The rank of the uncertainty component, where a lower
+          rank indicates a more significant contribution to the overall 
+          uncertainty.
 
         Returns
         -------
@@ -2923,7 +2936,7 @@ class GageRnRModel(LinearModel):
         self._df_u = df_u
         self._df_ums = df_u.loc[df_ums.index, :].copy()
         self._df_ump = df_u.loc[df_ump.index, :].copy()
-        return self._df_u
+        return self._df_ump
     
     def _dfs_repr_(self) -> List[DataFrame]:
         """Returns a list of DataFrames containing the goodness-of-fit 

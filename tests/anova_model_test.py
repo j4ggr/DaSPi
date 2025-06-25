@@ -686,7 +686,6 @@ class TestGageRnRModel:
             target='result_rnr',
             part='part',
             gage=gage,
-            u_av=None,
             u_gv='operator')
         return model
 
@@ -898,7 +897,6 @@ class TestGageRnRModel:
             target='result',
             part='part',
             gage=gage,
-            u_av=None,
             u_gv='operator')
         rnr = rnr_thick_model.rnr(evaluate_ia=True)
         
@@ -950,31 +948,35 @@ class TestGageRnRModel:
             target='result',
             part='part',
             gage=gage,
-            u_av=None,
             u_gv='point',
             u_t=MeasurementUncertainty(standard=0.00126),
             u_rest=MeasurementUncertainty(
                 error_limit=0.0022, distribution='rectangular'))
 
-        df_u = rnr_model.uncertainties()
+        rnr_model.uncertainties()
+        df_u = rnr_model.df_u
+        df_ums = rnr_model.df_ums
+        df_ump = rnr_model.df_ump
         assert not df_u.empty
-        assert list(df_u.index) == [
+        assert not df_ums.empty
+        assert not df_ump.empty
+
+        assert list(df_ump.index) == [
             {'REST': 'MP_REST'}.get(r, r) for r in ANOVA.UNCERTAINTY_ROWS_MP]
-        assert list(rnr_model.df_ums.index) == [
+        assert list(df_ums.index) == [
             {'REST': 'MS_REST'}.get(r, r) for r in ANOVA.UNCERTAINTY_ROWS_MS]
         
-        for name, u_is in df_u['u'].items():
-            u_valid = df_vmpt['u'][str(name)]
-            assert u_is == approx(u_valid, abs=1e-3)
+        for u_is, u_valid in zip(df_u['u'], df_vmpt['u']):
+            assert u_is == approx(u_valid, abs=1e-5)
         
-        # for U_is, U_valid in zip(df_u['U'], df_vmpt['U']):
-        #     assert U_is == approx(U_valid, abs=1e-5)
+        for U_is, U_valid in zip(df_u['U'], df_vmpt['U']):
+            assert U_is == approx(U_valid, abs=1e-4)
         
-        # for Q_is, Q_valid in zip(df_u['Q'], df_vmpt['Q']):
-        #     assert Q_is == approx(Q_valid, abs=1e-3)
+        for Q_is, Q_valid in zip(df_u['Q'], df_vmpt['Q']):
+            assert Q_is == approx(Q_valid, abs=1e-3)
         
-        # for r_is, r_valid in zip(df_u['rank'], df_vmpt['rank']):
-        #     if pd.isna(r_is):
-        #         assert pd.isna(r_valid)
-        #     else:
-        #         assert r_is == r_valid
+        for r_is, r_valid in zip(df_u['rank'], df_vmpt['rank']):
+            if pd.isna(r_is):
+                assert pd.isna(r_valid)
+            else:
+                assert r_is == r_valid
