@@ -1262,6 +1262,15 @@ class LocationDispersionEstimator(DistributionEstimator):
         Distributions to which the data may be subject. Only 
         continuous distributions of scipy.stats are allowed,
         by default `DIST.COMMON`
+    evaluate : Callable | None
+        Provide a function that evaluates the `strategy`. If `strategy`
+        is set to 'eval', this function is used to determine the
+        strategy. The function should take the `samples` as input
+        and return a string that corresponds to a valid strategy
+        'fit', 'norm', or 'data'. If not provided, the internal
+        `evaluate` method is used. For more information on the
+        `evaluate` method, see the class documentation.
+        Default is None.
     nan_policy : {'propagate', 'raise', 'omit'}, optional
         How to handle NaN values in the samples. 
         - 'propagate': NaN values are preserved in the analysis.
@@ -1790,6 +1799,15 @@ class ProcessEstimator(LocationDispersionEstimator):
         Distributions to which the data may be subject. Only 
         continuous distributions of scipy.stats are allowed,
         by default DIST.COMMON
+    evaluate : Callable | None
+        Provide a function that evaluates the `strategy`. If `strategy`
+        is set to 'eval', this function is used to determine the
+        strategy. The function should take the `samples` as input
+        and return a string that corresponds to a valid strategy
+        'fit', 'norm', or 'data'. If not provided, the internal
+        `evaluate` method is used. For more information on the
+        `evaluate` method, see the class documentation.
+        Default is None.
     nan_policy : {'propagate', 'raise', 'omit'}, optional
         How to handle NaN values in the samples. 
         - 'propagate': NaN values are preserved in the analysis.
@@ -1887,6 +1905,7 @@ class ProcessEstimator(LocationDispersionEstimator):
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: float | int = 6, 
             possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
+            evaluate: Callable | None = None,
             nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
             ) -> None:
         self._n_ok = None
@@ -2226,6 +2245,22 @@ class GageEstimator(LocationDispersionEstimator):
     tolerance_ratio : float, optional
         The proportion of the tolerance range (between 0 and 1) used 
         to calculate the adjusted limits, default is 0.2 (20%).
+    strategy : {'eval', 'fit', 'norm', 'data'}, optional
+        Which strategy should be used to determine the control 
+        limits (process spread):
+        - `eval`: The strategy is determined according to the given 
+          evaluate function. If none is given, the internal `evaluate`
+          method is used.
+        - `fit`: First, the distribution that best represents the 
+          process data is searched for and then the agreed process 
+          spread is calculated
+        - `norm`: it is assumed that the data is subject to normal 
+          distribution. The variation tolerance is then calculated as 
+          agreement * standard deviation
+        - `data`: The quantiles for the process variation tolerance 
+          are read directly from the data.
+        
+        Default is 'eval'.
     aggreement : int | float, optional
         The multiplier of the standard deviation for Cg and Cgk
         values. If an integer is given, the value is interpreted as
@@ -2234,6 +2269,19 @@ class GageEstimator(LocationDispersionEstimator):
         the spread, e.g. 0.9544 (which corresponds to ~ 4 σ). Simply put, 
         this is twice the coverage factor k. Default is 4, because 
         a common coverage factor k is 2.
+    possible_dists : tuple of strings or rv_continous, optional
+        Distributions to which the data may be subject. Only 
+        continuous distributions of scipy.stats are allowed,
+        by default `DIST.COMMON`
+    evaluate : Callable | None
+        Provide a function that evaluates the `strategy`. If `strategy`
+        is set to 'eval', this function is used to determine the
+        strategy. The function should take the `samples` as input
+        and return a string that corresponds to a valid strategy
+        'fit', 'norm', or 'data'. If not provided, the internal
+        `evaluate` method is used. For more information on the
+        `evaluate` method, see the class documentation.
+        Default is None.
     cg_limit : float, optional
         The limit for the capability index, default is 1.33.
     cgk_limit : float, optional
@@ -2351,7 +2399,10 @@ class GageEstimator(LocationDispersionEstimator):
             tolerance: float | SpecLimits | Specification,
             resolution: float | None,
             tolerance_ratio: float = 0.2,
+            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'eval',
             agreement: float | int = 4,
+            possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
+            evaluate: Callable | None = None,
             cg_limit: float = 1.33,
             cgk_limit: float = 1.33,
             resolution_ratio_limit: float = 0.05,
@@ -2359,10 +2410,10 @@ class GageEstimator(LocationDispersionEstimator):
             ) -> None:
         super().__init__(
             samples=samples,
-            strategy='norm',
+            strategy=strategy,
             agreement=agreement,
-            possible_dists=DIST.COMMON,
-            evaluate=None,
+            possible_dists=possible_dists,
+            evaluate=evaluate,
             nan_policy=nan_policy)
         self.resolution = resolution
         self.reference = reference
