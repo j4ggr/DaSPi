@@ -2256,7 +2256,7 @@ class GageRnRModel(LinearModel):
     target : str
         Column name for source data holding the measurement values.
     part : str
-        Column name of the part (unit under test) variable.
+        Column name for the parts variable (unit under test).
     gage : GageStudyModel
         The provided GageStudyModel instance contains the measurement 
         system's statistics. This class corresponds to measurement 
@@ -2583,8 +2583,9 @@ class GageRnRModel(LinearModel):
         if self._u_t is None:
             self._u_t = MeasurementUncertainty(standard=0, k=self.k)
         elif isinstance(self._u_t, str):
+            rnr = self.rnr(evaluate_ia=self._evaluate_ia)
             self._u_t = MeasurementUncertainty(
-                standard=self.anova('II')['MS'].get('T', 0)**0.5,
+                standard=rnr['s'].get('T', 0),
                 k=self.k)
         return self._u_t
 
@@ -2595,8 +2596,9 @@ class GageRnRModel(LinearModel):
         if self._u_stab is None:
             self._u_stab = MeasurementUncertainty(standard=0, k=self.k)
         elif isinstance(self._u_stab, str):
+            rnr = self.rnr(evaluate_ia=self._evaluate_ia)
             self._u_stab = MeasurementUncertainty(
-                standard=self.anova('II')['MS'].get('STAB', 0)**0.5,
+                standard=rnr['s'].get('STAB', 0),
                 k=self.k)
         return self._u_stab
     
@@ -2607,8 +2609,9 @@ class GageRnRModel(LinearModel):
         if self._u_obj is None:
             self._u_obj = MeasurementUncertainty(standard=0, k=self.k)
         elif isinstance(self._u_obj, str):
+            rnr = self.rnr(evaluate_ia=self._evaluate_ia)
             self._u_obj = MeasurementUncertainty(
-                standard=self.anova('II')['MS'].get('OBJ', 0)**0.5,
+                standard=rnr['s'].get('OBJ', 0),
                 k=self.k)
         return self._u_obj
     
@@ -2647,7 +2650,7 @@ class GageRnRModel(LinearModel):
 
     def anova(
             self,
-            typ: Literal['', 'I', 'II', 'III'] = 'II',
+            typ: Literal['', 'I', 'II', 'III'] = 'I',
             vif: bool = False) -> DataFrame:
         return super().anova(typ, vif)
     
@@ -2788,7 +2791,6 @@ class GageRnRModel(LinearModel):
             f'evaluate_ia must be True, False, or auto, got {evaluate_ia}')
         self._evaluate_ia = evaluate_ia
 
-        av_gv = ANOVA.AV if self.has_operator else ANOVA.GV
         idx_map = {ANOVA.RESIDUAL: ANOVA.EV} | self.u_map
         idx_rnr_sum = (
             [ANOVA.EV]
@@ -2805,13 +2807,15 @@ class GageRnRModel(LinearModel):
             if self.excluded:
                 self.fit()
 
-        anova = self.anova('II').copy().rename(index=idx_map)
+        anova = self.anova().copy().rename(index=idx_map)
         ms = anova['MS']
         ems: Dict[str, float] = {ANOVA.EV: ms[ANOVA.EV]}
         if self._evaluate_ia:
-            _ms = sum(ms[i] for i in self.interactions)
-            ems[ANOVA.IA] = (
-                (_ms - ms[ANOVA.EV]) / self.n_levels[ANOVA.EV])
+            ms_iai = [ms[i] for i in self.interactions]
+            _ms = sum(ms_iai)
+            ems[ANOVA.IA] = sum(
+                max(0, (msi - ms[ANOVA.EV]) / self.n_levels[ANOVA.EV])
+                for msi in ms_iai)
         else:
             _ms = ms[ANOVA.EV]
         for name in self.u_map.values():

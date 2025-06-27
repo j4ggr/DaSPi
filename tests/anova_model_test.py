@@ -980,3 +980,41 @@ class TestGageRnRModel:
                 assert pd.isna(r_valid)
             else:
                 assert r_is == r_valid
+    
+    def test_uncertainties_doptimal(self) -> None:
+        df = pd.read_csv(valid_data_dir/'grnr_d-optimal.csv',sep=';')
+        df_gage = df.loc[:, 'order_gage':'tolerance'].dropna(how='all', axis=0)
+        df_rnr = df.loc[:, 'order_rnr':'result_rnr']
+        df_v = df.loc[:, 'influence': 'rank'].dropna(how='all', axis=0)
+
+        gage = GageStudyModel(
+            source=df_gage,
+            target='result_gage',
+            reference='reference',
+            u_cal=df_gage['U_cal'][0],
+            tolerance=df_gage['tolerance'][0],
+            resolution=df_gage['resolution'][0],
+            k=2,)
+        rnr_model = GageRnRModel(
+            source=df_rnr,
+            target='result_rnr',
+            part='part',
+            gage=gage,
+            u_av='operator',
+            u_obj='device',)
+
+        rnr_model.uncertainties()
+        df_u = rnr_model.df_u
+        df_ums = rnr_model.df_ums
+        df_ump = rnr_model.df_ump
+        assert not df_u.empty
+        assert not df_ums.empty
+        assert not df_ump.empty
+
+        assert list(df_ump.index) == [
+            {'REST': 'MP_REST'}.get(r, r) for r in ANOVA.UNCERTAINTY_ROWS_MP]
+        assert list(df_ums.index) == [
+            {'REST': 'MS_REST'}.get(r, r) for r in ANOVA.UNCERTAINTY_ROWS_MS]
+        
+        for u_is, u_valid in zip(df_u['u'], df_v['u']):
+            assert u_is == approx(u_valid, abs=1e-4)
