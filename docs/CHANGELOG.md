@@ -14,6 +14,31 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.7.0] - 2025-07-01
+
+### Changed
+
+- The name of Estimator class to LocationDispersionEstimator and this class inherits also from BaseEstimator class.
+- The property name descriptive_statistic_attrs of Estimator classes to attrs_describe.
+- The GageRnRModel calculates the uncertainties now after the VDA 5 standard.
+
+### Added
+
+- The BaseEstimator class to estimation module.
+- The DistributionEstimator class to estimation module.
+- The root_mean_square() function to estmation modul.
+- The GageStudyModel class to model module.
+- The BaseHTMLReprModel class to model module, all Model classe inherit from this class.
+- The CategoricalObservation class to plotter module.
+- The option to stretch the figsize by an amount for AxesFacets and all Chart classes.
+- The MeasurementUncertainty class to estimation module.
+- The property k (coverage factor) to LocationDispersionEstimation class.
+- The options strategy, agreement and possible_dists to GageEstimator class
+
+### Removed
+
+- The calculation of measuremen unsertainties at GageEstimator class.
+
 ## [1.6.0] - 2025-06-05
 
 ### Changed

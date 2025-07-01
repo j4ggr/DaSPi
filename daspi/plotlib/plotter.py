@@ -16,46 +16,6 @@ way to visualize and analyze statistical data. They can be used in a
 variety of applications, including data exploration, hypothesis testing,
 and data presentation.
 
-Classes
--------
-Plotter:
-    An abstract base class for creating plotters.
-Scatter:
-    A scatter plotter that extends the `Plotter` base class.
-Line:
-    A line plotter that extends the `Plotter` base class.
-LinearRegressionLine:
-    A linear regression plotter that extends the `Plotter` base class.
-Probability:
-    A probability plotter that extends the `LinearRegression` class.
-TransformPlotter:
-    A base class for creating plotter classes that perform
-    transformations on data.
-CenterLocation:
-    A CenterLocation plotter that extends the TransformPlotter class.
-GaussianKDE:
-    A class for creating Gaussian Kernel Density Estimation (KDE)
-    plotters.
-Violine:
-    A class for creating violine plotters.
-Errorbar:
-    A class for creating error bar plotters.
-StandardErrorMean:
-    A class for creating plotters with error bars representing the
-    standard error of the mean.
-SpreadWidth:
-    A class for creating plotters with error bars representing the 
-    spread width.
-DistinctionTest:
-    A class for creating plotters with error bars representing 
-    distinction tests.
-MeanTest:
-    A class for creating plotters with error bars representing 
-    confidence intervals for the mean.
-VariationTest:
-    A class for creating plotters with error bars representing
-    confidence intervals for variation measures.
-
 Usage
 -----
 Import the module and use the classes to create and customize plots.

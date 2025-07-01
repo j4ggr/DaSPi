@@ -113,6 +113,7 @@ nav:
         - plotlib/plotter/line.md
         - plotlib/plotter/stem.md
         - plotlib/plotter/linear-regression-line.md
+        - plotlib/plotter/loess-line.md
         - plotlib/plotter/probability.md
         - plotlib/plotter/parallel-coordinate.md
         - plotlib/plotter/transform-plotter.md
@@ -121,6 +122,7 @@ nav:
         - plotlib/plotter/pareto.md
         - plotlib/plotter/jitter.md
         - plotlib/plotter/beeswarm.md
+        - plotlib/plotter/categorical-observation.md
         - plotlib/plotter/quantile-boxes.md
         - plotlib/plotter/gaussian-kde.md
         - plotlib/plotter/gaussian-kde-contour.md
