@@ -155,7 +155,7 @@ chart = dsp.ProcessCapabilityAnalysisCharts(
 
 samples_parallel = df[df['method']=='parallel'][target]
 samples_series = df[df['method']=='perpendicular'][target]
-pd.concat([
+df_e = pd.concat([
     dsp.ProcessEstimator(samples_parallel, spec_limits).describe(),
     dsp.ProcessEstimator(samples_series, spec_limits).describe()],
     axis=1,
@@ -163,6 +163,7 @@ pd.concat([
 ).rename(
     columns={0: 'parallel', 1: 'perpendicular'}
 )
+print(df_e)
 ```
 
 |           |   parallel | perpendicular |
@@ -178,17 +179,18 @@ pd.concat([
 |   nok_fit |     7.24 % |        5.77 % |
 |       min |        8.5 |          17.5 |
 |       max |       83.0 |          73.0 |
+|       R   |       74.5 |          55.5 |
 |      mean |     42.935 |        48.485 |
 |    median |      40.75 |          52.5 |
 |       std |  22.666583 |     17.359489 |
 |       sem |   5.068402 |        3.8817 |
+| dist_name |    lognorm |      logistic |
+|      p_ks |   0.964797 |      0.744326 |
+|      p_ad |   0.754044 |      0.098371 |
 |    excess |  -0.900801 |     -1.236078 |
 |  p_excess |   0.288757 |      0.072573 |
 |      skew |    0.19252 |     -0.377538 |
 |    p_skew |   0.690373 |      0.438723 |
-|      p_ad |   0.754044 |      0.098371 |
-|      dist |    lognorm |      logistic |
-|    p_ks |   0.964797 |      0.744326 |
 |  strategy |       norm |          norm |
 |       lcl | -25.064748 |     -3.593468 |
 |       ucl | 110.934748 |    100.563468 |

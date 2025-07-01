@@ -2,6 +2,8 @@ site_name: DaSPi
 
 theme:
   name: material
+  logo: img/logo.ico
+  favicon: img/logo.ico
   palette:
     # Palette toggle for light mode
     - media: "(prefers-color-scheme: light)"
@@ -78,7 +80,7 @@ nav:
     # - guides/index.md
     - guides/installing.md
     - guides/anova.md
-    - guides/process_improvement.md
+    # - guides/process_improvement.md
     - guides/plotting.md
     # - guides/hypothesis-testing.md
   - API:
