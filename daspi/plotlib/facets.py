@@ -657,8 +657,6 @@ class LabelFacets:
 
     Parameters
     ----------
-    figure : Figure
-        The figure to label.
     axes : AxesFacets
         A AxesFacets instance containing the subplots' Axes and their 
         arrangement.

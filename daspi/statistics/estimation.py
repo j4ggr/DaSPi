@@ -2261,7 +2261,7 @@ class GageEstimator(LocationDispersionEstimator):
           are read directly from the data.
         
         Default is 'eval'.
-    aggreement : int | float, optional
+    agreement : int | float, optional
         The multiplier of the standard deviation for Cg and Cgk
         values. If an integer is given, the value is interpreted as
         the number of standard deviations (e.g., 4 for 4σ). If a float

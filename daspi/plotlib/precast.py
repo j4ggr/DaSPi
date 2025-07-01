@@ -1083,7 +1083,7 @@ class GageStudyCharts(JointChart):
 
     Parameters
     ----------
-    gage_model : GageStudyModel
+    model : GageStudyModel
         The GageStudy model whose parameters will be visualized.
     dist : scipy stats rv_continuous, optional
         The probability distribution use for creating feature data
@@ -1435,10 +1435,8 @@ class GageRnRCharts(JointChart):
         """Column name of the variable that identifies the operator for 
         type 2 Gage R&R or the gage variate for type 3 Gage R&R
         (read-only)."""
-        if self.model.has_operator:
-            av_gv = self.model._u_av_orig
-        else:
-            av_gv = self.model._u_gv_orig
+        value = ANOVA.AV if self.model.has_operator else ANOVA.GV
+        av_gv = {v: k for k, v in self.model.u_map.items()}.get(value, None)
         assert av_gv is not None, (
             'The provided gage study model does not have an operator or '
             'gage variate.')
