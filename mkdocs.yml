@@ -10,7 +10,7 @@ theme:
     - media: "(prefers-color-scheme: light)"
       scheme: default
       primary: '#00b8c2'
-      accent: amber
+      accent: '#fbc02d'
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
