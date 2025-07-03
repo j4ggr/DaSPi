@@ -2,14 +2,15 @@ site_name: DaSPi
 
 theme:
   name: material
-  logo: img/logo.ico
+  custom_dir: overrides
+  logo: img/logo_w.ico
   favicon: img/logo.ico
   palette:
     # Palette toggle for light mode
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: amber
-      accent: deep orange
+      primary: '#00b8c2'
+      accent: amber
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
@@ -19,8 +20,8 @@ theme:
       toggle:
         icon: material/weather-sunny
         name: Switch to light mode
-      primary: amber
-      accent: deep orange
+      primary: '#00b8c2'
+      accent: '#fbc02d'
 
   features:
   - search.suggest
@@ -33,7 +34,7 @@ theme:
   - content.code.copy
   - content.code.select
   - navigation.tabs
-  
+
 repo_name: j4ggr/DaSPi
 repo_url: https://github.com/j4ggr/DaSPi
 
@@ -45,7 +46,7 @@ plugins:
         options:
           docstring_style: numpy
           docstring_section_style: list
-          heading_level: 3
+          heading_level: 1
           merge_init_into_class: false
           show_bases: true
           show_source: false
@@ -71,6 +72,9 @@ markdown_extensions:
 extra_javascript:
   - javascripts/mathjax.js
   - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+    
+extra_css:
+  - css/custom-colors.css
 
 nav:
   - Home: 

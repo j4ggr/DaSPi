@@ -201,6 +201,19 @@ pd.concat([
 
 ![Process Capability Analysis](https://raw.githubusercontent.com/j4ggr/DaSPi/main/docs/img/cpk-analysis_drop-card.png)
 
+## About DaSPi
+
+DaSPi was created and is actively maintained by **Reto Jäggli**, a Data Scientist at Festo Microtechnology AG. 
+Much of the development happens during spare time, driven by a passion for making data analysis, statistics, and process improvement more accessible and integrated.
+
+Contributions to DaSPi are very welcome!
+If you find bugs or have ideas for improvements, please report them or submit pull requests on the [GitHub repository](https://github.com/j4ggr/DaSPi), where the full source code is also available for review.
+
+**Important Notice:**  
+DaSPi is still under heavy development and may contain hidden bugs. 
+While every effort is made to ensure reliability, no warranty is provided. 
+The results obtained using DaSPi should be double-checked with other trusted statistical software whenever possible. 
+Where applicable, DaSPi acts as a convenient wrapper around well-established packages such as pandas, numpy, matplotlib, scipy, and statsmodels, leveraging their robustness and functionality.
 """
 
 from ._version import __version__

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block footer %}
+<hr style="border: none; border-top: 1px solid var(--md-divider-color, #ccc); margin: 0 2em 0.5em 2em;">
+<footer style="
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--md-text-secondary);
+    padding: 0.5em 2em 1em 2em;
+    background-color: var(--md-surface);
+    flex-wrap: wrap;
+">
+  <div style="max-width: 70%;">
+    <p style="margin: 0;">
+      &copy; <span id="current-year"></span> Reto Jäggli — Data Scientist at Festo Microtechnology AG. All rights reserved.
+    </p>
+    <p style="margin: 0.2em 0 0 0;">
+      Contributions are welcome on <a href="https://github.com/j4ggr/DaSPi" target="_blank" rel="noopener noreferrer" style="color: var(--md-primary-fg-color);">GitHub</a>.
+    </p>
+    <p style="margin: 0.2em 0 0 0; font-style: italic; font-size: 0.75rem; color: var(--md-text-secondary);">
+      No warranty; please double-check results with trusted software.
+    </p>
+  </div>
+  <div style="font-size: 0.75rem; color: var(--md-text-secondary); white-space: nowrap;">
+    Made with <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener noreferrer" style="color: var(--md-primary-fg-color);">Material for MkDocs</a>
+  </div>
+
+  <script>
+    document.getElementById('current-year').textContent = new Date().getFullYear();
+  </script>
+</footer>
+{% endblock %}
