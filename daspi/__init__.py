@@ -234,6 +234,11 @@ from .constants import CATEGORY
 from .constants import SIGMA_DIFFERENCE
 
 
+from .doe import Factor
+from .doe import FullFactorialDesignBuilder
+from .doe import FullFactorial2nDesignBuilder
+
+
 from .statistics.montecarlo import Binning
 from .statistics.montecarlo import SpecLimits
 from .statistics.montecarlo import Specification

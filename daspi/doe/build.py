@@ -20,7 +20,8 @@ from ..constants import DOE
 __all__ = [
     'Factor',
     'BaseDesignBuilder',
-    'FullFactorialDesignBuilder',]
+    'FullFactorialDesignBuilder',
+    'FullFactorial2nDesignBuilder',]
 
 
 class Factor:
@@ -111,12 +112,15 @@ class BaseDesignBuilder(ABC):
     AssertionError
         If any of the parameters are invalid:
         - At least one factor is required.
+        - Factor names must not conflict with standard columns in the 
+          design matrix.
         - All factors must be instances of Factor class.
         - Number of replicates must be positive.
         - Number of central points must be non-negative.
         - At least one factor must provide a central point, or set 
           central_points to 0.
         - Number of blocks must be positive.
+        - Factor names must be unique.
     """
 
     factors : Tuple[Factor, ...]
@@ -145,6 +149,9 @@ class BaseDesignBuilder(ABC):
         assert factors, 'At least one factor is required.'
         assert all(isinstance(f, Factor) for f in factors), (
             'All factors must be instances of Factor class.')
+        assert not any(f.name in self.standard_columns for f in factors), (
+            'Factor names must not conflict with standard columns in the '
+            f'design matrix. Standard columns are: {self.standard_columns}')
         assert replicates > 0, 'Number of replicates must be positive.'
         assert central_points >= 0, 'Number of central points must be non-negative.'
         assert not central_points or any(f.has_central for f in factors), (
@@ -159,6 +166,9 @@ class BaseDesignBuilder(ABC):
         self.shuffle = shuffle
         self.n_factors = len(self.factors)
         self.level_counts = tuple(f.n_levels for f in self.factors)
+        
+        assert self.n_factors == len(set(self.factor_names)), (
+            'Factor names must be unique.')
 
     @property
     def factor_names(self) -> Tuple[str, ...]:
@@ -166,17 +176,20 @@ class BaseDesignBuilder(ABC):
         return tuple(f.name for f in self.factors)
     
     @property
-    def columns(self) -> List[str]:
-        """List of columns in the design matrix."""
-        columns = [
+    def standard_columns(self) -> List[str]:
+        """List of standard columns in the design matrix."""
+        return [
             DOE.STD_ORDER,
             DOE.RUN_ORDER,
             DOE.CENTRAL_POINT,
             DOE.REPLICA,
             DOE.BLOCK]
-        columns.extend(f.name for f in self.factors)
-        return columns
     
+    @property
+    def columns(self) -> List[str]:
+        """List of columns in the design matrix."""
+        return self.standard_columns + list(self.factor_names)
+
     @staticmethod
     def _set_code_level_map(
             factors: Tuple[Factor, ...],
@@ -403,6 +416,62 @@ class FullFactorialDesignBuilder(BaseDesignBuilder):
     shuffle : bool, optional
         Whether to shuffle the design, by default True.
     
+    Examples
+    --------
+
+    Create a full factorial design with two factors, each with two 
+    levels:
+
+    ```python
+    import daspi as dsp
+
+    factor_a = dsp.Factor('A', (1, 2))
+    factor_b = dsp.Factor('B', (10, 20))
+    builder = dsp.FullFactorialDesignBuilder(factor_a, factor_b)
+    df = builder.build_design(corrected=False)
+    print(df)
+    ```
+
+    ```console
+       std_order  run_order  central_point  replica  block  A   B
+    0          0          0              1        1      1  1  10
+    1          1          1              1        1      1  1  20
+    2          2          2              1        1      1  2  10
+    3          3          3              1        1      1  2  20
+    ```
+
+    Create a full factorial corrected design with two factors, each with 
+    two levels, and 3 replicates:
+    
+    ```python
+    import daspi as dsp
+    import numpy as np
+
+    np.random.seed(42)
+
+    factor_a = dsp.Factor('A', (1, 2))
+    factor_b = dsp.Factor('B', (10, 20))
+    builder = dsp.FullFactorialDesignBuilder(factor_a, factor_b, replicates=3)
+    df = builder.build_design(corrected=True)
+    print(df)
+    ```
+
+    ```console
+        std_order  run_order  central_point  replica  block  A  B
+    0          10          0              1        3      1  2  1
+    1           9          1              1        3      1  1  2
+    2           0          2              1        1      1  1  1
+    3           8          3              1        3      1  1  1
+    4           5          4              1        2      1  1  2
+    5           2          5              1        1      1  2  1
+    6           1          6              1        1      1  1  2
+    7          11          7              1        3      1  2  2
+    8           4          8              1        2      1  1  1
+    9           7          9              1        2      1  2  2
+    10          3         10              1        1      1  2  2
+    11          6         11              1        2      1  2  1
+    ```
+
     Raises
     ------
     AssertionError
@@ -450,4 +519,74 @@ class FullFactorialDesignBuilder(BaseDesignBuilder):
         df_design = pd.DataFrame(
             product(*codes), columns=self.factor_names)
         
+        return df_design
+
+
+class FullFactorial2nDesignBuilder(BaseDesignBuilder):
+    """Builder for full factorial designs with 2-level factors.
+    This class is a specialization of FullFactorialDesignBuilder for
+    the case where all factors have exactly 2 levels.
+
+    This design also supports replicates, central points, and blocks,
+    and can be used to explore interactions between factors.
+
+    Parameters
+    ----------
+    factors : Iterable[Factor]
+        Factors defining the design space. All factors must have exactly
+        2 levels.
+    replicates : int, optional
+        Number of replicates. Must be positive, by default 1.
+    central_points : int, optional
+        Number of central points. Must be non-negative, by default 0.
+    blocks : int, optional
+        Number of blocks. Must be positive, by default 1.
+    shuffle : bool, optional
+        Whether to shuffle the design, by default True.
+    
+    Raises
+    ------
+    AssertionError
+        If any of the parameters are invalid:
+        - All factors must have exactly 2 levels.
+        - Number of replicates must be positive.
+        - Number of central points must be non-negative.
+        - Number of blocks must be positive.
+    """
+    def __init__(
+            self,
+            *factors: Factor,
+            replicates: int = 1,
+            central_points: int = 0,
+            blocks: int = 1,
+            shuffle: bool = True
+            ) -> None:
+        assert all(f.n_levels == 2 for f in factors), (
+            'All factors must have exactly 2 levels for '
+            'FullFactorial2nDesignBuilder.')
+        super().__init__(
+            *factors,
+            replicates=replicates,
+            central_points=central_points,
+            blocks=blocks,
+            shuffle=shuffle)
+
+    def _build_coded_design(self) -> DataFrame:
+        """Generate the integer-coded design matrix for full factorial 
+        design with 2-level factors.
+
+        Returns
+        -------
+        DataFrame
+            Design matrix with integer indices representing factor 
+            levels. Each column corresponds to a factor, each row to an 
+            experimental run. Values are indices into the corresponding 
+            factor's levels tuple.
+        """
+        codes = [[-1, 1] for _ in self.factors]
+        self._set_code_level_map(self.factors, codes)
+
+        df_design = pd.DataFrame(
+            product(*codes), columns=self.factor_names)
+
         return df_design
