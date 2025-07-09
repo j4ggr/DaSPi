@@ -1410,8 +1410,7 @@ class GageRnRCharts(JointChart):
         df_rnr = pd.concat(datas, axis=0, ignore_index=True)
 
         df_u = (self.model
-            .uncertainties()
-            .loc[['RE', 'MS', 'MP'], ['Q']]
+            .df_u.loc[['RE', 'MS', 'MP'], ['Q']]
             .reset_index(drop=False)
             .rename(columns={'index':feature_spread, 'Q': target}))
             
