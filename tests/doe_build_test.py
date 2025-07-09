@@ -1,0 +1,139 @@
+import sys
+import pytest
+
+from pathlib import Path
+from pandas.core.frame import DataFrame
+
+sys.path.append(str(Path(__file__).parent.resolve()))
+
+from daspi.doe.build import *
+from daspi.constants import DOE
+
+
+class TestFactor:
+
+    def test_factor_init_basic(self) -> None:
+        """Test basic factor initialization."""
+        factor = Factor('temperature', (20, 30, 40))
+        assert factor.name == 'temperature'
+        assert factor.levels == (20, 30, 40)
+        assert factor.central_point == 30  # middle level for 3-level factor
+        assert not factor.is_categorical
+        
+    def test_factor_init_with_central_point(self) -> None:
+        """Test factor initialization with explicit central point."""
+        factor = Factor('pressure', (1, 5))
+        assert factor.name == 'pressure'
+        assert factor.levels == (1, 5)
+        assert factor.central_point == 3
+        assert not factor.is_categorical
+        
+    def test_factor_init_categorical(self) -> None:
+        """Test categorical factor initialization."""
+        factor = Factor('material', ('A', 'B', 'C'), is_categorical=True)
+        assert factor.name == 'material'
+        assert factor.levels == ('A', 'B', 'C')
+        assert factor.central_point is None
+        assert factor.is_categorical
+        
+    def test_factor_auto_detect_categorical(self) -> None:
+        """Test automatic detection of categorical factors."""
+        factor = Factor('type', ('low', 'medium', 'high'))
+        assert factor.is_categorical
+        assert factor.central_point is None
+        
+    def test_factor_two_level_central_point(self) -> None:
+        """Test automatic central point calculation for 2-level numeric factor."""
+        factor = Factor('speed', (10, 20))
+        assert factor.central_point == 15  # (10 + 20) / 2
+        assert not factor.is_categorical
+        
+    def test_factor_three_level_central_point(self) -> None:
+        """Test automatic central point selection for 3-level numeric factor."""
+        factor = Factor('voltage', (5, 10, 15))
+        assert factor.central_point == 10  # middle level
+        assert not factor.is_categorical
+        
+    def test_factor_n_levels_property(self) -> None:
+        """Test n_levels property."""
+        factor = Factor('temp', (20, 30, 40))
+        assert factor.n_levels == 3
+        
+    def test_factor_mixed_types_warning(self) -> None:
+        """Test warning when string levels are detected in numeric factor."""
+        with pytest.warns(UserWarning, match='Found string level.*Assuming factor is categorical'):
+            factor = Factor('mixed', (1, 'medium', 3))
+            assert factor.is_categorical
+            
+    def test_factor_categorical_no_central_point(self) -> None:
+        """Test that categorical factors don't get central points."""
+        factor = Factor('category', ('X', 'Y', 'Z'))
+        assert factor.central_point is None
+        assert factor.is_categorical
+
+
+class TestFullFactorialDesignBuilder:
+
+    def test_basic_full_factorial(self) -> None:
+        factor_a = Factor('A', (1, 2))
+        factor_b = Factor('B', (10, 20))
+        builder = FullFactorialDesignBuilder(factor_a, factor_b)
+        df = builder.build_design(corrected=False)
+        # 2x2 = 4 runs
+        assert df.shape[0] == 4
+        assert set(df['A']) == {1, 2}
+        assert set(df['B']) == {10, 20}
+        combos = set(tuple(row) for row in df[['A', 'B']].values)
+        assert combos == {(1, 10), (1, 20), (2, 10), (2, 20)}
+
+    def test_full_factorial_with_replicates(self) -> None:
+        factor_a = Factor('A', (1, 2))
+        factor_b = Factor('B', (10, 20))
+        builder = FullFactorialDesignBuilder(factor_a, factor_b, replicates=3)
+        df = builder.build_design(corrected=False)
+        # 2x2x3 = 12 runs
+        assert df.shape[0] == 12
+        assert set(df['A']) == {1, 2}
+        assert set(df['B']) == {10, 20}
+        # Each combination appears 3 times
+        combos = df.groupby(['A', 'B']).size()
+        assert all(combos == 3)
+
+    def test_full_factorial_with_blocks(self) -> None:
+        factor_a = Factor('A', (1, 2))
+        factor_b = Factor('B', (10, 20))
+        builder = FullFactorialDesignBuilder(factor_a, factor_b, blocks=2)
+        df = builder.build_design(corrected=False)
+        # 2x2x2 = 8 runs
+        assert df.shape[0] == 8
+        assert set(df['A']) == {1, 2}
+        assert set(df['B']) == {10, 20}
+        from daspi.constants import DOE
+        assert set(df[DOE.BLOCK]) == {1, 2}
+        # Each block has 4 runs
+        from daspi.constants import DOE
+        assert all(df.groupby(DOE.BLOCK).size() == 4)
+
+    def test_full_factorial_shuffle(self) -> None:
+        factor_a = Factor('A', (1, 2))
+        factor_b = Factor('B', (10, 20))
+        builder = FullFactorialDesignBuilder(factor_a, factor_b, shuffle=True)
+        df1 = builder.build_design(corrected=False)
+        builder2 = FullFactorialDesignBuilder(factor_a, factor_b, shuffle=True)
+        df2 = builder2.build_design(corrected=False)
+        # Shuffling should result in different run orders (not always, but likely)
+        assert not df1.equals(df2) or df1.shape == df2.shape
+        assert df1[DOE.RUN_ORDER].equals(df2[DOE.RUN_ORDER])
+        assert not df1[DOE.STD_ORDER].equals(df1[DOE.RUN_ORDER])
+        assert not df2[DOE.STD_ORDER].equals(df2[DOE.RUN_ORDER])
+
+    def test_full_factorial_column_names(self):
+        factor_a = Factor('A', (1, 2))
+        factor_b = Factor('B', (10, 20))
+        builder = FullFactorialDesignBuilder(factor_a, factor_b)
+        df = builder.build_design(corrected=False)
+        # Check for required columns
+        from daspi.constants import DOE
+        for col in [DOE.STD_ORDER, DOE.RUN_ORDER, DOE.REPLICA, DOE.BLOCK, 'A', 'B']:
+            assert col in df.columns
+

@@ -84,3 +84,7 @@ best option is a tuple of strings. Dor example:
 
 FloatOrArray = TypeVar('FloatOrArray', float, NDArray, Series)
 """Type alias for float, numpy array, or pandas series."""
+
+LevelType = float | int | str
+"""Type alias for factor level values in design of experiments.
+Can be numeric (float, int) or categorical (str, int)."""

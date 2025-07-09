@@ -1,7 +1,4 @@
 import sys
-import patsy
-import patsy.design_info
-import patsy.highlevel
 import pytest
 
 from pathlib import Path

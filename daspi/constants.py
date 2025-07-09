@@ -25,7 +25,8 @@ __all__ = [
     'ANOVA',
     'PLOTTER',
     'DEFAULT',
-    'CATEGORY',]
+    'CATEGORY',
+    'DOE',]
 
 
 SIGMA_DIFFERENCE: float = 1.5
@@ -617,5 +618,23 @@ class _Anova_:
         """Column names when crating the reference analysis table using
         the `reference_analysis` method of GageRnRModel."""
         return ['Ref',	'mean', 'Bias', 's', 'R']
-
 ANOVA = _Anova_()
+
+
+@dataclass(frozen=True)
+class _DOE_:
+    """Design of Experiments (DOE) constants."""
+
+    STD_ORDER: Literal['std_order'] = 'std_order'
+    """Name for standard order in the design space."""
+    RUN_ORDER: Literal['run_order'] = 'run_order'
+    """Name for run order in the design space."""
+    CENTRAL_POINT: Literal['central_point'] = 'central_point'
+    """Name for central points in the design space."""
+    BLOCK: Literal['block'] = 'block'
+    """Name for block in the design space."""
+    REPLICA: Literal['replica'] = 'replica'
+    """Name for replicate in the design space."""
+    CENTRAL_CODED_VALUE: int = 0
+    """Coded value for central points in the design space."""
+DOE = _DOE_()

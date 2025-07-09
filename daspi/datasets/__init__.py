@@ -10,7 +10,8 @@ __all__ = [
     'list_dataset']
 
 
-DATASET_INFO = StringIO(dedent("""dataset,description,useful,ref
+DATASET_INFO = StringIO(dedent("""
+    dataset,description,useful,ref
     ancova,Teaching method with family income as covariate,ANCOVA,www.real-statistics.com
     anova,Pain threshold per hair color,anova,McClave and Dietrich 1991
     anova2,Fertilizer impact on the yield of crops,anova,www.real-statistics.com
