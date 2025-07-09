@@ -17,6 +17,14 @@ from .convert import get_term_name
 from ..constants import ANOVA
 
 
+__all__ = [
+    'uniques',
+    'terms_effect',
+    'variance_inflation_factor',
+    'anova_table',
+    'terms_probability',]
+
+
 def uniques(seq: Iterable) -> list[Any]:
     """Get a list of unique elements from a sequence while preserving 
     the original order.
@@ -314,12 +322,3 @@ def terms_probability(model: RegressionResultsWrapper) -> 'Series[float]':
     else:
         p_values = anova['p'].iloc[:-1]
     return p_values
-
-
-__all__ = [
-    'uniques',
-    'terms_effect',
-    'variance_inflation_factor',
-    'anova_table',
-    'terms_probability',
-]

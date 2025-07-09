@@ -15,6 +15,15 @@ from pandas.core.series import Series
 from .._typing import FloatOrArray
 
 
+__all__ = [
+    'SpecLimits',
+    'Specification',
+    'RandomProcessValue',
+    'Binning',
+    'round_to_nearest',
+    'inclination_displacement']
+
+
 @dataclass(frozen=True)
 class SpecLimits:
     """Class to hold the limits of a parameter specification.
@@ -726,11 +735,3 @@ def inclination_displacement(
     """
     displacement = distance * np.tan(np.arctan(perpendicularity/height))
     return displacement # type: ignore
-
-__all__ = [
-    'SpecLimits',
-    'Specification',
-    'RandomProcessValue',
-    'Binning',
-    'round_to_nearest',
-    'inclination_displacement']

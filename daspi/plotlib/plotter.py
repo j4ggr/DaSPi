@@ -129,6 +129,42 @@ from ..statistics import LocationDispersionEstimator
 from ..statistics import estimate_capability_confidence
 
 
+__all__ = [
+    'Plotter',
+    'Scatter',
+    'Line',
+    'Stem',
+    'LinearRegressionLine',
+    'LoessLine',
+    'Probability',
+    'ParallelCoordinate',
+    'TransformPlotter',
+    'CenterLocation',
+    'Bar',
+    'Pareto',
+    'Jitter',
+    'Beeswarm',
+    'CategoricalObservation',
+    'QuantileBoxes',
+    'GaussianKDE',
+    'GaussianKDEContour',
+    'Violine',
+    'Errorbar',
+    'StandardErrorMean',
+    'SpreadWidth',
+    'ConfidenceInterval',
+    'MeanTest',
+    'VariationTest',
+    'ProportionTest',
+    'CapabilityConfidenceInterval',
+    'HideSubplot',
+    'SkipSubplot',
+    'Stripe',
+    'StripeLine',
+    'StripeSpan',
+    'BlandAltman',]
+
+
 class SpreadOpacity:
     """A class for controlling the opacity of plot elements based on 
     quantile agreements to enhance data visualization.
@@ -7141,40 +7177,3 @@ class BlandAltman(Plotter):
         for stripe in stripes:
             stripe(self.ax)
             self.stripes[stripe.identity] = stripe
-
-
-__all__ = [
-    'Plotter',
-    'Scatter',
-    'Line',
-    'Stem',
-    'LinearRegressionLine',
-    'LoessLine',
-    'Probability',
-    'ParallelCoordinate',
-    'TransformPlotter',
-    'CenterLocation',
-    'Bar',
-    'Pareto',
-    'Jitter',
-    'Beeswarm',
-    'CategoricalObservation',
-    'QuantileBoxes',
-    'GaussianKDE',
-    'GaussianKDEContour',
-    'Violine',
-    'Errorbar',
-    'StandardErrorMean',
-    'SpreadWidth',
-    'ConfidenceInterval',
-    'MeanTest',
-    'VariationTest',
-    'ProportionTest',
-    'CapabilityConfidenceInterval',
-    'HideSubplot',
-    'SkipSubplot',
-    'Stripe',
-    'StripeLine',
-    'StripeSpan',
-    'BlandAltman',
-    ]

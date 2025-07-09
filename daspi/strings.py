@@ -6,6 +6,9 @@ from typing import Literal
 from datetime import date
 
 
+__all__ = ['STR']
+
+
 class _String_:
 
     anderson_darling: Dict[str, str] = {
@@ -295,5 +298,3 @@ class _String_:
                 f'No string found for {item} and language {self.LANGUAGE}!')
         return _string
 STR = _String_()
-
-__all__ = ['STR']

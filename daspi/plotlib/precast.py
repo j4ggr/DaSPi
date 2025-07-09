@@ -53,6 +53,16 @@ from ..statistics import SpecLimits
 from ..statistics import ProcessEstimator
 
 
+__all__ = [
+    'ResidualsCharts',
+    'ParameterRelevanceCharts',
+    'PairComparisonCharts',
+    'BivariateUnivariateCharts',
+    'ProcessCapabilityAnalysisCharts',
+    'GageStudyCharts',
+    'GageRnRCharts',]
+
+
 class ParameterRelevanceCharts(JointChart):
     """
     Provides a set of charts for visualizing the relevance of a linear
@@ -1566,14 +1576,3 @@ class GageRnRCharts(JointChart):
             ax.xaxis.set_major_formatter(PercentFormatter(xmax=1))
             ax.set(xlim=(0, 0.5))
         return self
-
-
-__all__ = [
-    'ResidualsCharts',
-    'ParameterRelevanceCharts',
-    'PairComparisonCharts',
-    'BivariateUnivariateCharts',
-    'ProcessCapabilityAnalysisCharts',
-    'GageStudyCharts',
-    'GageRnRCharts',
-    ]

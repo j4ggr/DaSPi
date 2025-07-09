@@ -112,6 +112,15 @@ from ..statistics.estimation import GageEstimator
 from ..statistics.estimation import MeasurementUncertainty
 
 
+__all__ = [
+    'is_main_parameter',
+    'get_order',
+    'hierarchical',
+    'LinearModel',
+    'GageStudyModel',
+    'GageRnRModel']
+
+
 def is_main_parameter(parameter: str) -> bool:
     """Check if given parameter is a main parameter (intercept is 
     excluded)."""
@@ -2965,12 +2974,3 @@ class GageRnRModel(LinearModel):
         self._df_u = pd.DataFrame()
         self._df_ump = pd.DataFrame()
         self._df_ums = pd.DataFrame()
-
-
-__all__ = [
-    'is_main_parameter',
-    'get_order',
-    'hierarchical',
-    'LinearModel',
-    'GageStudyModel',
-    'GageRnRModel']

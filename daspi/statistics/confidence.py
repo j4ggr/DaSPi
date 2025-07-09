@@ -22,6 +22,24 @@ from statsmodels.sandbox.regression.predstd import wls_prediction_std
 from .._typing import NumericSample1D
 
 
+__all__ = [
+    'sem',
+    'mean_ci',
+    'median_ci',
+    'variance_ci',
+    'stdev_ci',
+    'proportion_ci',
+    'cp_ci',
+    'cpk_ci',
+    'bonferroni_ci',
+    'delta_mean_ci',
+    'delta_variance_ci',
+    'delta_proportions_ci',
+    'fit_ci',
+    'prediction_ci',
+    'confidence_to_alpha',]
+
+
 def sem(
         sample: NumericSample1D,
         ddof: int = 1) -> float:
@@ -679,21 +697,3 @@ def confidence_to_alpha(
     sides = 2 if two_sided else 1
     alpha = (1 - confidence_level)/(sides * n_groups)
     return alpha
-
-
-__all__ = [
-    'sem',
-    'mean_ci',
-    'median_ci',
-    'variance_ci',
-    'stdev_ci',
-    'proportion_ci',
-    'cp_ci',
-    'cpk_ci',
-    'bonferroni_ci',
-    'delta_mean_ci',
-    'delta_variance_ci',
-    'delta_proportions_ci',
-    'fit_ci',
-    'prediction_ci',
-    'confidence_to_alpha',]

@@ -14,6 +14,20 @@ from scipy.stats._continuous_distns import _distn_names
 from ._typing import LineStyle
 
 
+__all__ = [
+    'SIGMA_DIFFERENCE',
+    'LINE',
+    'KW',
+    'RE',
+    'DIST',
+    'COLOR',
+    'LABEL',
+    'ANOVA',
+    'PLOTTER',
+    'DEFAULT',
+    'CATEGORY',]
+
+
 SIGMA_DIFFERENCE: float = 1.5
 """In order to make statements about long-term capabilities, the value 
 of 1.5 is subtracted from the Sigma Level from short-term data. This 
@@ -605,18 +619,3 @@ class _Anova_:
         return ['Ref',	'mean', 'Bias', 's', 'R']
 
 ANOVA = _Anova_()
-
-
-__all__ = [
-    'SIGMA_DIFFERENCE',
-    'LINE',
-    'KW',
-    'RE',
-    'DIST',
-    'COLOR',
-    'LABEL',
-    'ANOVA',
-    'PLOTTER',
-    'DEFAULT',
-    'CATEGORY',
-]

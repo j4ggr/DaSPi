@@ -3,30 +3,36 @@ import pandas as pd
 from io import StringIO
 from pathlib import Path
 from pandas.core.frame import DataFrame
+from textwrap import dedent
 
-dataset_info = """dataset,description,useful,ref
-ancova,Teaching method with family income as covariate,ANCOVA,www.real-statistics.com
-anova,Pain threshold per hair color,anova,McClave and Dietrich 1991
-anova2,Fertilizer impact on the yield of crops,anova,www.real-statistics.com
-anova2_unbalanced,Diet and exercise impact,anova,http://onlinestatbook.com/2/analysis_of_variance/unequal.html
-anova3,Cholesterol in different groups,anova,Pingouin
-anova3_unbalanced,Cholesterol in different groups,anova,Pingouin
-aspirin-dissolution,exercise improving the dissolution speed of an aspirin tablet,MultiVariateChart,Six Sigma TC GmBH
-carpet_full-factorial,Full factorial DOE of a process improvement project for carpet dyeing,anova,Six Sigma TC GmbH
-drop_card,Experiment in which an attempt is made to drop a Jass card with an outstretched arm as precisely as possible onto a center with different initial orientations of the card to the ground: (vertical and parallel). Measurements were made with a ruler,process capability,Green Belt Training Experiment at Six Sigma TC GmbH 
-eeprom_full-factorial,Full factorial DOE of a process improvement project for eeproms,anova,Six Sigma TC GmbH
-eeprom_partial-factorial,Partial factorial DOE of a process improvement project for eeproms,anova,Six Sigma TC GmbH
-grnr_spc,Gage R&R study with 3 operators and 5 parts and 3 replications,anova,https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-1/
-grnr_layer_thickness,Gage R&R study with 3 operators 10 parts and 2 replications,anova,Six Sigma TC GmbH
-grnr_adjustment,Gage R&R study with 2 operators 10 parts and 3 replications,anova,DaSPi
-iris,This is one of the earliest datasets used in the literature on classification methods and widely used in statistics and machine learning. Here it's in a long format., BivariateUnivariate Chart,https://archive.ics.uci.edu/ml/datasets/iris
-mpg,This dataset contains a subset of the fuel economy data that the EPA makes available on https://fueleconomy.gov/. It contains only models which had a new release every year between 1999 and 2008 - this was used as a proxy for the popularity of the car,anova,ggplot2 data https://ggplot2.tidyverse.org/reference/mpg.html
-partial-factorial,Partial factorial DOE of a process improvement project,anova,Six Sigma TC GmbH
-salt_sticks,Experiment in which a salt stick is broken into thirds by hand as accurately as possible. The measurements were taken with a ruler,process capability,Green Belt Training Experiment at Six Sigma TC GmbH
-shoe-sole,Hypothetical data of an agreement between two shoe sole materials (old and new).,BlandAltman Plotter,Bland J. M. & Altman D. (1986)
-tips,One waiter recorded information about each tip he received over a period of a few months working in one restaurant,anova, https://vincentarelbundock.github.io/Rdatasets/doc/reshape2/tips.html
-"""
-df_info = pd.read_csv(StringIO(dataset_info), sep=',')
+__all__ = [
+    'load_dataset',
+    'list_dataset']
+
+
+DATASET_INFO = StringIO(dedent("""dataset,description,useful,ref
+    ancova,Teaching method with family income as covariate,ANCOVA,www.real-statistics.com
+    anova,Pain threshold per hair color,anova,McClave and Dietrich 1991
+    anova2,Fertilizer impact on the yield of crops,anova,www.real-statistics.com
+    anova2_unbalanced,Diet and exercise impact,anova,http://onlinestatbook.com/2/analysis_of_variance/unequal.html
+    anova3,Cholesterol in different groups,anova,Pingouin
+    anova3_unbalanced,Cholesterol in different groups,anova,Pingouin
+    aspirin-dissolution,exercise improving the dissolution speed of an aspirin tablet,MultiVariateChart,Six Sigma TC GmBH
+    carpet_full-factorial,Full factorial DOE of a process improvement project for carpet dyeing,anova,Six Sigma TC GmbH
+    drop_card,Experiment in which an attempt is made to drop a Jass card with an outstretched arm as precisely as possible onto a center with different initial orientations of the card to the ground: (vertical and parallel). Measurements were made with a ruler,process capability,Green Belt Training Experiment at Six Sigma TC GmbH 
+    eeprom_full-factorial,Full factorial DOE of a process improvement project for eeproms,anova,Six Sigma TC GmbH
+    eeprom_partial-factorial,Partial factorial DOE of a process improvement project for eeproms,anova,Six Sigma TC GmbH
+    grnr_spc,Gage R&R study with 3 operators and 5 parts and 3 replications,anova,https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-1/
+    grnr_layer_thickness,Gage R&R study with 3 operators 10 parts and 2 replications,anova,Six Sigma TC GmbH
+    grnr_adjustment,Gage R&R study with 2 operators 10 parts and 3 replications,anova,DaSPi
+    iris,This is one of the earliest datasets used in the literature on classification methods and widely used in statistics and machine learning. Here it's in a long format., BivariateUnivariate Chart,https://archive.ics.uci.edu/ml/datasets/iris
+    mpg,This dataset contains a subset of the fuel economy data that the EPA makes available on https://fueleconomy.gov/. It contains only models which had a new release every year between 1999 and 2008 - this was used as a proxy for the popularity of the car,anova,ggplot2 data https://ggplot2.tidyverse.org/reference/mpg.html
+    partial-factorial,Partial factorial DOE of a process improvement project,anova,Six Sigma TC GmbH
+    salt_sticks,Experiment in which a salt stick is broken into thirds by hand as accurately as possible. The measurements were taken with a ruler,process capability,Green Belt Training Experiment at Six Sigma TC GmbH
+    shoe-sole,Hypothetical data of an agreement between two shoe sole materials (old and new).,BlandAltman Plotter,Bland J. M. & Altman D. (1986)
+    tips,One waiter recorded information about each tip he received over a period of a few months working in one restaurant,anova, https://vincentarelbundock.github.io/Rdatasets/doc/reshape2/tips.html"""))
+
+df_info = pd.read_csv(DATASET_INFO, sep=',')
 
 SOURCE_DIR = Path(__file__).parent
 DATASET_NAMES = tuple(df_info['dataset'])
@@ -117,7 +123,3 @@ def list_dataset():
     ```
     """
     return df_info.set_index("dataset")
-
-__all__ = [
-    'load_dataset',
-    'list_dataset']

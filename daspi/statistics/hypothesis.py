@@ -27,10 +27,27 @@ from statsmodels.stats.proportion import test_proportions_2indep
 
 from .._typing import NumericSample1D
 
+
+__all__ = [
+    'chunker',
+    'ensure_generic',
+    'anderson_darling_test',
+    'all_normal',
+    'kolmogorov_smirnov_test',
+    'f_test',
+    't_test',
+    'levene_test',
+    'variance_stability_test',
+    'mean_stability_test',
+    'position_test',
+    'variance_test',
+    'proportions_test',
+    'kurtosis_test',
+    'skew_test',]
+
 # TDOD: further tests:
 # from scipy.stats import chi2
 # from scipy.stats import ansari
-# from scipy.stats import kstest
 # from scipy.stats import ranksums
 # from scipy.stats import wilcoxon
 # from statsmodels.stats.proportion import proportion_confint
@@ -577,21 +594,3 @@ def skew_test(
         The computed z-score for this test"""
     statistic, p = skewtest(sample, nan_policy='omit', alternative='two-sided')
     return p, statistic
-
-
-__all__ = [
-    'chunker',
-    'ensure_generic',
-    'anderson_darling_test',
-    'all_normal',
-    'kolmogorov_smirnov_test',
-    'f_test',
-    't_test',
-    'levene_test',
-    'variance_stability_test',
-    'mean_stability_test',
-    'position_test',
-    'variance_test',
-    'proportions_test',
-    'kurtosis_test',
-    'skew_test',]

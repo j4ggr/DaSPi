@@ -53,6 +53,24 @@ from .hypothesis import anderson_darling_test
 from .hypothesis import variance_stability_test
 from .hypothesis import kolmogorov_smirnov_test
 
+
+__all__ = [
+    'root_sum_squares',
+    'MeasurementUncertainty',
+    'BaseEstimator',
+    'DistributionEstimator',
+    'LocationDispersionEstimator',
+    'ProcessEstimator',
+    'GageEstimator',
+    'estimate_distribution',
+    'estimate_kernel_density',
+    'estimate_kernel_density_2d',
+    'estimate_capability_confidence',
+    'estimate_resolution',
+    'Loess',
+    'Lowess']
+
+
 T = TypeVar('T')
 
 def compare_measurement_uncertainty(
@@ -3773,20 +3791,3 @@ class Lowess(Loess):
             index, eta, X, W, XtW, XtWX_inv)
         
         return fitted_values[index]
-
-
-__all__ = [
-    'root_sum_squares',
-    'MeasurementUncertainty',
-    'BaseEstimator',
-    'DistributionEstimator',
-    'LocationDispersionEstimator',
-    'ProcessEstimator',
-    'GageEstimator',
-    'estimate_distribution',
-    'estimate_kernel_density',
-    'estimate_kernel_density_2d',
-    'estimate_capability_confidence',
-    'estimate_resolution',
-    'Loess',
-    'Lowess']

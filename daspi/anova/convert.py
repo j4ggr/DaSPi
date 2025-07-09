@@ -5,6 +5,10 @@ from pandas.core.frame import DataFrame
 from ..constants import RE
 from ..constants import ANOVA
 
+__all__ = [
+    'get_term_name',
+    'frames_to_html',
+]
 
 def get_term_name(name: str) -> str:
     """Get the original term name of a patsy encoded categorical
@@ -83,9 +87,3 @@ def frames_to_html(
             .set_caption(caption)
             .to_html())
     return html
-
-
-__all__ = [
-    'get_term_name',
-    'frames_to_html',
-]

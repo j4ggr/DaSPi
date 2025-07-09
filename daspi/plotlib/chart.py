@@ -100,6 +100,12 @@ from ..constants import CATEGORY
 from ..statistics import SpecLimits
 
 
+__all__ = [
+    'SingleChart',
+    'JointChart',
+    'MultivariateChart',]
+
+
 T = TypeVar('T')
 
 def check_label_order(method: Callable[..., T]) -> Callable[..., T]:
@@ -2197,9 +2203,3 @@ class MultivariateChart(SingleChart):
             legend_data=self.legend_data)
         self.label_facets.draw()
         return self
-
-__all__ = [
-    'SingleChart',
-    'JointChart',
-    'MultivariateChart'
-]

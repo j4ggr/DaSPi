@@ -18,6 +18,15 @@ from matplotlib.colors import Colormap
 from matplotlib.colors import ListedColormap
 
 
+__all__ = [
+    'style',
+    'get_shared_axes',
+    'positions_of_shared_axes',
+    'transpose_xy_axes_params',
+    'register_colormap',
+    'cmap_from_lut']
+
+
 class Style:
     """A class for managing and applying matplotlib styles for plotting.
 
@@ -1908,11 +1917,3 @@ for name, lut in _luts.items():
     for reverse in (False, True):
         cmap = cmap_from_lut(name, lut, reverse)
         register_colormap(cmap)
-
-__all__ = [
-    'style',
-    'get_shared_axes',
-    'positions_of_shared_axes',
-    'transpose_xy_axes_params',
-    'register_colormap',
-    'cmap_from_lut']

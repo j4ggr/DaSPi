@@ -43,6 +43,13 @@ from ..statistics import SpecLimits
 from ..statistics import ProcessEstimator
 
 
+__all__ = [
+    "flat_unique",
+    "LabelFacets",
+    "AxesFacets",
+    "StripesFacets",]
+
+
 def flat_unique(nested: NDArray | List[List]) -> List:
     """Flatten the given array and return unique elements while
     preserving the order."""
@@ -1034,11 +1041,3 @@ class LabelFacets:
         self._adjust_centered_labels()
             
         self.figure.tight_layout(rect=self.margin_rectangle)
-
-
-__all__ = [
-    "flat_unique",
-    "LabelFacets",
-    "AxesFacets",
-    "StripesFacets",
-]

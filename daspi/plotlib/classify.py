@@ -50,6 +50,14 @@ from ..constants import DEFAULT
 from ..constants import CATEGORY
 
 
+__all__ = [
+    'HueLabel',
+    'ShapeLabel',
+    'SizeLabel',
+    'Dodger',
+    ]
+
+
 class _CategoryLabel(ABC):
     """Abstract base class representing a handler for category labels 
     in plotted categorical values.
@@ -576,11 +584,3 @@ class Dodger:
             corresponding labels.
         """
         return positions.astype(str).replace(self._pos_to_label_map)
-
-
-__all__ = [
-    'HueLabel',
-    'ShapeLabel',
-    'SizeLabel',
-    'Dodger',
-    ]

@@ -14,6 +14,17 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 from pandas.core.series import Series
 
+
+__all__ = [
+    'Sample1D',
+    'NumericSample1D',
+    'ShareAxisProperty',
+    'LegendHandlesLabels',
+    'LineStyle',
+    'MosaicLayout',
+    'FloatOrArray',]
+
+
 Sample1D: TypeAlias = (
     Sequence[int | float | str | datetime | date]
     | 'Series[int | float | str | datetime | date]'
@@ -73,13 +84,3 @@ best option is a tuple of strings. Dor example:
 
 FloatOrArray = TypeVar('FloatOrArray', float, NDArray, Series)
 """Type alias for float, numpy array, or pandas series."""
-
-__all__ = [
-    'Sample1D',
-    'NumericSample1D',
-    'ShareAxisProperty',
-    'LegendHandlesLabels',
-    'LineStyle',
-    'MosaicLayout',
-    'FloatOrArray',
-]
