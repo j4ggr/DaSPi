@@ -236,7 +236,7 @@ from .constants import SIGMA_DIFFERENCE
 
 from .doe import Factor
 from .doe import FullFactorialDesignBuilder
-from .doe import FullFactorial2nDesignBuilder
+from .doe import FullFactorial2kDesignBuilder
 
 
 from .statistics.montecarlo import Binning

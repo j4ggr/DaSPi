@@ -99,21 +99,6 @@ class TestFullFactorialDesignBuilder:
         combos = df.groupby(['A', 'B']).size()
         assert all(combos == 3)
 
-    def test_full_factorial_with_blocks(self) -> None:
-        factor_a = Factor('A', (1, 2))
-        factor_b = Factor('B', (10, 20))
-        builder = FullFactorialDesignBuilder(factor_a, factor_b, blocks=2)
-        df = builder.build_design(corrected=False)
-        # 2x2x2 = 8 runs
-        assert df.shape[0] == 8
-        assert set(df['A']) == {1, 2}
-        assert set(df['B']) == {10, 20}
-        from daspi.constants import DOE
-        assert set(df[DOE.BLOCK]) == {1, 2}
-        # Each block has 4 runs
-        from daspi.constants import DOE
-        assert all(df.groupby(DOE.BLOCK).size() == 4)
-
     def test_full_factorial_shuffle(self) -> None:
         factor_a = Factor('A', (1, 2))
         factor_b = Factor('B', (10, 20))
@@ -137,3 +122,113 @@ class TestFullFactorialDesignBuilder:
         for col in [DOE.STD_ORDER, DOE.RUN_ORDER, DOE.REPLICA, DOE.BLOCK, 'A', 'B']:
             assert col in df.columns
 
+    def test_evenly_spaced_blocks(self) -> None:
+        factor_a = Factor('A', (1, 2, 3, 4))
+        factor_b = Factor('B', (10, 20))
+        builder = FullFactorialDesignBuilder(factor_a, factor_b, blocks=4)
+        df = builder.build_design(corrected=False)
+        # 4x2 = 8 runs, 4 blocks, each block should have 2 runs
+        assert df[DOE.BLOCK].nunique() == 4
+        block_counts = df[DOE.BLOCK].value_counts().sort_index().tolist()
+        assert block_counts == [2, 2, 2, 2]
+
+    def test_blocks_by_highest_interaction(self) -> None:
+        factor_a = Factor('A', (-1, 1))
+        factor_b = Factor('B', (-1, 1))
+        builder = FullFactorialDesignBuilder(factor_a, factor_b, blocks='highest')  # type: ignore
+        df = builder.build_design(corrected=True)
+        # 2x2 = 4 runs, blocks assigned by A*B interaction
+        assert df[DOE.BLOCK].nunique() == 2
+        # Check block assignment by product of A and B
+        ab = df['A'] * df['B']
+        block_map = {val: block for val, block in zip(sorted(ab.unique()), sorted(df[DOE.BLOCK].unique()))}
+        for _, row in df.iterrows():
+            assert row[DOE.BLOCK] == block_map[row['A'] * row['B']]
+
+    def test_blocks_by_user_interaction(self) -> None:
+        factor_a = Factor('A', (-1, 1))
+        factor_b = Factor('B', (-1, 1))
+        factor_c = Factor('C', (-1, 1))
+        builder = FullFactorialDesignBuilder(factor_a, factor_b, factor_c, blocks=['A', 'B'])  # type: ignore
+        df = builder.build_design(corrected=True)
+        # 2x2x2 = 8 runs, blocks assigned by A*B interaction
+        assert df[DOE.BLOCK].nunique() == 2
+        ab = df['A'] * df['B']
+        block_map = {val: block for val, block in zip(sorted(ab.unique()), sorted(df[DOE.BLOCK].unique()))}
+        for _, row in df.iterrows():
+            assert row[DOE.BLOCK] == block_map[row['A'] * row['B']]
+
+    def test_blocks_by_replica(self) -> None:
+        factor_a = Factor('A', (1, 2))
+        factor_b = Factor('B', (10, 20))
+        builder = FullFactorialDesignBuilder(factor_a, factor_b, replicates=3, blocks='replica')  # type: ignore
+        df = builder.build_design(corrected=False)
+        # Each block should correspond to a replica
+        assert set(df[DOE.BLOCK].unique()) == set(df[DOE.REPLICA].unique())
+        # Each block should have 4 runs (2x2)
+        block_counts = df[DOE.BLOCK].value_counts().sort_index().tolist()
+        assert block_counts == [4, 4, 4]
+
+
+class TestFullFactorial2kDesignBuilder:
+
+    def test_2k_basic(self) -> None:
+        # 2 factors, 2 levels each
+        factor_a = Factor('A', (0, 1))
+        factor_b = Factor('B', (0, 1))
+        builder = FullFactorial2kDesignBuilder(factor_a, factor_b)
+        df = builder.build_design(corrected=False)
+        assert df.shape[0] == 4
+        combos = set(tuple(row) for row in df[['A', 'B']].values)
+        assert combos == {(0, 0), (0, 1), (1, 0), (1, 1)}
+
+    def test_2k_with_replicates(self) -> None:
+        factor_a = Factor('A', (0, 1))
+        factor_b = Factor('B', (0, 1))
+        builder = FullFactorial2kDesignBuilder(factor_a, factor_b, replicates=2)
+        df = builder.build_design(corrected=False)
+        assert df.shape[0] == 8
+        combos = df.groupby(['A', 'B']).size()
+        assert all(combos == 2)
+
+    def test_2k_shuffle(self) -> None:
+        factor_a = Factor('A', (0, 1))
+        factor_b = Factor('B', (0, 1))
+        builder = FullFactorial2kDesignBuilder(factor_a, factor_b, shuffle=True)
+        df1 = builder.build_design(corrected=False)
+        builder2 = FullFactorial2kDesignBuilder(factor_a, factor_b, shuffle=True)
+        df2 = builder2.build_design(corrected=False)
+        # Shuffling should result in different run orders (not always, but likely)
+        assert not df1.equals(df2) or df1.shape == df2.shape
+        assert df1[DOE.RUN_ORDER].equals(df2[DOE.RUN_ORDER])
+        assert not df1[DOE.STD_ORDER].equals(df1[DOE.RUN_ORDER])
+        assert not df2[DOE.STD_ORDER].equals(df2[DOE.RUN_ORDER])
+
+    def test_2k_column_names(self) -> None:
+        from daspi.constants import DOE
+        factor_a = Factor('A', (0, 1))
+        factor_b = Factor('B', (0, 1))
+        builder = FullFactorial2kDesignBuilder(factor_a, factor_b)
+        df = builder.build_design(corrected=False)
+        for col in [DOE.STD_ORDER, DOE.RUN_ORDER, DOE.REPLICA, DOE.BLOCK, 'A', 'B']:
+            assert col in df.columns
+
+    def test_full_factorial_with_central_points(self) -> None:
+        factor_a = Factor('A', (0, 10))
+        factor_b = Factor('B', (100, 200))
+        builder = FullFactorial2kDesignBuilder(factor_a, factor_b, central_points=2)
+        df = builder.build_design(corrected=False)
+        # There should be 4 factorial runs + 2 central points = 6 rows
+        assert df.shape[0] == 6
+        # Central points should have the central_point attribute value
+        central_a = factor_a.central_point
+        central_b = factor_b.central_point
+        central_mask = (df['A'] == central_a) & (df['B'] == central_b)
+        assert central_mask.sum() == 2
+        assert all(df[central_mask][DOE.CENTRAL_POINT] == DOE.CENTRAL_CODED_VALUE)
+        # The rest are factorial runs
+        factorial_rows = df[~central_mask]
+        assert all(factorial_rows[DOE.CENTRAL_POINT] != DOE.CENTRAL_CODED_VALUE)
+        assert set(tuple(row) for row in factorial_rows[['A', 'B']].values) == {
+            (0, 100), (0, 200), (10, 100), (10, 200)}
+    
