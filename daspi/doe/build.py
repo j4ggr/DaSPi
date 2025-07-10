@@ -49,11 +49,11 @@ class Factor:
     """Optional central point level."""
     is_categorical: bool = False
     """Whether the factor is categorical."""
-    code_level_map: Dict[int, LevelType]
-    """Mapping from integer codes to their corresponding factor levels.
-    This is used for integer-coded designs where levels are represented
-    by integers. Set this from outside the class, e.g. in a design 
-    builder."""
+    code_level_map: Dict[float | int, LevelType]
+    """Mapping from float or int codes to their corresponding factor 
+    levels. This is used for float-coded designs where levels are 
+    represented by floats. Set this from outside the class, e.g. in a 
+    design builder."""
     _n_levels: int
     
     def __init__(
@@ -254,7 +254,7 @@ class BaseDesignBuilder(ABC):
     @staticmethod
     def _set_code_level_map(
             factors: Tuple[Factor, ...],
-            codes: List[List[int]],
+            codes: List[List[float | int]],
             ) -> None:
         """Set code_level_map for each factor based on the codes.
 
@@ -262,7 +262,7 @@ class BaseDesignBuilder(ABC):
         ----------
         factors : Tuple[Factor, ...]
             Factors to set code_level_map for.
-        codes : List[List[int]]
+        codes : List[List[float | int]]
             List of codes for each factor.
         
         Raises
@@ -658,7 +658,7 @@ class FullFactorialDesignBuilder(BaseDesignBuilder):
             experimental run. Values are indices into the corresponding 
             factor's levels tuple.
         """
-        codes = [list(range(1, n + 1)) for n in self.level_counts]
+        codes = [list(np.linspace(-1, 1, n)) for n in self.level_counts]
         self._set_code_level_map(self.factors, codes)
 
         df_design = pd.DataFrame(
