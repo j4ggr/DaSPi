@@ -7,12 +7,13 @@ from typing import List
 from typing import Dict
 from typing import Tuple
 from typing import Literal
-from typing import Iterable
+from typing import Sequence
 
 from abc import ABC
 from abc import abstractmethod
 from itertools import product
 from pandas.core.frame import DataFrame
+from pandas.core.series import Series
 
 from .._typing import LevelType
 
@@ -49,7 +50,7 @@ class Factor:
     """Optional central point level."""
     is_categorical: bool = False
     """Whether the factor is categorical."""
-    code_level_map: Dict[float | int, LevelType]
+    corrected_level_map: Dict[float | int, LevelType]
     """Mapping from float or int codes to their corresponding factor 
     levels. This is used for float-coded designs where levels are 
     represented by floats. Set this from outside the class, e.g. in a 
@@ -102,10 +103,14 @@ class BaseDesignBuilder(ABC):
         Factors defining the design space.
     replicates : int, optional
         Number of replicates. Must be positive, by default 1.
-    central_points : int, optional
-        Number of central points. Must be non-negative, by default 0.
     blocks : int | str | List[str] | Literal['highest', 'replica'], optional
-        Number of blocks. Must be positive, by default 1.
+        Block assignment: integer for evenly spaced blocks, 
+        str | List[str] for user-defined block generator, or Literal 
+        'highest'/'replica'. Must be positive or 'highest'/'replica', by 
+        default 1.
+    central_points : int, optional
+        Number of central points to be added to each block. These are
+        used to test linear effects. Must be non-negative, by default 0.
     shuffle : bool, optional
         Whether to shuffle the design, by default True.
     
@@ -138,8 +143,8 @@ class BaseDesignBuilder(ABC):
             self, 
             *factors: Factor,
             replicates: int = 1,
-            central_points: int = 0,
             blocks: int | str | List[str] | Literal['highest', 'replica'] = 1,
+            central_points: int = 0,
             shuffle: bool = True,
             ) -> None:
         self.factors = factors
@@ -213,8 +218,8 @@ class BaseDesignBuilder(ABC):
             self,
             blocks: int | str | List[str]  | Literal['highest', 'replica']
             ) -> None:
-        if blocks in {'highest', 'replica'}:
-            self._blocks = blocks # type: ignore
+        if blocks in ('highest', 'replica'):
+            self._blocks = blocks
         
         elif isinstance(blocks, int):
             assert blocks > 0, 'Number of blocks must be positive.'
@@ -252,18 +257,18 @@ class BaseDesignBuilder(ABC):
         return all(count == 2 for count in self.level_counts)
 
     @staticmethod
-    def _set_code_level_map(
+    def _set_corrected_level_map(
             factors: Tuple[Factor, ...],
-            codes: List[List[float | int]],
+            codes: Sequence[Sequence[float | int]],
             ) -> None:
-        """Set code_level_map for each factor based on the codes.
+        """Set corrected_level_map for each factor based on the codes.
 
         Parameters
         ----------
         factors : Tuple[Factor, ...]
-            Factors to set code_level_map for.
-        codes : List[List[float | int]]
-            List of codes for each factor.
+            Factors to set corrected_level_map for.
+        codes : Sequence[Sequence[float | int]]
+            Sequence of codes for each factor.
         
         Raises
         ------
@@ -273,7 +278,7 @@ class BaseDesignBuilder(ABC):
         assert len(codes) == len(factors), (
             'Codes list must match number of factors.')
         for factor, code in zip(factors, codes):
-            factor.code_level_map = dict(zip(code, factor.levels))
+            factor.corrected_level_map = dict(zip(code, factor.levels))
 
     @staticmethod
     def _decode_values(
@@ -298,42 +303,40 @@ class BaseDesignBuilder(ABC):
         Raises
         ------
         AssertionError
-            -If any factor does not have a code_level_map attribute.
+            -If any factor does not have a corrected_level_map attribute.
             -If the design matrix columns do not match factor names.
         """
-        assert all(hasattr(f, 'code_level_map') for f in factors), (
-            'All factors must have a code_level_map attribute for decoding.')
+        assert all(hasattr(f, 'corrected_level_map') for f in factors), (
+            'All factors must have a corrected_level_map attribute for decoding.')
         assert all(f.name in df_design.columns for f in factors), (
             'Design matrix columns must match factor names.')
 
         df_design = df_design.copy()
         for factor in factors:
-            codes = df_design[factor.name].astype(int)
-            df_design.loc[:, factor.name] = [factor.code_level_map[c] for c in codes]
+            codes = df_design[factor.name]
+            df_design.loc[:, factor.name] = [factor.corrected_level_map[c] for c in codes]
         return df_design
 
     @abstractmethod
-    def _build_coded_design(self) -> DataFrame:
+    def _build_corrected_base_design(self) -> DataFrame:
         """
-        Abstract method to generate the integer-coded design matrix.
+        Abstract method to generate the corrected base design matrix.
 
         This method must be implemented by subclasses to generate the
-        design matrix with integer indices representing factor levels.
+        base design matrix with corrected values of factor levels.
         It should return a DataFrame where each column corresponds to a
-        factor, and each row represents an experimental run. The values
-        in the DataFrame are indices into the corresponding factor's
-        levels tuple.
-
-        Implement also setting the code_level_map attribute for each 
-        factor.
+        factor, and each row represents an experimental run.
 
         Returns
         -------
         DataFrame
-            Design matrix with integer indices representing factor 
-            levels. Each column corresponds to a factor, each row to an 
-            experimental run. Values are indices into the corresponding 
-            factor's levels tuple.
+            Base design matrix with corrected values of factor levels.
+        
+        Notes
+        -----
+        Implement also setting the `corrected_level_map` attribute for
+        each factor based on the generated codes. This is necessary for
+        decoding the design matrix back to original factor values.
         """
         pass
 
@@ -360,67 +363,9 @@ class BaseDesignBuilder(ABC):
         
         df_design = pd.concat([df_design] * self.replicates, ignore_index=True)
         return df_design
-
-    def _add_central_points(self, df_design: DataFrame) -> DataFrame:
-        """Add central points to the design matrix if specified.
-        If central points are specified, they are added to the design
-        matrix as additional rows with the central point level for each
-        factor.
-        
-        Parameters
-        ----------
-        df_design : DataFrame
-            Design matrix to add central points to.
-        
-        Returns
-        -------
-        DataFrame
-            Design matrix with central points added.
-        """
-        if not self.central_points > 0:
-            return df_design
-
-        codes = []
-        for factor in self.factors:
-            if factor.has_central and factor.central_point is not None:
-                codes.append([DOE.CENTRAL_CODED_VALUE])
-                factor.code_level_map |= {
-                    DOE.CENTRAL_CODED_VALUE: factor.central_point}
-            else:
-                codes.append(list(factor.code_level_map.keys()))
-        
-        df_central = pd.DataFrame(product(*codes), columns=self.factor_names)
-        for _ in range(self.central_points):
-            _df_central = df_central.copy()
-            _df_central[DOE.CENTRAL_POINT] = 0
-            df_design = pd.concat([df_design, _df_central], ignore_index=True)
-        return df_design
-
-    def _shuffle_design(self, df_design: DataFrame) -> DataFrame:
-        """
-        Shuffle the design matrix if shuffle is True.
-        
-        Parameters
-        ----------
-        df_design : DataFrame
-            Design matrix to shuffle.
-
-        Returns
-        -------
-        DataFrame
-            Shuffled design matrix.
-        """
-        if not self.shuffle:
-            return df_design
-        
-        df_design = df_design.sample(frac=1, ignore_index=True)
-        return df_design
     
-    def _count_replicates(self, df_design: DataFrame) -> DataFrame:
+    def _count_replicates(self, df_design: DataFrame) -> Series:
         """Count the number of replicates for each factor combination.
-
-        This method adds a new column to the design matrix that counts
-        the number of replicates for each combination of factor levels.
 
         Parameters
         ----------
@@ -429,13 +374,11 @@ class BaseDesignBuilder(ABC):
         
         Returns
         -------
-        DataFrame
-            Design matrix with an additional column for the replicate 
-            count.
+        Series
+            Series with the count of replicates for each factor 
+            combination.
         """
-        columns = [DOE.CENTRAL_POINT] + self.factor_names
-        df_design[DOE.REPLICA] = df_design.groupby(columns).cumcount() + 1
-        return df_design
+        return df_design.groupby(self.factor_names).cumcount() + 1
     
     def _add_block_column(self, df_design: DataFrame) -> DataFrame:
         """Add a block column to the design matrix based on the blocks 
@@ -457,32 +400,113 @@ class BaseDesignBuilder(ABC):
             Design matrix with an additional column for the block 
             assignments.
         """
-        blocks = self.blocks
-        if blocks == 1:
-            df_design[DOE.BLOCK] = 1
-        
-        elif isinstance(blocks, int):
+        if self.blocks == 1:
+            _blocks = [1 for _ in range(len(df_design))]
+
+        elif isinstance(self.blocks, int):
             n = len(df_design)
-            block_sizes = [
-                n // blocks + (1 if x < n % blocks else 0)
-                for x in range(blocks)]
-            block_indices = np.concatenate(
-                [[i] * size for i, size in enumerate(block_sizes, start=1)])
-            df_design[DOE.BLOCK] = block_indices
-        
-        elif blocks == 'replica':
-            df_design[DOE.BLOCK] = df_design[DOE.REPLICA]
-        
-        elif blocks == 'highest' or isinstance(blocks, (str, list)):
-            factors = self.factor_names if blocks == 'highest' else list(blocks)
-            block_values = np.prod([df_design[f] for f in factors], axis=0)
-            unique_values = np.unique(block_values)
-            block_map = {v: i for i, v in enumerate(unique_values, start=1)}
-            df_design[DOE.BLOCK] = [block_map[v] for v in block_values]
+            sizes = [
+                n // self.blocks + (1 if x < n % self.blocks else 0)
+                for x in range(self.blocks)]
+            _blocks = [
+                i for i, n in enumerate(sizes, start=1) for _ in range(n)]
+
+        elif self.blocks == 'replica':
+            _blocks = self._count_replicates(df_design).to_list()
+
+        elif self.blocks == 'highest' or isinstance(self.blocks, (str, list)):
+            if self.blocks == 'highest':
+                factors = self.factor_names
+            else:
+                factors = list(self.blocks)
+            product = df_design[factors].prod(axis=1)
+            mapper = {v: i for i, v in enumerate(product.unique(), start=1)}
+            _blocks = [mapper[v] for v in product]
 
         else:
             raise ValueError(f'Invalid blocks option: {self.blocks}')
 
+        blocks = pd.Series(_blocks, dtype=int, index=df_design.index)
+        df_design[DOE.BLOCK] = blocks
+        if blocks.nunique() > 1 and not isinstance(self.blocks, int):
+            df_design = df_design.sort_values(DOE.BLOCK, ignore_index=True)
+        return df_design
+
+    def _add_central_points(self, df_design: DataFrame) -> DataFrame:
+        """Add central points to the design matrix if specified.
+
+        If central points are specified, they are added to each block in
+        the design matrix as additional rows with the central point 
+        level for each factor.
+        
+        Parameters
+        ----------
+        df_design : DataFrame
+            Design matrix to add central points to.
+        
+        Returns
+        -------
+        DataFrame
+            Design matrix with central points added.
+        """
+        df_design[DOE.CENTRAL_POINT] = 1
+        if not self.central_points > 0:
+            return df_design
+
+        codes = []
+        for factor in self.factors:
+            if factor.has_central and factor.central_point is not None:
+                codes.append([DOE.CENTRAL_CODED_VALUE])
+                factor.corrected_level_map |= {
+                    DOE.CENTRAL_CODED_VALUE: factor.central_point}
+            else:
+                codes.append(list(factor.corrected_level_map.keys()))
+
+        df_central = pd.concat([
+            pd.DataFrame(product(*codes), columns=self.factor_names)]
+            * self.central_points, 
+            ignore_index=True)
+        df_central[DOE.CENTRAL_POINT] = 0
+        
+        df_design = (
+            df_design.groupby(DOE.BLOCK, group_keys=False)
+            .apply(lambda group: pd.concat([group, df_central]))
+            .reset_index(drop=True))
+        df_design[DOE.BLOCK] = df_design[DOE.BLOCK].ffill()
+        return df_design
+
+    def _shuffle_design(self, df_design: DataFrame) -> DataFrame:
+        """
+        Shuffle the design matrix if shuffle is True.
+
+        This method adds a standard order column to the design matrix,
+        and a run order column after shuffling.
+
+        Parameters
+        ----------
+        df_design : DataFrame
+            Design matrix to shuffle.
+
+        Returns
+        -------
+        DataFrame
+            Shuffled design matrix.
+        """
+        df_design[DOE.STD_ORDER] = np.arange(len(df_design))
+        if self.shuffle:
+            df_design = (
+                df_design.groupby(DOE.BLOCK, group_keys=False)
+                .apply(lambda group: group.sample(frac=1))
+                .reset_index(drop=True))
+        df_design[DOE.RUN_ORDER] = np.arange(len(df_design))
+        return df_design
+    
+    def _clean_design(self, df_design: DataFrame) -> DataFrame:
+        """Clean the design matrix by sorting columns and converting
+        standard columns to integer type."""
+        df_design = df_design[self.columns]
+        df_design[self.standard_columns] = (
+            df_design[self.standard_columns].astype(int))
         return df_design
 
     def build_design(
@@ -530,18 +554,15 @@ class BaseDesignBuilder(ABC):
         specified interaction is used. If `blocks` is 'replica', blocks
         are assigned by replicate. If `blocks` is an int, blocks are
         assigned evenly (not statistically confounded).
-        
         """
-        df_design = self._build_coded_design()
+        df_design = self._build_corrected_base_design()
         df_design = self._replicate_design(df_design)
-        df_design[DOE.CENTRAL_POINT] = 1
-        df_design = self._add_central_points(df_design)
-        df_design[DOE.STD_ORDER] = np.arange(len(df_design))
-        df_design = self._shuffle_design(df_design)
-        df_design = self._count_replicates(df_design)
         df_design = self._add_block_column(df_design)
-        df_design[DOE.RUN_ORDER] = np.arange(len(df_design))
-        df_design = df_design[self.columns]
+        df_design = self._add_central_points(df_design)
+        df_design = self._shuffle_design(df_design)
+        df_design[DOE.REPLICA] = self._count_replicates(df_design)
+        df_design = self._clean_design(df_design)
+
         if not corrected:
             df_design = self._decode_values(df_design, self.factors)
         return df_design
@@ -556,8 +577,10 @@ class FullFactorialDesignBuilder(BaseDesignBuilder):
         Factors defining the design space.
     replicates : int, optional
         Number of replicates. Must be positive, by default 1.
-    blocks : int, optional
-        Number of blocks. Must be positive, by default 1.
+    blocks : int | str | List[str] | Literal['highest', 'replica'], optional
+        Number of blocks or block assignment strategy. For more
+        information, see the docstring of the `build_design` method.
+        Defaults to 1.
     shuffle : bool, optional
         Whether to shuffle the design, by default True.
     
@@ -586,7 +609,8 @@ class FullFactorialDesignBuilder(BaseDesignBuilder):
     ```
 
     Create a full factorial corrected design with two factors, each with 
-    two levels, and 3 replicates:
+    two levels, and 3 replicates and split into blocks using the highest 
+    interaction:
     
     ```python
     import daspi as dsp
@@ -596,25 +620,26 @@ class FullFactorialDesignBuilder(BaseDesignBuilder):
 
     factor_a = dsp.Factor('A', (1, 2))
     factor_b = dsp.Factor('B', (10, 20))
-    builder = dsp.FullFactorialDesignBuilder(factor_a, factor_b, replicates=3)
+    builder = dsp.FullFactorialDesignBuilder(
+        factor_a, factor_b, replicates=3, blocks='highest')
     df = builder.build_design(corrected=True)
     print(df)
     ```
 
     ```console
-        std_order  run_order  central_point  replica  block  A  B
-    0          10          0              1        1      1  2  1
-    1           9          1              1        1      1  1  2
-    2           0          2              1        1      1  1  1
-    3           8          3              1        2      1  1  1
-    4           5          4              1        2      1  1  2
-    5           2          5              1        2      1  2  1
-    6           1          6              1        3      1  1  2
-    7          11          7              1        1      1  2  2
-    8           4          8              1        3      1  1  1
-    9           7          9              1        2      1  2  2
-    10          3         10              1        3      1  2  2
-    11          6         11              1        3      1  2  1
+        std_order  run_order  central_point  replica  block    A    B
+    0           0          0              1        1      1 -1.0 -1.0
+    1           1          1              1        1      1  1.0  1.0
+    2           5          2              1        2      1  1.0  1.0
+    3           2          3              1        2      1 -1.0 -1.0
+    4           4          4              1        3      1 -1.0 -1.0
+    5           3          5              1        3      1  1.0  1.0
+    6           9          6              1        1      2  1.0 -1.0
+    7           6          7              1        1      2 -1.0  1.0
+    8           7          8              1        2      2  1.0 -1.0
+    9           8          9              1        2      2 -1.0  1.0
+    10         11         10              1        3      2  1.0 -1.0
+    11         10         11              1        3      2 -1.0  1.0
     ```
 
     Raises
@@ -631,17 +656,17 @@ class FullFactorialDesignBuilder(BaseDesignBuilder):
             self,
             *factors: Factor,
             replicates: int = 1,
-            blocks: int = 1,
+            blocks: int | str | List[str] | Literal['highest', 'replica'] = 1,
             shuffle: bool = True
             ) -> None:
         super().__init__(
             *factors,
             replicates=replicates,
-            central_points=0,
             blocks=blocks,
+            central_points=0,
             shuffle=shuffle)
 
-    def _build_coded_design(self) -> DataFrame:
+    def _build_corrected_base_design(self) -> DataFrame:
         """Generate the integer-coded design matrix for full factorial 
         design.
 
@@ -659,7 +684,7 @@ class FullFactorialDesignBuilder(BaseDesignBuilder):
             factor's levels tuple.
         """
         codes = [list(np.linspace(-1, 1, n)) for n in self.level_counts]
-        self._set_code_level_map(self.factors, codes)
+        self._set_corrected_level_map(self.factors, codes)
 
         df_design = pd.DataFrame(
             product(*codes), columns=self.factor_names)
@@ -682,10 +707,14 @@ class FullFactorial2kDesignBuilder(BaseDesignBuilder):
         2 levels.
     replicates : int, optional
         Number of replicates. Must be positive, by default 1.
+    blocks : int | str | List[str] | Literal['highest', 'replica'], optional
+        Block assignment: integer for evenly spaced blocks, 
+        str | List[str] for user-defined block generator, or Literal 
+        'highest'/'replica'. Must be positive or 'highest'/'replica', by 
+        default 1.
     central_points : int, optional
-        Number of central points. Must be non-negative, by default 0.
-    blocks : int, optional
-        Number of blocks. Must be positive, by default 1.
+        Number of central points to be added to each block. These are
+        used to test linear effects. Must be non-negative, by default 0.
     shuffle : bool, optional
         Whether to shuffle the design, by default True.
     
@@ -713,9 +742,10 @@ class FullFactorial2kDesignBuilder(BaseDesignBuilder):
     ``` 
 
     Create a randomized full factorial corrected design with two
-    factors, each with two levels, and 3 replicates and 3 central points
-    to test linear effects:
-    
+    factors, each with two levels, and 3 replicates, blocks by the
+    highest interaction and 2 central points per block to test 
+    linear effects:
+
     ```python
     import daspi as dsp
     import numpy as np
@@ -725,28 +755,30 @@ class FullFactorial2kDesignBuilder(BaseDesignBuilder):
     factor_a = dsp.Factor('A', (0, 1))
     factor_b = dsp.Factor('B', (0, 1))
     builder = dsp.FullFactorial2kDesignBuilder(
-        factor_a, factor_b, replicates=3, central_points=3)
+        factor_a, factor_b, replicates=3, central_points=2,
+        blocks='highest', shuffle=True)
     df = builder.build_design(corrected=True)
     print(df)
     ```
 
     ```console
         std_order  run_order  central_point  replica  block  A  B
-    0           9          0              1        1      1 -1  1
-    1          11          1              1        1      1  1  1
+    0           1          0              1        1      1  1  1
+    1           5          1              1        2      1  1  1
     2           0          2              1        1      1 -1 -1
-    3          13          3              0        1      1  0  0
-    4           5          4              1        2      1 -1  1
-    5           8          5              1        2      1 -1 -1
-    6           2          6              1        1      1  1 -1
-    7           1          7              1        3      1 -1  1
-    8          14          8              0        2      1  0  0
-    9           4          9              1        3      1 -1 -1
-    10          7         10              1        2      1  1  1
-    11         10         11              1        2      1  1 -1
-    12         12         12              0        3      1  0  0
-    13          3         13              1        3      1  1  1
-    14          6         14              1        3      1  1 -1
+    3           7          3              0        1      1  0  0
+    4           2          4              1        2      1 -1 -1
+    5           4          5              1        3      1 -1 -1
+    6           3          6              1        3      1  1  1
+    7           6          7              0        2      1  0  0
+    8          11          8              1        1      2  1 -1
+    9          15          9              0        3      2  0  0
+    10          8         10              1        1      2 -1  1
+    11         12         11              1        2      2 -1  1
+    12         13         12              1        2      2  1 -1
+    13         10         13              1        3      2 -1  1
+    14          9         14              1        3      2  1 -1
+    15         14         15              0        4      2  0  0
     ``` 
 
     Raises
@@ -762,8 +794,8 @@ class FullFactorial2kDesignBuilder(BaseDesignBuilder):
             self,
             *factors: Factor,
             replicates: int = 1,
+            blocks: int | str | List[str] | Literal['highest', 'replica'] = 1,
             central_points: int = 0,
-            blocks: int = 1,
             shuffle: bool = True
             ) -> None:
         assert all(f.n_levels == 2 for f in factors), (
@@ -772,11 +804,11 @@ class FullFactorial2kDesignBuilder(BaseDesignBuilder):
         super().__init__(
             *factors,
             replicates=replicates,
-            central_points=central_points,
             blocks=blocks,
+            central_points=central_points,
             shuffle=shuffle)
 
-    def _build_coded_design(self) -> DataFrame:
+    def _build_corrected_base_design(self) -> DataFrame:
         """Generate the integer-coded design matrix for full factorial 
         design with 2-level factors.
 
@@ -789,7 +821,7 @@ class FullFactorial2kDesignBuilder(BaseDesignBuilder):
             factor's levels tuple.
         """
         codes = [[-1, 1] for _ in self.factors]
-        self._set_code_level_map(self.factors, codes)
+        self._set_corrected_level_map(self.factors, codes)
 
         df_design = pd.DataFrame(
             product(*codes), columns=self.factor_names)
@@ -921,14 +953,14 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
             'All factors must have exactly 2 levels for '
             'FractionalFactorialDesignBuilder.')
 
-    def _build_coded_design(self) -> DataFrame:
+    def _build_corrected_base_design(self) -> DataFrame:
         """Generate the integer-coded design matrix for fractional 
         factorial design.
 
         - Constructs a full factorial for the basic (independent) 
           factors.
         - Adds generated columns as defined by the generator strings 
-          (e.g., "C=AB" means C = A*B).
+          (e.g., "C=AB" is interpreted as C = A*B).
         - If foldover is enabled, appends a second set of runs with the 
           first basic factor reversed in sign.
 
@@ -941,32 +973,30 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
         # Basic factors (independent):
         n_basic = len(self.factors) - len(self.generators)
         basic_names = [f.name for f in self.factors[:n_basic]]
-        gen_names = [f.name for f in self.factors[n_basic:]]
+        gen_factors = {f.name: f for f in self.factors[n_basic:]}
         codes = [[-1, 1] for _ in range(n_basic)]
-        self._set_code_level_map(self.factors[:n_basic], codes)
+        self._set_corrected_level_map(self.factors[:n_basic], codes)
+        df_design = pd.DataFrame(product(*codes), columns=basic_names)
 
-        # Build base design (full factorial for basic factors)
-        base = pd.DataFrame(product(*codes), columns=basic_names)
-
-        # Add generated columns
-        for gen, gen_str in zip(gen_names, self.generators):
-            # e.g., "C=AB" means C = A*B
-            rhs = gen_str.split('=')[1]
-            val = np.ones(len(base), dtype=int)
-            for c in rhs:
-                val *= base[c]
-            base[gen] = val
-        # Set code_level_map for generated factors
-        for i, gen in enumerate(gen_names):
-            self.factors[n_basic + i].code_level_map = {-1: self.factors[n_basic + i].levels[0], 1: self.factors[n_basic + i].levels[1]}
-
-        design = base.copy()
+        for generator in self.generators:
+            lh_side, rh_side = generator.split('=')
+            interaction_names = [n for n in basic_names if n in rh_side]
+            assert len(lh_side) == 1, (
+                f'Generator "{generator}" must have a single dependent factor '
+                f'on the left side of "=", got {lh_side}')
+            assert interaction_names, (
+                f'Generator "{generator}" does not match any basic factors: '
+                f'{basic_names}')
+            df_design[lh_side] = df_design[interaction_names].prod(axis=1)
+            gen_factors[lh_side].corrected_level_map = {
+                -1: gen_factors[lh_side].levels[0],
+                1: gen_factors[lh_side].levels[1]}
 
         # Foldover: reverse sign of first basic factor and append
         if self.fold:
-            folded = base.copy()
+            folded = df_design.copy()
             first = basic_names[0]
             folded[first] = -folded[first]
-            design = pd.concat([design, folded], ignore_index=True)
+            df_design = pd.concat([df_design, folded], ignore_index=True)
 
-        return design
+        return df_design

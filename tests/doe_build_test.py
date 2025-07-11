@@ -141,7 +141,7 @@ class TestFullFactorialDesignBuilder:
         assert df[DOE.BLOCK].nunique() == 2
         # Check block assignment by product of A and B
         ab = df['A'] * df['B']
-        block_map = {val: block for val, block in zip(sorted(ab.unique()), sorted(df[DOE.BLOCK].unique()))}
+        block_map = dict(zip(ab.unique(), df[DOE.BLOCK].unique()))
         for _, row in df.iterrows():
             assert row[DOE.BLOCK] == block_map[row['A'] * row['B']]
 
@@ -154,7 +154,7 @@ class TestFullFactorialDesignBuilder:
         # 2x2x2 = 8 runs, blocks assigned by A*B interaction
         assert df[DOE.BLOCK].nunique() == 2
         ab = df['A'] * df['B']
-        block_map = {val: block for val, block in zip(sorted(ab.unique()), sorted(df[DOE.BLOCK].unique()))}
+        block_map = dict(zip(ab.unique(), df[DOE.BLOCK].unique()))
         for _, row in df.iterrows():
             assert row[DOE.BLOCK] == block_map[row['A'] * row['B']]
 
@@ -194,9 +194,12 @@ class TestFullFactorial2kDesignBuilder:
     def test_2k_shuffle(self) -> None:
         factor_a = Factor('A', (0, 1))
         factor_b = Factor('B', (0, 1))
-        builder = FullFactorial2kDesignBuilder(factor_a, factor_b, shuffle=True)
+        replicates = 4
+        builder = FullFactorial2kDesignBuilder(
+            factor_a, factor_b, replicates=replicates, shuffle=True)
         df1 = builder.build_design(corrected=False)
-        builder2 = FullFactorial2kDesignBuilder(factor_a, factor_b, shuffle=True)
+        builder2 = FullFactorial2kDesignBuilder(
+            factor_a, factor_b, replicates=replicates, shuffle=True)
         df2 = builder2.build_design(corrected=False)
         # Shuffling should result in different run orders (not always, but likely)
         assert not df1.equals(df2) or df1.shape == df2.shape
