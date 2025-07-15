@@ -228,10 +228,10 @@ class TestFullFactorial2kDesignBuilder:
         central_b = factor_b.central_point
         central_mask = (df['A'] == central_a) & (df['B'] == central_b)
         assert central_mask.sum() == 2
-        assert all(df[central_mask][DOE.CENTRAL_POINT] == DOE.CENTRAL_CODED_VALUE)
+        assert all(df[central_mask][DOE.CENTRAL_POINT] == DOE.CORRECTED_CENTRAL)
         # The rest are factorial runs
         factorial_rows = df[~central_mask]
-        assert all(factorial_rows[DOE.CENTRAL_POINT] != DOE.CENTRAL_CODED_VALUE)
+        assert all(factorial_rows[DOE.CENTRAL_POINT] != DOE.CORRECTED_CENTRAL)
         assert set(tuple(row) for row in factorial_rows[['A', 'B']].values) == {
             (0, 100), (0, 200), (10, 100), (10, 200)}
     

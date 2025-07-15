@@ -635,6 +635,6 @@ class _DOE_:
     """Name for block in the design space."""
     REPLICA: Literal['replica'] = 'replica'
     """Name for replicate in the design space."""
-    CENTRAL_CODED_VALUE: int = 0
+    CORRECTED_CENTRAL: int = 0
     """Coded value for central points in the design space."""
 DOE = _DOE_()

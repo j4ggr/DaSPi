@@ -100,7 +100,8 @@ class Factor:
             zip(self._corrected_levels, self._levels))
         
         if self.central_point is not None:
-            self._corrected_level_map[DOE.CENTRAL_CODED_VALUE] = self.central_point
+            self._corrected_level_map |= {
+                DOE.CORRECTED_CENTRAL: self.central_point}
 
     @property
     def n_levels(self) -> int:
@@ -128,10 +129,11 @@ class Factor:
         return self._central_point
     
     @property
-    def has_central(self) -> bool:
-        """Return whether there is a central point (read-only)."""
-        return self.central_point is not None
-    
+    def is_centralized(self) -> bool:
+        """Check if the corrected levels are centered around 0 
+        (read-only)."""
+        return sum(self.corrected_levels) == 0
+
     @property
     def corrected_central_points(self) -> Tuple[float | int, ...]:
         """Corrected central points as tuple, used for float-coded 
@@ -147,8 +149,8 @@ class Factor:
         """
         if self.central_point is not None:
             self._corrected_level_map |= {
-                DOE.CENTRAL_CODED_VALUE: self.central_point}
-            return (DOE.CENTRAL_CODED_VALUE,)
+                DOE.CORRECTED_CENTRAL: self.central_point}
+            return (DOE.CORRECTED_CENTRAL,)
         else:
             return self.corrected_levels
 
@@ -274,7 +276,7 @@ class BaseDesignBuilder(ABC):
         assert central_points >= 0, (
             'Number of central points must be non-negative.')
         if central_points > 0:
-            assert any(f.has_central for f in self.factors), (
+            assert any(f.central_point is not None for f in self.factors), (
                 'At least one factor must provide a central point, '
                 'or set central_points to 0.')
         self._central_points = central_points
@@ -482,7 +484,7 @@ class BaseDesignBuilder(ABC):
         - If blocks is an Iterable[str]: assign blocks by confounding 
           with the specified interaction (statistically correct).
         - If blocks is 'highest': assign blocks by confounding with the 
-          highest-order interaction (all quantitative factors).
+          highest-order interaction (all centralized factors).
         - If blocks is 'replica': assign blocks based on the replicate 
           number.
         - If blocks == 1: assign all runs to block 1.
@@ -510,16 +512,16 @@ class BaseDesignBuilder(ABC):
         elif self.blocks == 'highest' or isinstance(self.blocks, (str, list)):
             if self.blocks == 'highest':
                 factors = [
-                    f.name for f in self.factors if not f.is_categorical]
+                    f.name for f in self.factors if f.is_centralized]
                 assert factors, (
-                    'No factors with numeric levels found for highest '
+                    'No factors with centralized levels found for highest '
                     'order interaction. Use a different blocks option.')
                 if len(factors) == 1:
                     warnings.warn(
-                        f'Only one numeric factor found {factors[0]}. Using it '
-                        'as the block generator. The block will be confounded '
-                        'with this factor. Consider using a different blocks '
-                        'option for more complex designs.')
+                        f'Only one centralized factor found {factors[0]}. '
+                        'Using it as the block generator. The block will be '
+                        'confounded with this factor. Consider using a '
+                        'different blocks option for more complex designs.')
             else:
                 factors = list(self.blocks)
             product = df_design[factors].prod(axis=1)
@@ -623,7 +625,7 @@ class BaseDesignBuilder(ABC):
           confounding with the specified interaction 
           (statistically correct).
         - If `blocks` is 'highest': blocks are assigned by confounding
-          with the highest-order interaction (all quantitative factors).
+          with the highest-order interaction (all centralized factors).
         - If `blocks` is 'replica': blocks are assigned based on the
           replicate number.
         - If `blocks` == 1: all runs are assigned to block 1.
@@ -1017,10 +1019,10 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
     ```python
     from daspi.doe.build import Factor, FractionalFactorialDesignBuilder
 
-    fA = Factor('A', (-1, 1))
-    fB = Factor('B', (-1, 1))
-    fC = Factor('C', (-1, 1))
-    builder = FractionalFactorialDesignBuilder(fA, fB, fC, generators=['C=AB'])
+    A = Factor('A', (-1, 1))
+    B = Factor('B', (-1, 1))
+    C = Factor('C', (-1, 1))
+    builder = FractionalFactorialDesignBuilder(A, B, C, generators=['C=AB'])
     df = builder.build_design(corrected=False)
     print(df)
     ```
@@ -1036,7 +1038,8 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
     Create the same design with foldover (doubles the number of runs, reverses A):
 
     ```python
-    builder = FractionalFactorialDesignBuilder(fA, fB, fC, generators=['C=AB'], fold=True)
+    builder = FractionalFactorialDesignBuilder(
+        A, B, C, generators=['C=AB'], fold=True)
     df = builder.build_design(corrected=False)
     print(df)
     ```
@@ -1128,8 +1131,6 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
           factors.
         - Adds generated columns as defined by the generator strings 
           (e.g., 'C=AB' is interpreted as C = A*B).
-        - If foldover is enabled, appends a second set of runs with the 
-          first basic factor reversed in sign.
 
         Returns
         -------
@@ -1154,6 +1155,7 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
             assert interaction_names, (
                 f'Generator "{generator}" does not match any basic factors: '
                 f'{basic_names}')
-            df_design[lh_side] = df_design[interaction_names].prod(axis=1)
+            generated = df_design[interaction_names].prod(axis=1)
+            df_design[lh_side] = -generated if '-' in rh_side else generated
 
         return df_design
