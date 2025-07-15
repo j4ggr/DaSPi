@@ -42,15 +42,18 @@ class Factor:
         are assumed to be unordered and have no central point.
     """
     
-    name: str
+    _name: str
     """Name of the factor."""
-    levels: Tuple[LevelType, ...]
+    _levels: Tuple[LevelType, ...]
     """Levels of the factor (numeric or categorical)."""
-    central_point: LevelType | None = None
+    _central_point: LevelType | None = None
     """Optional central point level."""
-    is_categorical: bool = False
+    _is_categorical: bool = False
     """Whether the factor is categorical."""
-    corrected_level_map: Dict[float | int, LevelType]
+    _corrected_levels: Tuple[float | int, ...]
+    """Corrected levels for float-coded designs."""
+
+    _corrected_level_map: Dict[float | int, LevelType]
     """Mapping from float or int codes to their corresponding factor 
     levels. This is used for float-coded designs where levels are 
     represented by floats. Set this from outside the class, e.g. in a 
@@ -66,32 +69,99 @@ class Factor:
         self._n_levels = len(levels)
         assert self.n_levels > 1, 'At least two levels are required.'
 
-        self.name = name
-
-        has_string = any(isinstance(level, str) for level in levels)
-        if has_string and not is_categorical:
-            warnings.warn(
-                f'Found string level(s) in factor {name}. '
-                'Assuming factor is categorical.')
-            is_categorical = True
-        self.is_categorical = is_categorical
+        self._name = name
         
-        self.levels = tuple(levels) if is_categorical else tuple(sorted(levels))
+        if any(isinstance(l, str) for l in levels) and not is_categorical:
+            warnings.warn(
+                f'Found string level(s) in factor {name}. Assuming factor is '
+                'categorical. To avoid this warning, set is_categorical=True.')
+            self._is_categorical = True
+        else:
+            self._is_categorical = is_categorical
         
         if self.is_categorical:
-            self.central_point = None
+            self._levels = tuple(levels)
         else:
-            self.central_point = (self.levels[0] + self.levels[-1]) / 2 # type: ignore
-    
+            self._levels = tuple(sorted(levels))
+
+        if not self.is_categorical:
+            self._central_point = (self._levels[0] + self._levels[-1]) / 2 # type: ignore
+        else:
+            self._central_point = None
+        
+        if self.is_categorical:
+            self._corrected_levels = tuple(range(self.n_levels))
+        else:
+            lim = self.n_levels // 2
+            self._corrected_levels = tuple(
+                np.linspace(-lim, lim, self.n_levels))
+        
+        self._corrected_level_map = dict(
+            zip(self._corrected_levels, self._levels))
+        
+        if self.central_point is not None:
+            self._corrected_level_map[DOE.CENTRAL_CODED_VALUE] = self.central_point
+
     @property
     def n_levels(self) -> int:
         """Return number of levels (read-only)."""
         return self._n_levels
+
+    @property
+    def name(self) -> str:
+        """Name of the factor (read-only)."""
+        return self._name
+
+    @property
+    def is_categorical(self) -> bool:
+        """Return whether the factor is categorical (read-only)."""
+        return self._is_categorical
+    
+    @property
+    def levels(self) -> Tuple[LevelType, ...]:
+        """Levels of the factor (read-only)."""
+        return self._levels
+
+    @property
+    def central_point(self) -> LevelType | None:
+        """Central point of the factor (read-only)."""
+        return self._central_point
     
     @property
     def has_central(self) -> bool:
         """Return whether there is a central point (read-only)."""
         return self.central_point is not None
+    
+    @property
+    def corrected_central_points(self) -> Tuple[float | int, ...]:
+        """Corrected central points as tuple, used for float-coded 
+        designs (read-only).
+        
+        If the factor has a central point, it returns a tuple with the
+        central coded value, otherwise it returns the corrected levels.
+
+        Notes
+        -----
+        If this property is accessed, it will also update the 
+        `corrected_level_map`.
+        """
+        if self.central_point is not None:
+            self._corrected_level_map |= {
+                DOE.CENTRAL_CODED_VALUE: self.central_point}
+            return (DOE.CENTRAL_CODED_VALUE,)
+        else:
+            return self.corrected_levels
+
+    @property
+    def corrected_levels(self) -> Tuple[float | int, ...]:
+        """Corrected levels for float-coded designs (read-only)."""
+        return self._corrected_levels
+    
+    @property
+    def corrected_level_map(self) -> Dict[float | int, LevelType]:
+        """Mapping from float or int codes to their corresponding factor 
+        levels (read-only)."""
+        return self._corrected_level_map
 
 
 class BaseDesignBuilder(ABC):
@@ -110,7 +180,8 @@ class BaseDesignBuilder(ABC):
         default 1.
     central_points : int, optional
         Number of central points to be added to each block. These are
-        used to test linear effects. Must be non-negative, by default 0.
+        used to test linear effects. Must be non-negative. If set to 0,
+        no central points are added. by default 0.
     shuffle : bool, optional
         Whether to shuffle the design, by default True.
     
@@ -136,6 +207,7 @@ class BaseDesignBuilder(ABC):
     _central_points : int
     _blocks : int | str | List[str] | Literal['highest', 'replica']
     _level_counts : Tuple[int, ...]
+    _fold: bool | str
     shuffle : bool
     """Whether to shuffle the design."""
 
@@ -257,30 +329,6 @@ class BaseDesignBuilder(ABC):
         return all(count == 2 for count in self.level_counts)
 
     @staticmethod
-    def _set_corrected_level_map(
-            factors: Tuple[Factor, ...],
-            codes: Sequence[Sequence[float | int]],
-            ) -> None:
-        """Set corrected_level_map for each factor based on the codes.
-
-        Parameters
-        ----------
-        factors : Tuple[Factor, ...]
-            Factors to set corrected_level_map for.
-        codes : Sequence[Sequence[float | int]]
-            Sequence of codes for each factor.
-        
-        Raises
-        ------
-        AssertionError
-            If the length of codes does not match the number of factors.
-        """
-        assert len(codes) == len(factors), (
-            'Codes list must match number of factors.')
-        for factor, code in zip(factors, codes):
-            factor.corrected_level_map = dict(zip(code, factor.levels))
-
-    @staticmethod
     def _decode_values(
             df_design: DataFrame,
             factors: Tuple[Factor, ...],
@@ -303,18 +351,15 @@ class BaseDesignBuilder(ABC):
         Raises
         ------
         AssertionError
-            -If any factor does not have a corrected_level_map attribute.
             -If the design matrix columns do not match factor names.
         """
-        assert all(hasattr(f, 'corrected_level_map') for f in factors), (
-            'All factors must have a corrected_level_map attribute for decoding.')
         assert all(f.name in df_design.columns for f in factors), (
             'Design matrix columns must match factor names.')
 
         df_design = df_design.copy()
         for factor in factors:
-            codes = df_design[factor.name]
-            df_design.loc[:, factor.name] = [factor.corrected_level_map[c] for c in codes]
+            df_design[factor.name].replace(
+                factor.corrected_level_map, inplace=True)
         return df_design
 
     @abstractmethod
@@ -331,14 +376,62 @@ class BaseDesignBuilder(ABC):
         -------
         DataFrame
             Base design matrix with corrected values of factor levels.
-        
-        Notes
-        -----
-        Implement also setting the `corrected_level_map` attribute for
-        each factor based on the generated codes. This is necessary for
-        decoding the design matrix back to original factor values.
         """
         pass
+
+    def _fold_design(self, df_design: DataFrame) -> DataFrame:
+        """Fold the design matrix if fold is True.
+
+        This method adds a foldover to the design matrix by reversing
+        the levels of all factors. If fold is a string, it should be
+        the name of the factor to fold over. If fold is False, no
+        folding is applied.
+
+        Parameters
+        ----------
+        df_design : DataFrame
+            Design matrix to fold.
+
+        Returns
+        -------
+        DataFrame
+            Folded design matrix.
+
+        Raises
+        AssertionError
+            If fold is not in factor names or is not a boolean.
+        """
+        fold = getattr(self, '_fold', False)
+        assert fold in self.factor_names or isinstance(fold, bool), (
+            f'Fold factor "{fold}" not found in factor names: '
+            f'{self.factor_names}')
+        if not fold:
+            return df_design
+
+        assert self.is_2k, (
+            'Foldover is only applicable to 2^k designs. '
+            'Use FullFactorial2kDesignBuilder for 2^k designs.')
+        
+        folded = df_design.copy()
+        names = fold if fold in self.factor_names else self.factor_names
+        folded[names] = -folded[names]
+        combined = pd.concat([df_design, folded], ignore_index=True)
+        if len(combined.drop_duplicates()) == len(df_design):
+            warnings.warn(
+                'Foldover does not add new runs: the folded design is already '
+                'present in the original design. Foldover will simply '
+                'replicate the design, so it will not be applied.')
+            return df_design
+        
+        if len(combined) >= np.prod(self.level_counts):
+            warnings.warn(
+                'Foldover will create a full design with all possible runs. '
+                'This may not be intended. Consider using a different design '
+                'builder. Foldover will not be applied.')
+            return df_design
+
+        df_design = combined
+        return df_design
 
     def _replicate_design(self, df_design: DataFrame) -> DataFrame:
         """Replicate the design matrix according to the replicates 
@@ -358,10 +451,10 @@ class BaseDesignBuilder(ABC):
         DataFrame
             Replicated design matrix.
         """
-        if not self.replicates > 1:
-            return df_design
-        
-        df_design = pd.concat([df_design] * self.replicates, ignore_index=True)
+        if self.replicates > 1:
+            df_design = pd.concat(
+                [df_design] * self.replicates,
+                ignore_index=True)
         return df_design
     
     def _count_replicates(self, df_design: DataFrame) -> Series:
@@ -389,7 +482,7 @@ class BaseDesignBuilder(ABC):
         - If blocks is an Iterable[str]: assign blocks by confounding 
           with the specified interaction (statistically correct).
         - If blocks is 'highest': assign blocks by confounding with the 
-          highest-order interaction (all factors).
+          highest-order interaction (all quantitative factors).
         - If blocks is 'replica': assign blocks based on the replicate 
           number.
         - If blocks == 1: assign all runs to block 1.
@@ -416,7 +509,17 @@ class BaseDesignBuilder(ABC):
 
         elif self.blocks == 'highest' or isinstance(self.blocks, (str, list)):
             if self.blocks == 'highest':
-                factors = self.factor_names
+                factors = [
+                    f.name for f in self.factors if not f.is_categorical]
+                assert factors, (
+                    'No factors with numeric levels found for highest '
+                    'order interaction. Use a different blocks option.')
+                if len(factors) == 1:
+                    warnings.warn(
+                        f'Only one numeric factor found {factors[0]}. Using it '
+                        'as the block generator. The block will be confounded '
+                        'with this factor. Consider using a different blocks '
+                        'option for more complex designs.')
             else:
                 factors = list(self.blocks)
             product = df_design[factors].prod(axis=1)
@@ -453,17 +556,10 @@ class BaseDesignBuilder(ABC):
         if not self.central_points > 0:
             return df_design
 
-        codes = []
-        for factor in self.factors:
-            if factor.has_central and factor.central_point is not None:
-                codes.append([DOE.CENTRAL_CODED_VALUE])
-                factor.corrected_level_map |= {
-                    DOE.CENTRAL_CODED_VALUE: factor.central_point}
-            else:
-                codes.append(list(factor.corrected_level_map.keys()))
-
         df_central = pd.concat([
-            pd.DataFrame(product(*codes), columns=self.factor_names)]
+            pd.DataFrame(
+                product(*[f.corrected_central_points for f in self.factors]),
+                columns=self.factor_names)]
             * self.central_points, 
             ignore_index=True)
         df_central[DOE.CENTRAL_POINT] = 0
@@ -526,9 +622,9 @@ class BaseDesignBuilder(ABC):
         - If `blocks` is an str or List[str]: blocks are assigned by 
           confounding with the specified interaction 
           (statistically correct).
-        - If `blocks` is 'highest': blocks are assigned by confounding 
-          with the highest-order interaction (all factors).
-        - If `blocks` is 'replica': blocks are assigned based on the 
+        - If `blocks` is 'highest': blocks are assigned by confounding
+          with the highest-order interaction (all quantitative factors).
+        - If `blocks` is 'replica': blocks are assigned based on the
           replicate number.
         - If `blocks` == 1: all runs are assigned to block 1.
 
@@ -556,6 +652,7 @@ class BaseDesignBuilder(ABC):
         assigned evenly (not statistically confounded).
         """
         df_design = self._build_corrected_base_design()
+        df_design = self._fold_design(df_design)
         df_design = self._replicate_design(df_design)
         df_design = self._add_block_column(df_design)
         df_design = self._add_central_points(df_design)
@@ -581,6 +678,10 @@ class FullFactorialDesignBuilder(BaseDesignBuilder):
         Number of blocks or block assignment strategy. For more
         information, see the docstring of the `build_design` method.
         Defaults to 1.
+    central_points : int, optional
+        Number of central points to be added to each block. These are
+        used to test linear effects. Must be non-negative. If set to 0,
+        no central points are added. by default 0.
     shuffle : bool, optional
         Whether to shuffle the design, by default True.
     
@@ -657,13 +758,14 @@ class FullFactorialDesignBuilder(BaseDesignBuilder):
             *factors: Factor,
             replicates: int = 1,
             blocks: int | str | List[str] | Literal['highest', 'replica'] = 1,
+            central_points: int = 0,
             shuffle: bool = True
             ) -> None:
         super().__init__(
             *factors,
             replicates=replicates,
             blocks=blocks,
-            central_points=0,
+            central_points=central_points,
             shuffle=shuffle)
 
     def _build_corrected_base_design(self) -> DataFrame:
@@ -683,16 +785,13 @@ class FullFactorialDesignBuilder(BaseDesignBuilder):
             experimental run. Values are indices into the corresponding 
             factor's levels tuple.
         """
-        codes = [list(np.linspace(-1, 1, n)) for n in self.level_counts]
-        self._set_corrected_level_map(self.factors, codes)
-
         df_design = pd.DataFrame(
-            product(*codes), columns=self.factor_names)
-        
+            product(*[f.corrected_levels for f in self.factors]),
+            columns=self.factor_names)
         return df_design
 
 
-class FullFactorial2kDesignBuilder(BaseDesignBuilder):
+class FullFactorial2kDesignBuilder(FullFactorialDesignBuilder):
     """Builder for full factorial designs with 2-level factors.
     This class is a specialization of FullFactorialDesignBuilder for
     the case where all factors have exactly 2 levels.
@@ -714,7 +813,8 @@ class FullFactorial2kDesignBuilder(BaseDesignBuilder):
         default 1.
     central_points : int, optional
         Number of central points to be added to each block. These are
-        used to test linear effects. Must be non-negative, by default 0.
+        used to test linear effects. Must be non-negative. If set to 0,
+        no central points are added. by default 0.
     shuffle : bool, optional
         Whether to shuffle the design, by default True.
     
@@ -798,35 +898,64 @@ class FullFactorial2kDesignBuilder(BaseDesignBuilder):
             central_points: int = 0,
             shuffle: bool = True
             ) -> None:
-        assert all(f.n_levels == 2 for f in factors), (
-            'All factors must have exactly 2 levels for '
-            'FullFactorial2kDesignBuilder.')
         super().__init__(
             *factors,
             replicates=replicates,
             blocks=blocks,
             central_points=central_points,
             shuffle=shuffle)
+        assert self.is_2k, (
+            'All factors must have exactly 2 levels for '
+            'FullFactorial2kDesignBuilder.')
 
-    def _build_corrected_base_design(self) -> DataFrame:
-        """Generate the integer-coded design matrix for full factorial 
-        design with 2-level factors.
 
-        Returns
-        -------
-        DataFrame
-            Design matrix with integer indices representing factor 
-            levels. Each column corresponds to a factor, each row to an 
-            experimental run. Values are indices into the corresponding 
-            factor's levels tuple.
-        """
-        codes = [[-1, 1] for _ in self.factors]
-        self._set_corrected_level_map(self.factors, codes)
+def get_default_generators(k: int, p: int) -> list[str]:
+    """
+    Return standard generators for regular 2-level fractional factorial designs.
 
-        df_design = pd.DataFrame(
-            product(*codes), columns=self.factor_names)
+    Parameters
+    ----------
+    k : int
+        Total number of factors.
+    p : int
+        Number of generators (fractionality, so design is 2^(k-p)).
 
-        return df_design
+    Returns
+    -------
+    List[str]
+        List of generator strings, e.g. ['C=AB', 'D=AC'].
+
+    Notes
+    -----
+    These are standard choices for high-resolution designs, suitable for 
+    most practical cases. For more, see Montgomery (2017), Box, Hunter 
+    & Hunter, or standard DOE tables.
+    """
+    defaults = {
+        (3, 1): ['C=AB'],
+        (4, 1): ['D=ABC'],
+        (5, 2): ['D=AB', 'E=AC'],
+        (6, 3): ['D=AB', 'E=AC', 'F=BC'],
+        (7, 3): ['E=ABC', 'F=ABD', 'G=BCD'],
+        (8, 4): ['F=ABCD'],
+        (9, 4): ['F=ABCD', 'G=ABCE'],
+        (10, 5): ['F=ABCDE', 'G=ABCDF'],
+        (11, 5): ['F=ABCDE', 'G=ABCDF', 'H=ABCEG'],
+        (12, 6): ['F=ABCDEF', 'G=ABCDEFG'],
+        (13, 6): ['F=ABCDEF', 'G=ABCDEFG', 'H=ABCDEG'],
+        (14, 7): ['F=ABCDEFGH', 'G=ABCDEFGI'],
+        (15, 7): ['F=ABCDEFGH', 'G=ABCDEFGHI', 'H=ABCDEFGJ'],
+        (16, 8): ['F=ABCDEFGHIJ', 'G=ABCDEFGHIK'],
+        (17, 8): ['F=ABCDEFGHIJ', 'G=ABCDEFGHIK', 'H=ABCDEFGHIJ'],
+        (18, 9): ['F=ABCDEFGHIJK', 'G=ABCDEFGHIJL'],
+        (19, 9): ['F=ABCDEFGHIJK', 'G=ABCDEFGHIJL', 'H=ABCDEFGHIJK'],
+    }
+    key = (k, p)
+    assert key in defaults, (
+        f'No default generators for k={k}, p={p}. '
+        'Please consult a DOE reference.')
+
+    return defaults[key]
 
 
 class FractionalFactorialDesignBuilder(BaseDesignBuilder):
@@ -834,9 +963,22 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
     Builder for 2-level fractional factorial designs with optional 
     foldover.
 
+
     This class supports the construction of regular 2-level fractional 
-    factorial designs using generator strings (e.g., "C=AB"), and can 
+    factorial designs using generator strings (e.g., 'C=AB'), and can 
     optionally add a foldover to the design.
+
+    Default generators for common designs (see also 
+    get_default_generators):
+
+    | Design      | Basic Factors | Generators                | Example Generator Strings   |
+    |-------------|---------------|---------------------------|-----------------------------|
+    | 2^(3-1)     | A, B          | C = AB                    | ['C=AB']                    |
+    | 2^(4-1)     | A, B, C       | D = ABC                   | ['D=ABC']                   |
+    | 2^(5-2)     | A, B, C       | D = AB, E = AC            | ['D=AB', 'E=AC']            |
+    | 2^(6-3)     | A, B, C       | D = AB, E = AC, F = BC    | ['D=AB', 'E=AC', 'F=BC']    |
+    | 2^(7-3)     | A, B, C, D    | E = ABC, F = ABD, G = BCD | ['E=ABC', 'F=ABD', 'G=BCD'] |
+
 
     Parameters
     ----------
@@ -844,16 +986,25 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
         Factors defining the design space. All factors must have exactly 
         2 levels.
     generators : List[str]
-        List of generator strings that define how dependent factors are constructed from basic factors.
-        For example, if you have 4 factors A, B, C, and D, you can set generators to ["C=AB", "D=BC"].
-        This means that factor C is defined as the product of factors A and B (C = A * B), and factor D as the product of B and C (D = B * C).
-        The order of the generator strings should match the order of the dependent factors in the factors list.
-    fold : bool, optional
-        Whether to add a foldover (default False).
+        List of generator strings that define how dependent factors are 
+        constructed from basic factors. For example, if you have 4 
+        factors A, B, C, and D, you can set generators to 
+        ['C=AB', 'D=BC']. This means that factor C is defined as the 
+        product of factors A and B (C = A * B), and factor D as the 
+        product of B and C (D = B * C). The order of the generator 
+        strings should match the order of the dependent factors in the 
+        factors list. For common designs, see the table above or use 
+        get_default_generators(k, p).
+    fold : bool | str, optional
+        Whether to add a foldover. If True, a foldover will be added for 
+        all factors. If a string is provided, it should be the name of 
+        the factor to fold over. Default is False (no foldover).
     replicates : int, optional
         Number of replicates. Must be positive, by default 1.
     central_points : int, optional
-        Number of central points. Must be non-negative, by default 0.
+        Number of central points to be added to each block. These are
+        used to test linear effects. Must be non-negative. If set to 0,
+        no central points are added. by default 0.
     blocks : int, optional
         Number of blocks. Must be positive, by default 1.
     shuffle : bool, optional
@@ -869,7 +1020,7 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
     fA = Factor('A', (-1, 1))
     fB = Factor('B', (-1, 1))
     fC = Factor('C', (-1, 1))
-    builder = FractionalFactorialDesignBuilder(fA, fB, fC, generators=["C=AB"])
+    builder = FractionalFactorialDesignBuilder(fA, fB, fC, generators=['C=AB'])
     df = builder.build_design(corrected=False)
     print(df)
     ```
@@ -885,7 +1036,7 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
     Create the same design with foldover (doubles the number of runs, reverses A):
 
     ```python
-    builder = FractionalFactorialDesignBuilder(fA, fB, fC, generators=["C=AB"], fold=True)
+    builder = FractionalFactorialDesignBuilder(fA, fB, fC, generators=['C=AB'], fold=True)
     df = builder.build_design(corrected=False)
     print(df)
     ```
@@ -912,24 +1063,31 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
         - Number of blocks must be positive.
         - Generators must be provided as a list of strings.
         - Generators must match the number of dependent factors.
-        - Each generator string must be in the format "C=AB" where C is 
+        - Each generator string must be in the format 'C=AB' where C is 
           the dependent factor and AB are the independent factors.
         - Each dependent factor must be defined in the generators.
         - The first basic factor must be reversed in sign for foldover.
 
     Notes
     -----
-    Foldover theory (summary):
-        In fractional factorial designs, only a subset of all possible 
-        factor combinations is run, which leads to confounding 
-        (aliasing) between main effects and interactions. Foldover is a
-        technique to resolve some of these confoundings by running an 
-        additional set of experiments where the sign of one or more 
-        basic factors is reversed. This effectively doubles the number
-        of runs and allows for the separation of certain effects that 
-        were aliased in the original fraction. Foldover is especially 
-        useful for identifying main effects that may be confounded
-        with two-factor interactions in the initial design.
+    In fractional factorial designs, only a subset of all possible 
+    factor combinations is run, which leads to confounding (aliasing) 
+    between main effects and interactions. Foldover is a technique to 
+    resolve some of these confoundings by running an additional set of 
+    experiments where the sign of one or more basic factors is reversed. 
+    This effectively doubles the number of runs and allows for the 
+    separation of certain effects that were aliased in the original 
+    fraction. Foldover is especially useful for identifying main effects 
+    that may be confounded with two-factor interactions in the initial 
+    design.
+    Key points:
+        - Foldover is meaningful only for regular 2-level fractional
+          factorial designs, not for full factorials, non-regular
+          designs, or designs with more than two levels per factor.
+        - For full factorial designs, foldover is unnecessary because
+          there is no aliasing to resolve.
+        - For non-regular or mixed-level designs, the concept of
+          foldover does not apply in the classical sense.
     """
     def __init__(
             self,
@@ -952,6 +1110,15 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
         assert self.is_2k, (
             'All factors must have exactly 2 levels for '
             'FractionalFactorialDesignBuilder.')
+        for i, sub in enumerate(self.factor_names):
+            for j, name in enumerate(self.factor_names):
+                if i == j:
+                    continue
+                assert sub not in name, (
+                    f'Factor name "{sub}" should not be a substring of '
+                    f'other factor names, found in "{name}". '
+                    'This can lead to confusion in generator definitions. '
+                    'Consider renaming factors to avoid such conflicts.')
 
     def _build_corrected_base_design(self) -> DataFrame:
         """Generate the integer-coded design matrix for fractional 
@@ -960,7 +1127,7 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
         - Constructs a full factorial for the basic (independent) 
           factors.
         - Adds generated columns as defined by the generator strings 
-          (e.g., "C=AB" is interpreted as C = A*B).
+          (e.g., 'C=AB' is interpreted as C = A*B).
         - If foldover is enabled, appends a second set of runs with the 
           first basic factor reversed in sign.
 
@@ -970,13 +1137,13 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
             Design matrix with integer codes (-1, 1) for each factor. 
             Each row is an experimental run.
         """
-        # Basic factors (independent):
+
         n_basic = len(self.factors) - len(self.generators)
-        basic_names = [f.name for f in self.factors[:n_basic]]
-        gen_factors = {f.name: f for f in self.factors[n_basic:]}
-        codes = [[-1, 1] for _ in range(n_basic)]
-        self._set_corrected_level_map(self.factors[:n_basic], codes)
-        df_design = pd.DataFrame(product(*codes), columns=basic_names)
+        basic_factors = self.factors[:n_basic]
+        basic_names = [f.name for f in basic_factors]
+        df_design = pd.DataFrame(
+            product(*[f.corrected_levels for f in basic_factors]),
+            columns=basic_names)
 
         for generator in self.generators:
             lh_side, rh_side = generator.split('=')
@@ -988,15 +1155,5 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
                 f'Generator "{generator}" does not match any basic factors: '
                 f'{basic_names}')
             df_design[lh_side] = df_design[interaction_names].prod(axis=1)
-            gen_factors[lh_side].corrected_level_map = {
-                -1: gen_factors[lh_side].levels[0],
-                1: gen_factors[lh_side].levels[1]}
-
-        # Foldover: reverse sign of first basic factor and append
-        if self.fold:
-            folded = df_design.copy()
-            first = basic_names[0]
-            folded[first] = -folded[first]
-            df_design = pd.concat([df_design, folded], ignore_index=True)
 
         return df_design
