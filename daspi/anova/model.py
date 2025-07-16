@@ -2456,7 +2456,7 @@ class GageRnRModel(LinearModel):
         self.u_map = {
             old: new for old, new in zip(u_old, u_new) if isinstance(old, str)}
         features = list(self.u_map.keys())
-        self._n_samples = source[target].notna().sum()
+        self._n_samples = int(source[target].notna().sum())
         self.n_levels = source[features].nunique().rename(self.u_map)
         self.n_levels[ANOVA.EV] = self.n_samples // np.prod(self.n_levels)
             

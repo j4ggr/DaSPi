@@ -1,5 +1,4 @@
 # source for ci: https://aegis4048.github.io/comprehensive_confidence_intervals_for_python_developers#conf_int_of_var
-import scipy
 import numpy as np
 import pandas as pd
 
@@ -34,6 +33,7 @@ __all__ = [
     'bonferroni_ci',
     'delta_mean_ci',
     'delta_variance_ci',
+    'delta_stdev_ci',
     'delta_proportions_ci',
     'fit_ci',
     'prediction_ci',
@@ -415,16 +415,14 @@ def bonferroni_ci(
     groups = data.groupby(feature)[target]
     n_groups = n_groups if isinstance(n_groups, int) else groups.ngroups
     data = pd.DataFrame(
-            groups.agg(lambda x: ci_func(x, level, n_groups)).dropna().to_list(),
-            columns = columns
-        ).dropna()
+            groups.agg(lambda x: ci_func(x, level, n_groups)).to_list(),
+            columns = columns)
     
     if isinstance(feature, str):
-        feature = [feature]
-    if len(feature) > 1:
-        cat_values = list(map(list, groups.indices.keys())) # type: ignore
+        cat_values = list(groups.indices.keys())
     else:
-        cat_values = [groups.indices.keys()]
+        cat_values = list(map(list, groups.indices.keys())) # type: ignore
+    
     data[feature] = cat_values
     return data
 
@@ -502,15 +500,16 @@ def delta_variance_ci(
     This function is a ChatGPT solution and therefore does not guarantee
     that this solution is correct.
     """
-    alpha = confidence_to_alpha(level, two_sided=True)  
-    s2_1 = float(np.var(sample1, ddof=1))
-    s2_2 = float(np.var(sample2, ddof=1))
-    dof1, dof2 = len(sample1) - 1, len(sample2) - 1
-    delta = s2_1 - s2_2
-    F_upp = float(f.ppf(alpha, dof1, dof2))
-    F_low = float(f.ppf(1 - alpha, dof1, dof2))
-    lower = (s2_1 / s2_2) * F_low
-    upper = (s2_1 / s2_2) * F_upp
+    var_1 = float(np.var(sample1, ddof=1))
+    var_2 = float(np.var(sample2, ddof=1))
+    n1 = len(sample1)
+    n2 = len(sample2)
+    delta = var_1 - var_2
+    # Standard error for difference of variances
+    se = np.sqrt((2 * var_1**2) / (n1 - 1) + (2 * var_2**2) / (n2 - 1))
+    z = norm.ppf(1 - (1 - level) / 2)
+    lower = delta - z * se
+    upper = delta + z * se
     return delta, lower, upper
 
 def delta_stdev_ci(
@@ -544,8 +543,16 @@ def delta_stdev_ci(
     This function is a ChatGPT solution and therefore does not guarantee
     that this solution is correct.
     """
-    delta, lower, upper = tuple(map(
-        sqrt, delta_variance_ci(sample1, sample2, level)))
+    s1 = float(np.std(sample1, ddof=1))
+    s2 = float(np.std(sample2, ddof=1))
+    n1 = len(sample1)
+    n2 = len(sample2)
+    delta = s1 - s2
+    # Delta method for SE of difference of stdevs
+    se = np.sqrt((s1**2 / (2 * (n1 - 1))) + (s2**2 / (2 * (n2 - 1))))
+    z = norm.ppf(1 - (1 - level) / 2)
+    lower = delta - z * se
+    upper = delta + z * se
     return delta, lower, upper
 
 def delta_proportions_ci(

@@ -24,7 +24,8 @@ __all__ = [
     'Factor',
     'BaseDesignBuilder',
     'FullFactorialDesignBuilder',
-    'FullFactorial2kDesignBuilder',]
+    'FullFactorial2kDesignBuilder',
+    'FractionalFactorialDesignBuilder',]
 
 
 class Factor:
@@ -94,7 +95,7 @@ class Factor:
         else:
             lim = self.n_levels // 2
             self._corrected_levels = tuple(
-                np.linspace(-lim, lim, self.n_levels))
+                np.linspace(-lim, lim, self.n_levels, dtype=int))
         
         self._corrected_level_map = dict(
             zip(self._corrected_levels, self._levels))
@@ -209,7 +210,8 @@ class BaseDesignBuilder(ABC):
     _central_points : int
     _blocks : int | str | List[str] | Literal['highest', 'replica']
     _level_counts : Tuple[int, ...]
-    _fold: bool | str
+    fold: bool | str
+    """Whether to add a foldover to the design."""
     shuffle : bool
     """Whether to shuffle the design."""
 
@@ -403,7 +405,7 @@ class BaseDesignBuilder(ABC):
         AssertionError
             If fold is not in factor names or is not a boolean.
         """
-        fold = getattr(self, '_fold', False)
+        fold = getattr(self, 'fold', False)
         assert fold in self.factor_names or isinstance(fold, bool), (
             f'Fold factor "{fold}" not found in factor names: '
             f'{self.factor_names}')
@@ -416,21 +418,20 @@ class BaseDesignBuilder(ABC):
         
         folded = df_design.copy()
         names = fold if fold in self.factor_names else self.factor_names
-        folded[names] = -folded[names]
+        folded.loc[:, names] = -folded.loc[:, names]
         combined = pd.concat([df_design, folded], ignore_index=True)
-        if len(combined.drop_duplicates()) == len(df_design):
+        if len(combined[self.factor_names].drop_duplicates()) == len(df_design):
             warnings.warn(
-                'Foldover does not add new runs: the folded design is already '
+                'Foldover does not add new runs, the folded design is already '
                 'present in the original design. Foldover will simply '
                 'replicate the design, so it will not be applied.')
             return df_design
         
-        if len(combined) >= np.prod(self.level_counts):
+        elif len(combined) >= np.prod(self.level_counts):
             warnings.warn(
-                'Foldover will create a full design with all possible runs. '
-                'This may not be intended. Consider using a different design '
-                'builder. Foldover will not be applied.')
-            return df_design
+                'Foldover creates a full factorial design with all possible '
+                'runs. This may not be intended. Consider using a different '
+                'design builder.')
 
         df_design = combined
         return df_design
@@ -1096,7 +1097,7 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
             self,
             *factors: Factor,
             generators: List[str],
-            fold: bool = False,
+            fold: bool | str = False,
             replicates: int = 1,
             central_points: int = 0,
             blocks: int = 1,

@@ -257,9 +257,9 @@ def f_test(
     F : float
         The f-test statistic
     """
-    F = float(np.var(sample1, ddof=1)/np.var(sample2, ddof=1))
-    df1, df2 = len(sample1)-1, len(sample2)-1
-    cumulated = float(f.cdf(F, df1, df2))
+    F = float(np.var(sample1, ddof=1) / np.var(sample2, ddof=1))
+    dof1, dof2 = len(sample1)-1, len(sample2)-1
+    cumulated = float(f.cdf(F, dof1, dof2))
     p = 2 * min(cumulated, 1-cumulated)
     return p, F
 
@@ -295,7 +295,8 @@ def t_test(
         The degrees of freedom
     """
     result = ttest_1samp(sample, mu, alternative=alternative)
-    return result.pvalue, result.statistic, result.df # type: ignore
+    p, t, df = float(result.pvalue), float(result.statistic), int(result.df)  # type: ignore
+    return p, t, df
 
 def levene_test(
         sample1: NumericSample1D,

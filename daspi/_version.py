@@ -4,4 +4,4 @@ from importlib.metadata import PackageNotFoundError
 try:
     __version__ = version('daspi')
 except PackageNotFoundError:
-    __version__ = 'Not installed'
+    __version__ = 'local development version'

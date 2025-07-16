@@ -237,6 +237,7 @@ from .constants import SIGMA_DIFFERENCE
 from .doe import Factor
 from .doe import FullFactorialDesignBuilder
 from .doe import FullFactorial2kDesignBuilder
+from .doe import FractionalFactorialDesignBuilder
 
 
 from .statistics.montecarlo import Binning
@@ -258,6 +259,7 @@ from .statistics.confidence import proportion_ci
 from .statistics.confidence import bonferroni_ci
 from .statistics.confidence import delta_mean_ci
 from .statistics.confidence import prediction_ci
+from .statistics.confidence import delta_stdev_ci
 from .statistics.confidence import delta_variance_ci
 from .statistics.confidence import confidence_to_alpha
 from .statistics.confidence import delta_proportions_ci

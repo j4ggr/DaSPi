@@ -37,6 +37,12 @@ class TestGetTermName:
     def test_invalid_encoding(self) -> None:
         term_name = get_term_name('InvalidEncoding')
         assert term_name == 'InvalidEncoding'
+    
+    def test_non_string_input(self) -> None:
+        term_name = get_term_name(123)  # type: ignore
+        assert term_name == 123
+        term_name = get_term_name(None)  # type: ignore
+        assert term_name is None
 
 
 class TestFramesToHTML:
@@ -68,4 +74,11 @@ class TestFramesToHTML:
 
         with pytest.raises(AssertionError, match='There must be at most as many captions as DataFrames.'):
             html = frames_to_html(dfs, [])
+    
+    def test_single_dataframe(self) -> None:
+        html = frames_to_html(self.dfs[0], self.captions[0])
+        assert isinstance(html, str)
+        assert 'Table 1' in html
+        assert '>A</th>' in html
+        assert '>B</th>' in html
 

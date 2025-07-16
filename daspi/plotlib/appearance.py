@@ -158,8 +158,8 @@ class Style:
             self.current = Path(name).stem
         else:
             raise ValueError(
-                f'{name} is not a valid matplotlib style. Available styles are:'
-                f' {self.available}')
+                f'Style "{name}" not found. Available styles are: '
+                f'{self.available}')
         self.apply_mandatory_params()
 
     def save(
@@ -167,7 +167,7 @@ class Style:
             folder: Path | str,
             style_name: str,
             comment_lines: List[str] = []
-            ) -> None:
+            ) -> Path:
         """Save the current matplotlib style configuration to a specified 
         .mplstyle file.
 
@@ -185,6 +185,11 @@ class Style:
         comment_lines : list of str, optional
             A list of comment lines to include at the top of the style file.
             Default is an empty list.
+        
+        Returns
+        -------
+        Path
+            The path to the saved .mplstyle file.
 
         Examples
         --------
@@ -227,8 +232,10 @@ class Style:
             lines.append(f'{key}:\t{value}')
 
         lines = [line if line.endswith('\n') else f'{line}\n' for line in lines]
-        with open(folder/style_name, 'w') as f:
+        file_path = folder / style_name
+        with open(file_path, 'w') as f:
             f.writelines(lines)
+        return file_path
     
     def apply_mandatory_params(self) -> None:
         """Apply the mandatory parameters to the current loaded 

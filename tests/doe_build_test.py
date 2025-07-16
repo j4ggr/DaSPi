@@ -1,5 +1,6 @@
 import sys
 import pytest
+import warnings
 
 from pathlib import Path
 from pandas.core.frame import DataFrame
@@ -70,6 +71,17 @@ class TestFactor:
         factor = Factor('category', ('X', 'Y', 'Z'))
         assert factor.central_point is None
         assert factor.is_categorical
+    
+    def test_corrected_central_points_numeric(self) -> None:
+        """Test corrected central point for numeric factors."""
+        factor = Factor('numeric', (10, 20, 30))
+        assert factor.corrected_central_points == (DOE.CORRECTED_CENTRAL,)
+
+    def test_corrected_central_points_categorical(self) -> None:
+        factor = Factor('category', ('X', 'Y', 'Z'), is_categorical=True)
+        assert factor.corrected_central_points != (DOE.CORRECTED_CENTRAL,)
+        assert factor.central_point is None  # No central point for categorical
+        assert factor.corrected_central_points == factor.corrected_levels
 
 
 class TestFullFactorialDesignBuilder:
@@ -100,11 +112,13 @@ class TestFullFactorialDesignBuilder:
         assert all(combos == 3)
 
     def test_full_factorial_shuffle(self) -> None:
-        factor_a = Factor('A', (1, 2))
-        factor_b = Factor('B', (10, 20))
-        builder = FullFactorialDesignBuilder(factor_a, factor_b, shuffle=True)
+        fA = Factor('A', (1, 2))
+        fB = Factor('B', (10, 20))
+        fC = Factor('C', (100, 200))
+        fD = Factor('D', (1000, 2000))
+        builder = FullFactorialDesignBuilder(fA, fB, fC, fD, shuffle=True)
         df1 = builder.build_design(corrected=False)
-        builder2 = FullFactorialDesignBuilder(factor_a, factor_b, shuffle=True)
+        builder2 = FullFactorialDesignBuilder(fA, fB, fC, fD, shuffle=True)
         df2 = builder2.build_design(corrected=False)
         # Shuffling should result in different run orders (not always, but likely)
         assert not df1.equals(df2) or df1.shape == df2.shape
@@ -234,4 +248,105 @@ class TestFullFactorial2kDesignBuilder:
         assert all(factorial_rows[DOE.CENTRAL_POINT] != DOE.CORRECTED_CENTRAL)
         assert set(tuple(row) for row in factorial_rows[['A', 'B']].values) == {
             (0, 100), (0, 200), (10, 100), (10, 200)}
-    
+
+class TestFractionalFactorialDesignBuilder:
+
+    def test_basic(self) -> None:
+        fA = Factor('A', (-1, 1))
+        fB = Factor('B', (-1, 1))
+        fC = Factor('C', (-1, 1))
+        builder = FractionalFactorialDesignBuilder(fA, fB, fC, generators=['C=AB'])
+        df = builder.build_design(corrected=False)
+        # Should be 4 runs, C = A*B
+        assert df.shape[0] == 4
+        for _, row in df.iterrows():
+            assert row['C'] == row['A'] * row['B']
+
+    def test_foldover_all(self) -> None:
+        fA = Factor('A', (-1, 1))
+        fB = Factor('B', (-1, 1))
+        fC = Factor('C', (-1, 1))
+        builder = FractionalFactorialDesignBuilder(
+            fA, fB, fC, generators=['C=AB'], fold=True, shuffle=False)
+        assert hasattr(builder, 'fold') and builder.fold == True
+        # Foldover should double the runs
+        df = builder.build_design(corrected=False)
+        # Should be 8 runs, with foldover (all reversed)
+        assert df.shape[0] == 8
+        # Folded runs: for each original, there should be a reversed run
+        original = df.iloc[:4]
+        folded = df.iloc[4:]
+        for col in ['A', 'B', 'C']:
+            for i in range(4):
+                assert folded.iloc[i][col] == -original.iloc[i][col]
+
+    def test_foldover_by_factor(self) -> None:
+        fA = Factor('A', (-1, 1))
+        fB = Factor('B', (-1, 1))
+        fC = Factor('C', (-1, 1))
+        builder = FractionalFactorialDesignBuilder(
+            fA, fB, fC, generators=['C=AB'], fold='A', shuffle=False)
+        assert hasattr(builder, 'fold') and builder.fold == 'A'
+        # Foldover should double the runs
+        df = builder.build_design(corrected=False)
+        # Should be 8 runs, with foldover (all reversed)
+        assert df.shape[0] == 8
+        # Folded runs: for each original, there should be a run with A reversed
+        original = df.iloc[:4]
+        folded = df.iloc[4:]
+        for col in ['A', 'B', 'C']:
+            for i in range(4):
+                if col == 'A':
+                    assert folded.iloc[i][col] == -original.iloc[i][col]
+                else:
+                    assert folded.iloc[i][col] == original.iloc[i][col]
+
+    def test_full_fact_warning(self) -> None:
+        # Foldover that just replicates the design should warn
+        fA = Factor('A', (-1, 1))
+        fB = Factor('B', (-1, 1))
+        fC = Factor('C', (-1, 1))
+        builder = FractionalFactorialDesignBuilder(
+            fA, fB, fC, generators=['C=AB'], fold='A', shuffle=False)
+        # If folding over A, but all combinations already present, should warn
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            df = builder.build_design(corrected=False)
+            assert len(w) > 0
+            assert 'Foldover creates a full factorial design' in str(w[0].message)
+
+    def test_duplicate_fold_warning(self) -> None:
+        # Foldover on full factorial should warn and not duplicate
+        fA = Factor('A', (-1, 1))
+        fB = Factor('B', (-1, 1))
+        builder = FullFactorial2kDesignBuilder(fA, fB, shuffle=False)
+        df = builder.build_design(corrected=True)
+        # Simulate foldover logic
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            builder.fold = True
+            df_folded = builder.build_design(corrected=True)
+            assert len(w) > 0
+            assert 'Foldover does not add new runs' in str(w[-1].message)
+            assert df_folded.equals(df)
+
+    def test_invalid_generator(self) -> None:
+        fA = Factor('A', (-1, 1))
+        fB = Factor('B', (-1, 1))
+        fC = Factor('C', (-1, 1))
+        # Invalid generator string (no dependent factor)
+        try:
+            FractionalFactorialDesignBuilder(fA, fB, fC, generators=['CAB'])
+            assert False, 'Should raise AssertionError for invalid generator format'
+        except AssertionError:
+            pass
+
+    def test_decode_values(self) -> None:
+        # Test decoding from corrected to original values
+        fA = Factor('A', (10, 20))
+        fB = Factor('B', (100, 200))
+        builder = FullFactorialDesignBuilder(fA, fB)
+        df = builder.build_design(corrected=True)
+        df_decoded = builder._decode_values(df, builder.factors)
+        assert set(df_decoded['A']) == {10, 20}
+        assert set(df_decoded['B']) == {100, 200}
