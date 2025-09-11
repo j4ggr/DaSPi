@@ -7,7 +7,6 @@ from typing import List
 from typing import Dict
 from typing import Tuple
 from typing import Literal
-from typing import Sequence
 
 from abc import ABC
 from abc import abstractmethod
@@ -53,7 +52,6 @@ class Factor:
     """Whether the factor is categorical."""
     _corrected_levels: Tuple[float | int, ...]
     """Corrected levels for float-coded designs."""
-
     _corrected_level_map: Dict[float | int, LevelType]
     """Mapping from float or int codes to their corresponding factor 
     levels. This is used for float-coded designs where levels are 

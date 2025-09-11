@@ -697,7 +697,28 @@ class SingleChart(Chart):
         if hasattr(self, 'stripes_facets'):
             handle_label[STR['stripes']] = self.stripes_facets.handles_labels()
         return handle_label
-    
+
+    def _check_current_data_(self) -> bool:
+        """Check if current data is not empty.
+
+        Warnings
+        --------
+        UserWarning
+            If current data is empty, a warning is issued.
+        
+        Returns
+        -------
+        bool
+            True if current data is not empty, False otherwise.
+        """
+        if self._data.empty:
+            warnings.warn(
+                f'No data available for current variate combination: '
+                f'{self._current_variate}.',
+                UserWarning)
+            return False
+        return True
+
     def _transpose_xy_axes_params_(self) -> None:
         """if target_on_y is false, all X- or Y-axis related rcParams 
         are swapped in pairs. If the plot is transposed, the set 
@@ -935,6 +956,9 @@ class SingleChart(Chart):
         _width = kwds.pop('width', None)
         self._kw_where = kw_where
         for data in self.variate_data(skip_variate):
+            if not self._check_current_data_():
+                continue
+
             plot = plotter(
                 source=data,
                 target=self.target,

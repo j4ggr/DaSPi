@@ -1216,12 +1216,16 @@ class LinearRegressionLine(Plotter):
         self.show_scatter = show_scatter
         self.show_fit_ci = show_fit_ci
         self.show_pred_ci = show_pred_ci
-        df = source if isinstance(source, DataFrame) else pd.DataFrame(source)
-        df = (df
+        source = source if isinstance(source, DataFrame) else pd.DataFrame(source)
+        df = (source
             .sort_values(feature)
             [[feature, target]]
             .dropna(axis=0, how='any')
             .reset_index(drop=True))
+        assert not df.empty, (
+            'The provided DataFrame is empty after dropping NA values. '
+            f'Counted NA values before dropping:\n{source.isna().sum()}')
+        
         self.model = sm.OLS(df[target], sm.add_constant(df[feature])).fit() # type: ignore
         df[self.fit] = self.model.fittedvalues
         df = pd.concat([df, self.ci_data()], axis=1)
@@ -1685,6 +1689,12 @@ class Probability(LinearRegressionLine):
         
         feature_kind = 'quantiles' if self.kind[1] == "q" else 'percentiles'
         feature = f'{self.dist.dist_name}_{feature_kind}'
+        
+        assert not all(self.theoretical_data.isna()), (
+            'The calculated theoretical values contain only NA. This can occur '
+            'when the sample data is homogeneous. Description of Sample data:\n'
+            f'{self.sample_data.describe()}')
+        
         df = pd.DataFrame({
             target: self.sample_data,
             feature: self.theoretical_data})

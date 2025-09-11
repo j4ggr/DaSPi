@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 
 from typing import Any
@@ -892,7 +891,7 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             info=True)
     ``` 
     """
-    __slots__ = ('spec_limits', 'dist', 'kw_estim')
+    __slots__ = ('spec_limits', 'dist', 'kw_estim', 'n_groups')
 
     spec_limits: SpecLimits
     """The specification limits for the process capability analysis."""
@@ -904,6 +903,9 @@ class ProcessCapabilityAnalysisCharts(JointChart):
     kw_estim: Dict[str, Any]
     """Keyword arguments for the ProcessEstimator instances used for 
     calculating the capability indices."""
+
+    n_groups: int
+    """The number of hue groups in the source data."""
 
     def __init__(
             self,
@@ -928,8 +930,10 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             strategy=strategy,
             agreement=agreement,
             possible_dists=possible_dists)
+        self.n_groups = source.groupby(hue).ngroups if hue else 1
+        filtered = source[~source[target].isin(error_values)]
         super().__init__(
-            source=source,
+            source=(filtered, filtered, filtered, source, source),
             target=target,
             feature='',
             hue=hue,
@@ -969,10 +973,8 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             The `ProcessCapabilityAnalysisCharts` instance, for method
             chaining.
         """
-        hue = self.hues[0]
-        n_groups = self.source.groupby(hue).ngroups if hue else 1
         _kwds_cpi: Dict[str, Any] = dict(
-            n_groups=n_groups,
+            n_groups=self.n_groups,
             spec_limits=self.spec_limits,
             show_center=True,
             bars_same_color=True,
@@ -1453,7 +1455,6 @@ class GageRnRCharts(JointChart):
 
     def plot(self) -> Self:
         """Plot the GageRnR charts."""
-        target = self.model.target
 
         # top Left
         super().plot(
