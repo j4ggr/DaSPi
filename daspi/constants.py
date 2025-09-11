@@ -16,6 +16,7 @@ from ._typing import LineStyle
 
 __all__ = [
     'SIGMA_DIFFERENCE',
+    'PERCENT_DECIMALS',
     'LINE',
     'KW',
     'RE',
@@ -42,6 +43,9 @@ Sources
 Melzer, A. (2015) Six Sigma - Kompakt und praxisnah: 
 Prozessverbesserung effizient und erfolgreich implementieren
 (1. Aufl.). Springer Gabler, S. 107."""
+
+PERCENT_DECIMALS = 2
+"""Number of decimals used to format percentage values."""
 
 
 @dataclass(frozen=True)

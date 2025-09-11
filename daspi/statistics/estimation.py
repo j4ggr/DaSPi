@@ -33,6 +33,7 @@ from .._typing import NumericSample1D
 from ..constants import DIST
 from ..constants import DEFAULT
 from ..constants import SIGMA_DIFFERENCE
+from ..constants import PERCENT_DECIMALS
 
 from .montecarlo import SpecLimits
 from .montecarlo import Specification
@@ -655,6 +656,12 @@ class BaseEstimator:
         if self._n_filtered is None:
             self._n_filtered = len(self.filtered)
         return self._n_filtered
+
+    @staticmethod
+    def _pc_str_(value: float) -> str:
+        """Format a float value between 0 and 1 as percentage string 
+        with 2 decimal places."""
+        return f'{100 * value:.{PERCENT_DECIMALS}f} %'
     
     def mask_missing(self) -> 'Series[bool]':
         """Returns a boolean mask indicating which samples are missing 
@@ -1896,6 +1903,7 @@ class ProcessEstimator(LocationDispersionEstimator):
         '_nok_fit',
         '_error_values',
         '_n_errors',
+        '_errors',
         '_cp',
         '_cpk',
         '_Z', 
@@ -1909,7 +1917,8 @@ class ProcessEstimator(LocationDispersionEstimator):
     _nok_norm: float | None
     _nok_fit: float | None
     _error_values: Tuple[float, ...]
-    _n_errrors: int
+    _n_errrors: int | None
+    _errors: float | None
     _cp: float | None
     _cpk: float | None
     _Z: float | None
@@ -1933,6 +1942,7 @@ class ProcessEstimator(LocationDispersionEstimator):
         self._nok = None
         self._nok_norm = None
         self._nok_fit = None
+        self._errors = None
         self._cp = None
         self._cpk = None
         self._Z = None
@@ -1947,6 +1957,7 @@ class ProcessEstimator(LocationDispersionEstimator):
             strategy=strategy,
             agreement=agreement,
             possible_dists=possible_dists,
+            evaluate=evaluate,
             nan_policy=nan_policy)
     
     @property
@@ -1962,6 +1973,7 @@ class ProcessEstimator(LocationDispersionEstimator):
             'nok', 
             'nok_norm',
             'nok_fit',
+            'errors',
             'min',
             'max',
             'R',
@@ -2020,14 +2032,14 @@ class ProcessEstimator(LocationDispersionEstimator):
         """Get amount of OK-values as percent (read-only)."""
         if self._ok is None:
             self._ok = self.n_ok/self.n_samples
-        return f'{100 * self._ok:.2f} %'
+        return self._pc_str_(self._ok)
     
     @property
     def nok(self) -> str:
         """Get amount of NOK-values as percent (read-only)."""
         if self._nok is None:
             self._nok = self.n_nok/self.n_samples
-        return f'{100 * self._nok:.2f} %'
+        return self._pc_str_(self._nok)
     
     @property
     def nok_norm(self) -> str:
@@ -2037,7 +2049,7 @@ class ProcessEstimator(LocationDispersionEstimator):
             self._nok_norm = float(
                 1 - norm.cdf(self.usl, loc=self.mean, scale=self.std)
                 + norm.cdf(self.lsl, loc=self.mean, scale=self.std))
-        return f'{100 * self._nok_norm:.2f} %'
+        return self._pc_str_(self._nok_norm)
     
     @property
     def nok_fit(self) -> str:
@@ -2047,7 +2059,7 @@ class ProcessEstimator(LocationDispersionEstimator):
             self._nok_fit = float(
                 1 - self.dist.cdf(self.usl, *self.shape_params)
                 + self.dist.cdf(self.lsl, *self.shape_params))
-        return f'{100 * self._nok_fit:.2f} %'
+        return self._pc_str_(self._nok_fit)
     
     @property
     def n_errors(self) -> int:
@@ -2055,6 +2067,13 @@ class ProcessEstimator(LocationDispersionEstimator):
         if self._n_errors is None:
             self._n_errors = self.samples.isin(self._error_values).sum()
         return self._n_errors
+
+    @property
+    def errors(self) -> float | None:
+        """Get the amount of error values (read-only)."""
+        if self._errors is None:
+            self._errors = self.n_errors/self.n_samples
+        return self._errors
 
     @property
     def lsl(self) -> float:
