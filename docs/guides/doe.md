@@ -253,4 +253,3 @@ After mastering basic DOE:
 - Consider computer experiments for simulation studies
 
 The key is to start with simple designs and build complexity as you gain experience and understanding of your system.
-
