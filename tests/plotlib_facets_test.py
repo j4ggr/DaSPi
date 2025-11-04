@@ -3,6 +3,8 @@ import pytest
 import numpy as np
 from pathlib import Path
 from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import PercentFormatter
+from unittest.mock import Mock, patch
 
 
 sys.path.append(Path(__file__).parent.resolve()) # type: ignore
@@ -220,3 +222,175 @@ class TestLabelFacets:
         
         # Draw and verify no changes to alignment when center (default matplotlib behavior)
         label_facets.draw()
+
+
+class TestLabelFacetsFormatting:
+    """Test the new formatting features of LabelFacets."""
+
+    @pytest.fixture
+    def axes_with_data(self) -> AxesFacets:
+        """Create AxesFacets with some sample data."""
+        axes = AxesFacets(nrows=1, ncols=1)
+        # Add sample data to create ticks
+        # Access the actual axes object from the numpy array
+        actual_ax = axes.axes.flat[0]  # This gets the actual matplotlib Axes
+        actual_ax.plot([1, 2, 3, 4, 5], [10.5, 20.3, 30.7, 40.2, 50.9])
+        return axes
+
+    def test_prepare_formatter_with_none(self, axes_with_data: AxesFacets) -> None:
+        """Test _prepare_formatter with None input."""
+        label_facets = LabelFacets(axes_with_data)
+        result = label_facets._prepare_formatter(None)
+        assert result is None
+
+    def test_prepare_formatter_with_existing_formatter(self, axes_with_data: AxesFacets) -> None:
+        """Test _prepare_formatter with existing Formatter."""
+        existing_formatter = PercentFormatter()
+        label_facets = LabelFacets(axes_with_data)
+        result = label_facets._prepare_formatter(existing_formatter)
+        assert result is existing_formatter
+
+    def test_prepare_formatter_with_single_arg_callable(self, axes_with_data: AxesFacets) -> None:
+        """Test _prepare_formatter with single-argument callable."""
+        def single_arg_formatter(x):
+            return f"{x:.1f}°C"
+        
+        label_facets = LabelFacets(axes_with_data)
+        result = label_facets._prepare_formatter(single_arg_formatter)
+        
+        assert isinstance(result, FuncFormatter)
+        # Test that the wrapped formatter works
+        formatted_value = result(25.6, 0)
+        assert formatted_value == "25.6°C"
+
+    def test_prepare_formatter_with_two_arg_callable(self, axes_with_data: AxesFacets) -> None:
+        """Test _prepare_formatter with two-argument callable."""
+        def two_arg_formatter(x, pos):
+            return f"#{pos}: {x:.2f}"
+        
+        label_facets = LabelFacets(axes_with_data)
+        result = label_facets._prepare_formatter(two_arg_formatter)
+        
+        assert isinstance(result, FuncFormatter)
+        # Test that the formatter works
+        formatted_value = result(25.6, 2)
+        assert formatted_value == "#2: 25.60"
+
+    def test_formatter_integration_with_axes(self, axes_with_data: AxesFacets) -> None:
+        """Test that formatters are properly applied to axes."""
+        def temp_formatter(x):
+            return f"{x:.1f}°C"
+        
+        def pressure_formatter(x):
+            return f"{x:.2f} bar"
+        
+        label_facets = LabelFacets(
+            axes_with_data,
+            xlabel_formatter=pressure_formatter,
+            ylabel_formatter=temp_formatter
+        )
+        label_facets.draw()
+        
+        # Verify formatters are applied
+        actual_ax = axes_with_data.axes.flat[0]
+        x_formatter = actual_ax.xaxis.get_major_formatter()
+        y_formatter = actual_ax.yaxis.get_major_formatter()
+        
+        assert isinstance(x_formatter, FuncFormatter)
+        assert isinstance(y_formatter, FuncFormatter)
+
+    def test_rotation_angles_applied(self, axes_with_data: AxesFacets) -> None:
+        """Test that rotation angles are properly applied."""
+        label_facets = LabelFacets(
+            axes_with_data,
+            xlabel_angle=45,
+            ylabel_angle=90
+        )
+        label_facets.draw()
+        
+        # Check that rotation is applied to tick labels
+        actual_ax = axes_with_data.axes.flat[0]
+        x_labels = actual_ax.get_xticklabels()
+        y_labels = actual_ax.get_yticklabels()
+        
+        if x_labels:
+            assert x_labels[0].get_rotation() == 45
+        if y_labels:
+            assert y_labels[0].get_rotation() == 90
+
+    def test_alignment_options_applied(self, axes_with_data: AxesFacets) -> None:
+        """Test that alignment options are properly applied."""
+        label_facets = LabelFacets(
+            axes_with_data,
+            xlabel_align='right',
+            ylabel_align='top'
+        )
+        label_facets.draw()
+        
+        # Check that alignment is applied
+        actual_ax = axes_with_data.axes.flat[0]
+        x_labels = actual_ax.get_xticklabels()
+        y_labels = actual_ax.get_yticklabels()
+        
+        if x_labels:
+            assert x_labels[0].get_horizontalalignment() == 'right'
+        if y_labels:
+            assert y_labels[0].get_verticalalignment() == 'top'
+
+    def test_rotation_margin_estimation(self, axes_with_data: AxesFacets) -> None:
+        """Test the rotation margin estimation."""
+        label_facets = LabelFacets(axes_with_data)
+        
+        # Test with no rotation
+        margin_0 = label_facets.estimate_rotation_margin(0)
+        assert margin_0 == 0
+        
+        # Test with small rotation (should be 0)
+        margin_small = label_facets.estimate_rotation_margin(4)
+        assert margin_small == 0
+        
+        # Test with 45 degree rotation
+        margin_45 = label_facets.estimate_rotation_margin(45, base_margin=20)
+        expected_45 = int(20 * np.sin(45 * np.pi / 180))
+        assert margin_45 == expected_45
+        
+        # Test with 90 degree rotation
+        margin_90 = label_facets.estimate_rotation_margin(90, base_margin=20)
+        expected_90 = int(20 * np.sin(90 * np.pi / 180))
+        assert margin_90 == expected_90
+
+    def test_combined_formatting_features(self, axes_with_data: AxesFacets) -> None:
+        """Test combining all formatting features together."""
+        def custom_formatter(x):
+            return f"${x:,.0f}"
+        
+        label_facets = LabelFacets(
+            axes_with_data,
+            xlabel='Cost',
+            ylabel='Revenue',
+            xlabel_formatter=custom_formatter,
+            ylabel_formatter=lambda x: f"{x:.1f}%",
+            xlabel_angle=30,
+            ylabel_angle=15,
+            xlabel_align='right',
+            ylabel_align='bottom'
+        )
+        label_facets.draw()
+        
+        # Verify all features are applied
+        actual_ax = axes_with_data.axes.flat[0]
+        x_formatter = actual_ax.xaxis.get_major_formatter()
+        y_formatter = actual_ax.yaxis.get_major_formatter()
+        
+        assert isinstance(x_formatter, FuncFormatter)
+        assert isinstance(y_formatter, FuncFormatter)
+        
+        x_labels = actual_ax.get_xticklabels()
+        y_labels = actual_ax.get_yticklabels()
+        
+        if x_labels:
+            assert x_labels[0].get_rotation() == 30
+            assert x_labels[0].get_horizontalalignment() == 'right'
+        if y_labels:
+            assert y_labels[0].get_rotation() == 15
+            assert y_labels[0].get_verticalalignment() == 'bottom'

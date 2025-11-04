@@ -6,8 +6,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from numpy.typing import NDArray
-from matplotlib.axis import YAxis
-from matplotlib.figure import Figure
 
 from typing import Any
 from typing import Generator
@@ -17,8 +15,9 @@ sys.path.append(Path(__file__).parent.resolve()) # type: ignore
 
 from daspi import JointChart
 from daspi import SingleChart
+from daspi import MultivariateChart
 from daspi import SpecLimits
-from daspi.plotlib.appearance import get_shared_axes
+from daspi.plotlib.plotter import Scatter
 from daspi.plotlib.appearance import positions_of_shared_axes
 
 class TestSharingAxesFunctions:
@@ -221,3 +220,172 @@ class TestJointChart:
         assert not chart.single_label_allowed(is_target=False)
         assert chart.single_label_allowed(is_target=True)
 
+
+class TestChartFormatting:
+    """Test the new formatting features for SingleChart and MultivariateChart."""
+
+    @pytest.fixture
+    def sample_data(self) -> pd.DataFrame:
+        """Create sample data for testing."""
+        np.random.seed(42)
+        return pd.DataFrame({
+            'x': np.random.normal(0, 1, 30),
+            'y': np.random.normal(0, 1, 30),
+            'category': np.random.choice(['A', 'B', 'C'], 30),
+            'facility': np.random.choice(['North', 'South'], 30)
+        })
+
+    def test_single_chart_parameter_mapping_standard(self, sample_data: pd.DataFrame) -> None:
+        """Test parameter mapping for SingleChart with target_on_y=True."""
+        chart = SingleChart(
+            source=sample_data,
+            target='y',
+            feature='x',
+            target_on_y=True
+        )
+        
+        # Test standard orientation mapping
+        result = chart._map_axis_parameters(
+            feature_formatter=lambda x: f"{x:.1f}",
+            target_formatter=lambda x: f"{x:.2f}",
+            feature_angle=30,
+            target_angle=45,
+            feature_align='left',
+            target_align='right'
+        )
+        
+        xlabel_formatter, ylabel_formatter, xlabel_angle, ylabel_angle, xlabel_align, ylabel_align = result
+        
+        # With target_on_y=True: feature->x, target->y
+        assert xlabel_formatter is not None  # feature formatter goes to x
+        assert ylabel_formatter is not None  # target formatter goes to y
+        assert xlabel_angle == 30  # feature angle goes to x
+        assert ylabel_angle == 45  # target angle goes to y
+        assert xlabel_align == 'left'  # feature align goes to x (unchanged)
+        assert ylabel_align == 'top'  # target align 'right' maps to 'top' for y-axis
+
+    def test_single_chart_parameter_mapping_swapped(self, sample_data: pd.DataFrame) -> None:
+        """Test parameter mapping for SingleChart with target_on_y=False."""
+        chart = SingleChart(
+            source=sample_data,
+            target='y',
+            feature='x',
+            target_on_y=False
+        )
+        
+        # Test swapped orientation mapping
+        result = chart._map_axis_parameters(
+            feature_formatter=lambda x: f"{x:.1f}",
+            target_formatter=lambda x: f"{x:.2f}",
+            feature_angle=30,
+            target_angle=45,
+            feature_align='left',
+            target_align='right'
+        )
+        
+        xlabel_formatter, ylabel_formatter, xlabel_angle, ylabel_angle, xlabel_align, ylabel_align = result
+        
+        # With target_on_y=False: target->x, feature->y
+        assert xlabel_formatter is not None  # target formatter goes to x
+        assert ylabel_formatter is not None  # feature formatter goes to y
+        assert xlabel_angle == 45  # target angle goes to x
+        assert ylabel_angle == 30  # feature angle goes to y
+        assert xlabel_align == 'right'  # target align goes to x (unchanged)
+        assert ylabel_align == 'bottom'  # feature align 'left' maps to 'bottom' for y-axis
+
+    def test_single_chart_alignment_mapping(self, sample_data: pd.DataFrame) -> None:
+        """Test alignment mapping from general to axis-specific alignments."""
+        chart = SingleChart(
+            source=sample_data,
+            target='y',
+            feature='x'
+        )
+        
+        # Test all alignment combinations
+        test_cases = [
+            ('left', 'center', 'left', 'center'),
+            ('center', 'left', 'center', 'bottom'),
+            ('right', 'right', 'right', 'top')
+        ]
+        
+        for feature_align, target_align, expected_x, expected_y in test_cases:
+            result = chart._map_axis_parameters(
+                feature_align=feature_align,  # type: ignore
+                target_align=target_align  # type: ignore
+            )
+            
+            _, _, _, _, xlabel_align, ylabel_align = result
+            assert xlabel_align == expected_x
+            assert ylabel_align == expected_y
+
+    def test_single_chart_formatter_integration(self, sample_data: pd.DataFrame) -> None:
+        """Test that formatters are properly integrated into the chart."""
+        def custom_formatter(x):
+            return f"Value: {x:.1f}"
+        
+        chart = SingleChart(
+            source=sample_data,
+            target='y',
+            feature='x'
+        ).plot(
+            Scatter,
+            alpha=0.5
+        ).label(
+            target_formatter=custom_formatter,
+            feature_formatter=lambda x: f"X: {x:.2f}"
+        )
+        
+        # Verify that the chart was created successfully
+        assert hasattr(chart, 'label_facets')
+        assert chart.label_facets is not None
+
+    def test_multivariate_chart_parameter_integration(self, sample_data: pd.DataFrame) -> None:
+        """Test that MultivariateChart properly integrates formatting parameters."""
+        def temp_formatter(x):
+            return f"{x:.1f}°C"
+        
+        chart = MultivariateChart(
+            source=sample_data,
+            target='y',
+            feature='x',
+            col='facility'
+        ).plot(
+            Scatter,
+            alpha=0.5
+        ).label(
+            target_formatter=temp_formatter,
+            feature_angle=25,
+            target_align='right'
+        )
+        
+        # Verify that the chart was created successfully
+        assert hasattr(chart, 'label_facets')
+        assert chart.label_facets is not None
+
+    def test_chart_with_all_formatting_options(self, sample_data: pd.DataFrame) -> None:
+        """Test chart with all formatting options combined."""
+        chart = SingleChart(
+            source=sample_data,
+            target='y',
+            feature='category',
+            categorical_feature=True,
+            hue='facility'
+        ).plot(
+            Scatter,
+            alpha=0.7
+        ).label(
+            fig_title='Test Chart with All Options',
+            target_label='Target Variable',
+            feature_label='Feature Variable',
+            target_formatter=lambda x: f"{x:.2f} units",
+            feature_formatter=lambda x: f"Cat {x}",
+            target_angle=15,
+            feature_angle=45,
+            target_align='center',
+            feature_align='right'
+        )
+        
+        # Verify chart creation and label facets
+        assert hasattr(chart, 'label_facets')
+        assert chart.label_facets.xlabel_angle == 45
+        assert chart.label_facets.ylabel_angle == 15
