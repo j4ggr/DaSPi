@@ -1,3 +1,4 @@
+import warnings
 import pandas as pd
 
 from typing import Any
@@ -944,15 +945,58 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             target_on_y=(True, False, False, False, False),
             stretch_figsize=stretch_figsize)
     
-    @property
-    def processes(self) -> List[ProcessEstimator]:
-        """Returns a list of ProcessEstimator instances used for 
-        calculating the capability indices (read-only).
+    def processes(self) -> Dict[str, ProcessEstimator]:
+        """Get a dictionary of ProcessEstimator instances that are used 
+        for calculating the capability indices.
+        
+        Returns
+        -------
+        Dict[str, ProcessEstimator]
+            A dictionary where:
+            - Keys: The hue categories or the target name if no hue is 
+              used.
+            - Values: The corresponding ProcessEstimator instances.
         """
+        if self.charts[0].hueing.n_used > 1:
+            keys = self.charts[0].hueing.labels
+        else:
+            keys = iter((self.targets[0], ))
+
+        process_instances = []
         for plot in self.plots:
             if isinstance(plot, CapabilityConfidenceInterval):
-                return plot.processes
-        return []
+                if plot.kind == 'cpk':
+                    try:
+                        process_instance = next(iter(plot.processes.values()))
+                        process_instances.append(process_instance)
+                    except StopIteration:
+                        warnings.warn(
+                            'No process instances found in '
+                            'CapabilityConfidenceInterval plot.')
+        return dict(zip(keys, process_instances))
+    
+    def process_descriptions(self, exclude: Tuple[str, ...] = ()) -> DataFrame:
+        """Get a DataFrame containing the descriptions of each process.
+        
+        This method generates a DataFrame that contains the descriptions
+        of each process, excluding any specified columns.
+        
+        Parameters
+        ----------
+        exclude : Tuple[str, ...], optional
+            Attributes to exclude from the summary statistics,
+            by default ().
+        
+        Returns
+        -------
+        DataFrame
+            A DataFrame containing the descriptions of each process."""
+
+        descriptions = [
+            p.describe(exclude=exclude, colname=n)
+            for n, p in self.processes().items()]
+        df_p = pd.concat(descriptions, axis=1)
+        return df_p
 
     def plot(self, **kwds_cpi) -> Self: # type: ignore
         """Plot the process capability analysis charts.

@@ -20,8 +20,8 @@ Usage
 -----
 Import the module and use the classes to create and customize plots.
 
-Example
--------
+Examples
+--------
 Create a scatter plot
 ```python
 from plotter import Plotter
@@ -6171,8 +6171,11 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
     kind: Literal['cp', 'cpk']
     """whether to calculate the confidence interval for Cp or Cpk 
     ('cp' or 'cpk')."""
-    processes: List[ProcessEstimator]
-    """ProcessEstimator classes used to calculate the cp and cpk values."""
+    processes: Dict[str, ProcessEstimator]
+    """ProcessEstimator classes used to calculate the cp and cpk values.
+    One for each feature level.
+    - key: feature level as str
+    - value: ProcessEstimator instance"""
     kw_estim: Dict[str, Any]
     """Additional keyword arguments that are passed to the 
     `ProcessEstimator` classes."""
@@ -6199,7 +6202,7 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
             kw_estim: Dict[str, Any] = {},
             **kwds) -> None:
 
-        self.processes = []
+        self.processes = {}
         self.spec_limits = spec_limits
         self.kind = kind
         if show_feature_axis is None:
@@ -6265,7 +6268,7 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
             self.feature: [feature_data],
             self.lower: [lower],
             self.upper: [upper]})
-        self.processes.append(process)
+        self.processes[str(self._original_f_values[-1])] = process
         return data 
     
     def __call__(self, kw_center: dict = {}, **kwds) -> None:
