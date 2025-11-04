@@ -635,8 +635,10 @@ class Plotter(ABC):
             special characters are escaped in symbol whenever latex mode 
             is enabled, unless is_latex is True.
         """
+        formatter = PercentFormatter(
+            xmax=xmax, decimals=decimals, symbol=symbol)
         axis = self.ax.yaxis if self.target_on_y else self.ax.xaxis
-        axis.set_major_formatter(PercentFormatter(xmax=xmax, symbol='%'))
+        axis.set_major_formatter(formatter)
 
 
 class Scatter(Plotter):

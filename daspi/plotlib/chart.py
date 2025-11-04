@@ -65,6 +65,7 @@ from matplotlib.axes import Axes
 from matplotlib.axis import XAxis
 from matplotlib.axis import YAxis
 from matplotlib.figure import Figure
+from matplotlib.ticker import Formatter
 from matplotlib.ticker import AutoMinorLocator
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
@@ -406,7 +407,7 @@ class Chart(ABC):
             sub_title: str = '',
             feature_label: bool | str = '',
             target_label: bool | str = '',
-            info: bool | str = False
+            info: bool | str = False,
             ) -> Self:
         """Add labels and titles to the chart.
 
@@ -803,6 +804,75 @@ class SingleChart(Chart):
             return ()
         return tuple(sorted(np.unique(self.source[colname])))
     
+    def _map_axis_parameters(
+            self,
+            feature_formatter: Formatter | Callable | None = None,
+            target_formatter: Formatter | Callable | None = None,
+            feature_angle: float = 0.0,
+            target_angle: float = 0.0,
+            feature_align: Literal['center', 'right', 'left'] = 'center',
+            target_align: Literal['center', 'right', 'left'] = 'center'
+            ) -> Tuple[Callable | None, Callable | None, float, float, str, str]:
+        """Map feature/target parameters to x/y axis parameters based on target_on_y.
+        
+        This method converts chart-level parameters (feature/target) to axis-level
+        parameters (x/y) considering the target_on_y orientation.
+        
+        Parameters
+        ----------
+        feature_formatter : Formatter | Callable | None, optional
+            Formatter for feature axis, by default None
+        target_formatter : Formatter | Callable | None, optional
+            Formatter for target axis, by default None
+        feature_angle : float, optional
+            Rotation angle for feature axis, by default 0.0
+        target_angle : float, optional
+            Rotation angle for target axis, by default 0.0
+        feature_align : {'center', 'right', 'left'}, optional
+            Alignment for feature axis, by default 'center'
+        target_align : {'center', 'right', 'left'}, optional
+            Alignment for target axis, by default 'center'
+            
+        Returns
+        -------
+        Tuple[Callable | None, Callable | None, float, float, str, str]
+            xlabel_formatter, ylabel_formatter, xlabel_angle, ylabel_angle, 
+            xlabel_align, ylabel_align in that order
+        """
+        # Map alignment to appropriate axis alignment based on target_on_y
+        def _map_x_alignment(align: str) -> str:
+            """Map general alignment to x-axis horizontal alignment."""
+            return align  # 'left', 'center', 'right' stay the same
+        
+        def _map_y_alignment(align: str) -> str:
+            """Map general alignment to y-axis vertical alignment."""
+            if align == 'left':
+                return 'bottom'
+            elif align == 'center':
+                return 'center'
+            else:  # 'right'
+                return 'top'
+        
+        if self.target_on_y:
+            # Standard orientation: feature on x, target on y
+            xlabel_formatter = feature_formatter
+            ylabel_formatter = target_formatter
+            xlabel_angle = feature_angle
+            ylabel_angle = target_angle
+            xlabel_align = _map_x_alignment(feature_align)
+            ylabel_align = _map_y_alignment(target_align)
+        else:
+            # Swapped orientation: target on x, feature on y
+            xlabel_formatter = target_formatter
+            ylabel_formatter = feature_formatter
+            xlabel_angle = target_angle
+            ylabel_angle = feature_angle
+            xlabel_align = _map_x_alignment(target_align)
+            ylabel_align = _map_y_alignment(feature_align)
+            
+        return (xlabel_formatter, ylabel_formatter, xlabel_angle, ylabel_angle, 
+                xlabel_align, ylabel_align)
+    
     def _reset_variate_(self) -> None:
         """Set values to None for current and last variate."""
         self._current_variate = {k: None for k in self.variate_names}
@@ -1084,7 +1154,13 @@ class SingleChart(Chart):
             sub_title: str = '',
             feature_label: bool | str = '',
             target_label: bool | str = '',
-            info: bool | str = False
+            info: bool | str = False,
+            feature_formatter: Formatter | Callable | None = None,
+            target_formatter: Formatter | Callable | None = None,
+            feature_angle: float = 0.0,
+            target_angle: float = 0.0,
+            feature_align: Literal['center', 'right', 'left'] = 'center',
+            target_align: Literal['center', 'right', 'left'] = 'center'
             ) -> Self:
         """Add labels and titles to the chart.
 
@@ -1113,6 +1189,24 @@ class SingleChart(Chart):
             provided, it will be shown next to the date and user,
             separated by a comma. By default, no additional information
             is displayed.
+        feature_formatter : Formatter | Callable | None, optional
+            Formatter or callable function to format the feature axis
+            tick labels, by default None.
+        target_formatter : Formatter | Callable | None, optional
+            Formatter or callable function to format the target axis
+            tick labels, by default None.
+        feature_angle : float, optional
+            Rotation angle for feature axis tick labels in degrees.
+            Positive values rotate the labels counter-clockwise,
+            negative values rotate them clockwise. By default, 0.0.
+        target_angle : float, optional
+            Rotation angle for target axis tick labels in degrees.
+            Positive values rotate the labels counter-clockwise,
+            negative values rotate them clockwise. By default, 0.0.
+        feature_align : {'center', 'right', 'left'}, optional
+            Alignment for feature axis tick labels, by default 'center'.
+        target_align : {'center', 'right', 'left'}, optional
+            Alignment for target axis tick labels, by default 'center'.
 
         Returns
         -------
@@ -1129,12 +1223,29 @@ class SingleChart(Chart):
             self._categorical_feature_axis_()
         xlabel, ylabel = self.axis_labels(feature_label, target_label)
 
+        # Map feature/target parameters to x/y parameters based on target_on_y
+        (xlabel_formatter, ylabel_formatter, xlabel_angle, ylabel_angle, 
+         xlabel_align, ylabel_align) = self._map_axis_parameters(
+            feature_formatter=feature_formatter,
+            target_formatter=target_formatter,
+            feature_angle=feature_angle,
+            target_angle=target_angle,
+            feature_align=feature_align,
+            target_align=target_align
+        )
+
         self.label_facets = LabelFacets(
             axes=self.axes,
             fig_title=fig_title,
             sub_title=sub_title,
             xlabel=xlabel,
             ylabel=ylabel,
+            xlabel_formatter=xlabel_formatter,
+            ylabel_formatter=ylabel_formatter,
+            xlabel_angle=xlabel_angle,
+            ylabel_angle=ylabel_angle,
+            xlabel_align=xlabel_align,  # type: ignore
+            ylabel_align=ylabel_align,  # type: ignore
             info=info,
             legend_data=self.legend_data)
         self.label_facets.draw()
