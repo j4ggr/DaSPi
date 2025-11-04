@@ -664,7 +664,13 @@ class StripesFacets:
 
 class LabelFacets:
     """
-    A class for adding labels and titles to facets of a figure.
+    A class for adding labels and titles to facets of a figure with 
+    advanced formatting.
+
+    This class provides comprehensive labeling and formatting
+    capabilities for matplotlib figures, including support for custom
+    formatters, label  rotation, alignment control, and automatic margin
+    adjustment for optimal layout.
 
     Parameters
     ----------
@@ -681,35 +687,140 @@ class LabelFacets:
         The axis label(s) of the figure. To label multiple axes with 
         different names, provide a tuple; otherwise, provide a string,
         by default ''.
-    xlabel_formatter, ylabel_formatter : callable | Formatter | None, optional
-        Functions to format the x and y axis tick labels, by default None.
+    xlabel_formatter, ylabel_formatter : Formatter | Callable | str | None, optional
+        Advanced formatters for axis tick labels with multiple input 
+        types:
+        
+        - **String format templates**: Simple format strings using 
+          Python's string formatting syntax (e.g., '{:.2f}', '{:.1e}',
+          '${:.0f}', '{:.1%}') for quick and intuitive formatting
+        - **Callable functions**: Custom functions that take one
+          argument (value) or two arguments (value, position) and return 
+          formatted strings for complete control
+        - **Matplotlib Formatters**: Any matplotlib.ticker.Formatter
+          instance for advanced formatting scenarios
+        - **None**: Use matplotlib's default formatting
+        
+        The formatter automatically handles matplotlib compatibility by
+        wrapping simple callables in FuncFormatter and converting string
+        templates to appropriate formatter types. By default, None.
+        
     xlabel_angle, ylabel_angle : float, optional
-        Rotation angle for x and y axis tick labels in degrees, 
-        by default 0.
+        Rotation angle for x and y axis tick labels in degrees. Positive
+        values rotate counter-clockwise, negative values rotate
+        clockwise. The chart automatically adjusts margins to
+        accommodate rotated labels and prevent clipping. Common values: 
+        0 (horizontal), 45 (diagonal), 90 (vertical). By default, 0.
+        
     xlabel_align, ylabel_align : str, optional
-        Alignment for x and y axis tick labels. For x-axis, valid values
-        are 'left', 'center', 'right'. For y-axis, valid values are 
-        'bottom', 'center', 'top', by default 'center'.
+        Alignment for x and y axis tick labels relative to their tick 
+        marks:
+        
+        - **For x-axis**: 'left', 'center', 'right' control horizontal
+          alignment of the label text relative to the tick position
+        - **For y-axis**: 'bottom', 'center', 'top' control vertical
+          alignment, where the string values map to vertical alignment
+          for better API consistency
+          
+        Alignment is particularly useful with rotated labels to achieve
+        optimal positioning and readability. By default, 'center'.
     
     info : bool or str, optional
         Indicates whether to include an info text at the lower left 
-        corner in the figure. The date and user are automatically added,
-        by default False.
+        corner in the figure. If True, the date and user are
+        automatically  added. If a string is provided, it's appended to
+        the automatic date/user information, separated by a comma.
+        By default, False.
     rows: Tuple[str, ...], optional
-        The row labels of the figure, by default ().
+        The row labels of the figure for faceted plots, by default ().
     cols: Tuple[str, ...], optional
-        The column labels of the figure, by default ().
+        The column labels of the figure for faceted plots,
+        by default ().
     row_title : str, optional
-        The title of the rows, by default ''.
+        The title of the rows for faceted plots, by default ''.
     col_title : str, optional
-        The title of the columns, by default ''.
+        The title of the columns for faceted plots, by default ''.
     axes_titles : Tuple[str, ...]
-        Title for each Axes, usefull for JointCharts, by default ()
+        Title for each Axes, useful for JointCharts with multiple
+        subplots, by default ().
     legend_data : Dict[str, LegendHandlesLabels], optional
         The legends to be added to the figure. The key is used as the 
         legend title, and the values must be a tuple of tuples, where
         the inner tuple contains a handle as a Patch or Line2D artist
         and a label as a string, by default {}.
+
+    Examples
+    --------
+    Basic usage with string formatters:
+    
+    ```python
+    axes = AxesFacets(nrows=1, ncols=1)
+    label_facets = LabelFacets(
+        axes=axes,
+        fig_title='Temperature Analysis',
+        xlabel='Time (hours)',
+        ylabel='Temperature',
+        ylabel_formatter='{:.1f}°C',  # String template
+        xlabel_formatter='{:.0f}h'    # String template
+    )
+    label_facets.draw()
+    ```
+    
+    Custom callable formatters:
+    
+    ```python
+    def scientific_formatter(value):
+        if abs(value) >= 1000:
+            return f'{value:.1e}'
+        return f'{value:.2f}'
+    
+    label_facets = LabelFacets(
+        axes=axes,
+        ylabel_formatter=scientific_formatter,
+        xlabel_formatter=lambda x: f'${x:,.0f}'  # Lambda formatter
+    )
+    ```
+    
+    Rotation and alignment for readability:
+    
+    ```python
+    label_facets = LabelFacets(
+        axes=axes,
+        xlabel='Product Categories',
+        xlabel_angle=45,      # Diagonal rotation
+        xlabel_align='right', # Right-align for better rotation appearance
+        ylabel_formatter='{:.1%}'  # Percentage format
+    )
+    ```
+    
+    Advanced faceted plot labeling:
+    
+    ```python
+    label_facets = LabelFacets(
+        axes=multi_axes,
+        fig_title='Sales Analysis by Region',
+        sub_title='Q3 2024 Performance',
+        row_title='Geographic Region',
+        col_title='Product Category',
+        rows=('North', 'South', 'East', 'West'),
+        cols=('Electronics', 'Clothing', 'Books'),
+        xlabel_formatter='${:,.0f}',
+        ylabel_formatter='{:.1f}%',
+        info='Source: Sales database'
+    )
+    ```
+
+    Notes
+    -----
+    - String formatters are automatically converted to 
+      matplotlib-compatible formatters using intelligent type detection.
+    - Margins are automatically adjusted when using rotated labels to
+      prevent clipping and ensure optimal layout.
+    - The class handles both single axes and complex multi-axes layouts.
+    - All formatting options work consistently across different
+      matplotlib backends and figure configurations.
+    - Legend positioning is automatically calculated to avoid
+      overlapping with other chart elements.
     """
 
     axes: AxesFacets

@@ -905,8 +905,9 @@ class SingleChart(Chart):
         self._data[self.feature] = self.dodging(positions, hue_variate)
         
     def _categorical_feature_grid_(self, ax: Axes) -> None:
-        """Hide the major grid and set the subgrid between each category 
-        for the feature axis. This feature is skipped if the main grid is not enabled.."""
+        """Hide the major grid and set the subgrid between each 
+        category  for the feature axis. This feature is skipped if the
+        main grid is not enabled.."""
         xy = 'x' if self.target_on_y else 'y'
         axis: XAxis | YAxis = getattr(ax, f'{xy}axis')
         if not axis.get_tick_params(which='major')['gridOn']:
@@ -1162,24 +1163,28 @@ class SingleChart(Chart):
             feature_align: Literal['center', 'right', 'left'] = 'center',
             target_align: Literal['center', 'right', 'left'] = 'center'
             ) -> Self:
-        """Add labels and titles to the chart.
+        """Add labels and titles to the chart with advanced formatting 
+        options.
 
         This method sets various labels and titles for the chart,
-        including figure title, subplot title, axis labels, row and
-        column titles, and additional information.
+        including figure title, subtitle, axis labels, and provides
+        extensive formatting control for tick labels including custom
+        formatters, rotation angles, and alignment options.
 
         Parameters
         ----------
         fig_title : str, optional
-            The main title for the entire figure, by default ''.
+            The main title for the entire figure, displayed at the top
+            in a larger font, by default ''.
         sub_title : str, optional
-            The subtitle for the entire figure, by default ''.
-        feature_label : str | bool | None, optional
-            The label for the feature variable (x-axis), by default ''.
+            The subtitle for the entire figure, displayed below the main
+            title in a smaller font, by default ''.
+        feature_label : str | bool, optional
+            The label for the feature variable axis, by default ''.
             If set to True, the feature variable name will be used.
             If set to False or None, no label will be added.
-        target_label : str | bool | None, optional
-            The label for the target variable (y-axis), by default ''.
+        target_label : str | bool, optional
+            The label for the target variable axis, by default ''.
             If set to True, the target variable name will be used.
             If set to False or None, no label will be added.
         info : bool | str, optional
@@ -1189,65 +1194,154 @@ class SingleChart(Chart):
             provided, it will be shown next to the date and user,
             separated by a comma. By default, no additional information
             is displayed.
-        feature_formatter : Formatter | Callable | None, optional
-            Formatter or callable function to format the feature axis
-            tick labels. Can be a matplotlib.ticker.Formatter instance
-            or any callable that takes a numeric value and returns a 
-            formatted string. Useful for custom number formatting, units,
-            or scientific notation. By default, None (uses matplotlib's
-            default formatting).
+        feature_formatter : Formatter | Callable | str | None, optional
+            Formatter for the feature axis tick labels. Supports 
+            multiple input types for maximum flexibility:
             
-            Examples:
-            - lambda x: f"{x:.1f}°C" for temperature formatting
-            - matplotlib.ticker.PercentFormatter() for percentage values
-            - lambda x: f"${x:,.0f}" for currency formatting
+            - **String format templates**: Simple format strings using 
+              Python's string formatting syntax (e.g., '{:.2f}', 
+              '{:.1e}', '${:.0f}', '{:.1%}')
+            - **Callable functions**: Custom functions that take one or 
+              two arguments and return formatted strings  
+            - **Matplotlib Formatters**: Any matplotlib.ticker.Formatter
+              instance for advanced formatting control
+            - **None**: Use matplotlib's default formatting
             
-        target_formatter : Formatter | Callable | None, optional
-            Formatter or callable function to format the target axis
-            tick labels. Similar to feature_formatter but applied to
-            the target variable axis. By default, None.
+            The formatter automatically handles different orientations
+            (target_on_y=True/False) and applies to the appropriate axis.
+            By default, None.
+            
+        target_formatter : Formatter | Callable | str | None, optional
+            Formatter for the target axis tick labels. Same options and
+            behavior as feature_formatter. By default, None.
             
         feature_angle : float, optional
             Rotation angle for feature axis tick labels in degrees.
             Positive values rotate counter-clockwise, negative values
-            rotate clockwise. Useful for avoiding overlapping labels
-            when dealing with long text or many categories. The chart
-            automatically adjusts margins to accommodate rotated labels.
+            rotate clockwise. The chart automatically adjusts margins
+            to accommodate rotated labels to prevent clipping.
+            Common values: 0 (horizontal), 45 (diagonal), 90 (vertical).
             By default, 0.0 (no rotation).
-            
-            Examples:
-            - 45.0 for diagonal labels
-            - 90.0 for vertical labels  
-            - -30.0 for slight clockwise rotation
             
         target_angle : float, optional
             Rotation angle for target axis tick labels in degrees.
-            Same behavior as feature_angle but for the target variable
-            axis. By default, 0.0 (no rotation).
+            Same behavior as feature_angle but for the target axis.
+            By default, 0.0 (no rotation).
             
         feature_align : {'center', 'right', 'left'}, optional
-            Horizontal alignment for feature axis tick labels. This
-            determines how labels are positioned relative to their
-            tick marks. 'center' aligns the label center with the tick,
-            'left' aligns the left edge, 'right' aligns the right edge.
-            Particularly useful with rotated labels. By default, 'center'.
+            Horizontal alignment for feature axis tick labels relative
+            to their tick marks. 'center' aligns the label center with 
+            the tick, 'left' aligns the left edge, 'right' aligns the 
+            right edge. Particularly useful with rotated labels to
+            achieve optimal positioning. By default, 'center'.
             
         target_align : {'center', 'right', 'left'}, optional
-            Alignment for target axis tick labels. For vertical axes,
-            this controls vertical alignment: 'center' centers the label
-            on the tick, 'left' maps to 'bottom', 'right' maps to 'top'.
-            By default, 'center'.
+            Alignment for target axis tick labels. For horizontal target
+            axes, this controls horizontal alignment. For vertical 
+            target axes, this maps to vertical alignment: 'center'
+            centers the label, 'left' maps to 'bottom', 'right' maps to
+            'top'. By default, 'center'.
 
         Returns
         -------
         SingleChart
             The instance of the SingleChart with updated labels and 
-            titles.
+            titles for method chaining.
+
+        Examples
+        --------
+        Basic labeling:
+        
+        ```python
+        chart.label(
+            fig_title='Temperature Analysis',
+            sub_title='Daily measurements',
+            feature_label='Time (hours)',
+            target_label='Temperature (°C)',
+            info='Data collected in laboratory conditions'
+        )
+        ```
+        
+        String formatter examples:
+        
+        ```python
+        # Scientific notation
+        chart.label(
+            feature_formatter='{:.2e}',  # 1.23e+03
+            target_formatter='{:.1f}'    # 123.5
+        )
+        
+        # Currency and percentage formatting
+        chart.label(
+            feature_formatter='${:.0f}',  # $1234
+            target_formatter='{:.1%}'     # 12.3%
+        )
+        ```
+        
+        Custom callable formatters:
+        
+        ```python
+        # Temperature formatter
+        def temp_formatter(value):
+            return f"{value:.1f}°C"
+        
+        # Business formatter with units
+        def business_formatter(value, pos=None):
+            if value >= 1000000:
+                return f'{value/1000000:.1f}M'
+            elif value >= 1000:
+                return f'{value/1000:.1f}K'
+            return f'{value:.0f}'
+        
+        chart.label(
+            target_formatter=temp_formatter,
+            feature_formatter=business_formatter
+        )
+        ```
+        
+        Rotation and alignment for crowded labels:
+        
+        ```python
+        # Diagonal labels with right alignment
+        chart.label(
+            feature_angle=45,
+            feature_align='right',
+            target_angle=0,
+            target_align='center'
+        )
+        
+        # Vertical labels for long category names
+        chart.label(
+            feature_angle=90,
+            feature_align='center'
+        )
+        ```
+        
+        Combined advanced formatting:
+        
+        ```python
+        chart.label(
+            fig_title='Sales Performance Q3 2024',
+            sub_title='Revenue by Product Category',
+            feature_label='Product Categories',
+            target_label='Revenue',
+            feature_formatter=lambda x: x.title(),  # Capitalize categories
+            target_formatter='${:,.0f}',           # Currency with commas
+            feature_angle=30,                      # Slight rotation
+            feature_align='right',                 # Right-align for rotation
+            info='Data from sales database'
+        )
+        ```
 
         Notes
         -----
-        This method allows customization of chart labels and titles to
-        enhance readability and provide context for the visualized data.
+        - String formatters use Python's string formatting syntax and are
+          automatically converted to matplotlib-compatible formatters
+        - The chart automatically adjusts margins when using rotated labels
+          to prevent clipping
+        - Formatters and angles are applied based on the chart orientation
+          (target_on_y parameter)
+        - All formatting options work consistently across different plot types
         """
         if self.categorical_feature:
             self._categorical_feature_axis_()
@@ -2309,26 +2403,30 @@ class MultivariateChart(SingleChart):
             feature_align: Literal['center', 'right', 'left'] = 'center',
             target_align: Literal['center', 'right', 'left'] = 'center'
             ) -> Self:
-        """Add labels and titles to the chart.
+        """Add labels and titles to the multivariate chart with advanced 
+        formatting.
 
-        This method sets various labels and titles for the chart,
-        including figure title, subplot title, axis labels, row and
-        column titles, and additional information.
+        This method sets various labels and titles for the multivariate chart,
+        including figure title, subtitle, axis labels, row and column titles,
+        and provides extensive formatting control for tick labels across all
+        subplots in the faceted grid.
 
         Parameters
         ----------
         fig_title : str, optional
-            The main title for the entire figure, by default ''.
+            The main title for the entire figure, displayed at the top,
+            by default ''.
         sub_title : str, optional
-            The subtitle for the entire figure, by default ''.
+            The subtitle for the entire figure, displayed below the main
+            title, by default ''.
         feature_label : str | bool | None, optional
-            The label for the feature variable (x-axis), by default ''.
-            If set to True, the feature variable name will be used.
-            If set to False or None, no label will be added.
+            The label for the feature variable axis across all subplots,
+            by default ''. If set to True, the feature variable name will
+            be used. If set to False or None, no label will be added.
         target_label : str | bool | None, optional
-            The label for the target variable (y-axis), by default ''.
-            If set to True, the target variable name will be used.
-            If set to False or None, no label will be added.
+            The label for the target variable axis across all subplots,
+            by default ''. If set to True, the target variable name will
+            be used. If set to False or None, no label will be added.
         info : bool | str, optional
             Additional information to display on the chart. If True,
             the date and user information will be automatically added at
@@ -2337,43 +2435,140 @@ class MultivariateChart(SingleChart):
             separated by a comma. By default, no additional information
             is displayed.
         row_title : str, optional
-            The title for the row facet (if applicable), by default ''.
+            The title for the row facet variable, displayed on the right
+            side of the figure. If not provided and row faceting is used,
+            the row variable name will be used automatically, by default ''.
         col_title : str, optional
-            The title for the column facet (if applicable),
-            by default ''.
-        feature_formatter : Formatter | Callable | None, optional
-            Formatter or callable function to format the feature axis
-            tick labels. Can be a matplotlib.ticker.Formatter instance
-            or any callable that takes a numeric value and returns a 
-            formatted string. Applied to all subplots sharing the 
-            feature axis. By default, None.
-        target_formatter : Formatter | Callable | None, optional
-            Formatter or callable function to format the target axis
-            tick labels. Applied to all subplots sharing the target 
-            axis. By default, None.
+            The title for the column facet variable, displayed at the top
+            of the figure above the column labels. If not provided and
+            column faceting is used, the column variable name will be used
+            automatically, by default ''.
+        feature_formatter : Formatter | Callable | str | None, optional
+            Formatter for the feature axis tick labels applied to all
+            subplots that share the feature axis. Supports multiple input
+            types for maximum flexibility:
+            
+            - **String format templates**: Simple format strings using 
+              Python's string formatting syntax (e.g., '{:.2f}', '{:.1e}',
+              '${:.0f}', '{:.1%}')
+            - **Callable functions**: Custom functions that take one or two
+              arguments and return formatted strings  
+            - **Matplotlib Formatters**: Any matplotlib.ticker.Formatter
+              instance for advanced formatting control
+            - **None**: Use matplotlib's default formatting
+            
+            Applied consistently across all subplots for uniform appearance.
+            By default, None.
+            
+        target_formatter : Formatter | Callable | str | None, optional
+            Formatter for the target axis tick labels applied to all
+            subplots that share the target axis. Same options and behavior
+            as feature_formatter. By default, None.
+            
         feature_angle : float, optional
-            Rotation angle for feature axis tick labels in degrees.
-            Applied to all subplots. By default, 0.0 (no rotation).
+            Rotation angle for feature axis tick labels in degrees,
+            applied to all subplots. Positive values rotate counter-clockwise,
+            negative values rotate clockwise. The chart automatically adjusts
+            margins to accommodate rotated labels across the entire grid.
+            By default, 0.0 (no rotation).
+            
         target_angle : float, optional
-            Rotation angle for target axis tick labels in degrees.
-            Applied to all subplots. By default, 0.0 (no rotation).
+            Rotation angle for target axis tick labels in degrees,
+            applied to all subplots. Same behavior as feature_angle but
+            for the target axis. By default, 0.0 (no rotation).
+            
         feature_align : {'center', 'right', 'left'}, optional
-            Alignment for feature axis tick labels. Applied to all
-            subplots sharing the feature axis. By default, 'center'.
+            Alignment for feature axis tick labels applied to all subplots
+            that share the feature axis. 'center' aligns the label center
+            with the tick, 'left' aligns the left edge, 'right' aligns
+            the right edge. Particularly useful with rotated labels.
+            By default, 'center'.
+            
         target_align : {'center', 'right', 'left'}, optional
-            Alignment for target axis tick labels. Applied to all
-            subplots sharing the target axis. By default, 'center'.
+            Alignment for target axis tick labels applied to all subplots
+            that share the target axis. For horizontal target axes, this
+            controls horizontal alignment. For vertical target axes, this
+            maps to vertical alignment: 'center' centers the label,
+            'left' maps to 'bottom', 'right' maps to 'top'. 
+            By default, 'center'.
 
         Returns
         -------
-        MultiVariateChart
-            The instance of the MultiVariateChart with updated labels
-            and titles.
+        MultivariateChart
+            The instance of the MultivariateChart with updated labels
+            and titles for method chaining.
+
+        Examples
+        --------
+        Basic multivariate chart labeling:
+        
+        ```python
+        chart.label(
+            fig_title='Sales Analysis by Region and Quarter',
+            sub_title='2024 Performance Data',
+            feature_label='Sales Amount ($)',
+            target_label='Customer Count',
+            row_title='Geographic Region',
+            col_title='Quarter',
+            info='Source: Sales database'
+        )
+        ```
+        
+        Formatting across all subplots:
+        
+        ```python
+        # Currency formatting for feature, percentage for target
+        chart.label(
+            feature_formatter='${:,.0f}',  # $1,234
+            target_formatter='{:.1%}',     # 12.3%
+            feature_angle=30,              # Rotate currency labels
+            feature_align='right'          # Right-align rotated labels
+        )
+        ```
+        
+        Custom formatters for scientific data:
+        
+        ```python
+        def scientific_formatter(value):
+            if abs(value) >= 1000:
+                return f'{value:.1e}'  # Scientific notation
+            return f'{value:.2f}'      # Regular decimal
+        
+        chart.label(
+            fig_title='Experimental Results',
+            feature_formatter=scientific_formatter,
+            target_formatter='{:.3f}',
+            col_title='Treatment Group',
+            row_title='Time Point'
+        )
+        ```
+        
+        Handling long category names in faceted plots:
+        
+        ```python
+        chart.label(
+            fig_title='Product Performance Analysis',
+            feature_formatter=lambda x: x.replace('_', ' ').title(),
+            feature_angle=45,              # Diagonal for readability
+            feature_align='right',         # Better alignment when rotated
+            target_formatter='${:,.0f}K',  # Thousands with currency
+            row_title='Product Category',
+            col_title='Sales Channel'
+        )
+        ```
 
         Notes
         -----
-        This method allows customization of chart labels and titles to
-        enhance readability and provide context for the visualized data.
+        - All formatting options are applied consistently across the
+          entire subplot grid for uniform appearance
+        - Row and column titles are automatically inferred from faceting
+          variables if not explicitly provided
+        - The chart automatically adjusts spacing and margins to accommodate
+          rotated labels across all subplots
+        - String formatters are automatically converted to matplotlib-compatible
+          formatters and applied to all relevant axes
+        - Formatting respects axis sharing - shared axes get consistent 
+          formatting
         """
         if self.categorical_feature:
             self._categorical_feature_axis_()
