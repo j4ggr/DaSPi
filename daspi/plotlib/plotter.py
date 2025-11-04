@@ -2558,23 +2558,29 @@ class Bar(TransformPlotter):
     @property
     def t_base(self) -> NDArray:
         """Get the base values for the bars (target), contains zeros 
-        when not stacked."""
+        when not stacked.
+        
+        The base values are calculated based on existing bars in the
+        plot. If stacking is enabled, the base values are updated to
+        reflect the top of the existing bars at each feature position.
+        If stacking is disabled, the base values are simply zeros."""
         feature_ticks = self.source[self.feature]
         t_base: NDArray = np.zeros(len(feature_ticks))
         if not self.stack: 
             return t_base
-
+        
         for bar in self.bars:
             boxs = [p.get_bbox() for p in bar.patches]
             f_low, f_upp = map(np.array, zip(*[(b.x0, b.x1) for b in boxs]))
             t_low, t_upp = map(np.array, zip(*[(b.y0, b.y1) for b in boxs]))
             if not self.target_on_y:
                 f_low, f_upp, t_low, t_upp = t_low, t_upp, f_low, f_upp
-            n = min(len(feature_ticks), len(f_low))
-            if (all(feature_ticks[:n] > f_low[:n])
-                and all(feature_ticks[:n] < f_upp[:n])
-                and any(t_upp[:n] > t_base[:n])):
-                t_base[:n] = t_upp[:n]
+            
+            for i, (f_tick, old_base) in enumerate(zip(feature_ticks, t_base)):
+                overlaps = (f_tick >= f_low) & (f_tick <= f_upp)
+                if any(overlaps):
+                    t_base[i] = max([*t_upp[overlaps], old_base])
+
         return t_base
     
     def transform(
