@@ -73,7 +73,7 @@ matplotlib.use("Agg")
 
 savedir = Path(__file__).parent/'charts'
 savedir.mkdir(parents=True, exist_ok=True)
-df_aspirin = load_dataset('aspirin-dissolution')
+df_painkillers = load_dataset('painkillers-dissolution')
 """
 Number of observations: 48
 Number of features: 8 is composed of 5 factor levels and 3 covariates
@@ -89,8 +89,8 @@ Feature name difinitions:
         - wooden
         - metal
     brand = 2 levels
-        - ASS
-        - Godamed
+        - ZapPain
+        - OuchAway
     catalyst = 2 levels
         - False
         - True
@@ -150,7 +150,7 @@ def get_texts(chart: SingleChart | JointChart | MultivariateChart) -> List[Text]
 class TestSingleChart:
     
     fig_title: str = 'SingleChart'
-    _sub_title: str = 'Aspirin Dissolution Dataset'
+    _sub_title: str = 'Painkillers Dissolution Dataset'
     target_label: str = 'Dissolution time (s)'
     feature_label: str = 'Water temperature (°C)'
     target: str = 'dissolution'
@@ -173,7 +173,7 @@ class TestSingleChart:
 
         with pytest.raises(AssertionError) as err:
             SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1,
             ).label(info=self.info_msg
@@ -185,7 +185,7 @@ class TestSingleChart:
 
         self.kind = 'hue'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature,
                 hue=self.cat1
@@ -215,7 +215,7 @@ class TestSingleChart:
 
         self.kind = 'hue_size'
         chart =SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature,
                 hue=self.cat1,
@@ -253,7 +253,7 @@ class TestSingleChart:
 
         self.kind = 'simple'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature
             ).plot(Scatter
@@ -269,7 +269,7 @@ class TestSingleChart:
 
         self.kind = 'simple-stripes'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature
             ).plot(Scatter
@@ -290,7 +290,7 @@ class TestSingleChart:
 
         self.kind = 'simple-stripes-65ci'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature
             ).plot(Scatter
@@ -311,7 +311,7 @@ class TestSingleChart:
 
         self.kind = 'simple-stripes-99ci'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature
             ).plot(Scatter
@@ -332,7 +332,7 @@ class TestSingleChart:
 
         self.kind = 'transposed'
         chart =SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature,
             ).plot(Scatter, target_on_y=False
@@ -353,7 +353,7 @@ class TestSingleChart:
 
         self.kind = 'hue'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature,
                 hue=self.cat1
@@ -382,7 +382,7 @@ class TestSingleChart:
 
         self.kind = 'shape'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature,
                 shape=self.cat2
@@ -411,7 +411,7 @@ class TestSingleChart:
 
         self.kind = 'size'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature,
                 size=self.size
@@ -440,7 +440,7 @@ class TestSingleChart:
 
         self.kind = 'hue-size'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature,
                 hue=self.cat1,
@@ -472,7 +472,7 @@ class TestSingleChart:
 
         self.kind = 'hue-shape'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature,
                 hue=self.cat1,
@@ -504,7 +504,7 @@ class TestSingleChart:
 
         self.kind = 'size-shape'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature,
                 size=self.size,
@@ -536,7 +536,7 @@ class TestSingleChart:
 
         self.kind = 'full'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature,
                 hue=self.cat1,
@@ -572,7 +572,7 @@ class TestSingleChart:
         self.base = f'{self.fig_title}_pareto'
         with pytest.raises(AssertionError) as err:
             chart = SingleChart(
-                    source=df_aspirin,
+                    source=df_painkillers,
                     target=self.target,
                     feature=self.cat1,
                     categorical_feature=True
@@ -582,7 +582,7 @@ class TestSingleChart:
         
         self.kind = 'simple'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1,
             ).plot(
@@ -610,7 +610,7 @@ class TestSingleChart:
 
         self.kind = 'transposed'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1,
                 target_on_y=False
@@ -642,7 +642,7 @@ class TestSingleChart:
 
         self.kind = 'simple'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 target_on_y=False
             ).plot(
@@ -664,7 +664,7 @@ class TestSingleChart:
 
         self.kind = 'multiple'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 hue=self.cat1,
                 target_on_y=True
@@ -699,7 +699,7 @@ class TestSingleChart:
 
         self.kind = 'simple'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1, 
                 categorical_feature=True,
@@ -726,7 +726,7 @@ class TestSingleChart:
         
         self.kind = 'multiple'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1, 
                 hue=self.cat2,
@@ -758,7 +758,7 @@ class TestSingleChart:
 
         self.kind = 'simple'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1, 
                 categorical_feature=True,
@@ -787,7 +787,7 @@ class TestSingleChart:
         
         self.kind = 'multiple'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1, 
                 hue=self.cat2,
@@ -824,7 +824,7 @@ class TestSingleChart:
 
         self.kind = 'simple'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1, 
                 categorical_feature=True,
@@ -848,7 +848,7 @@ class TestSingleChart:
         
         self.kind = 'multiple'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1, 
                 hue=self.cat2,
@@ -878,7 +878,7 @@ class TestSingleChart:
 
         self.kind = 'mono'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
             ).plot(Violine
             ).label(
@@ -899,7 +899,7 @@ class TestSingleChart:
 
         self.kind = 'simple'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1, 
             ).plot(Violine
@@ -921,7 +921,7 @@ class TestSingleChart:
         
         self.kind = 'multiple'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1, 
                 hue=self.cat2,
@@ -948,7 +948,7 @@ class TestSingleChart:
 
         self.kind = 'sem'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1, 
                 hue=self.cat2,
@@ -973,9 +973,9 @@ class TestSingleChart:
         assert self.info_msg in info_msg
         
         self.kind = 'mean-test'
-        n_groups = df_aspirin.groupby(self.cat1).ngroups
+        n_groups = df_painkillers.groupby(self.cat1).ngroups
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1,
                 categorical_feature=True,
@@ -999,9 +999,9 @@ class TestSingleChart:
         assert self.info_msg in info_msg
         
         self.kind = 'var-test'
-        n_groups = df_aspirin.groupby(self.cat1).ngroups
+        n_groups = df_painkillers.groupby(self.cat1).ngroups
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1,
                 categorical_feature=True,
@@ -1027,9 +1027,9 @@ class TestSingleChart:
         assert self.info_msg in info_msg
         
         self.kind = 'std-test'
-        n_groups = df_aspirin.groupby(self.cat1).ngroups
+        n_groups = df_painkillers.groupby(self.cat1).ngroups
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1,
                 categorical_feature=True,
@@ -1133,7 +1133,7 @@ class TestSingleChart:
         
         self.kind = 'simple'
         chart = SingleChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target='dissolution',
                 feature='temperature',
                 categorical_feature=True,
@@ -1159,7 +1159,7 @@ class TestSingleChart:
 class TestJointChart:
 
     fig_title: str = 'JointChart'
-    _sub_title: str = 'Aspirin Dissolution Dataset'
+    _sub_title: str = 'Painkillers Dissolution Dataset'
     target_label: str = 'Dissolution time (s)'
     feature_label: str = 'Water temperature (°C)'
     target: str = 'dissolution'
@@ -1181,7 +1181,7 @@ class TestJointChart:
     def test_raises(self):
         with pytest.raises(AssertionError) as err:
             JointChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1,
                 nrows=2,
@@ -1197,7 +1197,7 @@ class TestJointChart:
     
         with pytest.raises(AssertionError) as err:
             JointChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1,
                 nrows=2,
@@ -1213,9 +1213,9 @@ class TestJointChart:
         self.base = f'{self.fig_title}_kdes'
         
         self.kind = 'kde-mean'
-        n_groups = df_aspirin.groupby([self.cat1, self.cat2]).ngroups
+        n_groups = df_painkillers.groupby([self.cat1, self.cat2]).ngroups
         chart = JointChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=(self.cat1, ''),
                 hue=self.cat2,
@@ -1238,7 +1238,7 @@ class TestJointChart:
         
         self.kind = 'mixed-kde'
         chart = JointChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1,
                 hue=self.cat2,
@@ -1263,7 +1263,7 @@ class TestJointChart:
         assert self.file_name.is_file()
         assert len(texts) == 0 # No text added to figure only to axes
         assert legend_artists[0].get_children()[0].get_text() == self.cat2 # type: ignore
-        assert yticklabels1 == sorted(df_aspirin[self.cat1].unique())
+        assert yticklabels1 == sorted(df_painkillers[self.cat1].unique())
         assert bool(xticklabels0) == False
         assert bool(xticklabels1) == True
         assert chart.axes[0, 0].get_xlabel() == ''
@@ -1414,7 +1414,7 @@ class TestJointChart:
             'Dissolution time (s)')
         feature_label = 'Employee'
         chart = JointChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat2,
                 nrows=2,
@@ -1451,7 +1451,7 @@ class TestJointChart:
         self.base = f'{self.fig_title}_pareto'
         with pytest.raises(AssertionError) as err:
             JointChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1,
                 nrows=3,
@@ -1462,7 +1462,7 @@ class TestJointChart:
 
         self.kind = 'marked'
         chart = JointChart(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.cat1,
                 nrows=2,
@@ -1572,7 +1572,7 @@ class TestMultivariateChart:
 class TestPrecasts:
 
     fig_title: str = 'Precasts'
-    _sub_title: str = 'Aspirin Dissolution Dataset'
+    _sub_title: str = 'Painkillers Dissolution Dataset'
     target_label: str = 'Dissolution time (s)'
     feature_label: str = 'Water temperature (°C)'
     target: str = 'dissolution'
@@ -1593,15 +1593,15 @@ class TestPrecasts:
         return savedir/f'{self.base}_{self.kind}.png'
     
     @pytest.fixture
-    def df_aspirin(self) -> pd.DataFrame:
-        return load_dataset('aspirin-dissolution')
+    def df_painkillers(self) -> pd.DataFrame:
+        return load_dataset('painkillers-dissolution')
     
-    def test_bivariate_univariate_charts(self, df_aspirin: pd.DataFrame) -> None:
+    def test_bivariate_univariate_charts(self, df_painkillers: pd.DataFrame) -> None:
         
         self.base = f'{self.fig_title}_bivariate-univariate-charts'
         self.kind = 'simple'
         chart = BivariateUnivariateCharts(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature,
                 hue=self.cat1
@@ -1634,7 +1634,7 @@ class TestPrecasts:
         self.base = f'{self.fig_title}_bivariate-univariate-charts'
         self.kind = 'smoothed'
         chart = BivariateUnivariateCharts(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature,
                 hue=self.cat2
@@ -1666,9 +1666,9 @@ class TestPrecasts:
         
         self.kind = 'mean-test'
         _title = '95 % confidence interval of mean'
-        n_groups = df_aspirin.groupby(self.cat2).ngroups
+        n_groups = df_painkillers.groupby(self.cat2).ngroups
         chart = BivariateUnivariateCharts(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature,
                 hue=self.cat2,
@@ -1703,9 +1703,9 @@ class TestPrecasts:
 
         self.kind = 'contour-mean-test'
         _title = '95 % confidence interval of mean'
-        n_groups = df_aspirin.groupby(self.cat2).ngroups
+        n_groups = df_painkillers.groupby(self.cat2).ngroups
         chart = BivariateUnivariateCharts(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature,
                 hue=self.cat2,
@@ -1740,9 +1740,9 @@ class TestPrecasts:
 
         self.kind = 'user'
         _title = '95 % confidence interval of mean'
-        n_groups = df_aspirin.groupby(self.cat2).ngroups
+        n_groups = df_painkillers.groupby(self.cat2).ngroups
         chart = BivariateUnivariateCharts(
-                source=df_aspirin,
+                source=df_painkillers,
                 target=self.target,
                 feature=self.feature,
                 hue=self.cat2,
@@ -1783,7 +1783,8 @@ class TestPrecasts:
         for plot in chart.plots:
             if isinstance(plot, QuantileBoxes):
                 fitted_dists.append(plot.estimation.dist.name)
-        assert fitted_dists == ['logistic', 'gamma', 'foldnorm', 'norm']
+        fitted_dists.sort()
+        assert fitted_dists == ['foldnorm', 'gamma', 'logistic', 'norm']
 
     def test_process_capabity_analysis_charts(self) -> None:
         
@@ -1829,7 +1830,7 @@ class TestPrecasts:
         assert self.info_msg in info_msg
     
     def test_parameter_relevance_charts(self) -> None:
-        df = load_dataset('aspirin-dissolution')
+        df = load_dataset('painkillers-dissolution')
         model = LinearModel(
             source=df,
             target='dissolution',
@@ -1864,7 +1865,7 @@ class TestPrecasts:
         assert self.file_name.is_file()
 
     def test_residual_charts(self) -> None:
-        df = load_dataset('aspirin-dissolution')
+        df = load_dataset('painkillers-dissolution')
         model = LinearModel(
             source=df,
             target='dissolution',
@@ -1925,4 +1926,265 @@ class TestPrecasts:
             ).stripes(
             ).label(
             ).save(self.file_name)
+        assert self.file_name.is_file()
+
+
+class TestFormattingFeatures:
+    """Test new formatting features: formatters, angles, and alignments."""
+    
+    fig_title: str = 'Formatting Features Test'
+    info_msg: str = 'Pytest figure for formatting features'
+    kind: str = ''
+    base: str = ''
+
+    @property
+    def file_name(self) -> Path:
+        return savedir/f'{self.base}_{self.kind}.png'
+
+    def test_formatters_basic(self) -> None:
+        """Test basic formatter functionality."""
+        self.base = f'{self.fig_title.replace(" ", "_")}_formatters'
+        self.kind = 'basic'
+        
+        # Custom formatter function
+        def custom_formatter(x, pos):
+            return f'${x:.1f}k'
+        
+        chart = SingleChart(
+            source=load_dataset('mpg'),
+            target='cty',
+            feature='displ'
+        ).plot(Scatter
+        ).label(
+            fig_title=self.fig_title,
+            sub_title='Basic Formatter Test',
+            feature_formatter=custom_formatter,
+            target_formatter=lambda x, pos: f'{x:.0f} MPG',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        assert self.file_name.is_file()
+
+    def test_formatters_scientific(self) -> None:
+        """Test scientific notation formatter."""
+        self.base = f'{self.fig_title.replace(" ", "_")}_formatters'
+        self.kind = 'scientific'
+        
+        chart = SingleChart(
+            source=load_dataset('mpg'),
+            target='cty',
+            feature='hwy'
+        ).plot(Scatter
+        ).label(
+            fig_title=self.fig_title,
+            sub_title='Scientific Notation Test',
+            feature_formatter='{:.2e}',
+            target_formatter='{:.1f}',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        assert self.file_name.is_file()
+
+    def test_angles_basic(self) -> None:
+        """Test basic angle rotation."""
+        self.base = f'{self.fig_title.replace(" ", "_")}_angles'
+        self.kind = 'basic'
+        
+        chart = SingleChart(
+            source=load_dataset('tips'),
+            target='total_bill',
+            feature='day'
+        ).plot(Violine
+        ).label(
+            fig_title=self.fig_title,
+            sub_title='Basic Angle Test',
+            feature_angle=45,
+            target_angle=90,
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        assert self.file_name.is_file()
+
+    def test_alignments_basic(self) -> None:
+        """Test basic alignment options."""
+        self.base = f'{self.fig_title.replace(" ", "_")}_alignments'
+        self.kind = 'basic'
+        
+        chart = SingleChart(
+            source=load_dataset('tips'),
+            target='total_bill',
+            feature='day'
+        ).plot(Violine
+        ).label(
+            fig_title=self.fig_title,
+            sub_title='Basic Alignment Test',
+            feature_align='right',
+            target_align='center',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        assert self.file_name.is_file()
+
+    def test_combined_features(self) -> None:
+        """Test combining formatters, angles, and alignments."""
+        self.base = f'{self.fig_title.replace(" ", "_")}_combined'
+        self.kind = 'all_features'
+        
+        chart = SingleChart(
+            source=load_dataset('tips'),
+            target='total_bill',
+            feature='day'
+        ).plot(Violine
+        ).label(
+            fig_title=self.fig_title,
+            sub_title='Combined Features Test',
+            feature_formatter=lambda x, pos: str(x).upper(),
+            target_formatter='${:.2f}',
+            feature_angle=30,
+            target_angle=45,
+            feature_align='left',
+            target_align='right',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        assert self.file_name.is_file()
+
+    def test_multivariate_formatting(self) -> None:
+        """Test formatting features with MultivariateChart."""
+        self.base = f'{self.fig_title.replace(" ", "_")}_multivariate'
+        self.kind = 'formatting'
+        
+        chart = MultivariateChart(
+            source=load_dataset('tips'),
+            target='total_bill',
+            feature='size',
+            hue='sex',
+            col='time'
+        ).plot(Scatter
+        ).label(
+            fig_title=self.fig_title,
+            sub_title='Multivariate Formatting Test',
+            feature_formatter='Size: {:.0f}',
+            target_formatter='${:.2f}',
+            feature_angle=15,
+            target_angle=30,
+            feature_align='center',
+            target_align='left',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        assert self.file_name.is_file()
+
+    def test_orientation_mapping(self) -> None:
+        """Test formatting with different orientations."""
+        self.base = f'{self.fig_title.replace(" ", "_")}_orientation'
+        self.kind = 'mapping'
+        
+        chart = SingleChart(
+            source=load_dataset('tips'),
+            target='total_bill',
+            feature='day',
+            target_on_y=False
+        ).plot(Violine
+        ).label(
+            fig_title=self.fig_title,
+            sub_title='Orientation Mapping Test',
+            feature_formatter=lambda x, pos: f'Day: {x}',
+            target_formatter='${:.1f}',
+            feature_angle=60,
+            target_angle=0,
+            feature_align='right',
+            target_align='center',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        assert self.file_name.is_file()
+
+    def test_percentage_formatter(self) -> None:
+        """Test percentage formatting."""
+        self.base = f'{self.fig_title.replace(" ", "_")}_percentage'
+        self.kind = 'formatter'
+        
+        chart = SingleChart(
+            source=load_dataset('tips'),
+            target='tip',
+            feature='total_bill'
+        ).plot(Scatter
+        ).label(
+            fig_title=self.fig_title,
+            sub_title='Percentage Formatter Test',
+            target_formatter='{:.1%}',
+            feature_formatter='${:.0f}',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        assert self.file_name.is_file()
+
+    def test_callable_formatters(self) -> None:
+        """Test callable formatters with different signatures."""
+        self.base = f'{self.fig_title.replace(" ", "_")}_callable'
+        self.kind = 'formatters'
+        
+        def business_formatter(value, position=None):
+            """Business-style number formatter."""
+            if value >= 1000000:
+                return f'{value/1000000:.1f}M'
+            elif value >= 1000:
+                return f'{value/1000:.1f}K'
+            else:
+                return f'{value:.0f}'
+        
+        chart = SingleChart(
+            source=load_dataset('mpg'),
+            target='cty',
+            feature='displ'
+        ).plot(Scatter
+        ).label(
+            fig_title=self.fig_title,
+            sub_title='Callable Formatters Test',
+            feature_formatter=business_formatter,
+            target_formatter=lambda x, pos: f'{x:.1f} MPG',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        assert self.file_name.is_file()
+
+    def test_extreme_angles(self) -> None:
+        """Test extreme angle values."""
+        self.base = f'{self.fig_title.replace(" ", "_")}_extreme'
+        self.kind = 'angles'
+        
+        chart = SingleChart(
+            source=load_dataset('tips'),
+            target='total_bill',
+            feature='day'
+        ).plot(Violine
+        ).label(
+            fig_title=self.fig_title,
+            sub_title='Extreme Angles Test',
+            feature_angle=90,
+            target_angle=-45,
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        assert self.file_name.is_file()
+
+    def test_all_alignments(self) -> None:
+        """Test all alignment options."""
+        self.base = f'{self.fig_title.replace(" ", "_")}_all'
+        self.kind = 'alignments'
+        
+        chart = SingleChart(
+            source=load_dataset('tips'),
+            target='total_bill',
+            feature='day'
+        ).plot(Violine
+        ).label(
+            fig_title=self.fig_title,
+            sub_title='All Alignments Test',
+            feature_align='left',
+            target_align='right',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
         assert self.file_name.is_file()

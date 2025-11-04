@@ -24,6 +24,7 @@ from matplotlib.legend import Legend
 from matplotlib.artist import Artist
 from matplotlib.ticker import Formatter
 from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import StrMethodFormatter
 from matplotlib.typing import HashableList
 from matplotlib.patches import Patch
 
@@ -808,17 +809,22 @@ class LabelFacets:
         self.labels = {}
     
     def _prepare_formatter(
-            self, formatter: Formatter | Callable | None) -> Formatter | None:
+            self,
+            formatter: Formatter | Callable | str | None
+            ) -> Formatter | None:
         """Prepare a formatter for use with matplotlib.
         
         If the formatter is a callable that takes only one argument,
         wrap it in a FuncFormatter. If it's already a Formatter or
-        takes two arguments, use it as-is.
+        takes two arguments, use it as-is. If it's a string, convert it
+        to a FuncFormatter for robust formatting.
         
         Parameters
         ----------
-        formatter : Formatter | Callable | None
-            The formatter to prepare
+        formatter : Formatter | Callable | str | None
+            The formatter to prepare. String formatters can use either
+            positional format (e.g., '{:.2e}') or keyword format 
+            (e.g., '{x:.2e}').
             
         Returns
         -------
@@ -831,6 +837,16 @@ class LabelFacets:
         if isinstance(formatter, Formatter):
             return formatter
         
+        if isinstance(formatter, str):
+            # Convert string formatters to FuncFormatter for robust handling
+            # This handles both positional '{:.2e}' and keyword '{x:.2e}' formats
+            if '{x' in formatter.lower() or '{pos' in formatter.lower():
+                # Keyword format - use StrMethodFormatter
+                return StrMethodFormatter(formatter)
+            else:
+                # Positional format - use FuncFormatter with string formatting
+                return FuncFormatter(lambda x, pos, fmt=formatter: fmt.format(x))
+
         if callable(formatter):
             # Check if the callable accepts only one argument
             import inspect

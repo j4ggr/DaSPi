@@ -4,6 +4,7 @@ import numpy as np
 from pathlib import Path
 from matplotlib.ticker import FuncFormatter
 from matplotlib.ticker import PercentFormatter
+from matplotlib.ticker import StrMethodFormatter
 from unittest.mock import Mock, patch
 
 
@@ -275,6 +276,37 @@ class TestLabelFacetsFormatting:
         # Test that the formatter works
         formatted_value = result(25.6, 2)
         assert formatted_value == "#2: 25.60"
+
+    def test_prepare_formatter_with_string_positional(self, axes_with_data: AxesFacets) -> None:
+        """Test _prepare_formatter with positional string formats."""
+        test_cases = [
+            ('{:.2e}', 1234.567, '1.23e+03'),
+            ('{:.1f}', 1234.567, '1234.6'),
+            ('{:.0f}', 1234.567, '1235'),
+            ('${:.2f}', 1234.567, '$1234.57'),
+            ('{:.2%}', 0.1234, '12.34%'),
+            ('${:.0f}k', 1234.567, '$1235k'),
+        ]
+        
+        label_facets = LabelFacets(axes_with_data)
+        
+        for format_string, test_value, expected in test_cases:
+            result = label_facets._prepare_formatter(format_string)
+            assert isinstance(result, FuncFormatter)
+            formatted_value = result(test_value, 0)
+            assert formatted_value == expected, f"Format '{format_string}' failed: got '{formatted_value}', expected '{expected}'"
+
+    def test_prepare_formatter_with_string_keyword(self, axes_with_data: AxesFacets) -> None:
+        """Test _prepare_formatter with keyword string formats."""
+        label_facets = LabelFacets(axes_with_data)
+        
+        # Test keyword format (should use StrMethodFormatter)
+        result = label_facets._prepare_formatter('{x:.2e}')
+        assert isinstance(result, StrMethodFormatter)
+        
+        # Test that it works
+        formatted_value = result(1234.567, 0)
+        assert formatted_value == '1.23e+03'
 
     def test_formatter_integration_with_axes(self, axes_with_data: AxesFacets) -> None:
         """Test that formatters are properly applied to axes."""
