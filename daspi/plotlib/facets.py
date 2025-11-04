@@ -23,6 +23,7 @@ from matplotlib.figure import Figure
 from matplotlib.legend import Legend
 from matplotlib.artist import Artist
 from matplotlib.ticker import Formatter
+from matplotlib.ticker import FuncFormatter
 from matplotlib.typing import HashableList
 from matplotlib.patches import Patch
 
@@ -786,8 +787,8 @@ class LabelFacets:
         self.sub_title = sub_title
         self.xlabel = xlabel
         self.ylabel = ylabel
-        self.xlabel_formatter = xlabel_formatter
-        self.ylabel_formatter = ylabel_formatter
+        self.xlabel_formatter = self._prepare_formatter(xlabel_formatter)
+        self.ylabel_formatter = self._prepare_formatter(ylabel_formatter)
         self.xlabel_angle = xlabel_angle
         self.ylabel_angle = ylabel_angle
         self.xlabel_align = xlabel_align
@@ -805,6 +806,43 @@ class LabelFacets:
             int(self.figure.get_figheight() * self.figure.dpi))
         self._margin = dict(left=0, bottom=0, right=0, top=0)
         self.labels = {}
+    
+    def _prepare_formatter(
+            self, formatter: Formatter | Callable | None) -> Formatter | None:
+        """Prepare a formatter for use with matplotlib.
+        
+        If the formatter is a callable that takes only one argument,
+        wrap it in a FuncFormatter. If it's already a Formatter or
+        takes two arguments, use it as-is.
+        
+        Parameters
+        ----------
+        formatter : Formatter | Callable | None
+            The formatter to prepare
+            
+        Returns
+        -------
+        Formatter | None
+            A matplotlib-compatible formatter or None
+        """
+        if formatter is None:
+            return None
+        
+        if isinstance(formatter, Formatter):
+            return formatter
+        
+        if callable(formatter):
+            # Check if the callable accepts only one argument
+            import inspect
+            sig = inspect.signature(formatter)
+            if len(sig.parameters) == 1:
+                # Wrap single-argument callable in FuncFormatter
+                return FuncFormatter(lambda x, pos, f=formatter: f(x))
+            else:
+                # Assume it's already a two-argument callable
+                return FuncFormatter(formatter)
+        
+        return None
     
     @property
     def x_aligned(self) -> float:
