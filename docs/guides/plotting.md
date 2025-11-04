@@ -303,7 +303,7 @@ chart = dsp.SingleChart(
         mean=True,
         confidence=0.95
     ).label(
-        fig_title='Painkillers dissolution',
+        fig_title='Painkillers Dissolution Analysis',
         sub_title='Dissolution time vs. Employee, Brand, and Stirrer',
         target_label='Dissolution time (s)',
         feature_label='Employee',
