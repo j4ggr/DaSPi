@@ -13,6 +13,7 @@ from typing import Tuple
 from typing import Union
 from typing import TypeVar
 from typing import Literal
+from typing import Hashable
 from typing import overload
 from typing import Callable
 from numpy.typing import NDArray
@@ -698,7 +699,10 @@ class BaseEstimator:
             'attribute')
         return getattr(self, name)
     
-    def describe(self, exclude: Tuple[str, ...] = ()) -> DataFrame:
+    def describe(
+            self,
+            exclude: Tuple[str, ...] = (),
+            colname: str | Hashable | None = None) -> DataFrame:
         """Generate descriptive statistics.
         
         Parameters
@@ -706,6 +710,8 @@ class BaseEstimator:
         exclude : Tuple[str,...], optional
             Attributes to exclude from the summary statistics,
             by default ()
+        colname : str | Hashable | None, optional
+            Column name for the resulting DataFrame, by default None
         
         Returns
         -------
@@ -714,11 +720,11 @@ class BaseEstimator:
             DataFrame are the attributes that have been computed and the
             column name is the name of the samples.
         """
-        names = (
-            n for n in self.attrs_describe if n not in exclude)
+        colname = colname if colname is not None else self.samples.name
+        attributes = (a for a in self.attrs_describe if a not in exclude)
         data = pd.DataFrame(
-            data={name: [self._get_descriptive_attr_(name)] for name in names},
-            index=[self.samples.name])
+            data={a: [self._get_descriptive_attr_(a)] for a in attributes},
+            index=[colname])
         return data.T
 
 
