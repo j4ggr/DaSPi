@@ -84,6 +84,7 @@ nav:
     # - guides/index.md
     - guides/installing.md
     - guides/anova.md
+    - guides/doe.md
     # - guides/process_improvement.md
     - guides/plotting.md
     # - guides/hypothesis-testing.md
@@ -93,6 +94,12 @@ nav:
       - anova/linear-model.md
       - anova/gage-study-model.md
       - anova/gage-rnr-model.md
+    - DOE:
+      - Design of Experiments: doe/index.md
+      - doe/factor.md
+      - doe/design-builders.md
+      - doe/full-factorial.md
+      - doe/fractional-factorial.md
     - Plotlib: 
       - Plotting Library: plotlib/index.md
       - Precast Charts:

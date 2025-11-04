@@ -24,7 +24,8 @@ __all__ = [
     'BaseDesignBuilder',
     'FullFactorialDesignBuilder',
     'FullFactorial2kDesignBuilder',
-    'FractionalFactorialDesignBuilder',]
+    'FractionalFactorialDesignBuilder',
+    'get_default_generators',]
 
 
 class Factor:
@@ -70,7 +71,7 @@ class Factor:
 
         self._name = name
         
-        if any(isinstance(l, str) for l in levels) and not is_categorical:
+        if any(isinstance(lvl, str) for lvl in levels) and not is_categorical:
             warnings.warn(
                 f'Found string level(s) in factor {name}. Assuming factor is '
                 'categorical. To avoid this warning, set is_categorical=True.')
@@ -360,8 +361,8 @@ class BaseDesignBuilder(ABC):
 
         df_design = df_design.copy()
         for factor in factors:
-            df_design[factor.name].replace(
-                factor.corrected_level_map, inplace=True)
+            df_design[factor.name] = df_design[factor.name].replace(
+                factor.corrected_level_map)
         return df_design
 
     @abstractmethod

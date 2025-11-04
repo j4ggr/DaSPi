@@ -14,6 +14,36 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.8.0] - 2025-11-04
+
+### Added
+
+- The DOE module with classes and functions for design of experiments.
+- The Factor class to DOE module.
+- The BaseDesignBuilder class to DOE module.
+- The FullFactorialDesignBuilder class to DOE module.
+- The FullFactorial2kDesignBuilder class to DOE module.
+- The FractionalFactorialDesignBuilder class to DOE module.
+- Numerous tests were conducted across the entire package, test coverage is now at ~95%
+- The Property `errors` to ProcessEstimator class to show errors as percentage values.
+- 'About DaSPi' section to documentation.
+- Assert tests to check whether some data are empty or not for SingleChart class.
+- The method `check_current_data()` to SingleChart class to check if current data is empty, throws a UserWarning if so.
+- The option to set a colname when generating the descriptive statistics using `describe()` method of Estimator classes.
+- The option to set a colname when generating the process descriptions using `process_descriptions()` method of Process classes.
+- The option to rotate, align and format tick labels. This option is applied to `SingleChart`, `MultivariateChart`  and of course the underlying `LabelFacets` classes.
+
+### Changed
+
+- The property `processes` of ProcessEstimator class to a method.
+
+### Fixed
+
+- Creating uncertainties DataFrame for GageRnRCharts failed in certain cases.
+- The functions `stdev_ci` and `variance_ci` had wrong calculations.
+- The stacked bars in Bar plotter were not always displayed correctly. With this fix, t_base is now calculated correctly.
+
+
 ## [1.7.0] - 2025-07-01
 
 ### Changed

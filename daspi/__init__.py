@@ -238,6 +238,7 @@ from .doe import Factor
 from .doe import FullFactorialDesignBuilder
 from .doe import FullFactorial2kDesignBuilder
 from .doe import FractionalFactorialDesignBuilder
+from .doe import get_default_generators
 
 
 from .statistics.montecarlo import Binning
