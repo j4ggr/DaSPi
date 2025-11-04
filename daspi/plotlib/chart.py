@@ -1191,22 +1191,52 @@ class SingleChart(Chart):
             is displayed.
         feature_formatter : Formatter | Callable | None, optional
             Formatter or callable function to format the feature axis
-            tick labels, by default None.
+            tick labels. Can be a matplotlib.ticker.Formatter instance
+            or any callable that takes a numeric value and returns a 
+            formatted string. Useful for custom number formatting, units,
+            or scientific notation. By default, None (uses matplotlib's
+            default formatting).
+            
+            Examples:
+            - lambda x: f"{x:.1f}°C" for temperature formatting
+            - matplotlib.ticker.PercentFormatter() for percentage values
+            - lambda x: f"${x:,.0f}" for currency formatting
+            
         target_formatter : Formatter | Callable | None, optional
             Formatter or callable function to format the target axis
-            tick labels, by default None.
+            tick labels. Similar to feature_formatter but applied to
+            the target variable axis. By default, None.
+            
         feature_angle : float, optional
             Rotation angle for feature axis tick labels in degrees.
-            Positive values rotate the labels counter-clockwise,
-            negative values rotate them clockwise. By default, 0.0.
+            Positive values rotate counter-clockwise, negative values
+            rotate clockwise. Useful for avoiding overlapping labels
+            when dealing with long text or many categories. The chart
+            automatically adjusts margins to accommodate rotated labels.
+            By default, 0.0 (no rotation).
+            
+            Examples:
+            - 45.0 for diagonal labels
+            - 90.0 for vertical labels  
+            - -30.0 for slight clockwise rotation
+            
         target_angle : float, optional
             Rotation angle for target axis tick labels in degrees.
-            Positive values rotate the labels counter-clockwise,
-            negative values rotate them clockwise. By default, 0.0.
+            Same behavior as feature_angle but for the target variable
+            axis. By default, 0.0 (no rotation).
+            
         feature_align : {'center', 'right', 'left'}, optional
-            Alignment for feature axis tick labels, by default 'center'.
+            Horizontal alignment for feature axis tick labels. This
+            determines how labels are positioned relative to their
+            tick marks. 'center' aligns the label center with the tick,
+            'left' aligns the left edge, 'right' aligns the right edge.
+            Particularly useful with rotated labels. By default, 'center'.
+            
         target_align : {'center', 'right', 'left'}, optional
-            Alignment for target axis tick labels, by default 'center'.
+            Alignment for target axis tick labels. For vertical axes,
+            this controls vertical alignment: 'center' centers the label
+            on the tick, 'left' maps to 'bottom', 'right' maps to 'top'.
+            By default, 'center'.
 
         Returns
         -------
@@ -2271,7 +2301,14 @@ class MultivariateChart(SingleChart):
             target_label: str | bool | None = '',
             info: bool | str = False,
             row_title: str = '',
-            col_title: str = '') -> Self:
+            col_title: str = '',
+            feature_formatter: Formatter | Callable | None = None,
+            target_formatter: Formatter | Callable | None = None,
+            feature_angle: float = 0.0,
+            target_angle: float = 0.0,
+            feature_align: Literal['center', 'right', 'left'] = 'center',
+            target_align: Literal['center', 'right', 'left'] = 'center'
+            ) -> Self:
         """Add labels and titles to the chart.
 
         This method sets various labels and titles for the chart,
@@ -2304,6 +2341,28 @@ class MultivariateChart(SingleChart):
         col_title : str, optional
             The title for the column facet (if applicable),
             by default ''.
+        feature_formatter : Formatter | Callable | None, optional
+            Formatter or callable function to format the feature axis
+            tick labels. Can be a matplotlib.ticker.Formatter instance
+            or any callable that takes a numeric value and returns a 
+            formatted string. Applied to all subplots sharing the 
+            feature axis. By default, None.
+        target_formatter : Formatter | Callable | None, optional
+            Formatter or callable function to format the target axis
+            tick labels. Applied to all subplots sharing the target 
+            axis. By default, None.
+        feature_angle : float, optional
+            Rotation angle for feature axis tick labels in degrees.
+            Applied to all subplots. By default, 0.0 (no rotation).
+        target_angle : float, optional
+            Rotation angle for target axis tick labels in degrees.
+            Applied to all subplots. By default, 0.0 (no rotation).
+        feature_align : {'center', 'right', 'left'}, optional
+            Alignment for feature axis tick labels. Applied to all
+            subplots sharing the feature axis. By default, 'center'.
+        target_align : {'center', 'right', 'left'}, optional
+            Alignment for target axis tick labels. Applied to all
+            subplots sharing the target axis. By default, 'center'.
 
         Returns
         -------
@@ -2324,12 +2383,29 @@ class MultivariateChart(SingleChart):
             col_title = self.col
         xlabel, ylabel = self.axis_labels(feature_label, target_label)
 
+        # Map feature/target parameters to x/y parameters based on target_on_y
+        (xlabel_formatter, ylabel_formatter, xlabel_angle, ylabel_angle, 
+         xlabel_align, ylabel_align) = self._map_axis_parameters(
+            feature_formatter=feature_formatter,
+            target_formatter=target_formatter,
+            feature_angle=feature_angle,
+            target_angle=target_angle,
+            feature_align=feature_align,
+            target_align=target_align
+        )
+
         self.label_facets = LabelFacets(
             axes=self.axes,
             fig_title=fig_title,
             sub_title=sub_title,
             xlabel=xlabel,
             ylabel=ylabel,
+            xlabel_formatter=xlabel_formatter,
+            ylabel_formatter=ylabel_formatter,
+            xlabel_angle=xlabel_angle,
+            ylabel_angle=ylabel_angle,
+            xlabel_align=xlabel_align,  # type: ignore
+            ylabel_align=ylabel_align,  # type: ignore
             rows=self.row_labels,
             cols=self.col_labels,
             info=info,
