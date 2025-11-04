@@ -62,13 +62,13 @@ Ever wanted to add reference lines or highlight important regions across your pl
 
 **The Solution**: Reference lines and areas that make patterns jump out at you!
 
-Let's see this in action with aspirin dissolution data. First, the "before" picture:
+Let's see this in action with painkillers dissolution data. First, the "before" picture:
 
 ```python
 import daspi as dsp
 import matplotlib.pyplot as plt
 
-df = dsp.load_dataset('aspirin-dissolution')
+df = dsp.load_dataset('painkillers-dissolution')
 
 fig, axes = plt.subplots(
     nrows=1, ncols=df['employee'].nunique(), sharex=True, sharey=True)
@@ -86,7 +86,7 @@ Hard to compare, right? Now watch the magic happen when we add stripes:
 import daspi as dsp
 import matplotlib.pyplot as plt
 
-df = dsp.load_dataset('aspirin-dissolution')
+df = dsp.load_dataset('painkillers-dissolution')
 
 fig, axes = plt.subplots(
     nrows=1, ncols=df['employee'].nunique(), sharex=True, sharey=True)
@@ -149,12 +149,12 @@ labels.draw()
 
 ### Bringing It All Together
 
-Let's create a complete, professional-looking analysis by combining all three facet classes. We'll revisit our aspirin dissolution example and make it publication-ready:
+Let's create a complete, professional-looking analysis by combining all three facet classes. We'll revisit our painkillers dissolution example and make it publication-ready:
 
 ```python
 import daspi as dsp
 
-df = dsp.load_dataset('aspirin-dissolution')
+df = dsp.load_dataset('painkillers-dissolution')
 
 # Create the subplots layout
 axes = dsp.AxesFacets(
@@ -177,7 +177,7 @@ legend_data = {'Lines': stripes.handles_labels()}
 
 labels = dsp.LabelFacets(
     axes,
-    fig_title='Aspirin Dissolution Analysis',
+    fig_title='Painkillers Dissolution Analysis',
     sub_title='Dissolution time ~ temperature + employee',
     xlabel='Temperature (°C)',
     ylabel='Dissolution time (s)',
@@ -188,7 +188,7 @@ labels = dsp.LabelFacets(
 labels.draw()
 ```
 
-![Aspirin Dissolution](../img/facets_combined.png)
+![Painkillers Dissolution](../img/facets_combined.png)
 
 From scattered data points to a professional analysis in just a few lines of code! 🚀
 
@@ -281,7 +281,7 @@ So now let's create a chart using the SingleChart class with the same data we us
 ```python
 import daspi as dsp
 
-df = dsp.load_dataset('aspirin-dissolution')
+df = dsp.load_dataset('painkillers-dissolution')
 
 chart = dsp.SingleChart(
         source=df,
@@ -303,7 +303,7 @@ chart = dsp.SingleChart(
         mean=True,
         confidence=0.95
     ).label(
-        fig_title='Aspirin dissolution',
+        fig_title='Painkillers dissolution',
         sub_title='Dissolution time vs. Employee, Brand, and Stirrer',
         target_label='Dissolution time (s)',
         feature_label='Employee',

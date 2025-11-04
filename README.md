@@ -70,7 +70,7 @@ chart = dsp.MultivariateChart(
 Do some ANOVA and statistics on a dataset. Run the example below in a Jupyther Notebook to see the results.
 
 ```python
-df = dsp.load_dataset('aspirin-dissolution')
+df = dsp.load_dataset('painkillers-dissolution')
 model = dsp.LinearModel(
     source=df,
     target='dissolution',
@@ -87,7 +87,7 @@ model
 
 **Formula:**
 
-dissolution ~ 16.0792 + 2.3750 employee[T.B] + 0.8375 employee[T.C] + 10.7500 brand[T.Godamed] - 3.8000 water[T.tap] - 5.7167 brand[T.Godamed]:water[T.tap]
+dissolution ~ 16.0792 + 2.3750 employee[T.B] + 0.8375 employee[T.C] + 10.7500 brand[T.OuchAway] - 3.8000 water[T.tap] - 5.7167 brand[T.OuchAway]:water[T.tap]
 
 **Model Summary**
 
@@ -102,9 +102,9 @@ dissolution ~ 16.0792 + 2.3750 employee[T.B] + 0.8375 employee[T.C] + 10.7500 br
 |                     Intercept | 16.079167 | 0.839581 | 19.151424 | 0.000000 | 14.384824 | 17.773509 |
 |                 employee[T.B] |  2.375000 | 0.839581 |  2.828793 | 0.007133 |  0.680657 |  4.069343 |
 |                 employee[T.C] |  0.837500 | 0.839581 |  0.997522 | 0.324224 | -0.856843 |  2.531843 |
-|              brand[T.Godamed] | 10.750000 | 0.969464 | 11.088598 | 0.000000 |  8.793542 | 12.706458 |
+|              brand[T.OuchAway] | 10.750000 | 0.969464 | 11.088598 | 0.000000 |  8.793542 | 12.706458 |
 |                  water[T.tap] | -3.800000 | 0.969464 | -3.919690 | 0.000321 | -5.756458 | -1.843542 |
-| brand[T.Godamed]:water[T.tap] | -5.716667 | 1.371030 | -4.169616 | 0.000149 | -8.483516 | -2.949817 |
+| brand[T.OuchAway]:water[T.tap] | -5.716667 | 1.371030 | -4.169616 | 0.000149 | -8.483516 | -2.949817 |
 
 **Analysis of Variance**
 

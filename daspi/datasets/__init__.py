@@ -18,7 +18,7 @@ DATASET_INFO = StringIO(dedent("""
     anova2_unbalanced,Diet and exercise impact,anova,http://onlinestatbook.com/2/analysis_of_variance/unequal.html
     anova3,Cholesterol in different groups,anova,Pingouin
     anova3_unbalanced,Cholesterol in different groups,anova,Pingouin
-    aspirin-dissolution,exercise improving the dissolution speed of an aspirin tablet,MultiVariateChart,Six Sigma TC GmBH
+    painkillers-dissolution,exercise improving the dissolution speed of an painkillers tablet,MultiVariateChart,Six Sigma TC GmBH
     carpet_full-factorial,Full factorial DOE of a process improvement project for carpet dyeing,anova,Six Sigma TC GmbH
     drop_card,Experiment in which an attempt is made to drop a Jass card with an outstretched arm as precisely as possible onto a center with different initial orientations of the card to the ground: (vertical and parallel). Measurements were made with a ruler,process capability,Green Belt Training Experiment at Six Sigma TC GmbH 
     eeprom_full-factorial,Full factorial DOE of a process improvement project for eeproms,anova,Six Sigma TC GmbH
@@ -107,7 +107,7 @@ def list_dataset():
     'anova2_unbalanced',
     'anova3',
     'anova3_unbalanced',
-    'aspirin-dissolution',
+    'painkillers-dissolution',
     'carpet_full-factorial',
     'drop_card',
     'eeprom_full-factorial',

@@ -323,7 +323,7 @@ class LinearModel(BaseHTMLReprModel):
     ```python
     import daspi as dsp
     
-    df = dsp.load_dataset('aspirin-dissolution')
+    df = dsp.load_dataset('painkillers-dissolution')
     model = dsp.LinearModel(
         source=df,
         target='dissolution',
@@ -906,7 +906,7 @@ class LinearModel(BaseHTMLReprModel):
         import pandas as pd
         import daspi as dsp
 
-        df = dsp.load_dataset('aspirin-dissolution')
+        df = dsp.load_dataset('painkillers-dissolution')
         lm = dsp.LinearModel(
                 source=df,
                 target='dissolution',
@@ -1036,7 +1036,7 @@ class LinearModel(BaseHTMLReprModel):
         import pandas as pd
         import daspi as dsp
 
-        df = dsp.load_dataset('aspirin-dissolution')
+        df = dsp.load_dataset('painkillers-dissolution')
         lm = dsp.LinearModel(
                 source=df,
                 target='dissolution',

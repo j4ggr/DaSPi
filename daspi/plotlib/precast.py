@@ -99,7 +99,7 @@ class ParameterRelevanceCharts(JointChart):
     import daspi as dsp
     import pandas as pd
 
-    df = dsp.load_dataset('aspirin-dissolution')
+    df = dsp.load_dataset('painkillers-dissolution')
     model = dsp.LinearModel(
         source=df,
         target='dissolution',
@@ -245,7 +245,7 @@ class ResidualsCharts(JointChart):
     import daspi as dsp
     import pandas as pd
 
-    df = dsp.load_dataset('aspirin-dissolution')
+    df = dsp.load_dataset('painkillers-dissolution')
     model = dsp.LinearModel(
         source=df,
         target='dissolution',
@@ -510,7 +510,7 @@ class BivariateUnivariateCharts(JointChart):
     ```python
     import daspi as dsp
 
-    df = dsp.load_dataset('aspirin-dissolution')
+    df = dsp.load_dataset('painkillers-dissolution')
     hue = 'brand'
     n_groups = df.groupby(hue).ngroups
     chart = dsp.BivariateUnivariateCharts(
@@ -527,7 +527,7 @@ class BivariateUnivariateCharts(JointChart):
             dsp.LinearRegressionLine, show_fit_ci=True
         ).label(
             fig_title='Regression and distribution analysis',
-            sub_title='Aspirin dissolution time vs. temperature',
+            sub_title='Painkillers dissolution time vs. temperature',
             feature_label='Water temperature (°C)',
             target_label='Dissolution time (s)',
             axes_titles=('95 % Bonferroni confidence interval of mean', '', '', ''),
