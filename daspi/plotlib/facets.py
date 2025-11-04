@@ -14,6 +14,7 @@ from typing import Literal
 from typing import overload
 from typing import Sequence
 from typing import Generator
+from typing import Callable
 from numpy.typing import NDArray
 from matplotlib.text import Text
 from matplotlib.axes import Axes
@@ -21,6 +22,7 @@ from matplotlib.lines import Line2D
 from matplotlib.figure import Figure
 from matplotlib.legend import Legend
 from matplotlib.artist import Artist
+from matplotlib.ticker import Formatter
 from matplotlib.typing import HashableList
 from matplotlib.patches import Patch
 
@@ -677,6 +679,16 @@ class LabelFacets:
         The axis label(s) of the figure. To label multiple axes with 
         different names, provide a tuple; otherwise, provide a string,
         by default ''.
+    xlabel_formatter, ylabel_formatter : callable | Formatter | None, optional
+        Functions to format the x and y axis tick labels, by default None.
+    xlabel_angle, ylabel_angle : float, optional
+        Rotation angle for x and y axis tick labels in degrees, 
+        by default 0.
+    xlabel_align, ylabel_align : str, optional
+        Alignment for x and y axis tick labels. For x-axis, valid values
+        are 'left', 'center', 'right'. For y-axis, valid values are 
+        'bottom', 'center', 'top', by default 'center'.
+    
     info : bool or str, optional
         Indicates whether to include an info text at the lower left 
         corner in the figure. The date and user are automatically added,
@@ -711,6 +723,18 @@ class LabelFacets:
     """The x-axis label(s) of the figure."""
     ylabel: str | Tuple[str, ...]
     """The y-axis label(s) of the figure."""
+    xlabel_formatter: Callable | Formatter | None
+    """Function to format the x-axis tick labels."""
+    ylabel_formatter: Callable | Formatter | None
+    """Function to format the y-axis tick labels."""
+    xlabel_angle: float
+    """Rotation angle for x-axis tick labels in degrees."""
+    ylabel_angle: float
+    """Rotation angle for y-axis tick labels in degrees."""
+    xlabel_align: Literal['left', 'center', 'right']
+    """Alignment for x-axis tick labels."""
+    ylabel_align: Literal['bottom', 'center', 'top']
+    """Alignment for y-axis tick labels."""
     info: bool | str
     """Indicates whether to include an info text in the figure."""
     rows: Tuple[str, ...]
@@ -742,6 +766,12 @@ class LabelFacets:
             sub_title: str = '',
             xlabel: str | Tuple[str, ...] = '',
             ylabel: str | Tuple[str, ...] = '',
+            xlabel_formatter: Callable | None = None,
+            ylabel_formatter: Callable | None = None,
+            xlabel_angle: float = 0,
+            ylabel_angle: float = 0,
+            xlabel_align: Literal['left', 'center', 'right'] = 'center',
+            ylabel_align: Literal['bottom', 'center', 'top'] = 'center',
             info: bool | str = False,
             rows: Tuple[str, ...] = (),
             cols: Tuple[str, ...] = (),
@@ -756,6 +786,12 @@ class LabelFacets:
         self.sub_title = sub_title
         self.xlabel = xlabel
         self.ylabel = ylabel
+        self.xlabel_formatter = xlabel_formatter
+        self.ylabel_formatter = ylabel_formatter
+        self.xlabel_angle = xlabel_angle
+        self.ylabel_angle = ylabel_angle
+        self.xlabel_align = xlabel_align
+        self.ylabel_align = ylabel_align
         self.rows = rows
         self.cols = cols
         self.row_title = row_title
@@ -797,6 +833,29 @@ class LabelFacets:
         """Get the estimated size of the text in the figure in pixels."""
         dpi = text.figure.dpi if text.figure else plt.rcParams['figure.dpi']
         return int(int(text.get_fontsize()) * LABEL.PPI * dpi) + LABEL.PADDING
+    
+    @staticmethod
+    def estimate_rotation_margin(angle_degrees: float, base_margin: int = 25) -> int:
+        """Estimate additional margin needed for rotated tick labels.
+        
+        Parameters
+        ----------
+        angle_degrees : float
+            Rotation angle in degrees
+        base_margin : int, optional
+            Base margin for calculating rotated label space, by default 25
+            
+        Returns
+        -------
+        int
+            Additional margin in pixels needed for the rotation
+        """
+        if abs(angle_degrees) < 5:  # No significant rotation
+            return 0
+        
+        angle_rad = abs(angle_degrees) * np.pi / 180
+        # Use sine to estimate the additional perpendicular space needed
+        return int(base_margin * np.sin(angle_rad))
     
     @staticmethod
     def get_legend_artists(legend: Legend) -> List[Artist]:
@@ -879,6 +938,30 @@ class LabelFacets:
         for ax, title in zip(self.axes.flat, self.axes_titles):
             ax.set_title(title)
 
+    def _apply_axis_formatting(self) -> None:
+        """Apply formatters and rotation to all axes before calculating margins.
+        This ensures that margin calculations account for the space needed by 
+        rotated or formatted labels."""
+        for ax in self.axes.flat:
+            # Apply formatters
+            if self.xlabel_formatter is not None:
+                ax.xaxis.set_major_formatter(self.xlabel_formatter)
+            if self.ylabel_formatter is not None:
+                ax.yaxis.set_major_formatter(self.ylabel_formatter)
+            
+            # Apply rotation and alignment
+            if self.xlabel_angle != 0 or self.xlabel_align != 'center':
+                ax.tick_params(axis='x', rotation=self.xlabel_angle)
+                # Apply horizontal alignment for x-axis labels
+                for label in ax.get_xticklabels():
+                    label.set_horizontalalignment(self.xlabel_align)
+                    
+            if self.ylabel_angle != 0 or self.ylabel_align != 'center':
+                ax.tick_params(axis='y', rotation=self.ylabel_angle)
+                # Apply vertical alignment for y-axis labels
+                for label in ax.get_yticklabels():
+                    label.set_verticalalignment(self.ylabel_align)
+
     def _add_left_labels(self) -> None:
         """Add the ylabel or ylabs. If only one is present, a label will
         be added centrally for all axes. Otherwise, a label will be added
@@ -896,6 +979,11 @@ class LabelFacets:
                 for ax, ylabel in zip(self.axes.flat, self.ylabel):
                     if self.not_shared(ax.yaxis) or ax in self.axes[:, 0]:
                         ax.set(ylabel=ylabel)
+        
+        # Add extra margin for rotated y-axis labels
+        if self.ylabel_angle != 0:
+            extra_margin = self.estimate_rotation_margin(self.ylabel_angle, base_margin=20)
+            self._margin['left'] += extra_margin
 
     def _add_bottom_labels(self) -> None:
         """Insert the xlabel or xlabs. If only one is present, a label 
@@ -927,6 +1015,11 @@ class LabelFacets:
                 for ax, xlabel in zip(self.axes.flat, self.xlabel):
                     if self.not_shared(ax.xaxis) or ax in self.axes[-1, :]: 
                         ax.set(xlabel=xlabel)
+        
+        # Add extra margin for rotated x-axis labels
+        if self.xlabel_angle != 0:
+            extra_margin = self.estimate_rotation_margin(self.xlabel_angle, base_margin=30)
+            self._margin['bottom'] += extra_margin
 
     def _add_right_labels(self) -> None:
         """Add row labels and row title to the figure. The title is 
@@ -1029,6 +1122,9 @@ class LabelFacets:
         """Draw all the label facets to the figure."""
         self.clear()
 
+        # Apply axis formatting first, before calculating margins
+        self._apply_axis_formatting()
+        
         self._add_axes_titles()
         for title, (handles, labels) in self.legend_data.items():
             self._add_legend(handles, labels, title)
