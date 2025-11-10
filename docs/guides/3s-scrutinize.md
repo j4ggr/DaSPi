@@ -4,7 +4,7 @@ The **Scrutinize** phase is the analytical heart of the 3S methodology, focusing
 
 ## Overview
 
-![Scrutinize Phase Overview](../img/3s-scrutinize-overview.png)
+![Scrutinize Phase Overview](../img/3s-scrutinize-overview.svg)
 
 The Scrutinize phase corresponds to the fourth step of the 8D approach (D4) and aligns with the Analyze phase of Six Sigma DMAIC. It emphasizes thorough investigation and evidence-based decision making.
 
@@ -29,8 +29,6 @@ The Scrutinize phase corresponds to the fourth step of the 8D approach (D4) and 
 ### 1. Root Cause Identification
 
 **Objective:** Generate and organize potential causes systematically.
-
-![Root Cause Analysis Methods](../img/root-cause-methods.png)
 
 #### Brainstorming Techniques
 
@@ -79,8 +77,6 @@ Systematic analysis of potential failures:
 ### 2. Cause Prioritization
 
 **Objective:** Weight and rank potential causes based on data and expert judgment.
-
-![Cause Prioritization Matrix](../img/cause-prioritization.png)
 
 #### Pairwise Comparison Method
 
@@ -172,8 +168,6 @@ plt.show()
 ### 3. Statistical Experimentation
 
 **Objective:** Design and conduct experiments to validate cause-and-effect relationships.
-
-![DOE Strategy](../img/doe-strategy.png)
 
 #### Design of Experiments (DOE)
 

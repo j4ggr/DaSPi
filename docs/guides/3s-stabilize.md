@@ -4,7 +4,7 @@ The **Stabilize** phase is the execution and sustainability phase of the 3S meth
 
 ## Overview
 
-![Stabilize Phase Overview](../img/3s-stabilize-overview.png)
+![Stabilize Phase Overview](../img/3s-stabilize-overview.svg)
 
 The Stabilize phase corresponds to steps D5-D8 of the 8D approach and combines the Improve and Control phases of Six Sigma DMAIC. It emphasizes sustainable implementation and knowledge transfer.
 

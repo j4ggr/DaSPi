@@ -73,7 +73,7 @@ From the author's viewpoint, **if parts of the methodology can be omitted—espe
 
 ## Overview
 
-![3S Methodology Flow](../img/3s-overview.png)
+![3S Methodology Flow](../img/3s-overview.svg)
 
 The 3S methodology consists of three main phases, each with a distinct focus and color-coded approach:
 
@@ -203,5 +203,3 @@ The DaSPi library provides comprehensive support for 3S methodology implementati
 ---
 
 Ready to start your 3S journey? Begin with the [Specify phase](3s-specify.md) to learn how to properly define your problem and set up your improvement project for success.
- 
- 

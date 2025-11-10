@@ -4,7 +4,7 @@ The **Specify** phase is the foundation of the 3S methodology, focusing on clear
 
 ## Overview
 
-![Specify Phase Overview](../img/3s-specify-overview.png)
+![Specify Phase Overview](../img/3s-specify-overview.svg)
 
 The Specify phase corresponds to the first three steps of the traditional 8D approach (D1-D3) and combines elements of Six Sigma's Define and Measure phases.
 
@@ -30,8 +30,6 @@ The Specify phase corresponds to the first three steps of the traditional 8D app
 
 **Objective:** Assemble a cross-functional team with the right skills and authority.
 
-![Team Formation Process](../img/team-formation.png)
-
 #### Essential Team Roles
 
 | Role | Responsibility | Skills Required |
@@ -53,8 +51,6 @@ The Specify phase corresponds to the first three steps of the traditional 8D app
 ### 2. Problem Definition (D2)
 
 **Objective:** Create a precise, quantified problem statement with clear scope.
-
-![Problem Definition Framework](../img/problem-definition.png)
 
 #### SIPOC Analysis
 
@@ -113,8 +109,6 @@ print(f"DPU: {estimator.dpu:.3f}")
 ### 3. Immediate Containment (D3)
 
 **Objective:** Implement immediate measures to prevent further defects or damage.
-
-![Containment Strategy](../img/containment-strategy.png)
 
 #### Containment Action Categories
 
@@ -267,5 +261,3 @@ The solid foundation established in the Specify phase enables effective investig
 ---
 
 **Phase Complete!** You have successfully contained the immediate problem and established a strong foundation for systematic improvement. The team is ready to dive deep into root cause analysis in the Scrutinize phase.
- 
- 
