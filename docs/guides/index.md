@@ -72,7 +72,7 @@ Comprehensive guides for statistical analysis using DaSPi:
 
 Learn to create effective visualizations with DaSPi's plotting capabilities:
 
-### [Plotting Guide](plotting-guide.md)
+### [Plotting Guide](plotting.md)
 
 Comprehensive guide to creating professional charts and visualizations using DaSPi's plotting library.
 
@@ -114,6 +114,6 @@ If you're new to DaSPi, we recommend starting with:
 
 1. **[3S Methodology Overview](3s-methodology.md)** - Understand the systematic approach
 2. **[Specify Phase](3s-specify.md)** - Learn problem definition and containment
-3. **[Plotting Guide](plotting-guide.md)** - Master data visualization techniques
+3. **[Plotting Guide](plotting.md)** - Master data visualization techniques
 
 For specific statistical methods, navigate to the relevant sections in the documentation or explore the examples in our notebook collection.

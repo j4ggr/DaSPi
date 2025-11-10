@@ -1,0 +1,5 @@
+# Ignore empty guide files
+
+guides/hypothesis-testing.md
+guides/process_analysis.md
+guides/process_improvement.md

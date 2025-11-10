@@ -81,13 +81,20 @@ nav:
     - DaSPi: index.md
     - Changelog: CHANGELOG.md
   - User Guide:
-    # - guides/index.md
+    - guides/index.md
     - guides/installing.md
     - guides/anova.md
     - guides/doe.md
-    # - guides/process_improvement.md
     - guides/plotting.md
-    # - guides/hypothesis-testing.md
+    - guides/gage_analysis.md
+    - guides/hypothesis-testing.md
+    - guides/process_analysis.md
+    - guides/process_improvement.md
+    - 3S Methodology:
+      - guides/3s-methodology.md
+      - guides/3s-specify.md
+      - guides/3s-scrutinize.md
+      - guides/3s-stabilize.md
   - API:
     - Anova:
       - ANOVA: anova/index.md

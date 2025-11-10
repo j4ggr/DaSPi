@@ -1,84 +1,165 @@
-# Scrutinize Phase: Investigate & Analyze
+# Scrutinize Phase: Channel Your Inner Detective
 
-The **Scrutinize** phase is the analytical heart of the 3S methodology, focusing on systematic investigation and root cause identification. This phase employs rigorous data analysis and statistical methods to uncover the true causes behind the problem.
-
-## Overview
+Welcome to the **investigative heart** of the 3S methodology! This is where you put on your detective hat and dig deep into what's really causing your problem. No more guessing, no more "it's probably this" – we're going full CSI on your process.
 
 ![Scrutinize Phase Overview](../img/3s-scrutinize-overview.svg)
 
-The Scrutinize phase corresponds to the fourth step of the 8D approach (D4) and aligns with the Analyze phase of Six Sigma DMAIC. It emphasizes thorough investigation and evidence-based decision making.
+Think of this phase as your chance to transform from someone who *thinks* they know what's wrong to someone who can *prove* what's wrong with hard data and statistical evidence.
 
-## Phase Objectives
+## What Makes Scrutinize Special?
 
-### Primary Goals
+This isn't your typical troubleshooting session where you try one thing after another hoping something works. The Scrutinize phase is all about:
 
-- **Identify the most likely root causes** using structured methodologies
-- **Weight and prioritize causes** based on impact and likelihood
-- **Conduct statistical experiments** to validate hypotheses
-- **Develop evidence-based conclusions** through significance testing
+- **Systematic investigation** using proven root cause analysis techniques
+- **Data-driven conclusions** backed by statistical evidence
+- **Interaction hunting** to find those sneaky hidden relationships that throw everyone off
+- **Hypothesis testing** that separates facts from wishful thinking
 
-### Success Criteria
+### Why Most Problem-Solving Fails (And How We Fix It)
 
-✅ **Root causes identified** and validated through data analysis  
-✅ **Statistical evidence** supports cause-and-effect relationships  
-✅ **Interaction effects** are understood and quantified  
-✅ **Hypotheses tested** with appropriate confidence levels  
+Ever notice how the "obvious" solution often doesn't work? That's because most problems have **hidden interactions** between factors. What works perfectly under one set of conditions fails miserably under another.
 
-## Key Activities
+For example:
 
-### 1. Root Cause Identification
+- A temperature setting that's perfect in winter might cause chaos in summer
+- A process adjustment that works great for experienced operators might confuse new ones
+- A supplier change that improves one quality measure might secretly degrade another
 
-**Objective:** Generate and organize potential causes systematically.
+**This is exactly why we need the systematic approach of the Scrutinize phase** – to uncover these hidden relationships before they bite us.  
 
-#### Brainstorming Techniques
+## Your Detective Toolkit: Four Key Investigation Steps
 
-**Mind Mapping**
-- Central problem in the center
-- Branch out to major categories
-- Sub-branches for specific causes
-- Visual representation of relationships
+### 1. Brainstorm All the Suspects (Root Cause Identification)
 
-**Ishikawa (Fishbone) Diagram**
-- Categories: Man, Machine, Method, Material, Environment, Measurement
-- Systematic exploration of each category
-- Team-based cause identification
+First things first: you need to round up all the usual suspects. This isn't about jumping to conclusions – it's about systematically considering every possible culprit.
 
-**Process Mapping**
-- Step-by-step process documentation
-- Identify potential failure points
-- Map inputs, outputs, and controls
+#### The Classic Fishbone Diagram (Your Best Friend)
+
+The Ishikawa diagram is like a systematic way to make sure you don't miss any obvious causes. Think of it as your investigation checklist:
+
+- **Machine:** Equipment issues, calibration problems, wear and tear
+- **Method:** Procedures, work instructions, training gaps  
+- **Material:** Raw material variation, supplier changes, storage conditions
+- **Man/People:** Skill levels, training, motivation, fatigue
+- **Environment:** Temperature, humidity, vibration, cleanliness
+- **Measurement:** Gauge accuracy, measurement procedures, data quality
+
+Let's see how to organize this data with DaSPi:
 
 ```python
 import daspi as dsp
 import pandas as pd
 
-# Example: Organize root cause data
-causes_data = {
-    'Category': ['Machine', 'Machine', 'Material', 'Method', 'Environment'],
-    'Potential_Cause': ['Calibration drift', 'Wear', 'Contamination', 'Procedure gap', 'Temperature'],
-    'Likelihood': [0.8, 0.6, 0.7, 0.9, 0.5],
-    'Impact': [0.9, 0.7, 0.8, 0.8, 0.6]
+# Build your suspect database
+suspects = {
+    'Category': ['Machine', 'Machine', 'Material', 'Method', 'Environment', 'People'],
+    'Potential_Cause': [
+        'Calibration drift',
+        'Tool wear', 
+        'Raw material variation',
+        'Procedure not followed',
+        'Temperature fluctuation',
+        'Operator experience'
+    ],
+    'Evidence_Available': ['Yes', 'Yes', 'Yes', 'No', 'Yes', 'Partial'],
+    'Impact_Score': [8, 6, 7, 9, 5, 7],
+    'Likelihood_Score': [7, 8, 6, 4, 6, 8]
 }
 
-causes_df = pd.DataFrame(causes_data)
-causes_df['Priority_Score'] = causes_df['Likelihood'] * causes_df['Impact']
-print(causes_df.sort_values('Priority_Score', ascending=False))
+suspects_df = pd.DataFrame(suspects)
+suspects_df['Priority'] = suspects_df['Impact_Score'] * suspects_df['Likelihood_Score']
+
+# Sort by priority to focus on the most likely culprits first
+print("Your Top Suspects (Ranked by Priority):")
+print(suspects_df.sort_values('Priority', ascending=False))
 ```
 
-#### FMEA (Failure Mode and Effects Analysis)
+#### Process Mapping: Following the Crime Scene
 
-Systematic analysis of potential failures:
+Sometimes you need to walk through the scene step by step. Process mapping helps you identify exactly where things can go wrong:
 
-| Failure Mode | Effects | Causes | Severity | Occurrence | Detection | RPN |
-|--------------|---------|--------|----------|------------|-----------|-----|
-| Calibration drift | Out-of-spec products | Temperature variation | 8 | 6 | 4 | 192 |
-| Tool wear | Surface defects | Usage cycles | 7 | 7 | 3 | 147 |
+```python
+# Example: Manufacturing process steps
+process_steps = {
+    'Step': [1, 2, 3, 4, 5],
+    'Process': ['Material prep', 'Setup', 'Processing', 'Inspection', 'Packaging'],
+    'Failure_Risk': ['Medium', 'High', 'High', 'Medium', 'Low'],
+    'Control_Method': ['Visual check', 'Calibration', 'SPC', 'Measurement', 'Count check']
+}
 
-### 2. Cause Prioritization
+process_df = pd.DataFrame(process_steps)
+print("\nProcess Risk Assessment:")
+print(process_df)
+```
 
-**Objective:** Weight and rank potential causes based on data and expert judgment.
+### 2. Build Your Case with Data (Cause Prioritization)
 
-#### Pairwise Comparison Method
+Now that you have your list of suspects, you need to figure out which ones are worth investigating first. This is where data becomes your best friend.
+
+#### The 80/20 Rule for Root Causes
+
+Just like in real detective work, not all leads are created equal. Let's use DaSPi to create a Pareto analysis:
+
+```python
+# Example: Quality defect analysis
+defect_data = {
+    'Defect_Type': ['Surface scratches', 'Dimension out of spec', 'Color variation', 
+                   'Missing components', 'Contamination', 'Other'],
+    'Frequency': [145, 89, 67, 34, 28, 12],
+    'Cost_Impact': [2.50, 15.00, 1.80, 45.00, 8.50, 3.20]
+}
+
+df = pd.DataFrame(defect_data)
+df['Total_Impact'] = df['Frequency'] * df['Cost_Impact']
+
+# Create a proper Pareto chart with DaSPi
+chart = dsp.SingleChart(
+    source=df.sort_values('Total_Impact', ascending=False),
+    target='Total_Impact',
+    feature='Defect_Type'
+).plot(
+    dsp.Bar
+).plot(
+    dsp.Pareto  # This will add the cumulative percentage line
+).label(
+    fig_title='Root Cause Priority Analysis',
+    target_label='Total Impact ($)',
+    feature_label='Defect Types',
+    info='Focus on the vital few causes that drive 80% of the impact'
+)
+```
+
+#### Risk Priority Matrix
+
+Sometimes you need to balance likelihood against impact. Here's how to create a risk matrix:
+
+```python
+# Create a risk assessment matrix
+risk_data = {
+    'Cause': ['Tool wear', 'Operator error', 'Material variation', 'Temperature drift'],
+    'Likelihood': [8, 6, 5, 7],  # Scale 1-10
+    'Impact': [7, 9, 6, 5],      # Scale 1-10
+    'Detection': [6, 3, 8, 4]    # How easy to detect (1=hard, 10=easy)
+}
+
+risk_df = pd.DataFrame(risk_data)
+risk_df['RPN'] = risk_df['Likelihood'] * risk_df['Impact'] * (11 - risk_df['Detection'])
+
+# Visualize with a scatter plot
+chart = dsp.SingleChart(
+    source=risk_df,
+    target='Impact',
+    feature='Likelihood',
+    size='RPN'  # Bubble size represents Risk Priority Number
+).plot(
+    dsp.Scatter
+).label(
+    fig_title='Risk Priority Matrix',
+    target_label='Impact (1-10)',
+    feature_label='Likelihood (1-10)',
+    info='Larger bubbles = higher risk priority'
+)
+```
 
 ```python
 import numpy as np
@@ -165,73 +246,217 @@ plt.tight_layout()
 plt.show()
 ```
 
-### 3. Statistical Experimentation
+### 3. Time to Get Experimental (Design of Experiments)
 
-**Objective:** Design and conduct experiments to validate cause-and-effect relationships.
+This is where the magic happens. Instead of changing one thing at a time and hoping for the best, we're going to be smart about it. DOE helps you uncover those sneaky interactions we talked about.
 
-#### Design of Experiments (DOE)
+#### Starting Simple: One Factor at a Time?
 
-**Full Factorial Design**
-
-```python
-from itertools import product
-
-# Example: 2^3 factorial design
-factors = {
-    'Temperature': [80, 120],
-    'Pressure': [2, 4], 
-    'Time': [30, 60]
-}
-
-# Generate all combinations
-design_points = list(product(*factors.values()))
-factor_names = list(factors.keys())
-
-design_df = pd.DataFrame(design_points, columns=factor_names)
-design_df['Run_Order'] = np.random.permutation(len(design_df))
-design_df = design_df.sort_values('Run_Order').reset_index(drop=True)
-
-print("Experimental Design:")
-print(design_df)
-```
-
-**Response Surface Methodology (RSM)**
-
-For optimization studies when approaching optimal conditions:
+**Don't do this!** Here's why the traditional "one factor at a time" approach fails:
 
 ```python
-# Example: Central Composite Design
-from scipy.stats import norm
+# Traditional approach (WRONG!)
+# Week 1: Change temperature only
+# Week 2: Change pressure only  
+# Week 3: Change time only
+# Result: Miss the interaction between temperature and pressure!
 
-# Define factor levels for CCD
-alpha = np.sqrt(len(factor_names))  # Rotatable design
-center_points = 3
+# Let's see what happens with a real example
+import numpy as np
 
-# Generate design matrix (simplified)
-print(f"Alpha value for rotatable design: {alpha:.2f}")
-print(f"Recommended center points: {center_points}")
+# Simulate a process where temperature and pressure interact
+def process_yield(temp, pressure):
+    # Hidden interaction: high temp + high pressure = problems!
+    base_yield = 85
+    temp_effect = (temp - 100) * 0.2
+    pressure_effect = (pressure - 3) * 2
+    interaction_effect = -0.1 * (temp - 100) * (pressure - 3)  # This is what OFAT misses!
+    
+    return base_yield + temp_effect + pressure_effect + interaction_effect
+
+# OFAT would test these one at a time and miss the interaction
+print("One Factor at a Time Results:")
+print(f"Baseline (100°C, 3 bar): {process_yield(100, 3):.1f}%")
+print(f"Higher temp (110°C, 3 bar): {process_yield(110, 3):.1f}%")
+print(f"Higher pressure (100°C, 4 bar): {process_yield(100, 4):.1f}%")
+print(f"Both high (110°C, 4 bar): {process_yield(110, 4):.1f}% <- Surprise!")
 ```
 
-#### EVOP (Evolutionary Operation)
+#### The Smart Way: Factorial Design with DaSPi
 
-For ongoing process improvement during production:
+Let's build a proper experiment that catches interactions:
 
 ```python
-# Example: Simple EVOP cycle
-current_conditions = {'Temperature': 100, 'Pressure': 3}
-evop_changes = {'Temperature': ±2, 'Pressure': ±0.2}
+# Create a 2-factor factorial design
+factors = dsp.Factor.build({
+    'Temperature': [95, 105],
+    'Pressure': [2.5, 3.5],
+    'Time': [25, 35]
+})
 
-print("EVOP Experimental Conditions:")
-for factor, base_value in current_conditions.items():
-    change = evop_changes[factor]
-    print(f"{factor}: {base_value-change}, {base_value}, {base_value+change}")
+# Build a full factorial design
+design = dsp.FullFactorialDesignBuilder(factors).build()
+
+print("Smart Experimental Design:")
+print(design.head())
+
+# Run the experiment (simulated results)
+np.random.seed(42)  # For reproducible results
+design['Yield'] = [process_yield(row['Temperature'], row['Pressure']) + 
+                   np.random.normal(0, 1) for _, row in design.iterrows()]
+
+print("\nExperimental Results:")
+print(design)
 ```
 
-### 4. Hypothesis Testing and Validation
+#### Analyzing Your Results with ANOVA
+
+Now comes the exciting part – finding out what really matters:
+
+```python
+# Build a linear model to analyze the results
+model = dsp.LinearModel(
+    source=design,
+    target='Yield',
+    features=['Temperature', 'Pressure', 'Time'],
+    order=2  # Include interactions
+)
+
+print("ANOVA Results:")
+print(model.anova_table())
+
+# Check which effects are significant
+significant_effects = model.anova_table()[model.anova_table()['P'] < 0.05]
+print(f"\nSignificant Effects (p < 0.05):")
+print(significant_effects[['SS', 'F', 'P']])
+
+# Create residual plots to validate the model
+residual_charts = dsp.ResidualsCharts(model)
+residual_charts.plot().label(
+    fig_title='Model Validation',
+    info='Check for patterns in residuals'
+)
+```
+
+### 4. Testing Your Theories (Hypothesis Testing)
+
+Time to put your theories to the test! Hypothesis testing is like being a judge in court – you need evidence beyond reasonable doubt.
+
+#### Setting Up Your Case
+
+Before you start, you need to establish your ground rules:
+
+```python
+# Let's say you suspect temperature affects yield
+# H0: Temperature has NO effect on yield (null hypothesis)
+# H1: Temperature DOES affect yield (alternative hypothesis)
+
+# Your threshold for "beyond reasonable doubt"
+alpha = 0.05  # 5% chance you're wrong if you reject H0
+
+print("Setting up our hypothesis test:")
+print(f"Significance level (α): {alpha}")
+print("H0: Temperature coefficient = 0 (no effect)")
+print("H1: Temperature coefficient ≠ 0 (has effect)")
+```
+
+#### The t-test: Is This Effect Real?
+
+Let's test if that temperature effect we found is statistically significant:
+
+```python
+# Extract the temperature coefficient from our model
+temp_coeff = model.coefficients['Temperature']
+temp_std_error = model.standard_errors['Temperature']
+temp_t_stat = temp_coeff / temp_std_error
+
+# Calculate degrees of freedom
+df = len(design) - len(model.coefficients)
+
+# Get the p-value (probability of seeing this result by chance)
+from scipy.stats import t
+p_value = 2 * (1 - t.cdf(abs(temp_t_stat), df))
+
+print("Temperature Effect Analysis:")
+print(f"Coefficient: {temp_coeff:.3f}")
+print(f"Standard Error: {temp_std_error:.3f}")
+print(f"t-statistic: {temp_t_stat:.3f}")
+print(f"p-value: {p_value:.6f}")
+
+# Make your decision
+if p_value < alpha:
+    print(f"🎯 SIGNIFICANT! Temperature really does affect yield (p < {alpha})")
+else:
+    print(f"🤷 Not significant. Could just be random variation (p ≥ {alpha})")
+```
+
+#### Confidence Intervals: How Sure Are We?
+
+Instead of just "yes/no", let's see the range of possible effects:
+
+```python
+# Calculate 95% confidence interval for temperature effect
+confidence_level = 0.95
+t_critical = t.ppf((1 + confidence_level) / 2, df)
+
+margin_of_error = t_critical * temp_std_error
+ci_lower = temp_coeff - margin_of_error
+ci_upper = temp_coeff + margin_of_error
+
+print(f"\n95% Confidence Interval for Temperature Effect:")
+print(f"Range: [{ci_lower:.3f}, {ci_upper:.3f}]")
+
+if ci_lower > 0 and ci_upper > 0:
+    print("🔥 Temperature definitely increases yield!")
+elif ci_lower < 0 and ci_upper < 0:
+    print("❄️ Temperature definitely decreases yield!")
+else:
+    print("🤔 Effect could go either way - not conclusive")
+```
+
+#### Multiple Comparisons: Don't Get Fooled
+
+When testing multiple factors, you need to be extra careful:
+
+```python
+# Bonferroni correction for multiple testing
+num_tests = len(model.coefficients) - 1  # Exclude intercept
+adjusted_alpha = alpha / num_tests
+
+print(f"\nMultiple Testing Correction:")
+print(f"Original α: {alpha}")
+print(f"Number of tests: {num_tests}")
+print(f"Bonferroni-adjusted α: {adjusted_alpha:.4f}")
+
+# Re-evaluate significance with adjusted threshold
+significant_factors = []
+for factor, p_val in model.p_values.items():
+    if factor != 'Intercept' and p_val < adjusted_alpha:
+        significant_factors.append(factor)
+
+print(f"Significant factors after correction: {significant_factors}")
+```
+
+## Wrapping Up Your Investigation
+
+By now, you should have:
+
+1. **Identified root causes** using systematic tools like fishbone diagrams and data analysis
+2. **Prioritized the most impactful causes** using Pareto analysis and risk assessment
+3. **Designed smart experiments** that reveal interactions and optimize multiple factors
+4. **Tested your theories** with proper statistical rigor
+
+Remember: The goal isn't to find THE perfect answer, but to narrow down the field to the most promising candidates. In the next phase (Stabilize), we'll implement solutions for these verified root causes.
+
+**Pro tip:** Document everything! Your future self (and your colleagues) will thank you when similar problems pop up later.
+
+---
+
+*Ready to move on? Check out the [Stabilize phase](3s-stabilize.md) to learn how to implement and monitor your solutions.*### 4. Hypothesis Testing and Validation
 
 **Objective:** Use statistical methods to prove cause-and-effect relationships.
 
-![Hypothesis Testing Framework](../img/hypothesis-testing.png)
+<!-- ![Hypothesis Testing Framework](../img/hypothesis-testing.png) -->
 
 #### ANOVA (Analysis of Variance)
 

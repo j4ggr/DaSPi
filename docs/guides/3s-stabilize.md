@@ -30,7 +30,7 @@ The Stabilize phase corresponds to steps D5-D8 of the 8D approach and combines t
 
 **Objective:** Choose the most effective and economical solution while considering customer impact.
 
-![Solution Selection Process](../img/solution-selection.png)
+<!-- ![Solution Selection Process](../img/solution-selection.png) -->
 
 #### Target Optimization
 
@@ -135,7 +135,7 @@ print(task_df[['Task', 'Category']].sort_values(['Importance', 'Urgency'], ascen
 
 **Objective:** Implement corrective measures and validate their effectiveness statistically.
 
-![Implementation Validation](../img/implementation-validation.png)
+<!-- ![Implementation Validation](../img/implementation-validation.png) -->
 
 #### Hypothesis Testing for Validation
 
@@ -252,7 +252,7 @@ plt.show()
 
 **Objective:** Establish sustainable control mechanisms to maintain improvements.
 
-![Control Systems](../img/control-systems.png)
+<!-- ![Control Systems](../img/control-systems.png) -->
 
 #### Statistical Process Control (SPC)
 
@@ -344,7 +344,7 @@ print(f"Trend Analysis: Slope={slope:.4f}, R²={r_value**2:.3f}, p-value={p_valu
 
 **Objective:** Document lessons learned and apply knowledge to similar projects.
 
-![Knowledge Transfer](../img/knowledge-transfer.png)
+<!-- ![Knowledge Transfer](../img/knowledge-transfer.png) -->
 
 #### Lessons Learned Documentation
 
