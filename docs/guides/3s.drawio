@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e" scale="2" border="0">
     <diagram id="Z8clrmZhxDpTAfRLiKKy" name="3s en">
-        <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="850" pageHeight="1100" background="#ffffff" math="0" shadow="0">
+        <mxGraphModel dx="308" dy="1094" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" background="#ffffff" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -273,7 +273,7 @@
                 <mxCell id="118" value="" style="line;strokeWidth=0.25;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;fontFamily=Helvetica;" parent="116" vertex="1">
                     <mxGeometry y="90" width="190" height="8" as="geometry"/>
                 </mxCell>
-                <mxCell id="119" value="&lt;span style=&quot;color: rgb(63, 63, 63); text-align: center;&quot;&gt;SIPOC&lt;/span&gt;" style="html=1;align=left;spacing=0;spacingLeft=10;verticalAlign=middle;strokeColor=none;fillColor=none;whiteSpace=wrap;fontFamily=Helvetica;" parent="116" vertex="1">
+                <mxCell id="119" value="&lt;span style=&quot;color: rgb(63, 63, 63); text-align: center;&quot;&gt;5W2H and SIPOC&lt;/span&gt;" style="html=1;align=left;spacing=0;spacingLeft=10;verticalAlign=middle;strokeColor=none;fillColor=none;whiteSpace=wrap;fontFamily=Helvetica;" parent="116" vertex="1">
                     <mxGeometry y="98" width="190" height="30" as="geometry"/>
                 </mxCell>
                 <mxCell id="120" value="&lt;div style=&quot;color: rgb(63, 63, 63); scrollbar-color: rgb(226, 226, 226) rgb(251, 251, 251); text-align: center;&quot;&gt;Metrics&amp;nbsp;&lt;span style=&quot;background-color: transparent;&quot;&gt;DPU, FPY &amp;amp;&amp;nbsp;&lt;/span&gt;&lt;span style=&quot;background-color: transparent; scrollbar-color: rgb(226, 226, 226) rgb(251, 251, 251); color: rgb(63, 63, 63);&quot;&gt;CpK&lt;/span&gt;&lt;/div&gt;" style="html=1;align=left;spacing=0;spacingLeft=10;verticalAlign=middle;strokeColor=none;fillColor=none;whiteSpace=wrap;fontFamily=Helvetica;" parent="116" vertex="1">
@@ -448,7 +448,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="s3UCxGqOiE2Vp2FJbR45" name="3s de">
-        <mxGraphModel dx="897" dy="1094" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+        <mxGraphModel dx="308" dy="1094" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -721,7 +721,7 @@
                 <mxCell id="y6clKfyCqSd92beDOljB-81" value="" style="line;strokeWidth=0.25;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;fontFamily=Helvetica;" vertex="1" parent="y6clKfyCqSd92beDOljB-79">
                     <mxGeometry y="90" width="190" height="8" as="geometry"/>
                 </mxCell>
-                <mxCell id="y6clKfyCqSd92beDOljB-82" value="&lt;span style=&quot;color: rgb(63, 63, 63); text-align: center;&quot;&gt;SIPOC&lt;/span&gt;" style="html=1;align=left;spacing=0;spacingLeft=10;verticalAlign=middle;strokeColor=none;fillColor=none;whiteSpace=wrap;fontFamily=Helvetica;" vertex="1" parent="y6clKfyCqSd92beDOljB-79">
+                <mxCell id="y6clKfyCqSd92beDOljB-82" value="&lt;span style=&quot;color: rgb(63, 63, 63); text-align: center;&quot;&gt;5W2H und SIPOC&lt;/span&gt;" style="html=1;align=left;spacing=0;spacingLeft=10;verticalAlign=middle;strokeColor=none;fillColor=none;whiteSpace=wrap;fontFamily=Helvetica;" vertex="1" parent="y6clKfyCqSd92beDOljB-79">
                     <mxGeometry y="98" width="190" height="30" as="geometry"/>
                 </mxCell>
                 <mxCell id="y6clKfyCqSd92beDOljB-83" value="&lt;div style=&quot;color: rgb(63, 63, 63); scrollbar-color: rgb(226, 226, 226) rgb(251, 251, 251); text-align: center;&quot;&gt;Messgrössen&amp;nbsp;&lt;span style=&quot;background-color: transparent;&quot;&gt;DPU, FPY &amp;amp;&amp;nbsp;&lt;/span&gt;&lt;span style=&quot;background-color: transparent; scrollbar-color: rgb(226, 226, 226) rgb(251, 251, 251); color: rgb(63, 63, 63);&quot;&gt;CpK&lt;/span&gt;&lt;/div&gt;" style="html=1;align=left;spacing=0;spacingLeft=10;verticalAlign=middle;strokeColor=none;fillColor=none;whiteSpace=wrap;fontFamily=Helvetica;" vertex="1" parent="y6clKfyCqSd92beDOljB-79">
