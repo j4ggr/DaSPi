@@ -113,9 +113,19 @@ The 3S methodology simplifies traditional problem-solving frameworks while maint
 
 ### Color-Coded Clarity
 
-- **Blue (Specify):** Represents clarity, structure, and focus
-- **Yellow (Scrutinize):** Symbolizes analytical thinking and enlightenment
-- **Green (Stabilize):** Signifies growth, success, and sustainability
+The 3S methodology uses a distinctive color scheme to provide visual consistency and intuitive understanding:
+
+- **🔵 Blue (#00b8c2) - Specify Phase:** Represents clarity, structure, and focus on problem definition
+- **🟡 Yellow (#fbc02d) - Scrutinize Phase:** Symbolizes analytical thinking, enlightenment, and investigation  
+- **🟢 Green (#4caf50) - Stabilize Phase:** Signifies growth, success, and sustainable implementation
+
+**Background Colors:**
+
+- **Light Cyan (#e0f7fa)** for Specify phase elements
+- **Light Amber (#fff8e1)** for Scrutinize phase elements
+- **Light Green (#e8f5e8)** for Stabilize phase elements
+
+This color coding extends throughout all documentation, diagrams, and visual representations to ensure immediate phase recognition.
 
 ### Integrated Tools and Techniques
 
