@@ -458,7 +458,7 @@ Remember: The goal isn't to find THE perfect answer, but to narrow down the fiel
 
 <!-- ![Hypothesis Testing Framework](../img/hypothesis-testing.png) -->
 
-#### ANOVA (Analysis of Variance)
+### ANOVA (Analysis of Variance)
 
 Test for significant differences between factor levels:
 
@@ -486,7 +486,7 @@ if p_value < 0.05:
     print(result)
 ```
 
-#### Correlation Analysis
+### Correlation Analysis
 
 Identify linear relationships between variables:
 
@@ -509,7 +509,7 @@ r_xy, p_xy = pearsonr(x, y)
 print(f"\nX-Y Correlation: r={r_xy:.3f}, p={p_xy:.3f}")
 ```
 
-#### Regression Analysis
+### Regression Analysis
 
 Quantify relationships and predict outcomes:
 
@@ -530,7 +530,7 @@ print(f"Coefficients: {model.coef_}")
 print(f"Intercept: {model.intercept_:.3f}")
 ```
 
-#### Multivariate Analysis
+### Multivariate Analysis
 
 For complex interactions and multiple responses:
 
@@ -649,5 +649,3 @@ The thorough investigation completed in the Scrutinize phase provides the founda
 ---
 
 **Phase Complete!** You have successfully identified and validated the root causes of the problem. The team now has solid evidence to guide solution development in the Stabilize phase.
- 
- 
