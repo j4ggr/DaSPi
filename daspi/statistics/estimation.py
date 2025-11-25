@@ -38,6 +38,7 @@ from ..constants import PERCENT_DECIMALS
 
 from .montecarlo import SpecLimits
 from .montecarlo import Specification
+from .montecarlo import calculate_agreement_and_k
 
 from .confidence import cp_ci
 from .confidence import cpk_ci
@@ -1601,22 +1602,11 @@ class LocationDispersionEstimator(DistributionEstimator):
         return self._agreement
     @agreement.setter
     def agreement(self, agreement: int | float) -> None:
-
-        assert agreement > 0, (
-            'Agreement must be set as a percentage (0.0 < agreement <= 1.0) '
-            + 'or as a multiple of the standard deviation (agreement >= 1), '
-            + f'got {agreement}.')
+        new_agreement, new_k = calculate_agreement_and_k(agreement)
         
-        is_percentile = (
-            agreement < 1 or (agreement == 1 and isinstance(agreement, float)))
-        if is_percentile:
-            self._k = float(stats.norm.ppf((1 + agreement) / 2))
-            agreement = 2 * self.k
-        else:
-            self._k = agreement / 2
-        
-        if self._agreement != agreement:
-            self._agreement = agreement
+        if self._agreement != new_agreement:
+            self._agreement = new_agreement
+            self._k = new_k
             self._reset_values_()
     
     @property

@@ -4,6 +4,7 @@ import numpy as np
 
 from math import pi
 from math import sin
+from scipy import stats
 from typing import Any
 from typing import Self
 from typing import Tuple
@@ -15,13 +16,65 @@ from pandas.core.series import Series
 from .._typing import FloatOrArray
 
 
+def calculate_agreement_and_k(agreement: int | float) -> Tuple[float, float]:
+    """Calculate agreement and coverage factor k from input agreement.
+    
+    This utility function standardizes the calculation of agreement and 
+    coverage factor k from various input formats. It handles both 
+    standard deviation multipliers (integers/floats >= 1) and percentile 
+    values (floats between 0 and 1).
+    
+    Parameters
+    ----------
+    agreement : int | float
+        The agreement value, either as:
+        - A percentage (0.0 < agreement <= 1.0) indicating the
+          acceptable proportion for the spread.
+        - A multiple of the standard deviation (agreement >= 1).
+    
+    Returns
+    -------
+    Tuple[float, float]
+        A tuple containing (agreement, k) where:
+        - agreement: The standardized agreement value (always >= 1)
+        - k: The coverage factor
+    
+    Raises
+    ------
+    AssertionError
+        If agreement <= 0 or not in valid range.
+    
+    Examples
+    --------
+    >>> calculate_agreement_and_k(6)  # 6σ
+    (6.0, 3.0)
+    >>> calculate_agreement_and_k(0.95)  # 95% percentile
+    (3.919927969080108, 1.959963984540054)
+    """
+    assert agreement > 0, (
+        'Agreement must be set as a percentage (0.0 < agreement <= 1.0) '
+        + 'or as a multiple of the standard deviation (agreement >= 1), '
+        + f'got {agreement}.')
+    
+    is_percentile = (
+        agreement < 1 or (agreement == 1 and isinstance(agreement, float)))
+    if is_percentile:
+        k = float(stats.norm.ppf((1 + agreement) / 2))
+        agreement = 2 * k
+    else:
+        k = agreement / 2
+    
+    return float(agreement), float(k)
+
+
 __all__ = [
     'SpecLimits',
     'Specification',
     'RandomProcessValue',
     'Binning',
     'round_to_nearest',
-    'inclination_displacement']
+    'inclination_displacement',
+    'calculate_agreement_and_k']
 
 
 @dataclass(frozen=True)
@@ -268,20 +321,30 @@ class RandomProcessValue:
 
     This class generates random values based on the specified
     distribution and parameters. The generated values are within the 
-    specified limits and tolerance comi. The class supports three types 
-    of distributions: normal, uniform, and circular. The generated
-    values can be clipped to the range defined by the tolerance. The 
-    class also provides a method to generate an array of random values.
+    specified limits and tolerance. The class supports five types 
+    of distributions: normal, uniform, circular, coaxial, and perpendicular. 
+    The generated values can be clipped to the range defined by the tolerance. 
+    The class also provides a method to generate an array of random values.
     
     Parameters
     ----------
     specification : Specification
         The specification for which the random value will be generated.
-    dist : {'normal', 'uniform', 'circular'}
+    dist : {'normal', 'uniform', 'circular', 'coaxial', 'perpendicular'}
         The distribution from which the random value will be generated.
     clip : bool, optional
         Whether to clip the generated value to the range defined by the
         tolerance. Default is False.
+    agreement : int | float, optional
+        Specify the tolerated process variation for which the 
+        scale factor is calculated. 
+        - If int, the spread is determined using the normal 
+          distribution agreement*σ, 
+          e.g. agreement = 6 -> 6*σ ~ covers 99.75% of the data. 
+        - If float, the value must be between 0 and 1. This value is
+          then interpreted as the acceptable proportion for the 
+          spread, e.g. 0.9973 (which corresponds to ~ 6σ)
+        Default is 6.
     
     Examples
     --------
@@ -297,11 +360,27 @@ class RandomProcessValue:
     value = rpv()
     ```
 
-    Generate a array from a normal distribution with clipping:
+    Generate an array from a normal distribution with clipping:
 
-    ```	python
+    ```python
     rpv = RandomProcessValue(PARAM_II, 'normal', clip=True)
     array = rpv.generate(100_000)
+    ```
+    
+    Generate values with custom agreement (4σ instead of default 6σ):
+    
+    ```python
+    rpv = RandomProcessValue(PARAM_II, 'normal', agreement=4)
+    value = rpv()
+    print(f'Scale factor: {rpv.scale}')  # TOLERANCE / 4
+    ```
+    
+    Use percentile-based agreement (95% coverage):
+    
+    ```python
+    rpv = RandomProcessValue(PARAM_II, 'normal', agreement=0.95)
+    value = rpv()
+    print(f'Coverage factor k: {rpv.k}')  # ~1.96 for 95% confidence
     ```
     """
 
@@ -314,17 +393,53 @@ class RandomProcessValue:
             specification: Specification,
             dist: Literal['normal', 'uniform', 'circular', 'coaxial', 'perpendicular'],
             clip: bool = False,
+            agreement: int | float = 6,
             ) -> None:
         assert dist in self._allowed_dists, (
             f'Distribution must be one of {self._allowed_dists}, got {dist}.')
+        
         self.specification = specification
         self.dist = dist
         self.clip_within_tolerance = clip
+        self._agreement: float
+        self._k: float
+        self.agreement = agreement
+    
+    @property
+    def agreement(self) -> float:
+        """Get the agreement multiplier for the σ (standard deviation).
+        
+        The agreement is defined as twice the coverage factor `k`. 
+        When setting the agreement using a percentile, provide the 
+        acceptable proportion for the spread, such as 0.9973, 
+        which corresponds to approximately 6σ (six standard deviations).
+        The agreement value must be specified as either:
+        - A percentage (0.0 < agreement <= 1.0) indicating the
+          acceptable proportion for the spread.
+        - A multiple of the standard deviation (agreement >= 1).
+        
+        Default is 6 (corresponding to 6σ or k=3).
+        """
+        return self._agreement
+    
+    @agreement.setter
+    def agreement(self, agreement: int | float) -> None:
+        self._agreement, self._k = calculate_agreement_and_k(agreement)
+    
+    @property
+    def k(self) -> float:
+        """Get the coverage factor `k` used in scale calculations (read-only).
+        
+        This property returns the coverage factor, which is a multiplier 
+        used to determine the scale based on the agreement. The value of `k` 
+        is typically set to reflect the desired confidence level.
+        """
+        return self._k
     
     @property
     def scale(self) -> float:
-        """Scale factor for the distribution (6 sigma rule)."""
-        return self.specification.TOLERANCE / 6
+        """Scale factor for the distribution based on agreement."""
+        return self.specification.TOLERANCE / self.agreement
     
     @property
     def loc(self) -> float:
