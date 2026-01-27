@@ -164,8 +164,8 @@ class TestLinearModel:
             'x3': [0, 0, 0, 0, 0, 0],
             'y': [11, 19, 30, 42, 49, 50]}), check_dtype=False)
         assert lm.target == 'Target'
-        assert lm.features== ['A', 'B', 'C', 'bad']
-        assert lm.disturbances== []
+        assert lm.features == ['A', 'B', 'C', 'bad']
+        assert lm.covariates == []
         assert lm.alpha == 0.05
         assert lm.target_map == {'Target': 'y'}
         assert lm.feature_map == {'A': 'x0', 'B': 'x1', 'C': 'x2', 'bad': 'x3'}

@@ -2458,7 +2458,7 @@ class GageRnRModel(LinearModel):
         features = list(self.u_map.keys())
         self._n_samples = int(source[target].notna().sum())
         self.n_levels = source[features].nunique().rename(self.u_map)
-        self.n_levels[ANOVA.EV] = self.n_samples // np.prod(self.n_levels)
+        self.n_levels[ANOVA.EV] = self.n_samples // np.prod(self.n_levels) # type: ignore
             
         super().__init__(
             source=source,
@@ -2940,7 +2940,7 @@ class GageRnRModel(LinearModel):
         self._df_u = df_u
         self._df_ums = df_u.loc[df_ums.index, :].copy()
         self._df_ump = df_u.loc[df_ump.index, :].copy()
-        return self._df_ump
+        return pd.concat([self._df_ums, self._df_ump])
     
     def _dfs_repr_(self) -> List[DataFrame]:
         """Returns a list of DataFrames containing the goodness-of-fit 
