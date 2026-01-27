@@ -1,4 +1,4 @@
-# Design of Experiments Guide
+# DOE Guide
 
 Design of Experiments (DOE) is a systematic approach to understanding how different factors affect a response variable. Instead of changing one factor at a time, DOE allows you to study multiple factors simultaneously, revealing important interactions while minimizing experimental effort.
 

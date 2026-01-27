@@ -1,4 +1,4 @@
-# Scrutinize Phase: Channel Your Inner Detective
+# Scrutinize
 
 Welcome to the **investigative heart** of the 3S methodology! This is where you put on your detective hat and dig deep into what's really causing your problem. No more guessing, no more "it's probably this" – we're going full CSI on your process.
 

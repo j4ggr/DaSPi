@@ -1,4 +1,4 @@
-# Gage Study and Measurement Uncertainties
+# Gage R&R Guide
 
 ## Introduction
 

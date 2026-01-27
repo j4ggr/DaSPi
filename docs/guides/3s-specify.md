@@ -1,4 +1,4 @@
-# Specify Phase: Define & Contain
+# Specify
 
 The **Specify** phase is the foundation of the 3S methodology, focusing on clear problem definition and immediate damage control. This phase ensures that improvement efforts are properly scoped, resourced, and contained before moving into detailed analysis.
 

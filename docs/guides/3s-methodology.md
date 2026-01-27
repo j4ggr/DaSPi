@@ -1,4 +1,4 @@
-# 3S Methodology: A Structured Problem-Solving Approach
+# 3S Methodology
 
 The 3S methodology is a streamlined, three-phase problem-solving framework that combines the best elements from Task Force approaches, 8D methodology, and Six Sigma DMAIC. Think of it as a practical, no-nonsense approach to tackling complex problems—one that emphasizes **getting it right** rather than getting it fast.
 

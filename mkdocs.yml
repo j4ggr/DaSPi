@@ -88,8 +88,6 @@ nav:
     - guides/plotting.md
     - guides/gage_analysis.md
     - guides/hypothesis-testing.md
-    - guides/process_analysis.md
-    - guides/process_improvement.md
     - 3S Methodology:
       - guides/3s-methodology.md
       - guides/3s-specify.md
