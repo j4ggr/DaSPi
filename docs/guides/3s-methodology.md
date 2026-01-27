@@ -71,6 +71,73 @@ Each phase has specific tools and clear deliverables. No wondering "what do I do
 | **Scrutinize** | Root cause analysis, DOE, ANOVA, hypothesis testing | Rock-solid evidence of what's really wrong |
 | **Stabilize** | Control plans, SPC, validation studies | A solution that actually sticks |
 
+## Practical Insights from the Field
+
+### What Makes 3S Different in Practice
+
+**Team Composition is Critical**
+
+Unlike traditional Six Sigma where the Champion and Process Owner are often separate roles, 3S emphasizes a **taskforce approach**: the team must include everyone who has the **competence and authority** to make changes happen immediately. This means:
+
+- The **Process Owner must be in the team** (not just as support) to ensure motivation for process changes
+- **Development or Product Care engineers** must participate to adapt drawings or create special releases
+- All necessary competencies and authorities to reshape processes and adapt specifications must be present
+
+**This is the single biggest acceleration factor** - new insights can be implemented directly without waiting for approvals or handoffs.
+
+### Realistic Project Timelines
+
+Six months for a 3S project is good—many traditional Six Sigma projects unfortunately run for several years. The important realization is that **most project time is not due to the methodology** but rather the necessities that a project brings (waiting for experiments, coordinating resources, implementing changes, etc.).
+
+### Tool Sequencing Matters
+
+While statistical tools should be used everywhere they make sense, **the sequence of major steps should not be shuffled**:
+
+- **Hypothesis testing in early phases** (Specify/D3): Absolutely—use them to validate assumptions about the problem
+- **Measure phase**: Focus on MSA and breaking down the process into components, not on experiments yet
+- **Design of Experiments (DOE)**: Comes after you understand the process structure
+- **Hypothesis testing after experiments**: Validate your findings from targeted, designed experiments
+
+**Why this order matters:** Without a clear sequence, experiments and containment actions can get completely out of control—nobody keeps track of what has which influence. This makes it nearly impossible to reach a sustainable solution.
+
+!!! warning "Mix Tools, Not Phases"
+    Feel free to **mix or skip individual tools** based on your situation, but **do not skip or mix the main boxes** in the 3S process flow. The structure keeps you from getting lost.
+
+### Navigation and Clarity
+
+One major advantage of 3S over traditional DMAIC: **you get less lost in individual phases**. In practice, it doesn't really matter which phase or which "D" you're in—what matters is that you're doing the right thing at the right time. The 3S framework gives you:
+
+- A clear overview of all available tools
+- A logical sequence that prevents chaos
+- Easy resumability when projects pause (e.g., waiting weeks for experiment results)
+
+### The "Scrutinize" Phase
+
+The term **"Skrutinieren"** (Scrutinize) comes from Latin *scrutari* meaning "to investigate" or "to examine carefully." It was chosen because:
+
+- It accurately describes what happens in this intensive investigation phase
+- It starts with 'S' in both English and German, maintaining the 3S naming consistency  
+- It's distinctive and memorable (even if uncommon)
+
+This phase represents the time-intensive detective work, but the integrated containment in the **Specify** phase ensures production is already stabilized before you dive deep into investigation.
+
+### Tool Selection Philosophy
+
+3S gives you the **freedom to choose exactly the tools that fit your problem**. This is especially valuable when compared to 8D, which provides a good structure for approaching problems but offers limited specific tools (mainly 5Why and Ishikawa). 
+
+Six Sigma brings the rich toolset, but 3S organizes it into a clearer, more navigable framework. Think of it as: **8D provides the process skeleton, Six Sigma provides the analytical muscles, and 3S is the nervous system that coordinates everything efficiently.**
+
+### Documentation for Resumability
+
+When projects must pause (waiting for parts, experiment results, approvals), **documentation of the current state is crucial**. The 3S framework helps because:
+
+- Each phase has clear deliverables
+- The tool sequence shows where you stopped
+- You can pick up exactly where you left off
+
+!!! tip "Stay Organized"
+    Consider creating templates for tools not integrated in your statistical software. This ensures consistency and makes it easier to resume work after breaks.
+
 ## When Should You Use 3S?
 
 ### Perfect for These Situations
