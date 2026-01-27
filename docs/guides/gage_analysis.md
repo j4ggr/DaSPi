@@ -524,7 +524,7 @@ chart.label(
 
 ### Step-by-Step Process
 
-![MSA Decision Flow](../img/msa_decision_flow.png)
+![MSA Decision Flow](../img/gage-rnr_decision-flow.svg)
 
 **1. Define Your Measurement System**
 
