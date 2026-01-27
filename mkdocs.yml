@@ -90,9 +90,9 @@ nav:
     - guides/hypothesis-testing.md
     - 3S Methodology:
       - guides/3s-methodology.md
-      - guides/3s-specify.md
-      - guides/3s-scrutinize.md
-      - guides/3s-stabilize.md
+      # - guides/3s-specify.md
+      # - guides/3s-scrutinize.md
+      # - guides/3s-stabilize.md
   - API:
     - Anova:
       - ANOVA: anova/index.md
