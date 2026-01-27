@@ -12,7 +12,7 @@ The class takes three main inputs:
   endogenous (dependent) variable.
 - features: A list of column names in the DataFrame that represent 
   the exogenous (independent) variables.
-- Additionally, it can take an optional input disturbances, which is a 
+- Additionally, it can take an optional input covariates, which is a 
   list of column names representing exogenous variables that are logged 
   but cannot be influenced. No interactions are created for these
   variables.
@@ -293,7 +293,7 @@ class LinearModel(BaseHTMLReprModel):
         Column names of the exogenous variables that can be actively 
         changed (factor levels for DOE or EVOP). Interactions are also 
         created for these variables if the order is set > 1.
-    disturbances : List[str], optional
+    covariates : List[str], optional
         Column names for exogenous variables that are logged but cannot 
         be influenced. No interactions are created for these variables.
     alpha : float, optional
@@ -328,7 +328,7 @@ class LinearModel(BaseHTMLReprModel):
         source=df,
         target='dissolution',
         features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
-        disturbances=['temperature', 'preparation'],
+        covariates=['temperature', 'preparation'],
         order=2)
 
     # Store goodnes of fit values for each elimination step
@@ -358,7 +358,7 @@ class LinearModel(BaseHTMLReprModel):
       The name of the term as it appears in the design matrix. All 
       feature names are converted to "xi" where i is an ascending 
       number. The name of the first feature becomes "x0", the second 
-      becomes "x1",... The disturbance variables are also converted in 
+      becomes "x1",... The covariate variables are also converted in 
       the same way, but instead of the letter "x" the letter "e" is 
       used.
     - parameter:
@@ -369,7 +369,7 @@ class LinearModel(BaseHTMLReprModel):
         'data',
         'target',
         'features',
-        'disturbances',
+        'covariates',
         '_model',
         '_alpha',
         'skip_intercept_as_least',
@@ -390,8 +390,8 @@ class LinearModel(BaseHTMLReprModel):
     """The name of the target variable for the linear model."""
     features: List[str]
     """The list of features used in the linear model."""
-    disturbances: List[str]
-    """The list of disturbances variables used in the linear 
+    covariates: List[str]
+    """The list of covariates variables used in the linear 
     model."""
     _alpha: float
     """The alpha risk threshold used for automatic elimination of 
@@ -419,7 +419,7 @@ class LinearModel(BaseHTMLReprModel):
     """A set of feature names that should be excluded from the model."""
     _initial_terms: List[LiteralString]
     """The list of initial terms used in the linear model. These terms 
-    include the encoded names of disturbances and the features with all 
+    include the encoded names of covariates and the features with all 
     interactions up to the specified interaction order."""
     _p_values: 'Series[float]'
     """The `_p_values` attribute is a Pandas Series that stores the 
@@ -449,7 +449,7 @@ class LinearModel(BaseHTMLReprModel):
             source: DataFrame,
             target: str,
             features: List[str],
-            disturbances: List[str] = [],
+            covariates: List[str] = [],
             alpha: float = 0.05,
             order: int = 1,
             skip_intercept_as_least: bool = True,
@@ -460,7 +460,7 @@ class LinearModel(BaseHTMLReprModel):
         assert order > 0 and isinstance(order, int), (
             'Interaction order must be a positive integer')
         
-        for column in features + disturbances:
+        for column in features + covariates:
             assert column in source, f'Column {column} not found in source!'
 
         self._captions = (
@@ -471,13 +471,13 @@ class LinearModel(BaseHTMLReprModel):
         
         self.target = target
         self.features = features
-        self.disturbances = disturbances
+        self.covariates = covariates
         self.target_map = {target: 'y'}
         f_main_terms = [f'x{i}' for i in range(len(features))]
-        d_main_terms = [f'e{i}' for i in range(len(disturbances))]
+        d_main_terms = [f'e{i}' for i in range(len(covariates))]
         self.feature_map = (
             {f: _f for f, _f in zip(features, f_main_terms)}
-            | {c: _c for c, _c in zip(disturbances, d_main_terms)})
+            | {c: _c for c, _c in zip(covariates, d_main_terms)})
         self.main_term_map = {v: k for k, v in self.feature_map.items()}
         self.alpha = alpha
         self.skip_intercept_as_least = skip_intercept_as_least
@@ -570,7 +570,7 @@ class LinearModel(BaseHTMLReprModel):
     def parameters(self) -> List[str]:
         """Get the names of all variables for the current fitted 
         model in the composition using the original feature and 
-        disturbances names (read-only)."""
+        covariates names (read-only)."""
         return list(map(self._convert_term_name_, self.terms))
 
     @property
@@ -887,7 +887,7 @@ class LinearModel(BaseHTMLReprModel):
         Parameters
         ----------
         parameter : str
-            The feature name, the disturbances name or the interaction 
+            The feature name, the covariates name or the interaction 
             of multiple features to be removed from the model.
         
         Returns
@@ -911,7 +911,7 @@ class LinearModel(BaseHTMLReprModel):
                 source=df,
                 target='dissolution',
                 features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
-                disturbances=['temperature', 'preparation'],
+                covariates=['temperature', 'preparation'],
                 alpha=0.05,
                 order=3,
                 encode_categoricals=False
@@ -960,7 +960,7 @@ class LinearModel(BaseHTMLReprModel):
         Parameters
         ----------
         parameter : str
-            The feature name, the disturbances name or the interaction 
+            The feature name, the covariates name or the interaction 
             of multiple features to be added to the model.
         
         Returns
@@ -1041,7 +1041,7 @@ class LinearModel(BaseHTMLReprModel):
                 source=df,
                 target='dissolution',
                 features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
-                disturbances=['temperature', 'preparation'],
+                covariates=['temperature', 'preparation'],
                 alpha=0.05,
                 order=3,
                 encode_categoricals=False
@@ -1292,7 +1292,7 @@ class LinearModel(BaseHTMLReprModel):
         
         parameters= [ANOVA.SEP.join(p) for p in _parameters + current_params]
         if features_only:
-            ignore = self.disturbances + [ANOVA.INTERCEPT]
+            ignore = self.covariates + [ANOVA.INTERCEPT]
             parameters = [p for p in parameters if p not in ignore]
         return parameters
     
@@ -1750,7 +1750,7 @@ class GageStudyModel(LinearModel):
             source=source,
             target=target,
             features=[reference],
-            disturbances=[],
+            covariates=[],
             alpha=alpha,
             order=1,
             fit_at_init=True,)

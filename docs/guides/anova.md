@@ -20,7 +20,7 @@ ANOVA tests the hypothesis that the means of different groups are equal. It eval
     - **ANOVA** provides insights into whether there are any statistically significant differences between group means.
    - **Linear Regression** provides coefficients that describe the relationship between the independent variables and the dependent variable.
 
-ANOVA requires a linear model similar to linear regression, allowing for the inclusion of continuous variables. Typically, a balanced experimental design is established, where parameters are recorded as factor levels, either categorically or quasi-categorically. Additionally, continuous disturbances such as temperature and time can also be measured and incorporated into the model for evaluation in the ANOVA.
+ANOVA requires a linear model similar to linear regression, allowing for the inclusion of continuous variables. Typically, a balanced experimental design is established, where parameters are recorded as factor levels, either categorically or quasi-categorically. Additionally, continuous covariates such as temperature and time can also be measured and incorporated into the model for evaluation in the ANOVA.
 
 ## Hypothesis Tests in ANOVA
 

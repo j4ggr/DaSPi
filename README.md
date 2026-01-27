@@ -75,11 +75,7 @@ model = dsp.LinearModel(
     source=df,
     target='dissolution',
     features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
-    disturbances=['temperature', 'preparation'],
-    order=2)
-
-df_gof = pd.concat(model.recursive_elimination())
-
+        covariates=['temperature', 'preparation'],
 dsp.ResidualsCharts(model).plot().stripes().label(info=True)
 dsp.ParameterRelevanceCharts(model).plot().label(info=True)
 model

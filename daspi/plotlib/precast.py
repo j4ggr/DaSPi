@@ -104,7 +104,7 @@ class ParameterRelevanceCharts(JointChart):
         source=df,
         target='dissolution',
         features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
-        disturbances=['temperature', 'preparation'],
+        covariates=['temperature', 'preparation'],
         order=2)
     df_gof = pd.concat(model.recursive_elimination())
     dsp.ParameterRelevanceCharts(model).plot().stripes().label(info=True)
@@ -250,7 +250,7 @@ class ResidualsCharts(JointChart):
         source=df,
         target='dissolution',
         features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
-        disturbances=['temperature', 'preparation'],
+        covariates=['temperature', 'preparation'],
         order=2)
     df_gof = pd.concat(model.recursive_elimination())
     dsp.ResidualsCharts(model).plot().stripes().label(info=True)

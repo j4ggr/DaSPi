@@ -76,7 +76,7 @@ model = dsp.LinearModel(
     source=df,
     target='dissolution',
     features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
-    disturbances=['temperature', 'preparation'],
+    covariates=['temperature', 'preparation'],
     order=2)
 df_gof = pd.concat(model.recursive_elimination())
 
