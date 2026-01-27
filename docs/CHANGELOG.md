@@ -14,6 +14,18 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.9.0] - 2026-01-27
+
+### Added
+
+- The aggreement parameter to RandomProcessValue class to define the sigma agreement for process capability calculations.
+- The 3s methodology guide to the documentation.
+- The gage analysis guide to the documentation.
+
+### Changed
+
+- The option name `disturbances` in LinearModel to `covariates` for better understanding.
+
 ## [1.8.0] - 2025-11-04
 
 ### Added
