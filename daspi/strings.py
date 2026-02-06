@@ -262,7 +262,7 @@ class _String_:
         'fr': 'Capacité du système de mesure'}
 
     _language_: Literal['en', 'de', 'fr'] = 'en'
-    _username_: str = environ['USERNAME']
+    _username_: str = environ.get('USERNAME', 'user')
 
     @property
     def TODAY(self) -> str:

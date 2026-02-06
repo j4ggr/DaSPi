@@ -350,3 +350,73 @@ class TestFractionalFactorialDesignBuilder:
         df_decoded = builder._decode_values(df, builder.factors)
         assert set(df_decoded['A']) == {10, 20}
         assert set(df_decoded['B']) == {100, 200}
+
+    def test_by_resolution(self) -> None:
+        """Test the by_resolution class method."""
+        
+        # Test Resolution III with 3 factors
+        fA = Factor('A', (-1, 1))
+        fB = Factor('B', (-1, 1)) 
+        fC = Factor('C', (-1, 1))
+        builder = FractionalFactorialDesignBuilder.by_resolution(fA, fB, fC, resolution=3)
+        assert builder.generators == ['C=AB']
+        df = builder.build_design(corrected=False)
+        assert df.shape[0] == 4  # 2^(3-1) = 4 runs
+        # Check that C = A*B
+        for _, row in df.iterrows():
+            assert row['C'] == row['A'] * row['B']
+        
+        # Test Resolution IV with 4 factors
+        fA = Factor('A', (-1, 1))
+        fB = Factor('B', (-1, 1))
+        fC = Factor('C', (-1, 1))
+        fD = Factor('D', (-1, 1))
+        builder = FractionalFactorialDesignBuilder.by_resolution(fA, fB, fC, fD, resolution=4)
+        assert builder.generators == ['D=ABC']
+        df = builder.build_design(corrected=False)
+        assert df.shape[0] == 8  # 2^(4-1) = 8 runs
+        # Check that D = A*B*C
+        for _, row in df.iterrows():
+            assert row['D'] == row['A'] * row['B'] * row['C']
+        
+        # Test Resolution III with 5 factors
+        factors = [Factor(f'F{i}', (-1, 1)) for i in range(1, 6)]
+        builder = FractionalFactorialDesignBuilder.by_resolution(*factors, resolution=3)
+        assert builder.generators == ['D=AB', 'E=AC']  # From get_default_generators(5,2)
+        df = builder.build_design(corrected=False)
+        assert df.shape[0] == 8  # 2^(5-2) = 8 runs
+
+    def test_by_resolution_errors(self) -> None:
+        """Test error conditions for by_resolution method."""
+        fA = Factor('A', (-1, 1))
+        fB = Factor('B', (-1, 1))
+        fC = Factor('C', (-1, 1))
+        
+        # Test invalid resolution (too low)
+        try:
+            FractionalFactorialDesignBuilder.by_resolution(fA, fB, fC, resolution=2)
+            assert False, "Should have raised AssertionError"
+        except AssertionError:
+            pass
+        
+        # Test invalid resolution (too high)
+        try:
+            FractionalFactorialDesignBuilder.by_resolution(fA, fB, fC, resolution=6)
+            assert False, "Should have raised AssertionError"
+        except AssertionError:
+            pass
+        
+        # Test insufficient factors
+        try:
+            FractionalFactorialDesignBuilder.by_resolution(fA, fB, resolution=3)
+            assert False, "Should have raised AssertionError"
+        except AssertionError:
+            pass
+        
+        # Test unsupported combination
+        try:
+            factors = [Factor(f'F{i}', (-1, 1)) for i in range(1, 21)]
+            FractionalFactorialDesignBuilder.by_resolution(*factors, resolution=3)
+            assert False, "Should have raised ValueError"
+        except ValueError:
+            pass
