@@ -14,110 +14,129 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.9.2] - 2026-02-06
+
+### Added
+
+- Static method `by_resolution` to `FractionalFactorialDesignBuilder` class to create instances by providing resolution.
+- Comprehensive tests for the new `by_resolution` method.
+- Step-by-step process drawings for Gage R&R analysis.
+- Enhanced documentation with additional information for 3s methodology.
+- Improved gage analysis documentation and guides.
+
+### Changed
+
+- `GageRnRModel.uncertainties()` method now returns concatenated uncertainties for better usability.
+
+### Fixed
+
+- Bug in `strings.py` where getting USERNAME failed when using DaSPi on servers (e.g., Google Colab).
+- DOE import error, could not import `get_default_generators`
+
 ## [1.9.0] - 2026-01-27
 
 ### Added
 
-- The aggreement parameter to RandomProcessValue class to define the sigma agreement for process capability calculations.
+- The `agreement` parameter to `RandomProcessValue` class to define the sigma agreement for process capability calculations.
 - The 3s methodology guide to the documentation.
 - The gage analysis guide to the documentation.
 
 ### Changed
 
-- The option name `disturbances` in LinearModel to `covariates` for better understanding.
+- The option name `disturbances` in `LinearModel` to `covariates` for better understanding.
 
 ## [1.8.0] - 2025-11-04
 
 ### Added
 
 - The DOE module with classes and functions for design of experiments.
-- The Factor class to DOE module.
-- The BaseDesignBuilder class to DOE module.
-- The FullFactorialDesignBuilder class to DOE module.
-- The FullFactorial2kDesignBuilder class to DOE module.
-- The FractionalFactorialDesignBuilder class to DOE module.
-- Numerous tests were conducted across the entire package, test coverage is now at ~95%
-- The Property `errors` to ProcessEstimator class to show errors as percentage values.
+- The `Factor` class to DOE module.
+- The `BaseDesignBuilder` class to DOE module.
+- The `FullFactorialDesignBuilder` class to DOE module.
+- The `FullFactorial2kDesignBuilder` class to DOE module.
+- The `FractionalFactorialDesignBuilder` class to DOE module.
+- Comprehensive test coverage across the entire package, now at approximately 95%.
+- The property `errors` to `ProcessEstimator` class to show errors as percentage values.
 - 'About DaSPi' section to documentation.
-- Assert tests to check whether some data are empty or not for SingleChart class.
-- The method `check_current_data()` to SingleChart class to check if current data is empty, throws a UserWarning if so.
-- The option to set a colname when generating the descriptive statistics using `describe()` method of Estimator classes.
-- The option to set a colname when generating the process descriptions using `process_descriptions()` method of Process classes.
-- The option to rotate, align and format tick labels. This option is applied to `SingleChart`, `MultivariateChart`  and of course the underlying `LabelFacets` classes.
+- Assert tests to check whether data are empty for `SingleChart` class.
+- The method `check_current_data()` to `SingleChart` class to check if current data is empty, throws a `UserWarning` if so.
+- The option to set a column name when generating descriptive statistics using `describe()` method of `Estimator` classes.
+- The option to set a column name when generating process descriptions using `process_descriptions()` method of `Process` classes.
+- The option to rotate, align and format tick labels. This option is applied to `SingleChart`, `MultivariateChart` and the underlying `LabelFacets` classes.
 
 ### Changed
 
-- The property `processes` of ProcessEstimator class to a method.
+- The property `processes` of `ProcessEstimator` class to a method.
 
 ### Fixed
 
-- Creating uncertainties DataFrame for GageRnRCharts failed in certain cases.
-- The functions `stdev_ci` and `variance_ci` had wrong calculations.
-- The stacked bars in Bar plotter were not always displayed correctly. With this fix, t_base is now calculated correctly.
+- Creating uncertainties DataFrame for `GageRnRCharts` failed in certain cases.
+- The functions `stdev_ci` and `variance_ci` had incorrect calculations.
+- The stacked bars in `Bar` plotter were not always displayed correctly. With this fix, `t_base` is now calculated correctly.
 
 
 ## [1.7.0] - 2025-07-01
 
 ### Changed
 
-- The name of Estimator class to LocationDispersionEstimator and this class inherits also from BaseEstimator class.
-- The property name descriptive_statistic_attrs of Estimator classes to attrs_describe.
-- The GageRnRModel calculates the uncertainties now after the VDA 5 standard.
+- The name of `Estimator` class to `LocationDispersionEstimator` and this class now also inherits from `BaseEstimator` class.
+- The property name `descriptive_statistic_attrs` of `Estimator` classes to `attrs_describe`.
+- The `GageRnRModel` now calculates uncertainties according to the VDA 5 standard.
 
 ### Added
 
-- The BaseEstimator class to estimation module.
-- The DistributionEstimator class to estimation module.
-- The root_mean_square() function to estmation modul.
-- The GageStudyModel class to model module.
-- The BaseHTMLReprModel class to model module, all Model classe inherit from this class.
-- The CategoricalObservation class to plotter module.
-- The option to stretch the figsize by an amount for AxesFacets and all Chart classes.
-- The MeasurementUncertainty class to estimation module.
-- The property k (coverage factor) to LocationDispersionEstimation class.
-- The options strategy, agreement and possible_dists to GageEstimator class
+- The `BaseEstimator` class to estimation module.
+- The `DistributionEstimator` class to estimation module.
+- The `root_mean_square()` function to estimation module.
+- The `GageStudyModel` class to model module.
+- The `BaseHTMLReprModel` class to model module, all Model classes inherit from this class.
+- The `CategoricalObservation` class to plotter module.
+- The option to stretch the figsize by an amount for `AxesFacets` and all Chart classes.
+- The `MeasurementUncertainty` class to estimation module.
+- The property `k` (coverage factor) to `LocationDispersionEstimation` class.
+- The options `strategy`, `agreement` and `possible_dists` to `GageEstimator` class.
 
 ### Removed
 
-- The calculation of measuremen unsertainties at GageEstimator class.
+- The calculation of measurement uncertainties at `GageEstimator` class.
 
 ## [1.6.0] - 2025-06-05
 
 ### Changed
 
-- Renamed the module templates to precast.
-- Renamed Parameter class to Specification.
-- The groupby option observed to Ture within Chart and Plotter classes, because of FutureWarnings.
-- LinearModel does not require calling fit method by default aufter initialization.
-- The attribute name tick_lables to tick_labels at Dodger class
+- Renamed the module `templates` to `precast`.
+- Renamed `Parameter` class to `Specification`.
+- The `groupby` option `observed` to `True` within Chart and Plotter classes, due to FutureWarnings.
+- `LinearModel` does not require calling `fit` method by default after initialization.
+- The attribute name `tick_lables` to `tick_labels` at `Dodger` class.
 
 ### Added
 
-- The inclination_displacement() function to montecarlo module.
-- The coaxial() and perpendicular() methods to RandomProcessValue class at montecarlo module.
-- The GageEstimator class to estimation module.
-- The GageRnRModel class to model module.
-- The GageRnRCharts class to precast module.
-- The t_test() function to hypothesis module.
-- Unittests across many classes.
-- Documentation for plotting guide and a lot of examples across many classes.
-- The datasets grnr_adjustment.csv, grnr_layer_thickness.csv and grnr_spec.csv
-- The option margin to estimate_kernel_density and that this option can also be used in the GaussianKDE and GaussianKDEContour plotters.
-- The option to get the full data range for Estimator lcl and ucl when setting strategy to 'data' and agreement to '1.0' or flota('inf')
-- The mask_missing(), mask_ok() methods to Estimator class.
-- The mask_error(), mask_nok() and mask_ok() method to ProcessEstimator class.
-- The pos_to_ticklabes() method for Dodger class.
-- The Stem class to plotter module.
+- The `inclination_displacement()` function to montecarlo module.
+- The `coaxial()` and `perpendicular()` methods to `RandomProcessValue` class at montecarlo module.
+- The `GageEstimator` class to estimation module.
+- The `GageRnRModel` class to model module.
+- The `GageRnRCharts` class to precast module.
+- The `t_test()` function to hypothesis module.
+- Unit tests across many classes.
+- Documentation for plotting guide and numerous examples across many classes.
+- The datasets `grnr_adjustment.csv`, `grnr_layer_thickness.csv` and `grnr_spc.csv`.
+- The option `margin` to `estimate_kernel_density` and that this option can also be used in the `GaussianKDE` and `GaussianKDEContour` plotters.
+- The option to get the full data range for `Estimator` `lcl` and `ucl` when setting `strategy` to 'data' and `agreement` to '1.0' or `float('inf')`.
+- The `mask_missing()`, `mask_ok()` methods to `Estimator` class.
+- The `mask_error()`, `mask_nok()` and `mask_ok()` methods to `ProcessEstimator` class.
+- The `pos_to_ticklabels()` method for `Dodger` class.
+- The `Stem` class to plotter module.
 
 ## [1.5.0] - 2025-04-29
 
 ### Changed
 
-- LabelAxes draws all labels within the figure and adjusts then the subplots. This ensures that all labels are allways rendered.
+- `LabelAxes` draws all labels within the figure and adjusts the subplots. This ensures that all labels are always rendered.
 
 ### Fixed
 
-- Term names for VIF and ANOVA tables are now converted correctly even if there are spaces in the factor levels
+- Term names for VIF and ANOVA tables are now converted correctly even if there are spaces in the factor levels.
 
 ## [1.4.5] - 2025-04-10
 
@@ -130,7 +149,7 @@ __Types of changes__:
 ### Fixed
 
 - Fixed documentation and docstrings to eliminate mkdocs warnings when building documentation.
-- Typing in montecarlo module was not sutable for numpy v2.0.0
+- Typing in montecarlo module was not suitable for numpy v2.0.0.
 
 ### Changed
 
@@ -140,30 +159,30 @@ __Types of changes__:
 
 ### Changed
 
-- RandomProcessValue requires a Parameter instance instead of nominal and tolerance
+- `RandomProcessValue` requires a `Parameter` instance instead of nominal and tolerance.
 
 ### Added
 
-- Tests for RandomProcessValue class
-- Examples to docstring of RandomProcessValue class
+- Tests for `RandomProcessValue` class.
+- Examples to docstring of `RandomProcessValue` class.
 
 ## [1.4.2] - 2025-04-03
 
 ### Added
 
-- Binning class for binning precise values into a specified number of bins.
-- Tests for Binning class.
+- `Binning` class for binning precise values into a specified number of bins.
+- Tests for `Binning` class.
   
 ### Removed
 
-- The functions float_to_bins and precise_to_bin_nominals from montecarlo module. They are now part of Binning class.
+- The functions `float_to_bins` and `precise_to_bin_nominals` from montecarlo module. They are now part of `Binning` class.
 
 ## [1.4.1] - 2025-04-02
 
 ### Added
 
-- The option kind to choose between 'linear' and 'quantile' aproach for float_to_bins function in montecarlo module.
-- The function precise_to_bin_nominals in montecarlo module.
+- The option `kind` to choose between 'linear' and 'quantile' approach for `float_to_bins` function in montecarlo module.
+- The function `precise_to_bin_nominals` in montecarlo module.
 
 ## [1.4.0] - 2025-04-02
 

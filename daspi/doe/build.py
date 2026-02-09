@@ -20,11 +20,61 @@ from ..constants import DOE
 
 
 __all__ = [
+    'get_default_generators',
     'Factor',
     'BaseDesignBuilder',
     'FullFactorialDesignBuilder',
     'FullFactorial2kDesignBuilder',
     'FractionalFactorialDesignBuilder',]
+
+
+def get_default_generators(k: int, p: int) -> list[str]:
+    """
+    Return standard generators for regular 2-level fractional factorial designs.
+
+    Parameters
+    ----------
+    k : int
+        Total number of factors.
+    p : int
+        Number of generators (fractionality, so design is 2^(k-p)).
+
+    Returns
+    -------
+    List[str]
+        List of generator strings, e.g. ['C=AB', 'D=AC'].
+
+    Notes
+    -----
+    These are standard choices for high-resolution designs, suitable for 
+    most practical cases. For more, see Montgomery (2017), Box, Hunter 
+    & Hunter, or standard DOE tables.
+    """
+    defaults = {
+        (3, 1): ['C=AB'],
+        (4, 1): ['D=ABC'],
+        (5, 2): ['D=AB', 'E=AC'],
+        (6, 3): ['D=AB', 'E=AC', 'F=BC'],
+        (7, 3): ['E=ABC', 'F=ABD', 'G=BCD'],
+        (8, 4): ['F=ABCD'],
+        (9, 4): ['F=ABCD', 'G=ABCE'],
+        (10, 5): ['F=ABCDE', 'G=ABCDF'],
+        (11, 5): ['F=ABCDE', 'G=ABCDF', 'H=ABCEG'],
+        (12, 6): ['F=ABCDEF', 'G=ABCDEFG'],
+        (13, 6): ['F=ABCDEF', 'G=ABCDEFG', 'H=ABCDEG'],
+        (14, 7): ['F=ABCDEFGH', 'G=ABCDEFGI'],
+        (15, 7): ['F=ABCDEFGH', 'G=ABCDEFGHI', 'H=ABCDEFGJ'],
+        (16, 8): ['F=ABCDEFGHIJ', 'G=ABCDEFGHIK'],
+        (17, 8): ['F=ABCDEFGHIJ', 'G=ABCDEFGHIK', 'H=ABCDEFGHIJ'],
+        (18, 9): ['F=ABCDEFGHIJK', 'G=ABCDEFGHIJL'],
+        (19, 9): ['F=ABCDEFGHIJK', 'G=ABCDEFGHIJL', 'H=ABCDEFGHIJK'],
+    }
+    key = (k, p)
+    assert key in defaults, (
+        f'No default generators for k={k}, p={p}. '
+        'Please consult a DOE reference.')
+
+    return defaults[key]
 
 
 class Factor:
@@ -909,55 +959,6 @@ class FullFactorial2kDesignBuilder(FullFactorialDesignBuilder):
         assert self.is_2k, (
             'All factors must have exactly 2 levels for '
             'FullFactorial2kDesignBuilder.')
-
-
-def get_default_generators(k: int, p: int) -> list[str]:
-    """
-    Return standard generators for regular 2-level fractional factorial designs.
-
-    Parameters
-    ----------
-    k : int
-        Total number of factors.
-    p : int
-        Number of generators (fractionality, so design is 2^(k-p)).
-
-    Returns
-    -------
-    List[str]
-        List of generator strings, e.g. ['C=AB', 'D=AC'].
-
-    Notes
-    -----
-    These are standard choices for high-resolution designs, suitable for 
-    most practical cases. For more, see Montgomery (2017), Box, Hunter 
-    & Hunter, or standard DOE tables.
-    """
-    defaults = {
-        (3, 1): ['C=AB'],
-        (4, 1): ['D=ABC'],
-        (5, 2): ['D=AB', 'E=AC'],
-        (6, 3): ['D=AB', 'E=AC', 'F=BC'],
-        (7, 3): ['E=ABC', 'F=ABD', 'G=BCD'],
-        (8, 4): ['F=ABCD'],
-        (9, 4): ['F=ABCD', 'G=ABCE'],
-        (10, 5): ['F=ABCDE', 'G=ABCDF'],
-        (11, 5): ['F=ABCDE', 'G=ABCDF', 'H=ABCEG'],
-        (12, 6): ['F=ABCDEF', 'G=ABCDEFG'],
-        (13, 6): ['F=ABCDEF', 'G=ABCDEFG', 'H=ABCDEG'],
-        (14, 7): ['F=ABCDEFGH', 'G=ABCDEFGI'],
-        (15, 7): ['F=ABCDEFGH', 'G=ABCDEFGHI', 'H=ABCDEFGJ'],
-        (16, 8): ['F=ABCDEFGHIJ', 'G=ABCDEFGHIK'],
-        (17, 8): ['F=ABCDEFGHIJ', 'G=ABCDEFGHIK', 'H=ABCDEFGHIJ'],
-        (18, 9): ['F=ABCDEFGHIJK', 'G=ABCDEFGHIJL'],
-        (19, 9): ['F=ABCDEFGHIJK', 'G=ABCDEFGHIJL', 'H=ABCDEFGHIJK'],
-    }
-    key = (k, p)
-    assert key in defaults, (
-        f'No default generators for k={k}, p={p}. '
-        'Please consult a DOE reference.')
-
-    return defaults[key]
 
 
 class FractionalFactorialDesignBuilder(BaseDesignBuilder):
