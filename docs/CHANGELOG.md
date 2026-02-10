@@ -14,7 +14,7 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
-## [1.9.2] - 2026-02-06
+## [1.9.3] - 2026-02-10
 
 ### Added
 
@@ -30,6 +30,7 @@ __Types of changes__:
 
 ### Fixed
 
+- Bug in `axis` parameter of `groupby` method of `pandas` that is deprecated in pandas v3.0.0, which caused errors in `LinearModel` class.
 - Bug in `strings.py` where getting USERNAME failed when using DaSPi on servers (e.g., Google Colab).
 - DOE import error, could not import `get_default_generators`
 
