@@ -82,12 +82,12 @@ def terms_effect(model: RegressionResultsWrapper) -> Series:
     se = (model.bse
         .rename(index=names_map)
         .pow(2)
-        .groupby(level=0, axis=0)
+        .groupby(level=0)
         .sum()
         .pow(1/2))
     params = (params
         .rename(index=names_map)
-        .groupby(level=0, axis=0)
+        .groupby(level=0)
         .sum())
     effects = params.abs() / se
     effects = effects[uniques(names_map.values())]

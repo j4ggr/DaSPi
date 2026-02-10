@@ -616,8 +616,8 @@ class BaseDesignBuilder(ABC):
             ignore_index=True)
         df_central[DOE.CENTRAL_POINT] = 0
         
-        df_design = (
-            df_design.groupby(DOE.BLOCK, group_keys=False)
+        df_design = (df_design
+            .groupby(DOE.BLOCK, group_keys=False)
             .apply(lambda group: pd.concat([group, df_central]))
             .reset_index(drop=True))
         df_design[DOE.BLOCK] = df_design[DOE.BLOCK].ffill()
@@ -642,8 +642,8 @@ class BaseDesignBuilder(ABC):
         """
         df_design[DOE.STD_ORDER] = np.arange(len(df_design))
         if self.shuffle:
-            df_design = (
-                df_design.groupby(DOE.BLOCK, group_keys=False)
+            df_design = (df_design
+                .groupby(DOE.BLOCK, group_keys=False)
                 .apply(lambda group: group.sample(frac=1))
                 .reset_index(drop=True))
         df_design[DOE.RUN_ORDER] = np.arange(len(df_design))
