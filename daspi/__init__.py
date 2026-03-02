@@ -301,6 +301,7 @@ from .plotlib.classify import HueLabel
 from .plotlib.classify import SizeLabel
 from .plotlib.classify import ShapeLabel
 
+from .plotlib.plotter import Box
 from .plotlib.plotter import Bar
 from .plotlib.plotter import Line
 from .plotlib.plotter import Stem

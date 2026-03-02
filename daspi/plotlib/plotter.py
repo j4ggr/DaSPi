@@ -142,6 +142,7 @@ __all__ = [
     'CenterLocation',
     'Bar',
     'Pareto',
+    'Box',
     'Jitter',
     'Beeswarm',
     'CategoricalObservation',
@@ -267,7 +268,15 @@ class SpreadOpacity:
         return kw
 
     def quantiles(self, target_data: Series) -> List[float]:
-        """Calculate the quantiles in ascending order:
+        """Calculate the quantiles in ascending order.
+
+        This method calculates the quantiles based on the specified 
+        strategy and agreements. It uses the 
+        :class:`LocationDispersionEstimator` to estimate the quantiles 
+        for the given target data, which is grouped by feature. The 
+        quantiles are calculated according to the agreements, and the 
+        resulting list of quantiles is sorted in ascending order before 
+        being returned.
         
         Parameters
         ----------
@@ -288,8 +297,8 @@ class SpreadOpacity:
             possible_dists=self.possible_dists)
         for agreement in self.agreements:
             self.estimation.agreement = agreement
-            k = 1 if agreement == max(self.agreements) else 2
-            quantiles.extend([self.estimation.lcl, self.estimation.ucl] * k)
+            n = 1 if agreement == max(self.agreements) else 2
+            quantiles.extend([self.estimation.lcl, self.estimation.ucl] * n)
         return sorted(quantiles)
     
     def subgroup_values(
@@ -2972,6 +2981,278 @@ class Pareto(Bar):
             'Calling this method is unnecessary, Pareto plotter already does '
             'this during plotting',
             UserWarning)
+
+
+class Box(TransformPlotter):
+    """A box plotter that uses matplotlib's native boxplot with whiskers.
+
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''
+    width : float, optional
+        The width of the boxes, by default `CATEGORY.FEATURE_SPACE * 0.8`.
+    showfliers : bool, optional
+        Whether to show outliers beyond the whiskers, by default True.
+    whis : float or tuple, optional
+        The whisker length. If a float, it defines the reach of the 
+        whiskers to the beyond the first and third quartiles (e.g., 1.5 
+        corresponds to 1.5*IQR). If a tuple of two values, they define 
+        the percentiles (e.g., (5, 95) for 5th and 95th percentiles),
+        by default 1.5.
+    fill : bool, optional
+        Whether to fill the boxes with color, by default False.
+    f_base : int | float, optional
+        Value that serves as the base location (offset) of the 
+        feature values. Only taken into account if feature is not 
+        given, by default `DEFAULT.FEATURE_BASE`.
+    skip_na : Literal['none', 'all', 'any'], optional
+        Flag indicating whether to skip missing values in the feature 
+        grouped data, by default None
+        - None, no missing values are skipped
+        - 'all', grouped data is skipped if all values are missing
+        - 'any', grouped data is skipped if any value is missing
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on 
+        the y-axis, by default True
+    color : str | None, optional
+        Color to be used to draw the box edges. If None, the first 
+        color is taken from the color cycle, by default None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import Box
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    box = Box(source=df, target='y', feature='x', ax=ax)
+    box()
+    box.label_feature_ticks()
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    df = pd.DataFrame(dict(
+        x = ['first'] * 50 + ['second'] * 50 + ['third'] * 50,
+        y = (
+            list(np.random.normal(loc=3, scale=1, size=50))
+            + list(np.random.normal(loc=4, scale=1, size=50))
+            + list(np.random.normal(loc=2, scale=1, size=50)))))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x',
+            categorical_feature=True,
+        ).plot(
+            dsp.Box,
+        ).label()  # needed to label feature ticks
+    ```
+    
+    Customize boxplot appearance:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import Box
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        x = ['A'] * 30 + ['B'] * 30 + ['C'] * 30,
+        y = (
+            list(np.random.normal(loc=10, scale=2, size=30))
+            + list(np.random.normal(loc=15, scale=3, size=30))
+            + list(np.random.normal(loc=12, scale=1.5, size=30)))))
+    box = Box(source=df, target='y', feature='x', width=0.5, ax=ax)
+    box(patch_artist=True, boxprops=dict(facecolor='lightblue'))
+    box.label_feature_ticks()
+    ```
+    """
+    __slots__ = (
+        'width',
+        'showfliers',
+        'whis',
+        'fill',
+        '_grouped_data',
+        '_positions')
+
+    width: float
+    """The width of the boxes."""
+    showfliers: bool
+    """Whether to show outliers beyond the whiskers."""
+    whis: float | tuple
+    """The whisker length definition."""
+    fill: bool
+    """Whether to fill the boxes with color."""
+    _grouped_data: list
+    """List of arrays containing the target data for each feature group."""
+    _positions: list
+    """List of positions for each box on the feature axis."""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str = '',
+            width: float = CATEGORY.FEATURE_SPACE * 0.8,
+            showfliers: bool = True,
+            whis: float | tuple = 1.5,
+            fill: bool = False,
+            f_base: int | float = DEFAULT.FEATURE_BASE,
+            skip_na: Literal['all', 'any'] | None = None,
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
+            **kwds) -> None:
+        self.width = width
+        self.showfliers = showfliers
+        self.whis = whis
+        self.fill = fill
+        self._grouped_data = []
+        self._positions = []
+        super().__init__(
+            source=source,
+            target=target,
+            feature=feature,
+            f_base=f_base,
+            skip_na=skip_na,
+            target_on_y=target_on_y,
+            color=color,
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis,
+            **kwds)
+    
+    @property
+    def kw_default(self) -> Dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        fill_color = self.color if self.fill else  COLOR.TRANSPARENT
+        kwds = dict(
+            widths=self.width,
+            showfliers=self.showfliers,
+            whis=self.whis,
+            capprops=dict(
+                color=self.color),
+            boxprops=dict(
+                color=self.color,
+                edgecolor=self.color,
+                facecolor=fill_color,
+                alpha=COLOR.FILL_ALPHA if self.fill else None),
+            whiskerprops=dict(
+                color=self.color),
+            flierprops=dict(
+                color=self.color,
+                markeredgecolor=self.color,
+                markerfacecolor=fill_color,
+                alpha=COLOR.MARKER_ALPHA if self.fill else None),
+            medianprops=dict(
+                color=self.color),
+            meanprops=dict(
+                color=self.color,
+                markerfacecolor=self.color,
+                markeredgecolor=self.color),)
+        return kwds
+        
+    def transform(
+            self, feature_data: float | int, target_data: Series) -> DataFrame:
+        """Store the grouped target data for boxplot and return minimal
+        DataFrame for compatibility.
+
+        Parameters
+        ----------
+        feature_data : int | float
+            Base location (offset) of feature axis coming from 
+            `feature_grouped' generator.
+        target_data : pandas Series
+            feature grouped target data used for transformation, coming
+            from `feature_grouped' generator.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            A minimal DataFrame for compatibility with the base class.
+        """
+        # Store the actual data for boxplot
+        self._grouped_data.append(target_data.dropna().values)
+        self._positions.append(feature_data)
+        
+        # Return minimal DataFrame for compatibility
+        data = pd.DataFrame({
+            self.target: [target_data.median()],
+            self.feature: [feature_data]})
+        return data
+
+    def __call__(self, **kwds) -> None:
+        """Perform the boxplot operation using matplotlib's native boxplot.
+
+        Parameters
+        ----------
+        **kwds
+            Additional keyword arguments to be passed to the Axes 
+            `boxplot` method. Common options include:
+            - patch_artist : bool, whether to fill boxes with color
+            - boxprops : dict, properties for box patches
+            - whiskerprops : dict, properties for whisker lines
+            - capprops : dict, properties for cap lines
+            - medianprops : dict, properties for median line
+            - flierprops : dict, properties for outlier markers
+        """
+        if not self._grouped_data:
+            return
+        
+        _kwds = self.kw_default | kwds
+        
+        if self.target_on_y:
+            self.ax.boxplot(
+                self._grouped_data,
+                positions=self._positions,
+                vert=True,
+                **_kwds)
+        else:
+            self.ax.boxplot(
+                self._grouped_data,
+                positions=self._positions,
+                vert=False,
+                **_kwds)
 
 
 class Jitter(TransformPlotter):

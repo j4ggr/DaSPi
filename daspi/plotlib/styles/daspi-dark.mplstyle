@@ -115,7 +115,7 @@ boxplot.notch:          False
 boxplot.vertical:       True
 boxplot.whiskers:       1.5
 boxplot.bootstrap:      None
-boxplot.patchartist:    False
+boxplot.patchartist:    True
 boxplot.showmeans:      True
 boxplot.showcaps:       True
 boxplot.showbox:        True
@@ -123,7 +123,7 @@ boxplot.showfliers:     True
 boxplot.meanline:       False
 
 boxplot.flierprops.color:           black
-boxplot.flierprops.marker:          *
+boxplot.flierprops.marker:          o
 boxplot.flierprops.markerfacecolor: none
 boxplot.flierprops.markeredgecolor: black
 boxplot.flierprops.markeredgewidth: 1.0
@@ -147,10 +147,10 @@ boxplot.medianprops.color:      C1
 boxplot.medianprops.linewidth:  1.0
 boxplot.medianprops.linestyle:  -
 
-boxplot.meanprops.color:            C2
-boxplot.meanprops.marker:           ^
-boxplot.meanprops.markerfacecolor:  C2
-boxplot.meanprops.markeredgecolor:  C2
+boxplot.meanprops.color:            C1
+boxplot.meanprops.marker:           x
+boxplot.meanprops.markerfacecolor:  C1
+boxplot.meanprops.markeredgecolor:  C1
 boxplot.meanprops.markersize:       5
 boxplot.meanprops.linestyle:        --
 boxplot.meanprops.linewidth:        1.0

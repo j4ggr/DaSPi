@@ -29,6 +29,7 @@ from daspi.plotlib.chart import SingleChart
 from daspi.plotlib.chart import MultivariateChart
 
 from daspi.plotlib.plotter import Bar
+from daspi.plotlib.plotter import Box
 from daspi.plotlib.plotter import Line
 from daspi.plotlib.plotter import Stem
 from daspi.plotlib.plotter import Pareto
@@ -803,6 +804,85 @@ class TestSingleChart:
             ).plot(
                 Violine,
                 fill=False
+            ).label(
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,    
+                info=self.info_msg
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert self.file_name.is_file()
+        assert len(texts) == 5
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+
+    def test_box_plot(self) -> None:
+        self.base = f'{self.fig_title}_box'
+
+        self.kind = 'simple'
+        chart = SingleChart(
+                source=df_painkillers,
+                target=self.target,
+                feature=self.cat1, 
+                categorical_feature=True,
+            ).plot(
+                Box,
+            ).label(
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,    
+                info=self.info_msg
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert self.file_name.is_file()
+        assert len(texts) == 5
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+
+        self.kind = 'fill'
+        chart = SingleChart(
+                source=df_painkillers,
+                target=self.target,
+                feature=self.cat1, 
+                categorical_feature=True,
+            ).plot(
+                Box,
+                fill=True,
+            ).label(
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,    
+                info=self.info_msg
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert self.file_name.is_file()
+        assert len(texts) == 5
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+        assert self.info_msg in info_msg
+        
+        self.kind = 'multiple'
+        chart = SingleChart(
+                source=df_painkillers,
+                target=self.target,
+                feature=self.cat1, 
+                hue=self.cat2,
+                dodge=True,
+                target_on_y=False
+            ).plot(
+                Box,
+                fill=True,
             ).label(
                 fig_title=self.fig_title,
                 sub_title=self.sub_title,
