@@ -1,6 +1,6 @@
 [project]
 name = "DaSPi"
-version = "1.9.3"
+version = "1.10.0"
 description = "Visualize and analyze your data with DaSPi. This package is designed for users who want to find relevant influencing factors in processes and validate improvements."
 authors = [
     {name = "Reto Jäggli", email = "reto@jaeggli.email"},
@@ -19,7 +19,7 @@ license = {text = "BSD-3-Clause"}
 [project.urls]
 Repository = "https://github.com/j4ggr/DaSPi"
 Documentation = "https://j4ggr.github.io/DaSPi/"
-Changelog = "https://j4ggr.github.io/DaSPi/Changelog"
+Changelog = "https://j4ggr.github.io/DaSPi/CHANGELOG"
 
 [build-system]
 requires = ["pdm-backend"]

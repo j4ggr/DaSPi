@@ -14,6 +14,20 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [1.10.0] - 2026-03-03
+
+### Added
+
+- The `PairwiseMatrixCharts` class to precast module to visualize pairwise relationships between features in a dataset.
+- The `Box` plotter class to plotlib module for classical boxplot visualization using matplotlib native boxplot.
+- The penguins dataset to datasets module.
+- Images for each precast example.
+- Visual tests for Box plotter.
+
+### Changed
+
+- Default boxplot rcparams within daspi-dark and daspi mplstyle.
+
 ## [1.9.3] - 2026-02-10
 
 ### Added
