@@ -14,7 +14,7 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
-## [1.10.0] - 2026-03-03
+## [1.10.1] - 2026-03-03
 
 ### Added
 
@@ -27,6 +27,10 @@ __Types of changes__:
 ### Changed
 
 - Default boxplot rcparams within daspi-dark and daspi mplstyle.
+
+### Fixed
+
+- Generating the list of subgroup values at SpreadOpacity class failed if some quantiles were the same, which could happen when there are many duplicate values in the data. This is now fixed by using all values of the quantiles as subgroup values instead of only the unique values.
 
 ## [1.9.3] - 2026-02-10
 
