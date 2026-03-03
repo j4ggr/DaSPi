@@ -904,7 +904,7 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             info=True)
     ```
 
-    ![Process Capability Analysis Charts](https://raw.githubusercontent.com/daspi/daspi/main/docs/img/precast_process-capability-analysis-charts_example.png)
+    ![ProcessCapabilityAnalysisChartsDocstringExample](https://raw.githubusercontent.com/j4ggr/DaSPi/main/docs/img/precast_process-capability-analysis-charts_example.png)
     """
     __slots__ = ('spec_limits', 'dist', 'kw_estim', 'n_groups')
 
@@ -1187,7 +1187,7 @@ class GageStudyCharts(JointChart):
     gage
     ```
 
-    ![Example of GageStudyCharts output](https://raw.githubusercontent.com/daspi/daspi/main/docs/img/precast_gage-study-charts_example.png)
+    ![GageStudyChartsDocstringExample](https://raw.githubusercontent.com/j4ggr/DaSPi/main/docs/img/precast_gage-study-charts_example.png)
     """
     
     __slots__ = (
@@ -1395,7 +1395,7 @@ class GageRnRCharts(JointChart):
     model
     ```
 
-    ![Example of GageRnRCharts output](https://raw.githubusercontent.com/andreaspacher/daspi/main/docs/img/precast_gage-rnr-charts_example.png)
+    ![GageRnRChartsDocstringExample](https://raw.githubusercontent.com/j4ggr/DaSPi/main/docs/img/precast_gage-rnr-charts_example.png)
     """
     
     __slots__ = (
