@@ -349,10 +349,10 @@ from .plotlib.precast import GageRnRCharts
 from .plotlib.precast import GageStudyCharts
 from .plotlib.precast import ResidualsCharts
 from .plotlib.precast import PairComparisonCharts
+from .plotlib.precast import PairwiseMatrixCharts
 from .plotlib.precast import ParameterRelevanceCharts
 from .plotlib.precast import BivariateUnivariateCharts
 from .plotlib.precast import ProcessCapabilityAnalysisCharts
-
 
 from .anova.convert import get_term_name
 from .anova.convert import frames_to_html

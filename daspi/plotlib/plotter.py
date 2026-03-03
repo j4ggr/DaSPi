@@ -1118,10 +1118,10 @@ class LinearRegressionLine(Plotter):
         by default None
     show_scatter : bool, optional
         Flag indicating whether to show the individual points, 
-        by default False.
+        by default True.
     show_fit_ci : bool, optional
         Flag indicating whether to show the confidence interval for
-        the fitted line as filled area, by default False.
+        the fitted line as filled area, by default True.
     show_pred_ci : bool, optional
         Flag indicating whether to show the confidence interval for 
         predictions as additional lines, by default False
@@ -1216,8 +1216,8 @@ class LinearRegressionLine(Plotter):
             target_on_y: bool = True,
             color: str | None = None,
             marker: str | None = None,
-            show_scatter: bool = False,
-            show_fit_ci: bool = False,
+            show_scatter: bool = True,
+            show_fit_ci: bool = True,
             show_pred_ci: bool = False,
             ax: Axes | None = None,
             visible_spines: Literal['target', 'feature', 'none'] | None = None,
