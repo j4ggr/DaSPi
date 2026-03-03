@@ -313,6 +313,17 @@ class SpreadOpacity:
         agreement is the same as the first agreement, the last 
         subgroup value is appended instead.
 
+        Parameters
+        ----------
+        sequence : numpy array or int
+            The sequence of values to be categorized into subgroups. If 
+            an integer is provided, it is interpreted as the number of 
+            values in the sequence, and the subgroup values are generated 
+            accordingly.
+        quantiles : List[float]
+            The list of quantiles used to determine the subgroup 
+            boundaries.
+
         Returns
         -------
         List[float | int]:
@@ -324,21 +335,22 @@ class SpreadOpacity:
         if isinstance(sequence, int):
             for name in names:
                 subgroup.extend([name] * sequence)
-        else:
-            _quantiles = np.unique(quantiles)
-            for name, beg, end in zip(names, _quantiles[:-1], _quantiles[1:]):
-                if not subgroup:
-                    n_values = np.sum((sequence <= end))
-                elif name == names[-1]:
-                    n_values = np.sum((sequence > beg))
-                else:
-                    n_values = np.sum((sequence > beg) & (sequence <= end))
-                subgroup.extend([name] * n_values)
-            if difference := len(sequence) - len(subgroup):
-                if difference < 0:
-                    subgroup = subgroup[:difference]
-                else:
-                    subgroup.extend([names[-1]] * difference)
+            return subgroup
+
+        quantiles = sorted(quantiles)
+        for name, beg, end in zip(names, quantiles[:-1:2], quantiles[1::2]):
+            if not subgroup:
+                n_values = np.count_nonzero((sequence <= end))
+            elif name == names[-1]:
+                n_values = np.count_nonzero((sequence > beg))
+            else:
+                n_values = np.count_nonzero((sequence > beg) & (sequence <= end))
+            subgroup.extend([name] * n_values)
+        if difference := len(sequence) - len(subgroup):
+            if difference < 0:
+                subgroup = subgroup[:difference]
+            else:
+                subgroup.extend([names[-1]] * difference)
         return subgroup
 
 
