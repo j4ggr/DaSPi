@@ -112,6 +112,7 @@ nav:
         - plotlib/precast/residual-charts.md
         - plotlib/precast/parameter-relevance-charts.md
         - plotlib/precast/pair-comparison-charts.md
+        - plotlib/precast/pairwise-matrix-charts.md
         - plotlib/precast/bivariate-univariate-charts.md
         - plotlib/precast/process-capability-analysis-charts.md
         - plotlib/precast/gage-study-charts.md
