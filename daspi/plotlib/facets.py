@@ -995,9 +995,29 @@ class LabelFacets:
 
     @staticmethod
     def estimate_height(text: Text) -> int:
-        """Get the estimated size of the text in the figure in pixels."""
+        """Get the estimated size of the text in the figure in pixels.
+
+        This method estimates the height of a text object in pixels 
+        based on its font size, the number of lines it contains, and the 
+        figure's DPI. It calculates the line height using the font size 
+        and a constant PPI (pixels per inch), then multiplies by the 
+        number of lines to get the total height, and adds padding to 
+        account for spacing between lines and around the text.
+        
+        Parameters
+        ----------
+        text : Text
+            The text object for which to estimate the height.
+        
+        Returns
+        -------
+        int
+            The estimated height of the text in pixels.
+        """
         dpi = text.figure.dpi if text.figure else plt.rcParams['figure.dpi']
-        return int(int(text.get_fontsize()) * LABEL.PPI * dpi) + LABEL.PADDING
+        line_height = int(text.get_fontsize()) * LABEL.PPI * dpi
+        n_lines = text.get_text().count('\n') + 1
+        return int(line_height * n_lines) + LABEL.PADDING
     
     @staticmethod
     def estimate_rotation_margin(angle_degrees: float, base_margin: int = 25) -> int:
