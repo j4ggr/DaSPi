@@ -173,4 +173,4 @@ nav:
         - statistics/estimation/loess.md
       - Confidence:
         - statistics/confidence/index.md
-      - Monte-Carlo Library: statistics\montecarlo\index.md
+      - Monte-Carlo Library: statistics/montecarlo/index.md
