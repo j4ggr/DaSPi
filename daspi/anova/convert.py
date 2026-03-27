@@ -1,3 +1,18 @@
+"""Conversion helpers for patsy-encoded model terms and HTML output.
+
+This module provides small, stateless utility functions used internally
+by the ANOVA model and table modules.
+
+Functions
+---------
+- `get_term_name` – strips the patsy categorical encoding
+  (``[T.<value>]`` suffixes) from a column name, including
+  interaction terms separated by ``:``. The result is the original
+  user-facing factor name.
+- `frames_to_html` – serialises one or more DataFrames to an HTML
+  string with per-table ``<caption>`` elements; used by
+  ``BaseHTMLReprModel`` to build the notebook HTML representation.
+"""
 from typing import List
 from typing import Tuple
 from pandas.core.frame import DataFrame

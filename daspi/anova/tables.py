@@ -1,3 +1,29 @@
+"""Low-level table-building functions for ANOVA results.
+
+This module contains pure functions that compute and format the
+numerical summaries produced by ``LinearModel``.
+
+Functions
+---------
+- `uniques` – order-preserving de-duplication of a sequence; used to
+  keep factor names in the order they were entered.
+- `terms_effect` – calculates the standardised effect size for each
+  model term (|coefficient| / standard error), used in effect plots.
+- `variance_inflation_factor` – computes VIF scores for all
+  predictors; flags multicollinearity.
+- `anova_table` – builds a tidy Type I / II / III ANOVA table from a
+  fitted statsmodels ``RegressionResultsWrapper``, including SS, MS,
+  F, and p-values.
+- `terms_probability` – extracts per-term p-values from a fitted
+  model, applying the ``get_term_name`` conversion so that the index
+  matches original factor names.
+
+Notes
+-----
+All functions in this module operate on statsmodels result objects or
+pandas data structures. They do not carry state and are safe to call
+independently of the model classes.
+"""
 import warnings
 
 import numpy as np

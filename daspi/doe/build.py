@@ -1,3 +1,60 @@
+"""Design-of-Experiment (DOE) design builder classes and utilities.
+
+This module provides the building blocks for constructing factorial
+experimental designs as pandas DataFrames. The generated design
+matrices can be passed directly to ``LinearModel`` for response
+analysis.
+
+Data model
+----------
+`Factor`
+    Represents a single controllable input factor. Stores its name,
+    ordered levels, and an optional central point. Numeric factors are
+    automatically sorted and a centred coding (e.g. −1 / 0 / +1) is
+    computed; categorical factors receive ordinal integer codes.
+    Automatic detection warns when string levels are found without
+    ``is_categorical=True``.
+
+Design builder classes
+----------------------
+`BaseDesignBuilder` *(abstract)*
+    Defines the shared interface and validation logic for all design
+    builders. Handles replicates, blocking, central points, and
+    optional run-order shuffling. Exposes the final design via the
+    ``design`` property (a pandas DataFrame).
+
+`FullFactorialDesignBuilder` *(extends BaseDesignBuilder)*
+    Generates a complete full-factorial design — every combination of
+    all factor levels is included exactly once per replicate. Supports
+    any number of levels per factor (not limited to two).
+
+`FullFactorial2kDesignBuilder` *(extends FullFactorialDesignBuilder)*
+    Specialised builder for the classical 2ᵏ full-factorial design.
+    Validates that exactly two levels are provided per factor and
+    optionally adds fold-over runs.
+
+`FractionalFactorialDesignBuilder` *(extends BaseDesignBuilder)*
+    Builds a 2^(k−p) fractional factorial design by confounding
+    higher-order interactions with additional factors. Generator
+    strings (e.g. ``'D=ABC'``) define the aliasing structure.
+    Default generators for common k/p combinations are available via
+    ``get_default_generators()``.
+
+Utility functions
+-----------------
+`get_default_generators`
+    Returns standard generator strings for regular 2-level fractional
+    factorial designs up to 2^(19−9). Based on Montgomery (2017)
+    and Box, Hunter & Hunter.
+
+Notes
+-----
+All builder classes produce a design DataFrame whose column names
+match the ``Factor.name`` values plus reserved columns for block
+assignment and run order. The DataFrame can be passed directly to
+``LinearModel`` as the ``source`` argument after the experiment has
+been carried out and the response column has been added.
+"""
 import warnings
 
 import numpy as np

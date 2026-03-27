@@ -1,66 +1,76 @@
-"""The `LinearModel` class in `daspi/anova/model.py` is designed to 
-create and simplify linear models, where only significant features are 
-used to describe the model. It is particularly useful for analyzing 
-balanced models (DOEs or EVOPs) that include both categorical and 
-continuous variables.
+"""Linear model classes for ANOVA, DOE analysis, and measurement system
+studies.
 
-The class takes three main inputs:
+This module is the centrepiece of the ``anova`` package. It provides
+three concrete model classes, all built on a common base that renders
+rich HTML tables in Jupyter notebooks and exposes a consistent API for
+fitting, simplifying, and inspecting OLS-based linear models.
 
-- source: A pandas DataFrame containing the tabular data in a long 
-  format, which will be used for the model.
-- target: The name of the column in the DataFrame that represents the 
-  endogenous (dependent) variable.
-- features: A list of column names in the DataFrame that represent 
-  the exogenous (independent) variables.
-- Additionally, it can take an optional input covariates, which is a 
-  list of column names representing exogenous variables that are logged 
-  but cannot be influenced. No interactions are created for these
-  variables.
+Class hierarchy
+---------------
+`BaseHTMLReprModel`
+    Abstract base — handles HTML / ``repr`` rendering and caches
+    the formatted output tables.
 
-The purpose of this class is to create a linear model that includes all 
-factor levels and their interactions, and then automatically eliminate 
-any non-significant factors or interactions. This allows for a more 
-concise and accurate representation of the model, where only the 
-relevant features are included.
+`LinearModel` *(extends BaseHTMLReprModel)*
+    General-purpose linear model for ANOVA and DOE response analysis.
+    Accepts both categorical and continuous variables together with an
+    optional list of *covariates* (logged, uncontrolled variables).
+    Key capabilities:
 
-To achieve this, the class follows these steps:
+    - Automatically builds the full model formula (main effects +
+      all two-way and higher-order interactions up to the specified
+      ``order``).
+    - Encodes the design matrix via *patsy* and fits an OLS model
+      through *statsmodels*.
+    - Iteratively removes the least significant term until all
+      remaining terms are significant (backward elimination).
+    - Reports Type I / Type II / Type III ANOVA tables, parameter
+      statistics, variance inflation factors (VIF), goodness-of-fit
+      metrics (R², adjusted R², AIC, BIC, predicted R²), and
+      residual data.
+    - Supports optimal-factor-level prediction via ``predict()`` and
+      constrained response optimisation via ``optimize()``.
 
-1. It encodes the design matrix with all factor levels and their 
-    interactions.
-2. It fits a linear model using the encoded design matrix and the 
-    provided data.
-3. It calculates the p-values for each factor and interaction,
-    indicating their significance in the model.
-4. It provides methods to recursively eliminate non-significant factors 
-    or interactions based on their p-values, until only significant features 
-    remain.
+`GageStudyModel` *(extends LinearModel)*
+    MSA Type-1 Gage study for a single operator / single instrument.
+    Fits a linear model of measured values against reference parts and
+    computes the full GUM-compliant measurement uncertainty budget:
 
-The class also provides methods to analyze the model in more detail, 
-such as:
+    - Component uncertainties: calibration (CAL), resolution (RE),
+      bias (BI), linearity (LIN), equipment variation on reference
+      (EVR), and any additional known uncertainty (REST).
+    - Combined / expanded measurement system uncertainty (U_MS).
+    - Capability indices Cg, Cgk and quality indicator Q_MS with
+      configurable acceptance limits.
+    - Convenience factory ``GageStudyModel.from_gage_estimators()``
+      for building a model from pre-computed ``GageEstimator``
+      instances.
 
-- Calculating the sum of squares (explained variation) for each factor 
-  and interaction.
-- Generating an ANOVA (Analysis of Variance) table to assess the 
-  significance of each factor and interaction.
-- Calculating the effects (impact) of each factor and interaction on the 
-  target variable.
-- Checking if the model is hierarchical (i.e., if all lower-order 
-  interactions are included when higher-order interactions are present).
-- The main output of this class is a simplified linear model that 
-  includes only the significant features. Additionally, it provides 
-  various statistics and metrics related to the model, such as the ANOVA 
-  table, p-values, effects, and goodness-of-fit measures 
-  (e.g., R-squared, adjusted R-squared, AIC).
+`GageRnRModel` *(extends LinearModel)*
+    Gage Repeatability & Reproducibility (Gage R&R) study. Fits a
+    crossed or nested ANOVA model over operators and parts and derives
+    the standard Gage R&R variance components (equipment variation EV,
+    appraiser variation AV, part-to-part PV, gauge R&R GRR, and total
+    variation TV).
 
-The class achieves its purpose through a combination of linear 
-regression techniques, statistical hypothesis testing, and recursive 
-feature elimination algorithms. It leverages the statsmodels library for 
-fitting the linear models and performing ANOVA calculations.
+Typical workflow
+----------------
+1. Load or generate a long-format DataFrame.
+2. Instantiate the appropriate model class.
+3. Call ``simplify()`` on a ``LinearModel`` to drop insignificant
+   terms, or let ``GageStudyModel`` / ``GageRnRModel`` handle their
+   own fitting logic.
+4. Inspect the results via ``anova()``, ``gof_metrics()``,
+   ``parameter_statistics()``, or display the model object directly
+   in a Jupyter notebook for an HTML summary.
 
-Overall, the LinearModel class is a powerful tool for analyzing and 
-simplifying linear models, particularly in the context of designed 
-experiments or engineering applications where categorical and continuous 
-variables are involved.
+Dependencies
+------------
+The module relies on *statsmodels* for OLS fitting and ANOVA
+calculations, *patsy* for formula encoding of the design matrix, and
+the :mod:`daspi.statistics` package for capability indices and
+measurement uncertainty propagation.
 """
 import warnings
 import itertools
