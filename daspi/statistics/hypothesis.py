@@ -187,11 +187,40 @@ def ensure_generic(
 def anderson_darling_test(
         sample: NumericSample1D
         ) -> Tuple[float, float]:
-    """The Anderson-Darling test compares the measured values with the 
-    theoretical values of a given distribution (in this case the normal 
-    distribution). This test is considered to be one of the most 
-    powerful tests for normal distribution for both small and large 
-    sample sizes.
+    """The Anderson-Darling test compares the measured values with the
+    theoretical values of a given distribution (in this case the normal
+    distribution). This test is considered to be one of the most
+    powerful tests for normality for both small and large sample sizes.
+
+    The Anderson-Darling statistic $A^2$ is computed as a squared
+    distance between the empirical cumulative distribution function and
+    the theoretical CDF $F$, with stronger weighting in the tails. For
+    a sample of size $N$ with ordered values $x_1 \\le \\ldots \\le x_N$:
+
+    $$
+        A^2 = -N - \\frac{1}{N} \\sum_{i=1}^{N} (2i-1)
+              \\bigl(\\ln F(x_i) + \\ln(1 - F(x_{N-i+1}))\\bigr)
+    $$
+
+    To obtain a p-value the statistic is adjusted for finite sample
+    size:
+
+    $$
+        A^* = A^2 \\left(1 + \\frac{0.75}{N} + \\frac{2.25}{N^2}\\right)
+    $$
+
+    The p-value is then derived from $A^*$ using the following piecewise
+    approximation:
+
+    $$
+        p = \\begin{cases}
+          0 & A^* \\ge 13 \\\\
+          \\exp(1.2937 - 5.709\\,A^* + 0.0186\\,(A^*)^2) & 6 \\le A^* < 13 \\\\
+          \\exp(0.9177 - 4.279\\,A^* - 1.38\\,(A^*)^2) & 0.34 < A^* < 0.6 \\\\
+          1 - \\exp(42.796\\,A^* - 59.938\\,(A^*)^2 - 8.318) & 0.2 < A^* \\le 0.34 \\\\
+          1 - \\exp(101.14\\,A^* - 223.73\\,(A^*)^2 - 13.436) & A^* \\le 0.2
+        \\end{cases}
+    $$
 
     Parameters
     ----------
@@ -201,13 +230,13 @@ def anderson_darling_test(
     Returns
     -------
     p : float
-        The p-value for the test
+        The p-value for the test.
     A_star : float
-        The adjusted Anderson Darling test statistic
-    
+        The adjusted Anderson-Darling test statistic $A^*$.
+
     Notes
     -----
-    This test was inspired by the Excel Addin by Charles Zaiontz, see:
+    This test was inspired by the Excel Add-in by Charles Zaiontz, see:
     https://real-statistics.com/non-parametric-tests/goodness-of-fit-tests/anderson-darling-test/
     """
     N = len(sample)
@@ -303,9 +332,30 @@ def f_test(
         sample1: NumericSample1D,
         sample2: NumericSample1D
         ) -> Tuple[float, float]:
-    """The F-test is a test for equal variances between two populations. 
-    The probability distribution on which the F-test is based is called 
-    the F-distribution (also Fisher distribution). 
+    """F-test for equal variances between two independent populations.
+
+    The F-test compares the variances of two samples. The underlying
+    probability distribution is the F-distribution (Fisher distribution),
+    which depends on the degrees of freedom :math:`df_1` and
+    :math:`df_2` of the two populations. The test statistic is the
+    ratio of the two sample variances:
+
+    $$
+        F = \\frac{s_1^2}{s_2^2}
+    $$
+
+    The two-sided p-value is computed as:
+
+    $$
+        p = 2 \\cdot \\min\\bigl(F_{\\text{cdf}}(F),\\; 1 - F_{\\text{cdf}}(F)\\bigr)
+    $$
+
+    where $F_{\\text{cdf}}$ is the cumulative distribution function of
+    the F-distribution with $df_1 = n_1 - 1$ and $df_2 = n_2 - 1$
+    degrees of freedom.
+
+    The null hypothesis $H_0: \\sigma_1^2 = \\sigma_2^2$ is rejected when
+    $F < F_{1-\\alpha/2}$ or $F > F_{\\alpha/2}$.
 
     Parameters
     ----------
@@ -318,9 +368,15 @@ def f_test(
     Returns
     -------
     p : float
-        The p-value for the test
+        The two-sided p-value for the test.
     F : float
-        The f-test statistic
+        The F-test statistic.
+
+    Notes
+    -----
+    The F-test assumes that both samples are drawn from normally
+    distributed populations. For non-normal data or heavy-tailed
+    distributions, consider using `levene_test` instead.
     """
     F = float(np.var(sample1, ddof=1) / np.var(sample2, ddof=1))
     dof1, dof2 = len(sample1)-1, len(sample2)-1
@@ -368,10 +424,40 @@ def levene_test(
         sample2: NumericSample1D,
         heavy_tailed: bool = False
         ) -> Tuple[float, float]:
-    """Perform Levene test for equal variances.
-    The Levene test tests the null hypothesis that all input samples are 
-    from populations with equal variances.
-    
+    """Levene test for equal variances (variance homogeneity).
+
+    The Levene test checks the null hypothesis that all input samples
+    are drawn from populations with equal variances. It is a robust
+    alternative to the F-test and does not require normality.
+
+    Given a variable *Y* with *N* observations divided into *k* groups
+    (where $N_i$ is the size of the *i*-th group), the Levene
+    statistic *W* is defined as:
+
+    $$
+        W = \\frac{N - k}{k - 1} \\cdot
+            \\frac{\\sum_{i=1}^{k} N_i (\\bar{Z}_i - \\bar{Z})^2}
+                  {\\sum_{i=1}^{k} \\sum_{j=1}^{N_i} (Z_{ij} - \\bar{Z}_i)^2}
+    $$
+
+    where $\\bar{Z}_i$ is the group mean of the $Z_{ij}$ values and
+    $\\bar{Z}$ is the overall mean. The $Z_{ij}$ values are absolute
+    deviations from a group centre measure:
+
+    $$
+        Z_{ij} = \\lvert Y_{ij} - \\tilde{Y}_i \\rvert
+    $$
+
+    The choice of centre measure controls the robustness of the test:
+
+    - **Median** ($\\tilde{Y}_i$ = group median) — recommended for
+      skewed distributions (default when ``heavy_tailed=False``).
+    - **Trimmed mean** (10 % trimmed, $\\tilde{Y}_i'$) — recommended
+      for heavy-tailed (leptokurtic) distributions (used when
+      ``heavy_tailed=True``).
+    - **Mean** ($\\bar{Y}_i$) — original Levene definition, best for
+      symmetric, non-heavy-tailed data.
+
     Parameters
     ----------
     sample1 : NumericSample1D
@@ -379,15 +465,17 @@ def levene_test(
     sample2 : NumericSample1D
         A one-dimensional array-like object containing the second
         sample.
-    heavy_tailed : bool
-        set True if data is heavy tailed, by default False 
-    
+    heavy_tailed : bool, optional
+        If ``True``, a 10 % trimmed mean is used as the centre measure
+        (robust against heavy-tailed distributions). If ``False``
+        (default), the median is used.
+
     Returns
     -------
     p : float
-        p-value for the test
+        p-value for the test.
     L : float
-        Levene test statistic
+        Levene test statistic *W*.
     """
     center = 'trimmed' if heavy_tailed else 'median'
     L, p = levene(sample1, sample2, center=center)
