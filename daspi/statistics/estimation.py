@@ -1,3 +1,69 @@
+"""Statistical estimation classes and functions.
+
+This module provides higher-level estimators that combine confidence
+intervals, hypothesis tests, and distribution fitting into coherent
+analysis objects. It also contains utility functions for non-parametric
+smoothing and kernel density estimation.
+
+Estimator classes
+-----------------
+All estimator classes share a common interface: they accept a sample
+(and optionally a specification or reference distribution), run a
+battery of statistical checks internally, and expose their results as
+plain attributes.
+
+- `BaseEstimator` – abstract base class defining the common interface.
+- `LocationDispersionEstimator` – estimates mean and standard
+  deviation, computes confidence intervals for both, and performs
+  normality, stability, and shape tests on the sample.
+- `DistributionEstimator` – fits a parametric SciPy distribution to
+  the data via maximum-likelihood and performs a Kolmogorov-Smirnov
+  goodness-of-fit test.
+- `ProcessEstimator` – extends `LocationDispersionEstimator` with
+  process-capability indices (Cp, Cpk, Cpm) and their confidence
+  intervals, given a `Specification`.
+- `GageEstimator` – measurement system analysis; combines multiple
+  `ProcessEstimator` instances to quantify measurement uncertainty
+  relative to process variation and tolerance (GUM / Gage R&R style).
+
+Standalone functions
+--------------------
+- `root_sum_squares` – root sum of squares of scalar values; used in
+  combined measurement uncertainty calculations.
+- `estimate_distribution` – fits a parametric distribution to a sample
+  and returns the frozen distribution together with fit diagnostics.
+- `estimate_kernel_density` – univariate kernel density estimate over a
+  grid.
+- `estimate_kernel_density_2d` – bivariate kernel density estimate on a
+  2-D grid.
+- `estimate_capability_confidence` – delta-method confidence interval
+  for process-capability indices using Monte Carlo bootstrap.
+- `estimate_resolution` – estimates the effective measurement resolution
+  from a sample.
+
+Smoothing
+---------
+- `Loess` – locally weighted polynomial regression (LOESS) for
+  univariate data.
+- `Lowess` – locally weighted scatterplot smoothing (LOWESS) using
+  the statsmodels implementation.
+
+Measurement uncertainty
+-----------------------
+- `MeasurementUncertainty` – GUM-compliant representation of a single
+  uncertainty contribution; supports rectangular, triangular, and
+  normal distributions and can be combined with other instances via
+  root-sum-of-squares.
+
+Notes
+-----
+The `ProcessEstimator` and `GageEstimator` classes depend on
+`Specification` / `SpecLimits` from the `montecarlo` module, and on
+the hypothesis-testing functions from the `hypothesis` module and the
+confidence interval functions from the `confidence` module. They are
+therefore imported from those modules rather than being reimplemented
+here.
+"""
 # source for ci: https://aegis4048.github.io/comprehensive_confidence_intervals_for_python_developers#conf_int_of_var
 import warnings
 

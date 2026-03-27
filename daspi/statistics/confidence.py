@@ -1,3 +1,55 @@
+"""Confidence interval functions for common statistical measures.
+
+This module provides two-sided confidence interval calculations for a
+range of statistics, covering both single-sample and two-sample
+scenarios. All interval functions return a three-element tuple in the
+form ``(point_estimate, lower_bound, upper_bound)``, making them
+straightforward to use in tables and plots.
+
+Available functions
+-------------------
+Single-sample intervals:
+
+- `mean_ci` – confidence interval for the sample mean (t-distribution)
+- `median_ci` – confidence interval for the sample median
+- `variance_ci` – confidence interval for the variance (χ²-distribution)
+- `stdev_ci` – confidence interval for the standard deviation
+- `proportion_ci` – confidence interval for a binomial proportion
+
+Process-capability intervals:
+
+- `cp_ci` – confidence interval for the Cp process-capability index
+- `cpk_ci` – confidence interval for the Cpk process-capability index
+
+Two-sample / difference intervals:
+
+- `delta_mean_ci` – confidence interval for the difference of two means
+- `delta_variance_ci` – confidence interval for the ratio of two variances
+- `delta_stdev_ci` – confidence interval for the ratio of two standard deviations
+- `delta_proportions_ci` – confidence interval for the difference of two proportions
+
+Regression / model intervals:
+
+- `fit_ci` – confidence band around a fitted OLS regression line
+- `prediction_ci` – prediction band for individual future observations
+
+Helpers / utilities:
+
+- `sem` – standard error of the mean
+- `bonferroni_ci` – group-wise confidence intervals with Bonferroni correction
+- `confidence_to_alpha` – convert a confidence level to the corresponding α
+
+Notes
+-----
+The Bonferroni correction adjusts each individual confidence level so
+that the family-wise error rate across *n* simultaneous intervals does
+not exceed the nominal α.
+
+References
+----------
+Comprehensive confidence intervals for Python developers:
+https://aegis4048.github.io/comprehensive_confidence_intervals_for_python_developers
+"""
 # source for ci: https://aegis4048.github.io/comprehensive_confidence_intervals_for_python_developers#conf_int_of_var
 import numpy as np
 import pandas as pd

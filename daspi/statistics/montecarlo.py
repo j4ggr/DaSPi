@@ -1,3 +1,49 @@
+"""Monte Carlo simulation and specification modelling.
+
+This module provides the building blocks for tolerance analysis and
+Monte Carlo process simulation. It defines data structures for
+expressing engineering specifications and generates synthetic process
+data that can be passed to estimators in the `estimation` module.
+
+Specification data structures
+------------------------------
+- `SpecLimits` – an immutable dataclass holding the lower and upper
+  specification limits of a characteristic. Supports membership tests
+  (``value in spec_limits``) and derives tolerance, nominal, and
+  boundedness from the stored limits.
+- `Specification` – a richer specification object that accepts limits,
+  tolerance, and nominal value in any combination and cross-calculates
+  the missing values. Intended to be used as a constant (all properties
+  are uppercase).
+
+Simulation classes
+------------------
+- `RandomProcessValue` – generates random samples from a configurable
+  distribution (normal by default) scaled to a given specification.
+  Useful for building Monte Carlo models of multi-characteristic
+  assemblies.
+- `Binning` – discretises a continuous variable into equally spaced
+  bins, simulating the effect of finite measurement resolution.
+
+Utility functions
+-----------------
+- `round_to_nearest` – rounds a value to the nearest multiple of a
+  given resolution; used internally by `Binning`.
+- `inclination_displacement` – calculates the systematic displacement
+  introduced by a linearity (inclination) error relative to a
+  specification.
+- `calculate_agreement_and_k` – normalises an *agreement* argument
+  that may be given either as a σ-multiple (≥ 1) or as a coverage
+  fraction (0 < x ≤ 1) and returns both the standardised agreement
+  value and the corresponding coverage factor *k*.
+
+Notes
+-----
+`SpecLimits` and `Specification` are imported by the `estimation`
+module and used by `ProcessEstimator` and `GageEstimator` to relate
+sample statistics to engineering tolerances. `calculate_agreement_and_k`
+is a shared helper that is also re-exported from this module.
+"""
 import random
 
 import numpy as np

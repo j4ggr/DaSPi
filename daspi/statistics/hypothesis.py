@@ -1,3 +1,68 @@
+"""Statistical hypothesis-testing functions.
+
+This module collects a curated set of hypothesis tests commonly used in
+industrial and scientific data analysis. The tests cover normality
+checks, variance equality, location differences, distributional
+goodness-of-fit, and shape statistics.
+
+Every test function returns a tuple whose **first element is always the
+p-value**, followed by the test statistic (and additional values where
+applicable). This consistent signature makes it easy to pass the
+functions to higher-level routines.
+
+Normality tests
+---------------
+- `anderson_darling_test` – Anderson-Darling test against the normal
+  distribution; recommended for both small and large samples.
+- `all_normal` – convenience wrapper that checks whether *all* given
+  samples pass the Anderson-Darling test.
+- `kolmogorov_smirnov_test` – one-sample KS test against any
+  continuous SciPy distribution.
+
+Variance tests
+--------------
+- `f_test` – F-test for equal variances between two independent samples
+  (assumes normality).
+- `levene_test` – Levene test for equal variances; robust alternative to
+  the F-test.
+- `variance_stability_test` – internal variance stability of a single
+  sample (Levene applied to time-ordered sections).
+- `variance_test` – selects F-test or Levene test depending on
+  normality.
+
+Location / mean tests
+---------------------
+- `t_test` – one-sample t-test against a hypothesised population mean.
+- `mean_stability_test` – internal mean stability of a single sample
+  (one-way ANOVA applied to time-ordered sections).
+- `position_test` – two-sample location test; dispatches to the
+  independent-samples t-test or the Mann-Whitney U test based on
+  normality and variance equality.
+
+Proportion tests
+----------------
+- `proportions_test` – two-sample proportions test (automatically
+  selects Fisher's exact test for small samples).
+
+Shape tests
+-----------
+- `kurtosis_test` – D'Agostino kurtosis test.
+- `skew_test` – D'Agostino skewness test.
+
+Utilities
+---------
+- `chunker` – divides an array into *n* roughly equal sections; used
+  internally by the stability tests.
+- `ensure_generic` – normalises a distribution argument to a
+  ``rv_continuous`` instance.
+
+Notes
+-----
+The stability tests (`variance_stability_test`, `mean_stability_test`)
+split a single time-ordered sample into sections and test whether the
+statistic of interest is constant across sections — a lightweight
+alternative to control-chart analysis.
+"""
 import numpy as np
 
 from math import exp
