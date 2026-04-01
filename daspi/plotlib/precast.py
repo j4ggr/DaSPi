@@ -1,3 +1,59 @@
+"""Ready-to-use composite chart classes (precast charts).
+
+Each class in this module wraps a ``JointChart`` (or ``SingleChart``)
+together with a specific combination of *Plotter* calls that are useful
+for a well-defined analytical task. Pass the relevant model or DataFrame
+and call ``plot()``, ``stripes()``, and ``label()`` to produce a
+publication-ready multi-panel figure in a few lines.
+
+Classes
+-------
+``ParameterRelevanceCharts``
+    Two-panel Pareto chart showing standardised effects and Sum of
+    Squares for each term of a fitted ``LinearModel``. The reference
+    line marks the chosen significance level.
+
+``ResidualsCharts``
+    Four-panel residual diagnostic panel for a fitted ``LinearModel``:
+    residuals vs. fitted, residuals vs. run order, normal probability
+    plot of residuals, and histogram of residuals.
+
+``PairComparisonCharts``
+    Side-by-side comparison of two samples or groups using box plots,
+    jitter, and optional confidence intervals for the difference in
+    means or medians.
+
+``PairwiseMatrixCharts``
+    Scatter-plot matrix (SPLOM) for exploring all pairwise
+    relationships between a set of continuous variables, optionally
+    coloured by a grouping variable.
+
+``BivariateUnivariateCharts``
+    Joint distribution chart combining a central bivariate scatter (or
+    KDE / contour) with marginal univariate density strips.
+
+``ProcessCapabilityAnalysisCharts``
+    Process capability analysis panel: histogram with fitted
+    distribution and specification limits, plus a capability indices
+    summary (Cp, Cpk, Cpm, Pp, PpK).
+
+``GageStudyCharts``
+    MSA Type-1 gage study panel: scatter of measurements vs. reference
+    values overlaid with reference-line slopes plus a capability
+    summary (Cg, Cgk, Q_MS).
+
+``GageRnRCharts``
+    Crossed Gage R&R panel: individual measurements by part and
+    operator, R-chart, X-bar chart by operator, and variance-component
+    bar chart.
+
+Notes
+-----
+All classes inherit from ``JointChart`` (or ``SingleChart``) and
+therefore expose the same ``plot()`` / ``label()`` / ``stripes()``
+fluent interface. The ``plot()`` method of each subclass is
+overridden to hard-wire the appropriate plotter sequence.
+"""
 import warnings
 import pandas as pd
 

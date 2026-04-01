@@ -1,4 +1,7 @@
 site_name: DaSPi
+site_description: 
+site_author: j4ggr
+site_url: https://j4ggr.github.io/DaSPi
 
 theme:
   name: material
@@ -9,8 +12,8 @@ theme:
     # Palette toggle for light mode
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: '#00b8c2'
-      accent: '#fbc02d'
+      primary: teal
+      accent: amber
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
@@ -20,45 +23,61 @@ theme:
       toggle:
         icon: material/weather-sunny
         name: Switch to light mode
-      primary: '#00b8c2'
-      accent: '#fbc02d'
+      primary: teal
+      accent: amber
 
   features:
-  - search.suggest
-  - search.highlight
-  - content.tabs.link
-  - navigation.indexes
-  - content.tooltips
-  - navigation.path
-  - content.code.annotate
-  - content.code.copy
-  - content.code.select
-  - navigation.tabs
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.tabs.link
+    - content.tooltips
+    - content.code.annotate
+    - content.code.copy
+    - content.code.select
+    - navigation.indexes
+    - navigation.tabs
+    - navigation.sections
+    - navigation.path
+    - navigation.top
+    - navigation.footer
+    - toc.follow
 
 repo_name: j4ggr/DaSPi
 repo_url: https://github.com/j4ggr/DaSPi
 
-plugins: 
+plugins:
   search: null
   mkdocstrings:
     handlers:
       python:
         options:
           docstring_style: numpy
-          docstring_section_style: list
-          heading_level: 1
-          merge_init_into_class: false
+          docstring_section_style: spacy
+          heading_level: 2
+          merge_init_into_class: true
           show_bases: true
           show_source: false
           show_root_heading: true
           show_symbol_type_heading: true
           show_symbol_type_toc: true
           show_docstring_functions: true
-          inherited_members: true
-          members_order: alphabetical
+          inherited_members: false
+          members_order: source
           group_by_category: true
+          show_if_no_docstring: false
+          filters:
+            - "!^_"
+            - "^__init__"
 
 markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
@@ -66,6 +85,11 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.arithmatex:
       generic: true
 

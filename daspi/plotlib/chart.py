@@ -1,44 +1,52 @@
-"""
-Module for creating various types of chart visualizations using 
-Matplotlib and Pandas.
+"""High-level chart classes for composing multi-variable figures.
 
-This module provides classes and utility functions to facilitate the 
-creation of different types of charts and visualizations. It includes 
-support for single-variable charts, joint charts combining multiple 
-variables, and charts with multiple variables simultaneously.
+This module provides the ``Chart`` class hierarchy. Each chart manages
+a ``AxesFacets`` subplot grid, one or more ``_CategoryLabel``
+classifiers, a ``LabelFacets`` annotation layer, and a
+``StripesFacets`` reference-mark layer. Users add visual marks by
+calling ``chart.plot(PlotterClass, **kwargs)`` and finalise the figure
+with ``chart.label(…)`` and / or ``chart.stripes(…)``.
 
-All plotter objects from the plotter module can be used and combined 
-with the chart classes from this module to create a preferred plot that
-is optimal for the current analysis. These Chart objects are also used
-to combine the LabelFacets, AxesFacets, and StripesFacets facet objects
-to produce consistent charts for very different plots.
+Class hierarchy
+---------------
+``Chart`` *(abstract)*
+    Common base containing the DataFrame source and all shared state
+    (feature / hue / shape / size / hue_order columns, axis
+    orientation, figure-size stretching). Defines the ``plot()``
+    abstract method and the ``label()`` and ``stripes()`` concrete
+    helpers.
 
-## Classes
+``SingleChart`` *(extends Chart)*
+    One-axes chart. All ``Plotter`` calls draw onto the single
+    ``Axes``. Supports categorical-feature dodging via ``Dodger``.
+    Optionally transposes the target axis from y to x.
 
-- *Chart:* Abstract base class for creating chart visualizations.
-- *SingleChart:* Represents a basic chart containing one Axes for 
-  visualization with customizable features.
-- *JointChart:* Represents a joint chart visualization combining
-  multiple individual Axes.
-- *MultivariateChart:* Represents a chart visualization handling 
-  multiple variables simultaneously.
+``JointChart`` *(extends Chart)*
+    Multi-axes chart where each ``plot()`` call selects the next
+    ``Axes`` from the ``AxesFacets`` grid sequentially. Used by the
+    precast composite charts (e.g. ``ResidualsCharts``,
+    ``GageRnRCharts``) to build fixed-layout multi-panel figures.
 
-## Functionality
+``MultivariateChart`` *(extends Chart)*
+    Faceted grid chart that partitions a DataFrame by one or two
+    categorical grouping columns (``row`` and ``col``) and draws the
+    same plotter sequence in every panel. Designed for comparing
+    distributions or relationships across subgroups in a single call.
 
-- Customization of chart attributes including target, feature, hue, 
-  shape, size, etc.
-- Layout setup for charts, including grid arrangements for joint charts.
-- Adding stripes to highlight data patterns and labeling axes 
-  appropriately.
-- Saving charts to files and programmatically closing charts.
+Utility functions
+-----------------
+``check_label_order``
+    Validates that a user-supplied ``hue_order`` list covers all
+    unique values found in the data; raises ``AssertionError`` with a
+    descriptive message otherwise.
 
-## Other Details
-
-- Dependencies: NumPy, Matplotlib, Pandas.
-- Typing annotations are extensively used for type hinting and 
-documentation.
-- Emphasizes modularity and extensibility, allowing users to create and 
-customize a wide range of chart visualizations.
+Notes
+-----
+``Chart`` objects implement the context-manager protocol so that a
+``with`` block can close the figure cleanly if an exception occurs.
+``Chart.save()`` calls ``figure.savefig()`` with tight bounding-box
+defaults. Both methods also accept keyword arguments forwarded to
+matplotlib.
 """
 import warnings
 import numpy as np
@@ -622,7 +630,7 @@ class SingleChart(Chart):
         if self.categorical_feature:
             if self.feature not in self.source:
                 self.source[self.feature] = ''
-            self.source[self.feature].astype('category', copy=False)
+            self.source[self.feature].astype('category')
         self.hueing = HueLabel(
             labels=self.unique_labels(self.hue),
             colors=self._colors,

@@ -536,10 +536,12 @@ chart.label(
 **2. Collect Data**
 
 For Gage Study (Type 1):
+
 - Measure reference standard(s) multiple times (≥ 25-50 measurements)
 - Use multiple references across the measurement range for linearity
 
 For Gage R&R (Type 2):
+
 - Select representative parts (≥ 10 parts spanning the range)
 - Have multiple operators (≥ 2-3 operators)
 - Each operator measures each part multiple times (≥ 2-3 trials)
@@ -558,6 +560,7 @@ model = dsp.GageRnRModel(source, target, part, gage, u_av, ...)
 **4. Interpret Results**
 
 Check acceptance criteria:
+
 - Cg, Cgk ≥ 1.33
 - %Spread < 10% (excellent) or < 30% (acceptable)
 - Q_MS < 0.15 (measurement uncertainty < 15% of tolerance)
@@ -565,6 +568,7 @@ Check acceptance criteria:
 **5. Take Action**
 
 If measurement system is unacceptable:
+
 - Improve resolution (better gage)
 - Reduce bias (calibration, correction)
 - Improve repeatability (better fixturing, procedure)
@@ -705,6 +709,7 @@ print(f"Operator variation reduced by {improvement:.1f}%")
 **Symptoms**: Large difference between mean and reference, low Cgk
 
 **Solutions**:
+
 - Calibrate the measurement system
 - Check for systematic errors (fixture alignment, probe wear)
 - Apply bias correction in software
@@ -718,6 +723,7 @@ gage = dsp.GageStudyModel(..., bias_corrected=True)
 **Symptoms**: Large std, low Cg
 
 **Solutions**:
+
 - Improve fixturing/clamping
 - Standardize measurement procedure
 - Control environmental factors
@@ -728,6 +734,7 @@ gage = dsp.GageStudyModel(..., bias_corrected=True)
 **Symptoms**: Large AV or GV component in R&R
 
 **Solutions**:
+
 - Operator training and standardization
 - Improve measurement procedure documentation
 - Use fixtures/jigs to reduce operator influence
@@ -738,6 +745,7 @@ gage = dsp.GageStudyModel(..., bias_corrected=True)
 **Symptoms**: Large IA component, part×operator interaction significant
 
 **Solutions**:
+
 - Investigate which parts cause problems for which operators
 - Check if certain parts require special handling
 - Review operator technique for consistency
@@ -748,12 +756,12 @@ gage = dsp.GageStudyModel(..., bias_corrected=True)
 
 For detailed documentation of all classes and methods:
 
-- [GageEstimator](../statistics/estimation.md#GageEstimator)
+- [GageEstimator](../statistics/estimation/gage-estimator.md)
 - [GageStudyModel](../anova/gage-study-model.md)
 - [GageRnRModel](../anova/gage-rnr-model.md)
-- [GageStudyCharts](../plotlib/precast.md#GageStudyCharts)
-- [GageRnRCharts](../plotlib/precast.md#GageRnRCharts)
-- [MeasurementUncertainty](../statistics/confidence.md#MeasurementUncertainty)
+- [GageStudyCharts](../plotlib/precast/gage-study-charts.md)
+- [GageRnRCharts](../plotlib/precast/gage-rnr-charts.md)
+- [MeasurementUncertainty](../statistics/estimation/index.md)
 
 ---
 
@@ -768,4 +776,3 @@ For detailed documentation of all classes and methods:
 4. **Curt Ronniger**. Software für Statistik, Schulungen und Consulting. [Mess-System-Analyse](https://www.versuchsmethoden.de/Mess-System-Analyse.pdf)
 
 5. **Minitab, LLC** (2025). [Gage Study Methods and Formulas](https://support.minitab.com/de-de/minitab/help-and-how-to/quality-and-process-improvement/measurement-system-analysis/how-to/gage-study/crossed-gage-r-r-study/methods-and-formulas/gage-r-r-table/)
-
