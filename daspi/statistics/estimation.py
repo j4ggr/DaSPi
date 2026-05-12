@@ -812,7 +812,7 @@ class DistributionEstimator(BaseEstimator):
         containing numeric values.
     dist : str rv_continuous, optional
         Distributions to which the data may be subject. Only continuous 
-        distributions of scipy.stats are allowed. Default is 'norm'
+        distributions of scipy.stats are allowed. Default is None
     possible_dists : tuple of strings or rv_continous, optional
         Distributions to which the data may be subject. Only 
         continuous distributions of scipy.stats are allowed,
@@ -822,6 +822,42 @@ class DistributionEstimator(BaseEstimator):
         - 'propagate': NaN values are preserved in the analysis.
         - 'raise': Raises an error if NaN values are found.
         - 'omit': Omits NaN values from the analysis, default is 'omit'.
+
+    Examples
+    --------
+    To estimate the distribution of a sample, you can create an instance
+    of `DistributionEstimator` with your data and then call the `fit`
+    method. After fitting, you can use the `describe` method to get a
+    summary of the estimated distribution and its fit statistics.
+
+    ```python
+    import daspi as dsp
+    import numpy as np
+    # Generate some sample data
+    data = np.random.normal(loc=0, scale=1, size=1000)
+    # Estimate the distribution
+    estimator = dsp.DistributionEstimator(samples=data)
+    estimator.fit()
+    print(estimator.describe())
+    ```
+
+    If you want to specify a particular distribution to fit, you can 
+    pass it as the `dist` parameter during initialization:
+
+    ```python
+    import daspi as dsp
+    import numpy as np
+    from scipy.stats import norm
+    # Generate some sample data
+    data = np.random.normal(loc=0, scale=1, size=1000)
+    # Estimate the distribution with a specific distribution
+    estimator = dsp.DistributionEstimator(samples=data, dist=norm)
+    # Fit the distribution and get the results
+    dist, p_ks, shape_params = estimator.distribution()
+    print(f"Estimated distribution: {dist.name}")
+    print(f"Kolmogorov-Smirnov p-value: {p_ks:.4f}")
+    print(f"Shape parameters: {shape_params}")
+    ```
     
     Raises
     ------

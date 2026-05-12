@@ -1,31 +1,47 @@
-"""The provided Python code defines several classes and a list of
-strings, all related to handling categorical features in data
-visualization. Here's a brief description of each component:
+"""Category-label helpers that map data labels to visual properties.
 
-1. _CategoryLabel: An abstract base class representing a category label 
-handler for plotted categorical values. It has properties for available 
-categories, default category, labels, and number of used categories. It
-also includes methods for getting category items, retrieving legend
-handles and labels, and checking if the object is empty.
-2. HueLabel: A class representing category labels for hue values in
-plots. It inherits from _CategoryLabel and adds a property for available
-hue colors. It also overrides the handles_labels method to provide
-specific legend handles and labels for hue categories.
-3. ShapeLabel: A class representing category labels for shape markers in
-plots. It inherits from _CategoryLabel and overrides the handles_labels
-method to provide specific legend handles and labels for shape markers.
-4. SizeLabel: A class representing category labels for marker sizes in
-plots. It inherits from _CategoryLabel and adds properties for the
-offset and factor for value-to-size transformation. It also overrides
-the handles_labels method to provide specific legend handles and labels
-for marker sizes. Additionally, it includes methods for getting size
-values and converting values into size values for markers.
-5. Dodger: A class for handling dodging of categorical features in
-plots. It has properties for categories, ticks, tick labels, width of
-each category bar, number of categories, dodge values, and default dodge
-value. It also includes methods for getting dodge values, replacing
-source values with dodged ticks, and checking if the object has more
-than one category.
+This module provides the bridge between categorical data values in a
+DataFrame and the low-level matplotlib mark properties (colour, marker
+shape, marker size, axis position) used to distinguish them visually.
+
+Classes
+-------
+``_CategoryLabel`` *(abstract)*
+    Common base for all label-to-property mappers. Stores an ordered
+    sequence of *categories* (the visual items, e.g. colour codes) and
+    a matching sequence of *labels* (the unique data values to
+    distinguish). Provides ``__getitem__`` lookup and validates that
+    the number of unique labels does not exceed the size of the
+    category sequence.
+
+``HueLabel``
+    Maps data labels to fill / line colours. The colour palette is
+    taken from the active matplotlib style and can be overridden via
+    ``DEFAULT.COLORS``.
+
+``ShapeLabel``
+    Maps data labels to marker shapes. Uses the ``DEFAULT.MARKERS``
+    sequence so that different groups are distinguishable without
+    colour.
+
+``SizeLabel``
+    Maps data labels to marker sizes. Computes a linear scale
+    between a minimum and maximum size so that quantitative labels
+    are proportionally encoded.
+
+``Dodger``
+    Handles the *dodging* of categorical ticks on an axis. Given a
+    list of category labels it computes per-category offsets so that
+    overlapping data points for different groups are shifted apart,
+    similar to ``position_dodge`` in ggplot2.
+
+Notes
+-----
+These helpers are consumed by ``Plotter`` subclasses and by
+``Chart``/``LabelFacets``. They are part of the public API (all
+four concrete classes are re-exported from ``daspi.plotlib``) but
+ordinary users rarely need to instantiate them directly — the
+``Chart`` classes manage them automatically.
 """
 
 import numpy as np

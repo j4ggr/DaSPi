@@ -1,3 +1,48 @@
+"""Style management and axis utility helpers.
+
+This module handles everything related to the visual appearance of
+DaSPi figures that is independent of the data being plotted.
+
+Classes
+-------
+``Style``
+    Manages loading, applying, and persisting matplotlib stylesheets
+    (``.mplstyle`` files). Supports both built-in matplotlib styles
+    and custom styles located in the ``styles/`` subdirectory of this
+    package. The ``daspi`` style is applied automatically when the
+    ``plotlib`` package is imported.
+
+Standalone functions
+--------------------
+``get_shared_axes``
+    Returns all ``Axes`` that share the given axis (x or y) with the
+    supplied ``Axes`` instance; used to determine which axes need to
+    be updated together.
+
+``positions_of_shared_axes``
+    Returns the grid positions (row, col) of each axes in a shared
+    group; used by ``LabelFacets`` to decide where to place tick
+    labels.
+
+``transpose_xy_axes_params``
+    Swaps ``x``/``y`` keyword-argument pairs in a parameter dict,
+    making it easy to reuse the same plotter keyword dict when
+    ``target_on_y=False``.
+
+``register_colormap``
+    Registers a ``ListedColormap`` under a given name so that it can
+    be referenced by name in matplotlib calls.
+
+``cmap_from_lut``
+    Constructs a ``ListedColormap`` from a look-up table (list of
+    colour strings or RGB tuples).
+
+Notes
+-----
+The colour look-up tables embedded in this module are adapted from
+the *seaborn* v0.13.2 palette definitions (Jan 2024) and are used
+under the BSD 3-clause licence.
+"""
 # The luts used here are copied from the seaborn package v0.13.2 (January 2024)
 # https://github.com/mwaskom/seaborn/tree/master
 # Copyright (c) 2012-2023, Michael L. Waskom All rights reserved.

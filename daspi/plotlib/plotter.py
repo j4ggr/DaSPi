@@ -1,62 +1,91 @@
-"""
-The plotter module provides classes for creating and customizing various
-types of plots. It also provides a collection of classes for statistical
-plotting and analysis.
+"""Low-level plotter classes for individual mark types.
 
-This module contains several classes that are useful for visualizing and
-analyzing statistical data. The classes provide functionality for 
-creating various types of plots, including Gaussian KDE plots,
-violine plots, error bar plots, and confidence interval plots. These
-plots can be used to visually assess statistical differences,
-estimate kernel density, display error bars, and evaluate confidence
-intervals.
+Each class is responsible for drawing a single, self-contained visual
+mark (scatter points, a fitted line, a density curve, a box, …) onto a
+given ``matplotlib.axes.Axes``. All classes share a common interface:
+they are instantiated with a *source* DataFrame and a *target* column
+name, then called (``__call__``) on an ``Axes`` to render the mark.
 
-The following classes are designed to provide a convenient and intuitive
-way to visualize and analyze statistical data. They can be used in a
-variety of applications, including data exploration, hypothesis testing,
-and data presentation.
+Plotter classes are designed to be composed inside ``Chart``
+subclasses. A typical usage is to pass them to ``Chart.plot()`` so
+that the chart handles data slicing, axis assignment, and legend
+management while the plotter only handles the mark geometry.
 
-Usage
------
-Import the module and use the classes to create and customize plots.
+Class overview
+--------------
+Base classes:
 
-Examples
---------
-Create a scatter plot
-```python
-from plotter import Plotter
-from plotter import Scatter
-from plotter import LinearRegressionLine
-from plotter import Probability
-from plotter import TransformPlotter
-from plotter import CenterLocation
+- ``Plotter`` — abstract root; stores source / target / feature and
+  provides the ``__call__`` protocol.
+- ``TransformPlotter`` — extends ``Plotter`` with optional target
+  transformation (e.g. z-score, probability scale).
 
-data = {...}  # Data source for the plot
-scatter_plot = Scatter(data, 'target_variable')
-scatter_plot()
-```	
+Continuous marks:
 
-Create a linear regression plot
-```python
-data = {...}  # Data source for the plot
-linear_regression_plot = LinearRegressionLine(
-    data, 'target_variable', 'feature_variable')
-linear_regression_plot()
-```
+- ``Scatter`` — scatter plot with optional hue, shape, and size
+  encoding.
+- ``Line`` — line plot connecting consecutive observations.
+- ``Stem`` — stem (lollipop) plot.
+- ``LinearRegressionLine`` — OLS regression line with an optional
+  confidence band.
+- ``LoessLine`` — LOESS / LOWESS smoothed line with an optional
+  confidence band.
+- ``Probability`` — normal probability plot (Q-Q or P-P).
+- ``ParallelCoordinate`` — parallel coordinate plot for multivariate
+  profiling.
 
-Create a probability plot
-```python
-data = {...}  # Data source for the plot
-probability_plot = Probability(data, 'target_variable', dist='norm', kind='qq')
-probability_plot()
-```
+Distribution marks:
 
-Create a CenterLocation plot
-```python
-data = {...}  # Data source for the plot
-center_plot = CenterLocation(data, 'target_variable', 'feature_variable', kind='mean')
-center_plot()
-```
+- ``GaussianKDE`` — univariate kernel density estimate plotted as a
+  filled or outlined curve.
+- ``GaussianKDEContour`` — bivariate KDE rendered as contour lines.
+- ``QuantileBoxes`` — box-and-whisker plot variants (IQR, min-max,
+  percentile fences).
+- ``Violine`` — violin plot (symmetric KDE mirrored about a centre
+  line).
+
+Location / spread marks:
+
+- ``CenterLocation`` — mean or median marker with optional CI.
+- ``ErrorBar`` — error bars centred on mean or median.
+- ``StandardErrorMean`` — ±1 SEM caps.
+- ``SpreadWidth`` — range or IQR bracket.
+- ``ConfidenceInterval`` — confidence interval for the mean or median.
+
+Statistical test overlay marks:
+
+- ``MeanTest`` — annotates a location marker with the result of a
+  significance test (t-test / Mann-Whitney U).
+- ``VariationTest`` — annotates a spread marker with a variance test
+  result.
+- ``ProportionTest`` — annotates a proportion estimate with a test
+  result.
+- ``CapabilityConfidenceInterval`` — capability index (Cp / Cpk)
+  point estimate and confidence interval.
+
+Categorical marks:
+
+- ``Bar`` — bar chart for counts or aggregates.
+- ``Pareto`` — sorted bar chart with cumulative percentage line.
+- ``Jitter`` — raw data points with random horizontal jitter.
+- ``Beeswarm`` — non-overlapping jitter using a beeswarm algorithm.
+- ``CategoricalObservation`` — raw observations plotted along a
+  categorical axis (alias for ``Jitter`` with dodging).
+- ``BlandAltman`` — Bland-Altman method-comparison plot.
+
+Stripe / reference marks:
+
+- ``Stripe`` — abstract base for reference lines and spans.
+- ``StripeLine`` — single horizontal or vertical reference line.
+- ``StripeSpan`` — filled horizontal or vertical reference band.
+
+Control marks:
+
+- ``Subplot`` — placeholder that skips rendering (used to leave axes
+  blank in composite layouts).
+- ``SkipSubplot`` — alias for ``Subplot``.
+- ``HideSubplot`` — hides axes completely (turns off all spines and
+  tick labels).
 """
 import warnings
 import numpy as np

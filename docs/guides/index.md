@@ -1,119 +1,69 @@
 # User Guide
 
-Welcome to the DaSPi User Guide! This section provides comprehensive guidance on using DaSPi for data analysis, statistical process improvement, and quality engineering.
-
-## 3S Methodology
-
-The **3S Methodology** is a systematic problem-solving approach that combines the best practices from Six Sigma DMAIC and 8D methodologies. It provides a structured framework for identifying, analyzing, and solving quality problems.
-
-### [3S Methodology Overview](3s-methodology.md)
-
-Learn about the complete 3S methodology, its phases, and how it integrates with existing quality frameworks.
-
-### [Specify Phase](3s-specify.md)
-
-The first phase focuses on **defining and containing** the problem:
-
-- Team formation and project charter
-- Problem definition and impact assessment  
-- SIPOC analysis and process mapping
-- Immediate containment strategies
-- Validation and measurement systems
-
-### [Scrutinize Phase](3s-scrutinize.md)
-
-The second phase concentrates on **investigating and analyzing** root causes:
-
-- Root cause analysis techniques
-- Statistical analysis and hypothesis testing
-- Design of Experiments (DOE)
-- Correlation and regression analysis
-- Multivariate analysis methods
-
-### [Stabilize Phase](3s-stabilize.md)
-
-The final phase emphasizes **implementing and controlling** sustainable solutions:
-
-- Solution selection and optimization
-- Implementation and validation
-- Control systems and monitoring
-- Knowledge transfer and project closure
-
-## Statistical Methods
-
-Comprehensive guides for statistical analysis using DaSPi:
-
-### Process Capability Analysis
-
-- Capability indices (Cp, CpK, Pp, PpK)
-- Sigma level calculations
-- Specification limits and process performance
-
-### Design of Experiments
-
-- Full factorial designs
-- Fractional factorial designs
-- Response surface methodology
-- Optimization techniques
-
-### Statistical Process Control
-
-- Control charts for variables and attributes
-- Process monitoring and control
-- Out-of-control detection and response
-
-### Hypothesis Testing
-
-- Parametric and non-parametric tests
-- ANOVA and regression analysis
-- Confidence intervals and significance testing
-
-## Data Visualization
-
-Learn to create effective visualizations with DaSPi's plotting capabilities:
-
-### [Plotting Guide](plotting.md)
-
-Comprehensive guide to creating professional charts and visualizations using DaSPi's plotting library.
-
-### Chart Types
-
-- Distribution plots (histograms, box plots, violin plots)
-- Scatter plots and correlation matrices
-- Time series and trend analysis
-- Process control charts
-
-## Best Practices
-
-Guidelines for effective use of DaSPi in quality improvement projects:
-
-### Data Collection and Preparation
-
-- Sampling strategies and sample size determination
-- Data cleaning and preprocessing
-- Measurement system analysis
-
-### Statistical Analysis Workflow
-
-- Exploratory data analysis
-- Assumption checking and validation
-- Model selection and interpretation
-- Results communication
-
-### Project Management
-
-- Problem-solving methodologies
-- Team collaboration and communication
-- Documentation and knowledge transfer
+This section covers hands-on usage of DaSPi — from installation through
+data visualization, statistical analysis, and measurement system
+evaluation.
 
 ---
 
 ## Getting Started
 
-If you're new to DaSPi, we recommend starting with:
+| Guide | Description |
+| ----- | ----------- |
+| [Installing](installing.md) | Install DaSPi from PyPI and verify the setup |
+| [Plotting](plotting.md) | Build charts with `SingleChart`, `MultivariateChart`, and the `Facets` helpers |
+| [ANOVA](anova.md) | Fit linear models, run ANOVA, and automate backward elimination |
+| [DOE](doe.md) | Design full- and fractional-factorial experiments |
+| [Hypothesis Testing](hypothesis-testing.md) | Normality, variance, location, and proportion tests |
+| [Gage Analysis](gage_analysis.md) | MSA Type 1 gage studies and Gage R&R |
 
-1. **[3S Methodology Overview](3s-methodology.md)** - Understand the systematic approach
-2. **[Specify Phase](3s-specify.md)** - Learn problem definition and containment
-3. **[Plotting Guide](plotting.md)** - Master data visualization techniques
+---
 
-For specific statistical methods, navigate to the relevant sections in the documentation or explore the examples in our notebook collection.
+## 3S Methodology
+
+The **3S Methodology** is a streamlined, three-phase problem-solving
+framework that combines the best elements from 8D and Six Sigma DMAIC.
+
+| Phase | Focus |
+| ----- | ----- |
+| [Overview](3s-methodology.md) | Introduction, comparison with DMAIC / 8D |
+| Specify | Define & contain — team, charter, SIPOC, containment |
+| Scrutinize | Investigate & analyse — root cause, DOE, hypothesis tests |
+| Stabilize | Implement & control — solution validation, SPC, knowledge transfer |
+
+!!! note "Phase guides coming soon"
+    Detailed step-by-step guidance for the Specify, Scrutinize, and
+    Stabilize phases is in preparation.
+
+---
+
+## Statistical Analysis Workflow
+
+A typical DaSPi analysis follows these steps:
+
+1. **Load data** — `dsp.load_dataset(name)` or read your own CSV/Excel.
+2. **Explore visually** — use `SingleChart` or `MultivariateChart` with
+   `Scatter`, `GaussianKDE`, or `QuantileBoxes`.
+3. **Check assumptions** — `anderson_darling_test`, `variance_test`.
+4. **Test hypotheses** — `position_test`, `proportions_test`.
+5. **Fit a model** — `LinearModel` with optional backward elimination.
+6. **Validate residuals** — `ResidualsCharts(model).plot()`.
+7. **Interpret** — `ParameterRelevanceCharts`, `model.anova()`,
+   `model.gof_metrics()`.
+8. **Assess capability** — `ProcessCapabilityAnalysisCharts` with
+   `SpecLimits`.
+
+---
+
+## Data Visualization Overview
+
+DaSPi's plotting system is built in layers:
+
+```
+AxesFacets          ← subplot grid (rows × cols or mosaic)
+  └─ Chart          ← data wiring (source, target, hue, shape, size)
+       ├─ Plotter   ← mark drawing (Scatter, Line, GaussianKDE, …)
+       └─ Facets    ← labels, legend, reference stripes
+```
+
+See the [Plotting Guide](plotting.md) for examples at every layer.

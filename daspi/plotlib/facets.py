@@ -1,3 +1,45 @@
+"""Layout and annotation helpers for multi-panel matplotlib figures.
+
+This module provides the three *facet* classes that handle everything
+below the actual data-drawing layer: creating subplot grids, labelling
+axes and legends, and adding reference lines or highlight bands.
+
+Classes
+-------
+``AxesFacets``
+    Creates a grid of ``Axes`` using either an ``(nrows, ncols)`` pair
+    or a *mosaic* string / list. Wraps ``plt.subplots`` and
+    ``plt.subplot_mosaic``, adding optional figure-size stretching,
+    shared axes, and width / height ratios. Exposes a ``flat``
+    property and iterator for left-to-right, top-to-bottom traversal.
+
+``LabelFacets``
+    Handles all post-drawing annotation of a figure: axis titles,
+    axis labels, row / column span labels, suptitle, and the legend
+    (including Bonferroni-corrected confidence levels). Keeps
+    ``AxesFacets`` and the chart object loosely coupled so labels can
+    be set in a single ``label()`` call at the end of a fluent chain.
+
+``StripesFacets``
+    Adds horizontal or vertical reference marks — lines, spans, and
+    ``StripeLine`` / ``StripeSpan`` objects — to one or more ``Axes``.
+    Common use cases: specification limits, global mean / median lines,
+    confidence bands, and SPC control limits. Can operate on a single
+    axes or broadcast across a shared-axes group.
+
+Standalone functions
+--------------------
+``flat_unique``
+    Order-preserving unique-element extraction from a nested array or
+    list of lists; used internally to build consistent tick labels.
+
+Notes
+-----
+``LabelFacets`` and ``StripesFacets`` are instantiated by ``Chart``
+subclasses and are not normally created directly by library users.
+``AxesFacets`` is part of the public API and is the recommended way to
+build custom subplot grids when the ``Chart`` classes are too opinionated.
+"""
 import re
 import math
 import warnings
