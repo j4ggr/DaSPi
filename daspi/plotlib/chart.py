@@ -448,7 +448,35 @@ class Chart(ABC):
         enhance readability and provide context for the visualized data.
         """
     
-    def save(self, file_name: str | Path, **kwds) -> Self:
+    def save(
+            self,
+            file_name: str | Path,
+            ensure_dir: bool = True,
+            **kwds
+            ) -> Self:
+        """Save the chart to a file.
+
+        Parameters
+        ----------
+        file_name : str | Path
+            The name of the file to save the chart to. This can be a 
+            string or a Path object.
+        ensure_dir : bool, optional
+            If True, the method will ensure that the directory for the
+            specified file name exists by creating it if necessary. This
+            is useful to prevent errors when trying to save a file to a
+            non-existent directory. By default, this is set to True.
+        **kwds
+            Additional keyword arguments to pass to the `savefig` method
+            of the Matplotlib figure.
+        
+        Returns
+        -------
+        Self
+            The instance of the Chart after saving the figure.
+        """
+        if ensure_dir:
+            Path(file_name).parent.mkdir(parents=True, exist_ok=True)
         kw = KW.SAVE_CHART | kwds
         self.figure.savefig(file_name, **kw)
         return self
