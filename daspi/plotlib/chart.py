@@ -528,7 +528,18 @@ class Chart(ABC):
             f'spec_limits length {len(_spec_limits)} does not match '
             f'the number of axes {self.n_axes}')
         for axes_limits  in _spec_limits:
-            yield axes_limits # type: ignore
+            yield axes_limits
+    
+    def _repr_html_(self) -> str | None:
+        """Get the HTML representation of the chart for display in 
+        Jupyter notebooks."""
+        return self.figure._repr_html_()
+
+    def _display_(self) -> List[Axes]:
+        """Get the display representation of the chart for Marimo 
+        notebooks. Returns the Axes objects so Marimo renders the 
+        figure inline using its built-in matplotlib support."""
+        return self.figure.axes
 
 
 class SingleChart(Chart):
@@ -658,7 +669,8 @@ class SingleChart(Chart):
         if self.categorical_feature:
             if self.feature not in self.source:
                 self.source[self.feature] = ''
-            self.source[self.feature].astype('category')
+            self.source[self.feature] = (
+                self.source[self.feature].astype('category'))
         self.hueing = HueLabel(
             labels=self.unique_labels(self.hue),
             colors=self._colors,
