@@ -2068,8 +2068,8 @@ class TransformPlotter(Plotter):
 
         super().__init__(
             source=df,
-            target=target,
-            feature=feature,
+            target=self.target,
+            feature=self.feature,
             target_on_y=target_on_y,
             color=color,
             ax=ax,

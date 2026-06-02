@@ -586,11 +586,17 @@ class BivariateUnivariateCharts(JointChart):
             hue=hue,
             dodge_univariates=True,
         ).plot_univariates(
-            dsp.MeanTest, n_groups=n_groups
+            dsp.MeanTest,
+            n_groups=df.groupby(hue).ngroups, # Bonferroni correction for multiple groups
+            hide_axis='feature',
+            visible_spines='target'
         ).plot_univariates(
-            dsp.QuantileBoxes, strategy='data'
+            dsp.QuantileBoxes,
+            strategy='fit'
         ).plot_bivariate(
-            dsp.LinearRegressionLine, show_fit_ci=True
+            dsp.LinearRegressionLine,
+            show_fit_ci=True,
+            show_scatter=True,
         ).label(
             fig_title='Regression and distribution analysis',
             sub_title='Painkillers dissolution time vs. temperature',
