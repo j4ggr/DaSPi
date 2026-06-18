@@ -2011,7 +2011,8 @@ class JointChart(Chart):
             rows: Tuple[str, ...] = (),
             cols: Tuple[str, ...] = (),
             row_title: str = '',
-            col_title: str = '') -> Self:
+            col_title: str = '',
+            **kwds) -> Self:
         """Add labels and titles to the chart.
 
         This method sets various labels and titles for the chart,
@@ -2049,6 +2050,12 @@ class JointChart(Chart):
             The title of the rows, by default ''.
         col_title : str, optional
             The title of the columns, by default ''.
+        **kwds:
+            Additional keyword arguments for configuring LabelFacets.
+            Use this to set LabelFacets specific parameters such as 
+            `xlabel_angle`, `ylabel_angle`, `xlabel_align` and 
+            `ylabel_align` for advanced label formatting. Be aware that 
+            these parameters will be applied to all axes in the figure.
 
         Returns
         -------
@@ -2079,7 +2086,8 @@ class JointChart(Chart):
             row_title=row_title,
             col_title=col_title,
             axes_titles=axes_titles,
-            legend_data=self.legend_data)
+            legend_data=self.legend_data,
+            **kwds)
         self.label_facets.draw()
         return self
 
