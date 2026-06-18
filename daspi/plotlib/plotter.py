@@ -179,7 +179,7 @@ __all__ = [
     'GaussianKDE',
     'GaussianKDEContour',
     'Violin',
-    'Errorbar',
+    'ErrorBar',
     'StandardErrorMean',
     'SpreadWidth',
     'ConfidenceInterval',
@@ -4873,7 +4873,7 @@ class Violin(GaussianKDE):
         return kwds
 
 
-class Errorbar(TransformPlotter):
+class ErrorBar(TransformPlotter):
     """Class for creating error bar plotters.
 
     Parameters
@@ -4939,7 +4939,7 @@ class Errorbar(TransformPlotter):
     import pandas as pd
     import matplotlib.pyplot as plt
 
-    from daspi import Errorbar
+    from daspi import ErrorBar
     from collections import defaultdict
 
     fig, ax = plt.subplots()
@@ -4954,11 +4954,11 @@ class Errorbar(TransformPlotter):
         data['upper'].append(x_bar + sem)
 
     df = pd.DataFrame(data)
-    errorbar = Errorbar(
+    error_bar = ErrorBar(
         source=df, target='x_bar', feature='x', lower='lower', upper='upper',
         show_center=True, ax=ax)
-    errorbar(kw_center=dict(color='black', s=30, marker='_')
-    errorbar.label_feature_ticks()
+    error_bar(kw_center=dict(color='black', s=30, marker='_')
+    error_bar.label_feature_ticks()
     ```
 
     Apply using the plot method of a DaSPi Chart object:
@@ -4986,7 +4986,7 @@ class Errorbar(TransformPlotter):
             hue='x',
             dodge=True,
         ).plot(
-            dsp.Errorbar,
+            dsp.ErrorBar,
             lower='lower',
             upper='upper',
             bars_same_color=True,
@@ -5117,7 +5117,7 @@ class Errorbar(TransformPlotter):
             self.ax.errorbar(self.x, self.y, xerr=self.err, **_kwds)
 
 
-class StandardErrorMean(Errorbar):
+class StandardErrorMean(ErrorBar):
     """Class for creating plotters with error bars representing the
     standard error of the mean.
 
@@ -5280,7 +5280,7 @@ class StandardErrorMean(Errorbar):
         return data
 
 
-class SpreadWidth(Errorbar):
+class SpreadWidth(ErrorBar):
     """Class for creating plotters with error bars representing the 
     spread width.
 
@@ -5565,7 +5565,7 @@ class SpreadWidth(Errorbar):
         return super().__call__(kw_center, **kwds)
 
 
-class ConfidenceInterval(Errorbar):
+class ConfidenceInterval(ErrorBar):
     """Class for creating plotters with error bars representing optical
     distinction tests.
 

@@ -38,7 +38,7 @@ from daspi.plotlib.plotter import Plotter
 from daspi.plotlib.plotter import Scatter
 from daspi.plotlib.plotter import Violin
 from daspi.plotlib.plotter import Beeswarm
-from daspi.plotlib.plotter import Errorbar
+from daspi.plotlib.plotter import ErrorBar
 from daspi.plotlib.plotter import MeanTest
 from daspi.plotlib.plotter import LoessLine
 from daspi.plotlib.plotter import StripeLine

@@ -1,1 +1,1 @@
-::: daspi.plotlib.plotter.Errorbar
+::: daspi.plotlib.plotter.ErrorBar
