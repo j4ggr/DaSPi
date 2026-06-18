@@ -41,7 +41,7 @@ Distribution marks:
 - ``GaussianKDEContour`` — bivariate KDE rendered as contour lines.
 - ``QuantileBoxes`` — box-and-whisker plot variants (IQR, min-max,
   percentile fences).
-- ``Violine`` — violin plot (symmetric KDE mirrored about a centre
+- ``Violin`` — violin plot (symmetric KDE mirrored about a centre
   line).
 
 Location / spread marks:
@@ -178,7 +178,7 @@ __all__ = [
     'QuantileBoxes',
     'GaussianKDE',
     'GaussianKDEContour',
-    'Violine',
+    'Violin',
     'Errorbar',
     'StandardErrorMean',
     'SpreadWidth',
@@ -4501,9 +4501,9 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
         self, f_base: float | int, estim_upp: Series) -> Series:
         """Get the lower estimation of the kernel density. For the KDE 
         it is just a straight line at the location of the feature base. 
-        For Violine the upper kernel density estimate is mirrored at the
+        For Violin the upper kernel density estimate is mirrored at the
         feature base."""
-        if self.__class__.__name__ == 'Violine':
+        if self.__class__.__name__ == 'Violin':
             estim_low = 2*f_base - estim_upp
         else:
             estim_low = pd.Series(
@@ -4718,8 +4718,8 @@ class GaussianKDEContour(Plotter):
             UserWarning)
 
 
-class Violine(GaussianKDE):
-    """Class for creating violine plotters.
+class Violin(GaussianKDE):
+    """Class for creating violin plotters.
 
     This violin plot is composed of a double-sided Gaussian kernel
     density estimate. The width of the violin is stretched to fill the
@@ -4736,7 +4736,7 @@ class Violine(GaussianKDE):
         Column name of the feature variable for the plot,
         by default ''.
     width : float, optional
-        Width of the violine, by default CATEGORY.FEATURE_SPACE.
+        Width of the violin, by default CATEGORY.FEATURE_SPACE.
     margin : float, optional
         Margin for the sequence as factor of data range (max - min ). 
         If margin is 0, The two ends of the estimated density curve then 
@@ -4793,7 +4793,7 @@ class Violine(GaussianKDE):
     import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt
-    from daspi import Violine
+    from daspi import Violin
 
     fig, ax = plt.subplots()
     df = pd.DataFrame(dict(
@@ -4802,11 +4802,11 @@ class Violine(GaussianKDE):
             list(np.random.normal(loc=3, scale=1, size=50))
             + list(np.random.normal(loc=4, scale=1, size=50))
             + list(np.random.normal(loc=2, scale=1, size=50)))))
-    violine = Violine(
+    violin = Violin(
         source=df, target='y', feature='x', fill=True, margin=0.3, 
         agreements=(), ax=ax)
-    violine()
-    violine.label_feature_ticks()
+    violin()
+    violin.label_feature_ticks()
     ```
 
     Apply using the plot method of a DaSPi Chart object:
@@ -4828,7 +4828,7 @@ class Violine(GaussianKDE):
             feature='x',
             categorical_feature=True, # neded to label the feature tick labels
         ).plot(
-            dsp.Violine,
+            dsp.Violin,
             fill=False,
             margin=0.3
         ).label() # neded to label the feature tick labels

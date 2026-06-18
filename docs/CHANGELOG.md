@@ -219,7 +219,7 @@ __Types of changes__:
 - LinearModel method name highest_features to highest_parameters.
 - The option center_points to show_center at CenterLocation plotter, due to consistency.
 - Individual options for mean, median and control_limits at stripes method for ProcessCapabilityAnalysisCharts
-- GaussianKDE and Violine uses now the same call method for plotting.
+- GaussianKDE and Violin uses now the same call method for plotting.
 - No tuple allowed anywhere where spec_limits must be defined.
 - ProcessEstimator property name "nok_pred" to "nok_fit.
 
@@ -265,7 +265,7 @@ __Types of changes__:
 
 ### Added
 
-- Option to highlight quantiles in the fill area of Violine and GaussianKDE Plotters.
+- Option to highlight quantiles in the fill area of Violin and GaussianKDE Plotters.
   
 ### Changed
 

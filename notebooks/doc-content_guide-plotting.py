@@ -298,7 +298,7 @@ def _(BASE_FIGSIZE, DPI, KW_PLOT, N_COLS, ceil, dsp, img_dir):
     df = dsp.load_dataset('iris')
 
     plots = (
-        'Jitter', 'Beeswarm', 'Violine', 'Box', 'QuantileBoxes', 'GaussianKDE', 
+        'Jitter', 'Beeswarm', 'Violin', 'Box', 'QuantileBoxes', 'GaussianKDE', 
         'SpreadWidth', 'Probability (Q-Q)')
     n_plots = len(plots)
     n_rows = ceil(n_plots / N_COLS)
@@ -320,7 +320,7 @@ def _(BASE_FIGSIZE, DPI, KW_PLOT, N_COLS, ceil, dsp, img_dir):
             dsp.Beeswarm,
             **KW_PLOT
         ).plot(
-            dsp.Violine,
+            dsp.Violin,
             agreements=(),
             **KW_PLOT
         ).plot(

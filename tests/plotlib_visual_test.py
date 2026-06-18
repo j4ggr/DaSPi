@@ -36,7 +36,7 @@ from daspi.plotlib.plotter import Pareto
 from daspi.plotlib.plotter import Jitter
 from daspi.plotlib.plotter import Plotter
 from daspi.plotlib.plotter import Scatter
-from daspi.plotlib.plotter import Violine
+from daspi.plotlib.plotter import Violin
 from daspi.plotlib.plotter import Beeswarm
 from daspi.plotlib.plotter import Errorbar
 from daspi.plotlib.plotter import MeanTest
@@ -707,7 +707,7 @@ class TestSingleChart:
             ).plot(
                 Beeswarm
             ).plot(
-                Violine,
+                Violin,
                 fill=False
             ).label(
                 fig_title=self.fig_title,
@@ -736,7 +736,7 @@ class TestSingleChart:
             ).plot(
                 Beeswarm,
             ).plot(
-                Violine,
+                Violin,
                 fill=False
             ).label(
                 fig_title=self.fig_title,
@@ -768,7 +768,7 @@ class TestSingleChart:
             ).plot(
                 Beeswarm
             ).plot(
-                Violine,
+                Violin,
                 fill=False
             ).label(
                 fig_title=self.fig_title,
@@ -802,7 +802,7 @@ class TestSingleChart:
             ).plot(
                 Beeswarm,
             ).plot(
-                Violine,
+                Violin,
                 fill=False
             ).label(
                 fig_title=self.fig_title,
@@ -953,14 +953,14 @@ class TestSingleChart:
         assert self.info_msg in info_msg
 
 
-    def test_violine_plot(self) -> None:
-        self.base = f'{self.fig_title}_violine'
+    def test_violin_plot(self) -> None:
+        self.base = f'{self.fig_title}_violin'
 
         self.kind = 'mono'
         chart = SingleChart(
                 source=df_painkillers,
                 target=self.target,
-            ).plot(Violine
+            ).plot(Violin
             ).label(
                 fig_title=self.fig_title,
                 sub_title=self.sub_title,
@@ -982,7 +982,7 @@ class TestSingleChart:
                 source=df_painkillers,
                 target=self.target,
                 feature=self.cat1, 
-            ).plot(Violine
+            ).plot(Violin
             ).label(
                 fig_title=self.fig_title,
                 sub_title=self.sub_title,
@@ -1006,7 +1006,7 @@ class TestSingleChart:
                 feature=self.cat1, 
                 hue=self.cat2,
                 dodge=True
-            ).plot(Violine, target_on_y=False, agreements=()
+            ).plot(Violin, target_on_y=False, agreements=()
             ).label(
                 fig_title=self.fig_title,
                 sub_title=self.sub_title,
@@ -1218,7 +1218,7 @@ class TestSingleChart:
                 feature='temperature',
                 categorical_feature=True,
             ).plot(
-                Violine,
+                Violin,
             ).label(
                 fig_title=self.fig_title,
                 sub_title=self.sub_title,
@@ -1329,7 +1329,7 @@ class TestJointChart:
                 categorical_feature=(False, True),
                 target_on_y=False
             ).plot(GaussianKDE, show_density_axis=True
-            ).plot(Violine
+            ).plot(Violin
             ).label(
                 feature_label=(False, True),
                 target_label=(True, True),
@@ -2074,7 +2074,7 @@ class TestFormattingFeatures:
             source=load_dataset('tips'),
             target='total_bill',
             feature='day'
-        ).plot(Violine
+        ).plot(Violin
         ).label(
             fig_title=self.fig_title,
             sub_title='Basic Angle Test',
@@ -2094,7 +2094,7 @@ class TestFormattingFeatures:
             source=load_dataset('tips'),
             target='total_bill',
             feature='day'
-        ).plot(Violine
+        ).plot(Violin
         ).label(
             fig_title=self.fig_title,
             sub_title='Basic Alignment Test',
@@ -2114,7 +2114,7 @@ class TestFormattingFeatures:
             source=load_dataset('tips'),
             target='total_bill',
             feature='day'
-        ).plot(Violine
+        ).plot(Violin
         ).label(
             fig_title=self.fig_title,
             sub_title='Combined Features Test',
@@ -2165,7 +2165,7 @@ class TestFormattingFeatures:
             target='total_bill',
             feature='day',
             target_on_y=False
-        ).plot(Violine
+        ).plot(Violin
         ).label(
             fig_title=self.fig_title,
             sub_title='Orientation Mapping Test',
@@ -2238,7 +2238,7 @@ class TestFormattingFeatures:
             source=load_dataset('tips'),
             target='total_bill',
             feature='day'
-        ).plot(Violine
+        ).plot(Violin
         ).label(
             fig_title=self.fig_title,
             sub_title='Extreme Angles Test',
@@ -2258,7 +2258,7 @@ class TestFormattingFeatures:
             source=load_dataset('tips'),
             target='total_bill',
             feature='day'
-        ).plot(Violine
+        ).plot(Violin
         ).label(
             fig_title=self.fig_title,
             sub_title='All Alignments Test',

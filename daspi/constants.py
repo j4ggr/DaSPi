@@ -505,7 +505,7 @@ class _Default_:
     """
     AGREEMENTS: Tuple[int, int, int] = (2, 4, 6)
     """Default agreement levels for the Quantile Plotter and for the
-    quantiles in GaussianKDE and Violine Plotter.
+    quantiles in GaussianKDE and Violin Plotter.
     
     These values represent the quantiles corresponding to the standard
     deviations (σ) of a normal distribution:
