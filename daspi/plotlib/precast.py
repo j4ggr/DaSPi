@@ -798,7 +798,7 @@ class BivariateUnivariateCharts(JointChart):
                 super().plot(SkipSubplot)
         return self
     
-    def label(
+    def label( # pyright: ignore[reportIncompatibleMethodOverride]
             self,
             *,
             fig_title: str = '',

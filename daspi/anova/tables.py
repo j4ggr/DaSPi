@@ -99,7 +99,7 @@ def terms_effect(model: RegressionResultsWrapper) -> Series:
     Returns
     -------
     Series
-        A pandas Series containing the effects of each feature
+        A pandas Series containing the effects of each factor
         on the target variable.
     """
     params: Series = model.params
@@ -118,7 +118,7 @@ def terms_effect(model: RegressionResultsWrapper) -> Series:
     effects = params.abs() / se
     effects = effects[uniques(names_map.values())]
     effects.name = ANOVA.EFFECTS
-    effects.index.name = ANOVA.FEATURES
+    effects.index.name = ANOVA.FACTORS
     return effects
 
 def variance_inflation_factor(

@@ -81,12 +81,12 @@ def lm() -> LinearModel:
         'bad': [0, 0, 0, 0, 0, 0],
         'Target': [11, 19, 30, 42, 49, 50]})
     target = 'Target'
-    features = ['A', 'B', 'C', 'bad']
+    factors = ['A', 'B', 'C', 'bad']
     disturbances = []
     alpha = 0.05
     return LinearModel(
-        source, target, features, disturbances, alpha,
-        order=1, encode_features=False, fit_at_init=False)
+        source, target, factors, disturbances, alpha,
+        order=1, encode_factors=False, fit_at_init=False)
 
 @pytest.fixture
 def lm2() -> LinearModel:
@@ -98,12 +98,12 @@ def lm2() -> LinearModel:
         'bad': [0, 0, 0, 0, 0, 0],
         'Target': [11, 19, 30, 42, 49, 50]})
     target = 'Target'
-    features = ['A', 'B', 'C', 'bad']
+    factors = ['A', 'B', 'C', 'bad']
     disturbances = []
     alpha = 0.05
     return LinearModel(
-        source, target, features, disturbances, alpha,
-        order=4, encode_features=False, skip_intercept_as_least=True,
+        source, target, factors, disturbances, alpha,
+        order=4, encode_factors=False, skip_intercept_as_least=True,
         fit_at_init=False)
 
 @pytest.fixture
@@ -116,12 +116,12 @@ def lm3() -> LinearModel:
         'D': [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
         'Target': [10, 20, 30, 40, 50, 60]})
     target = 'Target'
-    features = ['A', 'B', 'C']
+    factors = ['A', 'B', 'C']
     disturbances = ['D']
     alpha = 0.05
     return LinearModel(
-        source, target, features, disturbances, alpha,
-        order=1, encode_features=False, fit_at_init=False)
+        source, target, factors, disturbances, alpha,
+        order=1, encode_factors=False, fit_at_init=False)
 
 @pytest.fixture
 def lm4() -> LinearModel:
@@ -133,12 +133,12 @@ def lm4() -> LinearModel:
         'D': [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
         'Target': [10, 20, 30, 40, 50, 60]})
     target = 'Target'
-    features = ['A', 'B', 'C']
+    factors = ['A', 'B', 'C']
     disturbances = ['D']
     alpha = 0.05
     return LinearModel(
-        source, target, features, disturbances, alpha,
-        order=3, encode_features=False, fit_at_init=False)
+        source, target, factors, disturbances, alpha,
+        order=3, encode_factors=False, fit_at_init=False)
 
 @pytest.fixture
 def anova3_c_valid() -> DataFrame:
@@ -164,7 +164,7 @@ class TestLinearModel:
             'x3': [0, 0, 0, 0, 0, 0],
             'y': [11, 19, 30, 42, 49, 50]}), check_dtype=False)
         assert lm.target == 'Target'
-        assert lm.features == ['A', 'B', 'C', 'bad']
+        assert lm.factors == ['A', 'B', 'C', 'bad']
         assert lm.covariates == []
         assert lm.alpha == 0.05
         assert lm.target_map == {'Target': 'y'}
@@ -332,7 +332,7 @@ class TestLinearModel:
             'Center': [1, 0, 1, 0, 0, 0]})
         lm = LinearModel(
                 data, 'Ergebnis', ['A', 'B'], ['Center'], order=2, 
-                encode_features=False)
+                encode_factors=False)
         assert lm.r2_pred(), approx(0.350426519634100657)
     
     def test_str(self) -> None:
@@ -469,28 +469,28 @@ class TestLinearModel:
     
     def test_highest_parameters(self, lm4: LinearModel) -> None:
         lm4.fit()
-        parameters = lm4.highest_parameters(features_only=False)
+        parameters = lm4.highest_parameters(factors_only=False)
         assert parameters == ['A:B:C', ANOVA.INTERCEPT, 'D']
-        parameters = lm4.highest_parameters(features_only=True)
+        parameters = lm4.highest_parameters(factors_only=True)
         assert parameters == ['A:B:C']
         
         lm4.eliminate('A:B:C').fit()
-        parameters = lm4.highest_parameters(features_only=False)
+        parameters = lm4.highest_parameters(factors_only=False)
         assert parameters == [
             'A:C', 'A:B', 'B:C', ANOVA.INTERCEPT, 'D']
-        parameters = lm4.highest_parameters(features_only=True)
+        parameters = lm4.highest_parameters(factors_only=True)
         assert parameters == ['A:C', 'A:B', 'B:C']
         
         lm4.eliminate('A:B').fit()
-        parameters = lm4.highest_parameters(features_only=False)
+        parameters = lm4.highest_parameters(factors_only=False)
         assert parameters == ['A:C', 'B:C', ANOVA.INTERCEPT, 'D']
-        parameters = lm4.highest_parameters(features_only=True)
+        parameters = lm4.highest_parameters(factors_only=True)
         assert parameters == ['A:C', 'B:C']
         
         lm4.eliminate('A:C').fit()
-        parameters = lm4.highest_parameters(features_only=False)
+        parameters = lm4.highest_parameters(factors_only=False)
         assert parameters == ['B:C', ANOVA.INTERCEPT, 'A', 'D']
-        parameters = lm4.highest_parameters(features_only=True)
+        parameters = lm4.highest_parameters(factors_only=True)
         assert parameters == ['B:C', 'A']
 
 

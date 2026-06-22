@@ -456,7 +456,7 @@ def _(BASE_FIGSIZE, DPI, dsp, img_dir, pd):
     model = dsp.LinearModel(
         source=dsp.load_dataset('painkillers-dissolution'),
         target='dissolution',
-        features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+        factors=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
         covariates=['temperature', 'preparation'])
     effects =  model.effects()
     data = (pd

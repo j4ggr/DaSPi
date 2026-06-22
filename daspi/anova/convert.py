@@ -42,9 +42,9 @@ def get_term_name(name: str) -> str:
     Notes
     -----
     Patsy encodes categorical columns by appending '[T.<value>]' to the
-    original term name. Interactions between features are represented by
-    separating the feature names with ':'. This function extracts the
-    original term name from the encoded feature name, taking into
+    original term name. Interactions between factors are represented by
+    separating the factor names with ':'. This function extracts the
+    original term name from the encoded factor name, taking into
     account interactions.
 
     Examples

@@ -536,8 +536,8 @@ class _Anova_:
     """"Default name for effects"""
     TARGET: Literal['target'] = 'target'
     """"Default name for target used in GageStudyModel."""
-    FEATURES: Literal['features'] = 'features'
-    """"Default name for features"""
+    FACTORS: Literal['factors'] = 'factors'
+    """"Default name for factors"""
     REFERENCE: Literal['reference'] = 'reference'
     """"Default name for reference used in GageStudyModel."""
     SOURCE: Literal['Source'] = 'Source'

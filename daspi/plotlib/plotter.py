@@ -4718,6 +4718,98 @@ class GaussianKDEContour(Plotter):
             UserWarning)
 
 
+class GaussianKDEContourUnivariate(TransformPlotter):
+    """Class for creating univariate contour plotters. This is a special 
+    case of the GaussianKDEContour plot, where the contour lines are 
+    plotted on top of each other, resulting in a univariate plot with 
+    contour lines.
+
+    This plot can be used to show the distribution of a univariate data 
+    set in a more detailed way than the GaussianKDE plot. The contour 
+    lines represent different levels of density, which can be highlighted
+    using different colors or opacities.
+
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''
+    fill : bool, optional
+        Flag indicating whether to fill between the contour lines,
+        by default True
+    fade_outers: bool, optional
+        Flag indicating whether the outer lines of the contour plot
+        should be faded. This has no effect if fill is True,
+        by default True.
+    n_points : int, optional
+        Number of points the estimate and the sequence should have. 
+        Note that the calculated points are equal to the square of the 
+        given number (because the contour is two-dimensional).
+        by default KD_SEQUENCE_LEN (defined in constants.py)
+    margin : float, optional
+        Margin for the sequence as factor of data range, by default 0.2.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on 
+        the y-axis. If False, all contour lines have the same color. 
+        by default True
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
+    """
+    __slots__ = ('cmap', 'shape', 'fill', 'n_points')
+
+    cmap : LinearSegmentedColormap
+    """The colormap to be used for the contour plot."""
+    shape: Tuple[int, int]
+    """Shape used to reshape data before plotting the contours."""
+    fill: bool
+    """Flag indicating whether to fill between the contour lines."""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str,
+            fill: bool = True,
+            fade_outers: bool = True,
+            n_points: int = DEFAULT.KD_SEQUENCE_LEN,
+            margin: float = 0.2,
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
+            **kwds) -> None:
+        self.shape = (n_points, n_points)
+        self.fill = fill
+
+    @property
+    def kw_default(self) -> Dict[str, Any]:
+        """Return the default keyword arguments for the plot."""
+        kwds = dict(cmap=self.cmap)
+        return kwds
+
+
 class Violin(GaussianKDE):
     """Class for creating violin plotters.
 

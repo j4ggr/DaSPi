@@ -154,7 +154,7 @@ def hierarchical(parameters: List[str]) -> List[str]:
     Returns
     -------
     h_parameters : list of str
-        Sorted features for hierarchical model"""
+        Sorted factors for hierarchical model"""
 
     h_parameters = set(parameters)
     for parameter in parameters:
@@ -282,7 +282,7 @@ class BaseHTMLReprModel(ABC):
 
 class LinearModel(BaseHTMLReprModel):
     """This class is used to create and simplify linear models so that 
-    only significant features describe the model.
+    only significant factors describe the model.
     
     Balanced models (DOEs or EVOPs) including continuous can be 
     analyzed. With this class, you can create an encoded design matrix
@@ -299,7 +299,7 @@ class LinearModel(BaseHTMLReprModel):
         model.
     target : str
         Column name of the endogenous variable.
-    features : List[str]
+    factors : List[str]
         Column names of the exogenous variables that can be actively 
         changed (factor levels for DOE or EVOP). Interactions are also 
         created for these variables if the order is set > 1.
@@ -307,16 +307,16 @@ class LinearModel(BaseHTMLReprModel):
         Column names for exogenous variables that are logged but cannot 
         be influenced. No interactions are created for these variables.
     alpha : float, optional
-        Threshold as alpha risk. All features, including continuous and 
+        Threshold as alpha risk. All factors, including continuous and 
         intercept, that have a p-value smaller than alpha are removed 
         during the automatic elimination of the factors. Default is 0.05.
     skip_intercept_as_least : bool, optional
         If True, the intercept is not removed as a least significant 
-        term when using recursive feature elimination. Also if True, the
+        term when using recursive factor elimination. Also if True, the
         intercept does not appear when calling the `least_parameter` method,
         by default True.
-    encode_features : bool, optional
-        If True, all of the provided feature variables are encoded using
+    encode_factors : bool, optional
+        If True, all of the provided factor variables are encoded using
         one-hot encoding by changing the data type to category. 
         Otherwise they are interpreted as continuous variables when 
         possible, by default True.
@@ -337,7 +337,7 @@ class LinearModel(BaseHTMLReprModel):
     model = dsp.LinearModel(
         source=df,
         target='dissolution',
-        features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+        factors=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
         covariates=['temperature', 'preparation'],
         order=2)
 
@@ -362,23 +362,23 @@ class LinearModel(BaseHTMLReprModel):
 
     Terminology
     -----------
-    - feature: 
+    - factor: 
       The original name as it appears in the provided data.
     - term:
       The name of the term as it appears in the design matrix. All 
-      feature names are converted to "xi" where i is an ascending 
-      number. The name of the first feature becomes "x0", the second 
+      factor names are converted to "xi" where i is an ascending 
+      number. The name of the first factor becomes "x0", the second 
       becomes "x1",... The covariate variables are also converted in 
       the same way, but instead of the letter "x" the letter "e" is 
       used.
     - parameter:
       The variable names in connection with a coefficient, but in the
-      composition with the original feature names.
+      composition with the original factor names.
     """
     __slots__ = (
         'data',
         'target',
-        'features',
+        'factors',
         'covariates',
         '_model',
         '_alpha',
@@ -398,14 +398,14 @@ class LinearModel(BaseHTMLReprModel):
     """The Pandas DataFrame containing the data for the linear model."""
     target: str
     """The name of the target variable for the linear model."""
-    features: List[str]
-    """The list of features used in the linear model."""
+    factors: List[str]
+    """The list of factors used in the linear model."""
     covariates: List[str]
     """The list of covariates variables used in the linear 
     model."""
     _alpha: float
     """The alpha risk threshold used for automatic elimination of 
-    features during model simplification. All features, including 
+    factors during model simplification. All factors, including 
     continuous and intercept, that have a p-value smaller than this 
     alpha are removed from the model."""
     skip_intercept_as_least: bool
@@ -417,23 +417,23 @@ class LinearModel(BaseHTMLReprModel):
     """The regression results of the fitted model. This property raises 
     an AssertionError if no model has been fitted yet."""
     feature_map: Dict[str, str]
-    """A dictionary that maps the original feature names to the encoded 
+    """A dictionary that maps the original factor names to the encoded 
     names (term) used in the model."""
     main_term_map: Dict[str, str]
     """A dictionary that maps the main term names (no interactions) back 
-    to the original feature names used in the model."""
+    to the original factor names used in the model."""
     target_map: Dict[str, str]
-    """A dictionary that maps the original feature names to the encoded 
-    feature names used in the model."""
+    """A dictionary that maps the original factor names to the encoded 
+    factor names used in the model."""
     excluded: Set[str]
-    """A set of feature names that should be excluded from the model."""
+    """A set of factor names that should be excluded from the model."""
     _initial_terms: List[LiteralString]
     """The list of initial terms used in the linear model. These terms 
-    include the encoded names of covariates and the features with all 
+    include the encoded names of covariates and the factors with all 
     interactions up to the specified interaction order."""
     _p_values: 'Series[float]'
     """The `_p_values` attribute is a Pandas Series that stores the 
-    p-values for the features in the linear regression model. This 
+    p-values for the factors in the linear regression model. This 
     attribute is an implementation detail and is not part of the public 
     API."""
     _anova: DataFrame
@@ -443,13 +443,13 @@ class LinearModel(BaseHTMLReprModel):
     Get a ANOVA-table by calling the `anova()` method."""
     _effects: Series
     """The `_effects` attribute is a Pandas Series that stores the 
-    effects (coefficients) of the features in the linear regression 
+    effects (coefficients) of the factors in the linear regression 
     model. This attribute is an implementation detail and is not part 
     of the public API."""
     _vif: DataFrame
     """The `_vif` attribute is a Pandas DataFrame that stores the 
     Variance Inflation Factors (VIFs), the Generalized Variance
-    Inflation Factors (GVIFs) and its threshold for the features in the 
+    Inflation Factors (GVIFs) and its threshold for the factors in the 
     linear regression model. This attribute is an implementation detail 
     and is not part of the public API. Get a VIF-table by calling
     the `variance_inflation_factor()` method."""
@@ -458,19 +458,19 @@ class LinearModel(BaseHTMLReprModel):
             self,
             source: DataFrame,
             target: str,
-            features: List[str],
+            factors: List[str],
             covariates: List[str] = [],
             alpha: float = 0.05,
             order: int = 1,
             skip_intercept_as_least: bool = True,
             generalized_vif: bool = True,
-            encode_features: bool = True,
+            encode_factors: bool = True,
             fit_at_init: bool = True
             ) -> None:
         assert order > 0 and isinstance(order, int), (
             'Interaction order must be a positive integer')
         
-        for column in features + covariates:
+        for column in factors + covariates:
             assert column in source, f'Column {column} not found in source!'
 
         self._captions = (
@@ -480,13 +480,13 @@ class LinearModel(BaseHTMLReprModel):
                 STR['lm_table_caption_vif'])
         
         self.target = target
-        self.features = features
+        self.factors = factors
         self.covariates = covariates
         self.target_map = {target: 'y'}
-        f_main_terms = [f'x{i}' for i in range(len(features))]
+        f_main_terms = [f'x{i}' for i in range(len(factors))]
         d_main_terms = [f'e{i}' for i in range(len(covariates))]
         self.feature_map = (
-            {f: _f for f, _f in zip(features, f_main_terms)}
+            {f: _f for f, _f in zip(factors, f_main_terms)}
             | {c: _c for c, _c in zip(covariates, d_main_terms)})
         self.main_term_map = {v: k for k, v in self.feature_map.items()}
         self.alpha = alpha
@@ -499,7 +499,7 @@ class LinearModel(BaseHTMLReprModel):
             [list(self.feature_map.values()) + list(self.target_map.values())]
             .copy())
         
-        if encode_features:
+        if encode_factors:
             self.data[f_main_terms] = self.data[f_main_terms].astype('category')
         model_desc = ModelDesc.from_formula(
             f'{self.target_map[self.target]}~'
@@ -579,7 +579,7 @@ class LinearModel(BaseHTMLReprModel):
     @property
     def parameters(self) -> List[str]:
         """Get the names of all variables for the current fitted 
-        model in the composition using the original feature and 
+        model in the composition using the original factor and 
         covariates names (read-only)."""
         return list(map(self._convert_term_name_, self.terms))
 
@@ -897,8 +897,8 @@ class LinearModel(BaseHTMLReprModel):
         Parameters
         ----------
         parameter : str
-            The feature name, the covariates name or the interaction 
-            of multiple features to be removed from the model.
+            The factor name, the covariates name or the interaction 
+            of multiple factors to be removed from the model.
         
         Returns
         -------
@@ -920,7 +920,7 @@ class LinearModel(BaseHTMLReprModel):
         lm = dsp.LinearModel(
                 source=df,
                 target='dissolution',
-                features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+                factors=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
                 covariates=['temperature', 'preparation'],
                 alpha=0.05,
                 order=3,
@@ -939,7 +939,7 @@ class LinearModel(BaseHTMLReprModel):
         lm
         ```
 
-        To add again a feature to the model, use the `include` method.
+        To add again a factor to the model, use the `include` method.
         For an automatic elimination of insignificant terms, use the
         'recursive_elimination' method.
 
@@ -964,14 +964,14 @@ class LinearModel(BaseHTMLReprModel):
         return self
 
     def include(self, parameter: str) -> Self:
-        """Adds the given feature to the model by removing it from the
+        """Adds the given factor to the model by removing it from the
         `excluded` set. Call `fit` to refit the model.
 
         Parameters
         ----------
         parameter : str
-            The feature name, the covariates name or the interaction 
-            of multiple features to be added to the model.
+            The factor name, the covariates name or the interaction 
+            of multiple factors to be added to the model.
         
         Returns
         -------
@@ -1019,7 +1019,7 @@ class LinearModel(BaseHTMLReprModel):
             If given, the model must have a lower R^2 value than the 
             given threshold, by default 0.99
         ensure_hierarchy : bool, optional
-            Adds features at the end to ensure model is hierarchical, 
+            Adds factors at the end to ensure model is hierarchical, 
             by default True
         **kwds
             Additional keyword arguments for `ols` function of 
@@ -1037,7 +1037,7 @@ class LinearModel(BaseHTMLReprModel):
         Prepare a LinearModel instance, fit the model, automatically
         eliminate insignificant terms and plot the relevance of the
         parameters and the residuals. In the DataFrame df_gof you can 
-        see when which feature was removed and the current 
+        see when which factor was removed and the current 
         goodness-of-fit values can also be viewed. If you run the 
         following code in  a Jupyter Notebook, the plots and the html 
         representation of the model will be displayed.
@@ -1050,7 +1050,7 @@ class LinearModel(BaseHTMLReprModel):
         lm = dsp.LinearModel(
                 source=df,
                 target='dissolution',
-                features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+                factors=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
                 covariates=['temperature', 'preparation'],
                 alpha=0.05,
                 order=3,
@@ -1259,13 +1259,13 @@ class LinearModel(BaseHTMLReprModel):
 
     def highest_parameters(
             self,
-            features_only: bool = False) -> List[str]:
+            factors_only: bool = False) -> List[str]:
         """Determines all main and interaction parameters that do not 
         occur in a higher interaction in this constellation.
         
         Parameters
         ----------
-        features_only : bool, optional
+        factors_only : bool, optional
             If true, intercept and interaction parameters are not 
             returned. By default False.
         
@@ -1301,7 +1301,7 @@ class LinearModel(BaseHTMLReprModel):
             last_order = order
         
         parameters= [ANOVA.SEP.join(p) for p in _parameters + current_params]
-        if features_only:
+        if factors_only:
             ignore = self.covariates + [ANOVA.INTERCEPT]
             parameters = [p for p in parameters if p not in ignore]
         return parameters
@@ -1485,8 +1485,8 @@ class LinearModel(BaseHTMLReprModel):
         import daspi as dsp
         df = dsp.load_dataset('partial_factorial')
         target = 'Yield'
-        features = [c for c in df.columns if c != target]
-        lm = LinearModel(df, target, features)
+        factors = [c for c in df.columns if c != target]
+        lm = LinearModel(df, target, factors)
         print(lm.residual_data())
         ```
 
@@ -1759,7 +1759,7 @@ class GageStudyModel(LinearModel):
         super().__init__(
             source=source,
             target=target,
-            features=[reference],
+            factors=[reference],
             covariates=[],
             alpha=alpha,
             order=1,
@@ -2465,15 +2465,15 @@ class GageRnRModel(LinearModel):
         u_new = ('PV', 'AV', 'GV', 'T', 'STAB', 'OBJ')
         self.u_map = {
             old: new for old, new in zip(u_old, u_new) if isinstance(old, str)}
-        features = list(self.u_map.keys())
+        factors = list(self.u_map.keys())
         self._n_samples = int(source[target].notna().sum())
-        self.n_levels = source[features].nunique().rename(self.u_map)
+        self.n_levels = source[factors].nunique().rename(self.u_map)
         self.n_levels[ANOVA.EV] = self.n_samples // np.prod(self.n_levels) # type: ignore
             
         super().__init__(
             source=source,
             target=target,
-            features=features,
+            factors=factors,
             order=2,
             fit_at_init=fit_at_init)
         self._captions = (

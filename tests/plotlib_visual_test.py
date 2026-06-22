@@ -1949,7 +1949,7 @@ class TestPrecasts:
         model = LinearModel(
             source=df,
             target='dissolution',
-            features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+            factors=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
             covariates=['temperature', 'preparation'],
             order=2)
         df_gof = pd.concat(model.recursive_elimination())
