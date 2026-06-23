@@ -119,6 +119,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.patches import Patch
 from matplotlib.container import BarContainer
 
+from scipy.stats import semicircular
 from scipy.stats._distn_infrastructure import rv_continuous
 
 from itertools import cycle
@@ -178,6 +179,7 @@ __all__ = [
     'QuantileBoxes',
     'GaussianKDE',
     'GaussianKDEContour',
+    'GaussianKDEContourUnivariate',
     'Violin',
     'ErrorBar',
     'StandardErrorMean',
@@ -4165,7 +4167,7 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
     
     def transform(
             self, feature_data: float | int, target_data: Series) -> DataFrame:
-        """Generates the spread values for the beeswarm plot by 
+        """Generates the spread values for the quantile plot by 
         arranging the target data into bins.
 
         The method divides the input data into bins based on the 
@@ -4175,7 +4177,7 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
         Parameters
         ----------
         feature_data : float
-            The center position on the feature axis where the beeswarm 
+            The center position on the feature axis where the quantile 
             values will be centered.
         target_data : pandas Series
             feature grouped target data, coming from `feature_grouped' 
@@ -4469,7 +4471,7 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
             feature data.
         """
 
-        first_value: float = target_data.iloc[0]
+        first_value: float = float(target_data.iat[0]) # pyright: ignore[reportArgumentType]
         if all(target_data == first_value):
             stretch = self.stretch if self.height is None else self.height
             estimation = [stretch + feature_data]
@@ -4776,39 +4778,117 @@ class GaussianKDEContourUnivariate(TransformPlotter):
         arguments that have no use here (occurs when this class is 
         used within chart objects).
     """
-    __slots__ = ('cmap', 'shape', 'fill', 'n_points')
+    __slots__ = ('shape', 'fill', 'n_points', 'width', 'cmap')
 
-    cmap : LinearSegmentedColormap
-    """The colormap to be used for the contour plot."""
     shape: Tuple[int, int]
     """Shape used to reshape data before plotting the contours."""
     fill: bool
     """Flag indicating whether to fill between the contour lines."""
+    n_points: int
+    """Number of points the estimate and the sequence should have."""
+    width: float
+    """The maximum width of the contour."""
+    cmap : LinearSegmentedColormap
+    """The colormap to be used for the contour plot."""
 
     def __init__(
             self,
             source: DataFrame,
             target: str,
             feature: str,
+            width: float = CATEGORY.FEATURE_SPACE,
+            skip_na: Literal['all', 'any'] | None = None,
             fill: bool = True,
             fade_outers: bool = True,
             n_points: int = DEFAULT.KD_SEQUENCE_LEN,
-            margin: float = 0.2,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
             visible_spines: Literal['target', 'feature', 'none'] | None = None,
             hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
+        self.n_points = n_points
         self.shape = (n_points, n_points)
         self.fill = fill
+        self.width = width
+        super().__init__(
+            source=source,
+            target=target,
+            feature=feature,
+            skip_na=skip_na,
+            target_on_y=target_on_y,
+            color=color,
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis,
+            **kwds)
+        if self.fill:
+            colors = [COLOR.TRANSPARENT, self.color]
+        elif fade_outers:
+            rgba = mcolors.to_rgba(self.color)
+            colors = [(*rgba[:3], 0.0), self.color]
+        else:
+            colors = [self.color, self.color]
+        self.cmap = LinearSegmentedColormap.from_list('', colors)
 
     @property
     def kw_default(self) -> Dict[str, Any]:
         """Return the default keyword arguments for the plot."""
         kwds = dict(cmap=self.cmap)
         return kwds
+    
+    def transform(
+            self, feature_data: float | int, target_data: Series) -> DataFrame:
+        """Perform the transformation on the target data by estimating
+        its 2D kernel density. Feature data is generated with a gaussian
+        distribution centered at feature_data with width as std, and target
+        data is sorted to align with this distribution.
 
+        Parameters
+        ----------
+        feature_data : float | int
+            Base location (offset) of feature axis coming from
+            `feature_grouped` generator.
+        target_data : pandas Series
+            Target data for which the kernel density is estimated.
+
+        Returns
+        -------
+        pandas DataFrame
+            Transformed data with estimated 2D kernel density.
+        """
+        _factors = semicircular.pdf(np.linspace(
+            semicircular.ppf(0.001), semicircular.ppf(0.999), self.n_points))
+        _features = np.linspace(
+            feature_data - self.width/2, feature_data + self.width/2, self.n_points)
+        sequence, estimation = estimate_kernel_density(
+            data=target_data,
+            n_points=self.n_points,
+            margin=0.5)
+        
+        n_total = self.n_points * self.n_points
+        data = pd.DataFrame({
+            self.feature: np.repeat(_features, self.n_points),
+            self.target: np.tile(sequence, self.n_points),
+            PLOTTER.TRANSFORMED_FEATURE: np.ravel(
+                [f*estimation for f in _factors]).T,
+            PLOTTER.F_BASE_NAME: feature_data * np.ones(n_total)})
+        return data
+
+    def __call__(self, **kwds) -> None:
+        """Perform the plotting operation."""
+        _kwds = self.kw_default | kwds
+        # Group by original feature categories and plot each separately
+        for _, group in self.source.groupby(PLOTTER.F_BASE_NAME, observed=True):
+            X = group[self.feature].to_numpy().reshape(self.shape)
+            Y = group[self.target].to_numpy().reshape(self.shape)
+            Z = group[PLOTTER.TRANSFORMED_FEATURE].to_numpy().reshape(self.shape)
+            if not self.target_on_y:
+                X, Y = Y, X
+            if self.fill:
+                self.ax.contourf(X, Y, Z, **_kwds)
+            else:
+                self.ax.contour(X, Y, Z, **_kwds)
 
 class Violin(GaussianKDE):
     """Class for creating violin plotters.

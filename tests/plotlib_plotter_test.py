@@ -1,6 +1,9 @@
 import sys
 import pytest
 
+import matplotlib
+matplotlib.use('Agg')
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -17,6 +20,9 @@ sys.path.append(Path(__file__).parent.resolve()) # type: ignore
 
 from daspi import LINE
 from daspi import COLOR
+from daspi import DEFAULT
+from daspi import CATEGORY
+from daspi import PLOTTER
 from daspi.plotlib.plotter import *
 
 
@@ -382,3 +388,250 @@ class TestStripeSpan:
         assert patch.get_alpha() == 0.3
         assert patch.get_zorder() == 2.0
         assert patch.get_linewidth() == 2.0
+
+
+class TestGaussianKDEContourUnivariate:
+    
+    @pytest.fixture
+    def sample_data(self) -> pd.DataFrame:
+        """Create sample data for testing."""
+        np.random.seed(42)
+        data = {
+            'category': ['A'] * 30 + ['B'] * 30,
+            'value': np.concatenate([
+                np.random.normal(10, 2, 30),
+                np.random.normal(15, 2, 30)
+            ])
+        }
+        return pd.DataFrame(data)
+    
+    @pytest.fixture
+    def ax(self) -> Axes:
+        return plt.subplots(1, 1)[1]
+
+    def test_init_defaults(self, sample_data: pd.DataFrame) -> None:
+        """Test initialization with default parameters."""
+        plotter = GaussianKDEContourUnivariate(
+            source=sample_data,
+            target='value',
+            feature='category'
+        )
+        assert plotter.fill == True
+        assert plotter.n_points == DEFAULT.KD_SEQUENCE_LEN
+        assert plotter.width == CATEGORY.FEATURE_SPACE
+        assert plotter.shape == (DEFAULT.KD_SEQUENCE_LEN, DEFAULT.KD_SEQUENCE_LEN)
+        assert plotter.target == 'value'
+        assert plotter.feature == 'category'
+        assert plotter.target_on_y == True
+
+    def test_init_custom_parameters(self, sample_data: pd.DataFrame) -> None:
+        """Test initialization with custom parameters."""
+        plotter = GaussianKDEContourUnivariate(
+            source=sample_data,
+            target='value',
+            feature='category',
+            width=0.5,
+            fill=False,
+            fade_outers=False,
+            n_points=50,
+            target_on_y=False,
+            color='red'
+        )
+        assert plotter.fill == False
+        assert plotter.n_points == 50
+        assert plotter.width == 0.5
+        assert plotter.shape == (50, 50)
+        assert plotter.target_on_y == False
+        assert plotter.color == 'red'
+
+    def test_colormap_with_fill(self, sample_data: pd.DataFrame) -> None:
+        """Test colormap creation when fill=True."""
+        plotter = GaussianKDEContourUnivariate(
+            source=sample_data,
+            target='value',
+            feature='category',
+            fill=True,
+            color='blue'
+        )
+        assert plotter.cmap is not None
+        # The colormap should have transparent at one end and the color at the other
+        assert plotter.cmap(0.0)[3] == 0.0  # transparent
+        # The other end should be the specified color (blue)
+
+    def test_colormap_with_fade_outers(self, sample_data: pd.DataFrame) -> None:
+        """Test colormap creation when fill=False and fade_outers=True."""
+        plotter = GaussianKDEContourUnivariate(
+            source=sample_data,
+            target='value',
+            feature='category',
+            fill=False,
+            fade_outers=True,
+            color='green'
+        )
+        assert plotter.cmap is not None
+        # When fade_outers=True, colormap should fade from transparent to color
+        assert plotter.cmap(0.0)[3] == 0.0  # transparent at start
+
+    def test_colormap_without_fade(self, sample_data: pd.DataFrame) -> None:
+        """Test colormap creation when fill=False and fade_outers=False."""
+        plotter = GaussianKDEContourUnivariate(
+            source=sample_data,
+            target='value',
+            feature='category',
+            fill=False,
+            fade_outers=False,
+            color='red'
+        )
+        assert plotter.cmap is not None
+
+    def test_kw_default_property(self, sample_data: pd.DataFrame) -> None:
+        """Test that kw_default returns correct keyword arguments."""
+        plotter = GaussianKDEContourUnivariate(
+            source=sample_data,
+            target='value',
+            feature='category'
+        )
+        kwds = plotter.kw_default
+        assert 'cmap' in kwds
+        assert kwds['cmap'] == plotter.cmap
+
+    def test_transform_method(self, sample_data: pd.DataFrame) -> None:
+        """Test the transform method creates correct data structure."""
+        plotter = GaussianKDEContourUnivariate(
+            source=sample_data,
+            target='value',
+            feature='category',
+            n_points=20
+        )
+        
+        # Get data for one category
+        category_data = sample_data[sample_data['category'] == 'A']
+        feature_data = 0.5  # arbitrary feature position
+        
+        result = plotter.transform(feature_data, category_data['value'])
+        
+        # Check result structure
+        assert isinstance(result, pd.DataFrame)
+        assert 'category' in result.columns
+        assert 'value' in result.columns
+        assert PLOTTER.TRANSFORMED_FEATURE in result.columns
+        assert PLOTTER.F_BASE_NAME in result.columns
+        
+        # Check result dimensions - should be n_points^2 for 2D KDE
+        assert len(result) == 400  # 20 * 20
+        
+        # Check F_BASE_NAME is consistent
+        assert (result[PLOTTER.F_BASE_NAME] == feature_data).all()
+
+    def test_call_with_fill(self, sample_data: pd.DataFrame, ax: Axes) -> None:
+        """Test plotting with fill=True creates contourf."""
+        plotter = GaussianKDEContourUnivariate(
+            source=sample_data,
+            target='value',
+            feature='category',
+            fill=True,
+            n_points=20,
+            ax=ax
+        )
+        
+        initial_collections = len(ax.collections)
+        plotter()
+        
+        # contourf adds collections to the axes
+        assert len(ax.collections) > initial_collections
+
+    def test_call_without_fill(self, sample_data: pd.DataFrame, ax: Axes) -> None:
+        """Test plotting with fill=False creates contour lines."""
+        plotter = GaussianKDEContourUnivariate(
+            source=sample_data,
+            target='value',
+            feature='category',
+            fill=False,
+            n_points=20,
+            ax=ax
+        )
+        
+        initial_collections = len(ax.collections)
+        plotter()
+        
+        # contour adds collections to the axes
+        assert len(ax.collections) > initial_collections
+
+    def test_target_on_y_true(self, sample_data: pd.DataFrame, ax: Axes) -> None:
+        """Test that target_on_y=True correctly sets up axes."""
+        plotter = GaussianKDEContourUnivariate(
+            source=sample_data,
+            target='value',
+            feature='category',
+            target_on_y=True,
+            n_points=20,
+            ax=ax
+        )
+        plotter()
+        
+        # When target_on_y=True, feature is on x-axis
+        assert plotter.x.name == 'category'
+        assert plotter.y.name == 'value'
+
+    def test_target_on_y_false(self, sample_data: pd.DataFrame, ax: Axes) -> None:
+        """Test that target_on_y=False correctly sets up axes."""
+        plotter = GaussianKDEContourUnivariate(
+            source=sample_data,
+            target='value',
+            feature='category',
+            target_on_y=False,
+            n_points=20,
+            ax=ax
+        )
+        plotter()
+        
+        # When target_on_y=False, target is on x-axis
+        assert plotter.x.name == 'value'
+        assert plotter.y.name == 'category'
+
+    def test_multiple_features(self, ax: Axes) -> None:
+        """Test with multiple feature categories."""
+        np.random.seed(42)
+        data = pd.DataFrame({
+            'category': ['A'] * 20 + ['B'] * 20 + ['C'] * 20,
+            'value': np.concatenate([
+                np.random.normal(10, 2, 20),
+                np.random.normal(15, 2, 20),
+                np.random.normal(12, 2, 20)
+            ])
+        })
+        
+        plotter = GaussianKDEContourUnivariate(
+            source=data,
+            target='value',
+            feature='category',
+            n_points=20,
+            ax=ax
+        )
+        
+        # Should process all three categories
+        plotter()
+        assert len(ax.collections) > 0
+
+    def test_skip_na_handling(self, ax: Axes) -> None:
+        """Test that skip_na parameter is properly handled."""
+        np.random.seed(42)
+        data = pd.DataFrame({
+            'category': ['A'] * 20 + ['B'] * 20,
+            'value': list(np.random.normal(10, 2, 15)) + [np.nan] * 5 + 
+                     list(np.random.normal(15, 2, 20))
+        })
+        
+        # Test with skip_na='any'
+        plotter = GaussianKDEContourUnivariate(
+            source=data,
+            target='value',
+            feature='category',
+            skip_na='any',
+            n_points=20,
+            ax=ax
+        )
+        
+        # Should successfully plot despite NaN values
+        plotter()
+        assert len(ax.collections) > 0

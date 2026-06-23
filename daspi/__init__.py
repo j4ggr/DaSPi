@@ -334,6 +334,7 @@ from .plotlib.plotter import GaussianKDEContour
 from .plotlib.plotter import LinearRegressionLine
 from .plotlib.plotter import CategoricalObservation
 from .plotlib.plotter import CapabilityConfidenceInterval
+from .plotlib.plotter import GaussianKDEContourUnivariate
 
 from .plotlib.facets import AxesFacets
 from .plotlib.facets import flat_unique

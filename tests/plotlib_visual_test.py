@@ -58,6 +58,7 @@ from daspi.plotlib.plotter import StandardErrorMean
 from daspi.plotlib.plotter import ConfidenceInterval
 from daspi.plotlib.plotter import ParallelCoordinate
 from daspi.plotlib.plotter import GaussianKDEContour
+from daspi.plotlib.plotter import GaussianKDEContourUnivariate
 from daspi.plotlib.plotter import LinearRegressionLine
 from daspi.plotlib.plotter import CategoricalObservation
 from daspi.plotlib.plotter import CapabilityConfidenceInterval
@@ -1914,7 +1915,7 @@ class TestPrecasts:
         model = LinearModel(
             source=df,
             target='dissolution',
-            features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+            factors=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
             covariates=['temperature', 'preparation'],
             order=2)
         df_gof = pd.concat(model.recursive_elimination())
@@ -2268,3 +2269,355 @@ class TestFormattingFeatures:
         ).save(self.file_name
         ).close()
         assert self.file_name.is_file()
+
+
+class TestGaussianKDEContourUnivariateVisual:
+    """Visual tests for GaussianKDEContourUnivariate plotter."""
+    
+    fig_title: str = 'GaussianKDEContourUnivariate'
+    target: str = 'time'
+    cat1: str = 'brand'
+    cat2: str = 'stirrer'
+    info_msg: str = 'pytest figure for GaussianKDEContourUnivariate'
+    kind: str = ''
+    base: str = ''
+    
+    @property
+    def sub_title(self) -> str:
+        return f'Painkillers Dataset: {self.kind}'
+    
+    @property
+    def file_name(self) -> Path:
+        return savedir/f'{self.base}_{self.kind}.png'
+
+    def test_single_chart_simple(self) -> None:
+        """Test GaussianKDEContourUnivariate with SingleChart (simple)."""
+        self.base = f'{self.fig_title}_single_chart'
+        self.kind = 'simple'
+        
+        chart = SingleChart(
+            source=df_painkillers,
+            target=self.target,
+            feature=self.cat1,
+            target_on_y=True,
+            categorical_feature=True
+        ).plot(
+            GaussianKDEContourUnivariate,
+            fill=True,
+            n_points=50
+        ).label(
+            fig_title=self.fig_title,
+            sub_title=self.sub_title,
+            feature_label='Brand',
+            target_label='Time (s)',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        
+        texts = get_texts(chart)
+        info_msg = texts[-1].get_text()
+        assert self.file_name.is_file()
+        assert len(texts) == 5  # title, subtitle, feature label, target label, info
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == self.sub_title
+        assert STR.TODAY in info_msg
+        assert STR.USERNAME in info_msg
+
+    def test_single_chart_with_hue(self) -> None:
+        """Test GaussianKDEContourUnivariate with SingleChart (with hue)."""
+        self.base = f'{self.fig_title}_single_chart'
+        self.kind = 'with_hue'
+        
+        chart = SingleChart(
+            source=df_painkillers,
+            target=self.target,
+            feature=self.cat1,
+            hue=self.cat2,
+            target_on_y=True,
+            dodge=True
+        ).plot(
+            GaussianKDEContourUnivariate,
+            fill=True,
+            n_points=50
+        ).label(
+            fig_title=self.fig_title,
+            sub_title=self.sub_title,
+            feature_label='Brand',
+            target_label='Time (s)',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        
+        texts = get_texts(chart)
+        legend_artists = chart.label_facets.legend_artists
+        assert self.file_name.is_file()
+        assert len(texts) >= 4
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == self.sub_title
+        # Check that legend was created for hue
+        assert legend_artists is not None
+
+    def test_single_chart_no_fill(self) -> None:
+        """Test GaussianKDEContourUnivariate without fill."""
+        self.base = f'{self.fig_title}_single_chart'
+        self.kind = 'no_fill'
+        
+        chart = SingleChart(
+            source=df_painkillers,
+            target=self.target,
+            feature=self.cat1,
+            target_on_y=True,
+            categorical_feature=True
+        ).plot(
+            GaussianKDEContourUnivariate,
+            fill=False,
+            fade_outers=True,
+            n_points=50
+        ).label(
+            fig_title=self.fig_title,
+            sub_title=self.sub_title,
+            feature_label='Brand',
+            target_label='Time (s)',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        
+        assert self.file_name.is_file()
+
+    def test_single_chart_no_fade(self) -> None:
+        """Test GaussianKDEContourUnivariate without fade_outers."""
+        self.base = f'{self.fig_title}_single_chart'
+        self.kind = 'no_fade'
+        
+        chart = SingleChart(
+            source=df_painkillers,
+            target=self.target,
+            feature=self.cat1,
+            target_on_y=True,
+            categorical_feature=True
+        ).plot(
+            GaussianKDEContourUnivariate,
+            fill=False,
+            fade_outers=False,
+            n_points=50
+        ).label(
+            fig_title=self.fig_title,
+            sub_title=self.sub_title,
+            feature_label='Brand',
+            target_label='Time (s)',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        
+        assert self.file_name.is_file()
+
+    def test_single_chart_horizontal(self) -> None:
+        """Test GaussianKDEContourUnivariate with target_on_y=False."""
+        self.base = f'{self.fig_title}_single_chart'
+        self.kind = 'horizontal'
+        
+        chart = SingleChart(
+            source=df_painkillers,
+            target=self.target,
+            feature=self.cat1,
+            target_on_y=False,
+            categorical_feature=True
+        ).plot(
+            GaussianKDEContourUnivariate,
+            fill=True,
+            n_points=50
+        ).label(
+            fig_title=self.fig_title,
+            sub_title=self.sub_title,
+            feature_label='Brand',
+            target_label='Time (s)',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        
+        assert self.file_name.is_file()
+
+    def test_joint_chart(self) -> None:
+        """Test GaussianKDEContourUnivariate with JointChart."""
+        self.base = f'{self.fig_title}_joint_chart'
+        self.kind = 'mixed_plots'
+        
+        n_groups = df_painkillers.groupby(self.cat2).ngroups
+        chart = JointChart(
+            source=df_painkillers,
+            target=self.target,
+            feature=(self.cat1, self.cat1),
+            hue=self.cat2,
+            ncols=1,
+            nrows=2,
+            sharex=True,
+            dodge=(True, True),
+            target_on_y=False,
+            height_ratios=[5, 1]
+        ).plot(
+            GaussianKDEContourUnivariate,
+            fill=True,
+            n_points=50
+        ).plot(
+            MeanTest,
+            n_groups=n_groups
+        ).label(
+            fig_title=self.fig_title,
+            sub_title=self.sub_title,
+            feature_label=(False, True),
+            target_label=(True, True),
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        
+        texts = get_texts(chart)
+        assert self.file_name.is_file()
+        assert len(texts) >= 3
+
+    def test_multivariate_chart(self) -> None:
+        """Test GaussianKDEContourUnivariate with MultivariateChart."""
+        self.base = f'{self.fig_title}_multivariate_chart'
+        self.kind = 'facets'
+        
+        chart = MultivariateChart(
+            source=df_painkillers,
+            target=self.target,
+            feature=self.cat1,
+            hue=self.cat2,
+            col='catalyst',
+            target_on_y=True,
+            dodge=True,
+            stretch_figsize=(1.5, 1.0)
+        ).plot(
+            GaussianKDEContourUnivariate,
+            fill=True,
+            n_points=50
+        ).label(
+            fig_title=self.fig_title,
+            sub_title=self.sub_title,
+            feature_label='Brand',
+            target_label='Time (s)',
+            col_title='Catalyst',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        
+        texts = get_texts(chart)
+        assert self.file_name.is_file()
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == self.sub_title
+
+    def test_custom_width(self) -> None:
+        """Test GaussianKDEContourUnivariate with custom width."""
+        self.base = f'{self.fig_title}_custom'
+        self.kind = 'width'
+        
+        chart = SingleChart(
+            source=df_painkillers,
+            target=self.target,
+            feature=self.cat1,
+            target_on_y=True,
+            categorical_feature=True
+        ).plot(
+            GaussianKDEContourUnivariate,
+            width=0.6,
+            fill=True,
+            n_points=50
+        ).label(
+            fig_title=self.fig_title,
+            sub_title=self.sub_title,
+            feature_label='Brand',
+            target_label='Time (s)',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        
+        assert self.file_name.is_file()
+
+    def test_high_resolution(self) -> None:
+        """Test GaussianKDEContourUnivariate with high n_points."""
+        self.base = f'{self.fig_title}_resolution'
+        self.kind = 'high'
+        
+        chart = SingleChart(
+            source=df_painkillers,
+            target=self.target,
+            feature=self.cat1,
+            target_on_y=True,
+            categorical_feature=True
+        ).plot(
+            GaussianKDEContourUnivariate,
+            fill=True,
+            n_points=100
+        ).label(
+            fig_title=self.fig_title,
+            sub_title=self.sub_title,
+            feature_label='Brand',
+            target_label='Time (s)',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        
+        assert self.file_name.is_file()
+
+    def test_comparison_with_violin(self) -> None:
+        """Test GaussianKDEContourUnivariate compared with Violin plot."""
+        self.base = f'{self.fig_title}_comparison'
+        self.kind = 'with_violin'
+        
+        chart = JointChart(
+            source=df_painkillers,
+            target=self.target,
+            feature=self.cat1,
+            hue=self.cat2,
+            ncols=1,
+            nrows=2,
+            sharex=True,
+            dodge=(True, True),
+            target_on_y=True
+        ).plot(
+            GaussianKDEContourUnivariate,
+            fill=True,
+            n_points=50
+        ).plot(
+            Violin
+        ).label(
+            fig_title=self.fig_title,
+            sub_title=self.sub_title,
+            feature_label=(True, True),
+            target_label=(True, True),
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        
+        texts = get_texts(chart)
+        assert self.file_name.is_file()
+        assert len(texts) >= 3
+
+    def test_with_color(self) -> None:
+        """Test GaussianKDEContourUnivariate with custom color."""
+        self.base = f'{self.fig_title}_custom'
+        self.kind = 'color'
+        
+        chart = SingleChart(
+            source=df_painkillers,
+            target=self.target,
+            feature=self.cat1,
+            target_on_y=True,
+            categorical_feature=True
+        ).plot(
+            GaussianKDEContourUnivariate,
+            fill=True,
+            n_points=50,
+            color='red'
+        ).label(
+            fig_title=self.fig_title,
+            sub_title=self.sub_title,
+            feature_label='Brand',
+            target_label='Time (s)',
+            info=self.info_msg
+        ).save(self.file_name
+        ).close()
+        
+        assert self.file_name.is_file()
+
