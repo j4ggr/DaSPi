@@ -786,8 +786,16 @@ class BaseEstimator:
             Summary statistics as pandas DataFrame. The indices of the
             DataFrame are the attributes that have been computed and the
             column name is the name of the samples.
+        
+        Notes
+        -----
+        In pandas v3, using None as a column index can cause KeyError
+        exceptions. This method ensures a valid column name is always
+        used by falling back to the sample name or 0 if None is provided.
         """
-        colname = colname if colname is not None else self.samples.name
+        if colname is None:
+            colname = self.samples.name if hasattr(self.samples, 'name') and self.samples.name is not None else 0
+        
         attributes = (a for a in self.attrs_describe if a not in exclude)
         data = pd.DataFrame(
             data={a: [self._get_descriptive_attr_(a)] for a in attributes},

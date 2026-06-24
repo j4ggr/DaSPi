@@ -461,15 +461,21 @@ class BaseDesignBuilder(ABC):
         Raises
         ------
         AssertionError
-            -If the design matrix columns do not match factor names.
+            If the design matrix columns do not match factor names.
+        
+        Notes
+        -----
+        This method uses copy-on-write semantics compatible with pandas v3.
+        The inplace parameter of replace() is not used as it is deprecated
+        in favor of explicit assignment to ensure proper copy behavior.
         """
         assert all(f.name in df_design.columns for f in factors), (
             'Design matrix columns must match factor names.')
 
         df_design = df_design.copy()
         for factor in factors:
-            df_design[factor.name].replace(
-                factor.corrected_level_map, inplace=True)
+            df_design[factor.name] = df_design[factor.name].replace(
+                factor.corrected_level_map)
         return df_design
 
     @abstractmethod
@@ -601,6 +607,11 @@ class BaseDesignBuilder(ABC):
         DataFrame
             Design matrix with an additional column for the block 
             assignments.
+        
+        Notes
+        -----
+        This method explicitly copies the dataframe to ensure proper 
+        behavior with pandas v3 copy-on-write semantics.
         """
         if self.blocks == 1:
             _blocks = [1 for _ in range(len(df_design))]
@@ -638,6 +649,7 @@ class BaseDesignBuilder(ABC):
         else:
             raise ValueError(f'Invalid blocks option: {self.blocks}')
 
+        df_design = df_design.copy()
         blocks = pd.Series(_blocks, dtype=int, index=df_design.index)
         df_design[DOE.BLOCK] = blocks
         if blocks.nunique() > 1 and not isinstance(self.blocks, int):
@@ -660,6 +672,13 @@ class BaseDesignBuilder(ABC):
         -------
         DataFrame
             Design matrix with central points added.
+        
+        Notes
+        -----
+        In pandas v3, grouping columns are excluded from the function 
+        passed to groupby().apply(). The block column must be manually 
+        preserved by extracting the block value from the group name and 
+        reassigning it after concatenation.
         """
         df_design[DOE.CENTRAL_POINT] = 1
         if not self.central_points > 0:
@@ -673,11 +692,16 @@ class BaseDesignBuilder(ABC):
             ignore_index=True)
         df_central[DOE.CENTRAL_POINT] = 0
         
+        def add_central_to_group(group):
+            block_value = group.name
+            result = pd.concat([group, df_central], ignore_index=True)
+            result[DOE.BLOCK] = block_value
+            return result
+        
         df_design = (df_design
             .groupby(DOE.BLOCK, group_keys=False)
-            .apply(lambda group: pd.concat([group, df_central]))
+            .apply(add_central_to_group)
             .reset_index(drop=True))
-        df_design[DOE.BLOCK] = df_design[DOE.BLOCK].ffill()
         return df_design
 
     def _shuffle_design(self, df_design: DataFrame) -> DataFrame:
@@ -696,22 +720,45 @@ class BaseDesignBuilder(ABC):
         -------
         DataFrame
             Shuffled design matrix.
+        
+        Notes
+        -----
+        In pandas v3, grouping columns are excluded from the function 
+        passed to groupby().apply(). The block column must be manually 
+        preserved by extracting the block value from the group name and 
+        reassigning it after shuffling.
         """
         df_design[DOE.STD_ORDER] = np.arange(len(df_design))
         if self.shuffle:
+            def shuffle_group(group):
+                block_value = group.name
+                shuffled = group.sample(frac=1)
+                shuffled[DOE.BLOCK] = block_value
+                return shuffled
+            
             df_design = (df_design
                 .groupby(DOE.BLOCK, group_keys=False)
-                .apply(lambda group: group.sample(frac=1))
+                .apply(shuffle_group)
                 .reset_index(drop=True))
         df_design[DOE.RUN_ORDER] = np.arange(len(df_design))
         return df_design
     
     def _clean_design(self, df_design: DataFrame) -> DataFrame:
         """Clean the design matrix by sorting columns and converting
-        standard columns to integer type."""
-        df_design = df_design[self.columns]
-        df_design[self.standard_columns] = (
-            df_design[self.standard_columns].astype(int))
+        standard columns to integer type.
+        
+        Notes
+        -----
+        In pandas v3, column indexing is stricter and will raise a KeyError
+        if any requested column does not exist. This method filters to only
+        existing columns before reordering, allowing for cases where not all
+        standard columns (e.g., block) are present in the dataframe.
+        """
+        existing_std_cols = [col for col in self.standard_columns if col in df_design.columns]
+        factor_cols = [col for col in self.factor_names if col in df_design.columns]
+        ordered_columns = existing_std_cols + factor_cols
+        df_design = df_design[ordered_columns]
+        df_design[existing_std_cols] = df_design[existing_std_cols].astype(int)
         return df_design
 
     def build_design(

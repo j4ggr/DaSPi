@@ -1,19 +1,18 @@
 [project]
   name = "DaSPi"
-  version = "1.10.1"
+  version = "2.0.0"
   description = "Visualize and analyze your data with DaSPi. This package is designed for users who want to find relevant influencing factors in processes and validate improvements."
   authors = [
-      {name = "Reto Jäggli", email = "reto@jaeggli.email"},]
+    {name = "Reto Jäggli", email = "reto@jaeggli.email"},]
   dependencies = [
-      "matplotlib>=3.10.0",
-      "pandas>=2.1.4",
-      "statsmodels>=0.14.1",
-      "scipy>=1.11.4",
-      "numpy>=1.26.3",]
-  requires-python = ">=3.11"
+    "matplotlib>=3.11.0",
+    "pandas>=3.0.3",
+    "statsmodels>=0.14.6",
+    "scipy>=1.18.0",
+    "numpy>=2.5.0"]
+  requires-python = ">=3.13"
   readme = "README.md"
-  license = {text = "BSD-3-Clause"}
-
+  license = {text = "MIT"}
   [project.urls]
     Repository = "https://github.com/j4ggr/DaSPi"
     Documentation = "https://j4ggr.github.io/DaSPi/"
@@ -27,12 +26,14 @@
   distribution = true
 
 [dependency-groups]
-  test = [
-      "pytest>=8.3.5",
-      "pytest-cov>=6.1.1",]
-  doc = [
-      "mkdocs>=1.5.3",
-      "mkdocstrings[python]>=0.24.1",
-      "mkdocs-material>=9.5.13"]
-  notebooks = [
-      "marimo>=0.23.6",]
+test = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",]
+doc = [
+    "mkdocs>=1.6.1",
+    "mkdocstrings[python]>=1.0.4",
+    "mkdocs-material>=9.7.6",]
+notebooks = [
+    "marimo>=0.23.10",
+]
+
