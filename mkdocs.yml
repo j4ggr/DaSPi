@@ -106,6 +106,10 @@ nav:
     - Changelog: CHANGELOG.md
   - User Guide:
     - guides/index.md
+    - Three Flagship Workflows:
+      - guides/workflow-capability.md
+      - guides/workflow-root-cause.md
+      - guides/workflow-spc.md
     - guides/installing.md
     - guides/anova.md
     - guides/doe.md

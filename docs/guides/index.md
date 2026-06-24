@@ -1,8 +1,113 @@
 # User Guide
 
-This section covers hands-on usage of DaSPi — from installation through
-process analysis workflows, statistical methods, and measurement system
-evaluation.
+This guide shows you how to use DaSPi's **three flagship workflows** for process analysis, from installation through real-world applications.
+
+---
+
+## 🎯 Start Here: Three Essential Workflows
+
+These workflows cover 90% of process analysis tasks. Each produces **visual + interpretation** in under 20 lines.
+
+### 📊 1. Process Capability Analysis
+
+**When to use:** Evaluate if your process meets specifications (Cp, Cpk analysis).
+
+```python
+import daspi as dsp
+
+df = dsp.load_dataset("drop_card")
+spec_limits = dsp.SpecLimits(0, float(df.loc[0, "usl"]))
+
+chart = dsp.ProcessCapabilityAnalysisCharts(
+    source=df,
+    target="distance",
+    spec_limits=spec_limits,
+    hue="method"
+).plot().stripes().label(info=True)
+```
+
+**Output:** Distribution analysis, Cp/Cpk/Pp/Ppk indices, capability interpretation.
+
+**[📖 Complete Capability Guide →](workflow-capability.md)**
+
+---
+
+### 🔍 2. Root Cause Analysis
+
+**When to use:** Identify which factors significantly impact your process.
+
+```python
+import daspi as dsp
+
+df = dsp.load_dataset("painkillers-dissolution")
+
+model = dsp.LinearModel(
+    source=df,
+    target="dissolution",
+    factors=["employee", "brand", "catalyst"],
+    covariates=["temperature"]
+)
+model.recursive_elimination()
+
+dsp.ResidualsCharts(model).plot().stripes().label(info=True)
+dsp.ParameterRelevanceCharts(model).plot().stripes().label(info=True)
+```
+
+**Output:** ANOVA tables, parameter effects, residual diagnostics, significance tests.
+
+**[📖 Complete Root Cause Guide →](workflow-root-cause.md)**
+
+---
+
+### 📈 3. Statistical Process Control (SPC)
+
+**When to use:** Monitor process stability and detect out-of-control conditions.
+
+```python
+import daspi as dsp
+
+df = dsp.load_dataset("grnr_spc")
+
+chart = dsp.SingleChart(
+    source=df,
+    target="result",
+    feature="measurement_order"
+).plot(
+    dsp.Scatter
+).stripes(
+    mean=True,
+    control_limits=True,
+    spec_limits=dsp.SpecLimits(lower=2.0, upper=4.5),
+    agreement=3
+).label(
+    fig_title="SPC Chart: Process Monitoring",
+    info=True
+)
+```
+
+**Output:** Control chart with mean, UCL/LCL, specification limits, trend analysis.
+
+**[📖 Complete SPC Guide →](workflow-spc.md)**
+
+---
+
+## 🚀 Getting Started
+
+### Step 1: Install DaSPi
+```bash
+pip install daspi
+```
+
+### Step 2: Choose Your Workflow
+- **Need to verify process capability?** → Start with [Workflow 1](workflow-capability.md)
+- **Need to find root causes?** → Start with [Workflow 2](workflow-root-cause.md)
+- **Need to monitor stability?** → Start with [Workflow 3](workflow-spc.md)
+
+### Step 3: Explore Advanced Topics
+Once you master the three workflows, explore:
+- [Design of Experiments (DOE)](doe.md) for systematic testing
+- [Gage R&R Analysis](gage_analysis.md) for measurement system validation
+- [3S Methodology](3s-methodology.md) for structured problem-solving
 
 ---
 
