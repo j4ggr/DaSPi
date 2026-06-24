@@ -1,5 +1,9 @@
 # ANOVA
 
+ANOVA (Analysis of Variance) is a fundamental tool for **root cause analysis** in process improvement. It helps engineers identify which factors significantly impact process outcomes, enabling data-driven decisions in manufacturing, quality engineering, and Six Sigma projects.
+
+---
+
 ## What is ANOVA?
 
 **ANOVA**, which stands for **Analysis of Variance**, is a statistical method used to compare the means of three or more groups to determine if at least one of the group means is significantly different from the others. It helps in understanding whether the variations in data can be attributed to different factors or treatments.

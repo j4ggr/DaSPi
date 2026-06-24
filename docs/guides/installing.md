@@ -1,9 +1,12 @@
-
 # Installation Guide
+
+DaSPi is distributed via PyPI and can be installed in seconds.
+
+---
 
 ## Prerequisites
 
-- Python 3.12 or higher
+- Python 3.13 or higher
 - pip (Python package installer)
 
 ## Installing from PyPI

@@ -1,20 +1,24 @@
 # Plotting Guide
 
-Welcome to the wonderful world of DaSPi plotting! 🎨 Think of this as your creative toolkit for turning boring numbers into beautiful, insightful visualizations. We've built a flexible system that lets you craft everything from simple scatter plots to complex multi-panel masterpieces.
+Professional visualization is essential for effective process analytics. DaSPi provides a flexible plotting system that creates publication-ready charts for capability analysis, root cause investigations, and statistical reporting.
+
+This guide covers DaSPi's layered plotting architecture — from simple single-panel charts to complex multi-panel layouts.
+
+---
 
 ## Facets
 
-Facets are like the stage crew of your visualization theater - they work behind the scenes to make sure everything appears in exactly the right place. They handle the layout, positioning, and all those fiddly details so you can focus on the story your data wants to tell.
+Facets are the foundation of DaSPi's plotting system. They handle layout, positioning, and all the structural details so you can focus on visualizing your data effectively.
 
 ### AxesFacets
 
-Think of AxesFacets as your layout designer. This class creates the blueprint for where your subplots will live and builds the figure to house them. It's heavily inspired by Matplotlib's beloved `plt.subplots()` function (which it actually uses under the hood), but with some DaSPi magic sprinkled on top.
+AxesFacets creates the layout blueprint for your visualizations. This class manages subplot positioning and figure construction, inspired by Matplotlib's `plt.subplots()` function with additional DaSPi enhancements.
 
-You have two ways to design your layout:
+You have two approaches for designing your layout:
 
-**Option 1: The Grid Approach** 📐
+**Option 1: Grid Layout**
 
-Use `nrows`, `ncols`, `width_ratios`, and `height_ratios` for clean, structured layouts:
+Use `nrows`, `ncols`, `width_ratios`, and `height_ratios` for structured grids:
 
 ```python
 import daspi as dsp
@@ -23,9 +27,9 @@ axes = dsp.AxesFacets(
     nrows=2, ncols=2, width_ratios=[3, 1], height_ratios=[1, 3])
 ```
 
-**Option 2: The Mosaic Approach** 🧩
+**Option 2: Mosaic Layout**
 
-Use the `mosaic` argument for more creative, flexible layouts:
+Use the `mosaic` argument for flexible, custom layouts:
 
 ```python
 axes = dsp.AxesFacets(mosaic=[
@@ -35,9 +39,9 @@ axes = dsp.AxesFacets(mosaic=[
     'bbbc'])
 ```
 
-Both approaches give you the same basic layout, but mosaic has a cool trick up its sleeve - see that '.' in the top right? That tells Matplotlib to leave that space empty. It's like having a "skip this spot" instruction!
+Both approaches provide the same basic layout, but mosaic offers more flexibility — the '.' character tells Matplotlib to leave that space empty.
 
-**Pro tip**: Combine mosaic with ratios for the best of both worlds:
+**Combining approaches:**
 
 ```python
 axes = dsp.AxesFacets(
@@ -46,23 +50,21 @@ axes = dsp.AxesFacets(
 
 ![Mosaic Layout](../img/facets_axes-mosaic.png)
 
-**Accessing Your Axes** 🎯
+**Accessing Individual Axes**
 
-Getting to your individual plots is super intuitive. You can use either:
-- A single number (like a flat list): `axes[1]`
-- Tuple notation (like numpy arrays): `axes[-1, 0]`
+Access your subplots using:
+- Single index (flat list): `axes[1]`
+- Tuple notation (numpy-style): `axes[-1, 0]`
 
-Plus, AxesFacets works as an iterator, so you can loop through your axes from top-left to bottom-right. Neat!
+AxesFacets also works as an iterator, allowing you to loop through axes from top-left to bottom-right.
 
 ### StripesFacets
 
-Ever wanted to add reference lines or highlight important regions across your plots? That's where StripesFacets shines! ✨ This class adds horizontal or vertical lines and areas to your plots - perfect for showing specification limits, control limits, confidence intervals, or global statistics.
+StripesFacets adds reference lines and shaded areas to your plots — essential for showing specification limits, control limits, confidence intervals, or baseline statistics.
 
-**The Problem**: Imagine you're comparing data across multiple subplots. Each subplot shows the same type of analysis but for different categories. How do you quickly spot differences between groups?
+**Use Case:** Compare data across multiple subplots where each subplot shows the same analysis for different categories. Reference lines make patterns and differences immediately visible.
 
-**The Solution**: Reference lines and areas that make patterns jump out at you!
-
-Let's see this in action with painkillers dissolution data. First, the "before" picture:
+Let's see this with painkillers dissolution data. First, without stripes:
 
 ```python
 import daspi as dsp
@@ -80,7 +82,7 @@ for ax, (name, group) in zip(axes, df.groupby('employee')):
 
 ![Stripes](../img/facets_stripes-missing.png)
 
-Hard to compare, right? Now watch the magic happen when we add stripes:
+Now with stripes added:
 
 ```python
 import daspi as dsp
@@ -106,15 +108,16 @@ for ax, (name, group) in zip(axes, df.groupby('employee')):
 
 ![Stripes](../img/facets_stripes-drawn.png)
 
-Now you can instantly see which employee's tablets are taking too long to dissolve! 🎯
+Now you can instantly identify which employee's tablets are exceeding dissolution time limits.
 
-⚠️ **Important**: When using StripesFacets across multiple subplots, set `sharey=True` so the reference lines align properly.
+!!! note "Alignment Requirement"
+    When using StripesFacets across multiple subplots, set `sharey=True` so reference lines align properly.
 
 ### LabelFacets
 
-LabelFacets is your typography and annotation specialist. 📝 This class handles all the text elements that make your plots publication-ready: titles, subtitles, axis labels, legends, and even info boxes.
+LabelFacets handles all text elements that make your plots publication-ready: titles, subtitles, axis labels, legends, and annotation boxes.
 
-The best part? It automatically adjusts the subplot area to prevent text overlap. No more manually tweaking margins!
+A key feature: it automatically adjusts subplot spacing to prevent text overlap, eliminating manual margin adjustments.
 
 ```python
 from matplotlib.lines import Line2D
@@ -190,75 +193,72 @@ labels.draw()
 
 ![Painkillers Dissolution](../img/facets_combined.png)
 
-From scattered data points to a professional analysis in just a few lines of code! 🚀
+Professional analysis in just a few lines of code.
 
 ## Plotters
 
-Welcome to the heart of DaSPi's visualization engine! 💖 Our plotter collection is like a Swiss Army knife for data visualization - we've got the right tool for every data story you want to tell.
+Plotters are the core visualization components in DaSPi. Each plotter class creates a specific type of mark (scatter, line, box plot, etc.) and can be combined to build complex analyses.
 
 ### Bivariate (XY) Plots
 
-These are your bread-and-butter relationship explorers. Perfect for answering "How does X relate to Y?" questions. The setup is always the same:
+Bivariate plotters explore relationships between two variables. Essential parameters:
 
-- `source`: Your DataFrame (the data buffet)
-- `target`: The Y-axis variable (what you're trying to understand)
-- `feature`: The X-axis variable (what might be influencing your target)
+- `source`: Your DataFrame
+- `target`: The Y-axis variable (response)
+- `feature`: The X-axis variable (predictor)
 
 ![XY Plotters](../img/plotters_xy.png)
 
 ### Univariate (Distribution) Plots
 
-When you want to get intimate with a single variable - understand its personality, quirks, and behavior patterns. These plots reveal the shape, center, and spread of your data.
+Univariate plotters analyze single variables, revealing distribution shape, center, and spread.
 
 ![Univariate Plotters](../img/plotters_univariate.png)
 
 ### Plots for Differences
 
-The "spot the difference" champions! 🔍 These plots excel at comparing groups and highlighting variations between categories. Perfect for answering "Are these groups really different?" questions.
+Comparison plotters excel at highlighting differences between groups and categories — essential for hypothesis testing and root cause analysis.
 
 ![Difference Plotters](../img/plotters_differences.png)
 
 ### Special Plots
 
-Our collection of specialized tools for specific analytical needs. These are the plots that make you look like a data visualization wizard! ✨
+Specialized plotters for specific analytical needs including capability analysis, measurement system analysis, and advanced statistical visualizations.
 
 ![Special Plotters](../img/plotters_special.png)
 
 ## Charts
 
-Now for the grand finale! 🎭 We've built all these amazing components (facets and plotters), but wouldn't it be nice to have a simple way to orchestrate them all? Enter the chart classes - your new best friends for creating stunning visualizations without breaking a sweat.
-
-Think of charts as your personal plotting assistants. They handle all the tedious setup work while you focus on the fun part: telling your data's story.
+Chart classes provide a high-level interface that combines facets and plotters into a streamlined workflow. They handle setup automatically while maintaining full customization capabilities.
 
 ### The Chart Family
 
-Meet the three chart siblings, each with their own personality:
+DaSPi provides three chart classes for different visualization needs:
 
-- **SingleChart** - The minimalist. One plot area, infinite possibilities.
-- **JointChart** - The collaborator. Loves showing relationships between variables.
-- **MultiVariantChart** - The overachiever. Handles complex multi-panel layouts like a boss.
+- **SingleChart** — Single plot area for focused analysis
+- **JointChart** — Combined marginal and joint distributions
+- **MultivariateChart** — Complex multi-panel layouts
 
-### How Charts Work Their Magic
+### Architecture
 
-These chart classes are essentially smart wrappers around our facet classes (AxesFacets, StripesFacets, and LabelFacets). They also provide a dead-simple interface for working with plotters. Think of them as the conductors of your data visualization orchestra! 🎼
+Chart classes are smart wrappers around facet classes (AxesFacets, StripesFacets, and LabelFacets), providing a simplified interface for working with plotters.
 
-The beauty is in their flexibility - you can mix and match plotters however you want. Just call the `plot()` method multiple times with different plotter classes. It's like building with LEGO blocks, but for data visualization!
+Key advantage: you can layer multiple plotters by calling `plot()` repeatedly with different plotter classes. Each plotter adds marks to the same axes, enabling sophisticated composite visualizations.
 
-### The Chart Creation Recipe
+### Typical Workflow
 
-Here's the secret sauce for chart creation:
+1. **Create chart** — AxesFacets instantiated automatically
+2. **Add plots** — Call `plot()` one or more times with different plotters
+3. **Add reference lines** — Call `stripes()` to add specification or control limits
+4. **Add labels** — Call `labels()` for titles, legends, and annotations
+5. **Save** — Call `save()` to export
 
-1. **Create your chart** - The AxesFacets class gets instantiated automatically
-2. **Add your plots** - Call `plot()` as many times as you want with different plotters
-3. **Sprinkle in some stripes** - Call `stripes()` to add reference lines and areas
-4. **Label everything beautifully** - Call `labels()` to make it publication-ready
-5. **Save your masterpiece** - Call `save()` to preserve your work
+!!! note "Method Order"
+    The `labels()` method must be called last (before `save()`). Other methods can be called in any order.
 
-⚠️ **Pro tip**: The `labels()` method is a bit of a diva - it must be called last (but before `save()`). All other methods are more flexible and can be called in any order.
+### Method Chaining
 
-### Method Chaining Magic ✨
-
-All methods are chainable, so you can create entire visualizations in one elegant flow:
+All chart methods return `self`, enabling fluent method chaining:
 
 ```python
 import daspi as dsp
@@ -270,13 +270,11 @@ chart = dsp.SingleChart(...
     ).save(...)
 ```
 
-It's like writing poetry, but with data! Each method flows naturally into the next, creating a readable narrative of your visualization process.
+This creates readable, compact code that clearly expresses the visualization workflow.
 
 ### SingleChart
 
-The SingleChart class is perfect when you want to focus all attention on one plot area. It's like having a single spotlight on stage - everything else fades away, and your data becomes the star.
-
-So now let's create a chart using the SingleChart class with the same data we used in the Facets section above.
+SingleChart provides a single plot area for focused analysis. Let's recreate the painkillers example using the chart interface:
 
 ```python
 import daspi as dsp
