@@ -382,7 +382,7 @@ class TestFractionalFactorialDesignBuilder:
         # Test Resolution III with 5 factors
         factors = [Factor(f'F{i}', (-1, 1)) for i in range(1, 6)]
         builder = FractionalFactorialDesignBuilder.by_resolution(*factors, resolution=3)
-        assert builder.generators == ['D=AB', 'E=AC']  # From get_default_generators(5,2)
+        assert builder.generators == ['F4=F1F2', 'F5=F1F3']  # Translated from get_default_generators(5,2)
         df = builder.build_design(corrected=False)
         assert df.shape[0] == 8  # 2^(5-2) = 8 runs
 

@@ -78,11 +78,60 @@ from ..constants import DOE
 
 __all__ = [
     'get_default_generators',
+    'translate_generators',
     'Factor',
     'BaseDesignBuilder',
     'FullFactorialDesignBuilder',
     'FullFactorial2kDesignBuilder',
     'FractionalFactorialDesignBuilder',]
+
+
+def translate_generators(
+        generators: List[str], 
+        factor_names: List[str]) -> List[str]:
+    """
+    Translate generator notation from standard letters (A, B, C, ...) 
+    to actual factor names.
+
+    Parameters
+    ----------
+    generators : List[str]
+        Generator strings using standard letter notation, e.g. ['D=AB', 
+        'E=AC'].
+    factor_names : List[str]
+        Actual factor names in order, e.g. ['F1', 'F2', 'F3', 'F4', 
+        'F5'].
+
+    Returns
+    -------
+    List[str]
+        Generators translated to use actual factor names, 
+        e.g. ['F4=F1F2', 'F5=F1F3'].
+
+    Notes
+    -----
+    Standard DOE notation uses A for the first factor, B for the second, 
+    etc.This function maps those letters to the actual factor names by
+    position.
+    """
+    letter_to_name = {}
+    for i, name in enumerate(factor_names):
+        letter = chr(ord('A') + i)
+        letter_to_name[letter] = name
+    
+    translated = []
+    for gen in generators:
+        lhs, rhs = gen.split('=')
+        
+        new_lhs = ''.join(letter_to_name.get(c, c) for c in lhs)
+        
+        new_rhs = rhs
+        for letter in sorted(letter_to_name.keys(), key=lambda x: -ord(x)):
+            new_rhs = new_rhs.replace(letter, letter_to_name[letter])
+        
+        translated.append(f'{new_lhs}={new_rhs}')
+    
+    return translated
 
 
 def get_default_generators(k: int, p: int) -> list[str]:
@@ -1372,6 +1421,9 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
                 f'Resolution {resolution} (requires 2^({k}-{p}) design). '
                 f'Original error: {e}') from e
 
+        factor_names = [f.name for f in factors]
+        generators = translate_generators(generators, factor_names)
+
         return cls(
             *factors,
             generators=generators,
@@ -1431,19 +1483,32 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
         n_basic = len(self.factors) - len(self.generators)
         basic_factors = self.factors[:n_basic]
         basic_names = [f.name for f in basic_factors]
+        all_factor_names = [f.name for f in self.factors]
+        
         df_design = pd.DataFrame(
             product(*[f.corrected_levels for f in basic_factors]),
             columns=basic_names)
 
         for generator in self.generators:
             lh_side, rh_side = generator.split('=')
-            interaction_names = [n for n in basic_names if n in rh_side]
-            assert len(lh_side) == 1, (
-                f'Generator "{generator}" must have a single dependent factor '
-                f'on the left side of "=", got {lh_side}')
+            
+            assert lh_side in all_factor_names, (
+                f'Generator "{generator}" left side must be a valid factor name, '
+                f'got "{lh_side}", available factors: {all_factor_names}')
+            
+            # Parse right-hand side to find which basic factors are involved
+            # Sort by length (longest first) to match correctly
+            remaining_rhs = rh_side
+            interaction_names = []
+            for name in sorted(basic_names, key=len, reverse=True):
+                if name in remaining_rhs:
+                    interaction_names.append(name)
+                    remaining_rhs = remaining_rhs.replace(name, '', 1)
+            
             assert interaction_names, (
                 f'Generator "{generator}" does not match any basic factors: '
                 f'{basic_names}')
+            
             generated = df_design[interaction_names].prod(axis=1)
             df_design[lh_side] = -generated if '-' in rh_side else generated
 
