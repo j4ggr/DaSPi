@@ -167,6 +167,7 @@ nav:
         - plotlib/plotter/quantile-boxes.md
         - plotlib/plotter/gaussian-kde.md
         - plotlib/plotter/gaussian-kde-contour.md
+        - plotlib/plotter/gaussian-kde-contour-univariate.md
         - plotlib/plotter/violin.md
         - plotlib/plotter/errorbar.md
         - plotlib/plotter/standard-error-mean.md

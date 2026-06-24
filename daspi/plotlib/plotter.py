@@ -4777,6 +4777,102 @@ class GaussianKDEContourUnivariate(TransformPlotter):
         Those arguments have no effect. Only serves to catch further
         arguments that have no use here (occurs when this class is 
         used within chart objects).
+    
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import GaussianKDEContourUnivariate
+
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(dict(
+        category = ['A'] * 50 + ['B'] * 50 + ['C'] * 50,
+        value = (
+            list(np.random.normal(loc=10, scale=2, size=50))
+            + list(np.random.normal(loc=15, scale=2, size=50))
+            + list(np.random.normal(loc=12, scale=2, size=50)))))
+    plotter = GaussianKDEContourUnivariate(
+        source=df, target='value', feature='category', 
+        fill=True, n_points=50, ax=ax)
+    plotter()
+    plotter.label_feature_ticks()
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import daspi as dsp
+
+    df = dsp.load_dataset('painkillers-dissolution')
+    chart = dsp.SingleChart(
+            source=df,
+            target='time',
+            feature='brand',
+            categorical_feature=True,
+        ).plot(
+            dsp.GaussianKDEContourUnivariate,
+            fill=True,
+            n_points=50
+        ).label(
+            feature_label='Brand',
+            target_label='Time (s)'
+        )
+    ```
+
+    With hue grouping for multiple colors:
+
+    ```python
+    import daspi as dsp
+
+    df = dsp.load_dataset('painkillers-dissolution')
+    chart = dsp.SingleChart(
+            source=df,
+            target='time',
+            feature='brand',
+            hue='stirrer',
+            dodge=True,
+        ).plot(
+            dsp.GaussianKDEContourUnivariate,
+            fill=True,
+            fade_outers=True,
+            n_points=50
+        ).label(
+            feature_label='Brand',
+            target_label='Time (s)'
+        )
+    ```
+
+    Comparison with Violin plot in a JointChart:
+
+    ```python
+    import daspi as dsp
+
+    df = dsp.load_dataset('painkillers-dissolution')
+    chart = dsp.JointChart(
+            source=df,
+            target='time',
+            feature='brand',
+            hue='stirrer',
+            ncols=1,
+            nrows=2,
+            sharex=True,
+            dodge=(False, True),
+            target_on_y=True
+        ).plot(
+            dsp.GaussianKDEContourUnivariate,
+            fill=True,
+            n_points=50
+        ).plot(
+            dsp.Violin
+        ).label(
+            feature_label=(True, True),
+            target_label=(True, True)
+        )
+    ```
     """
     __slots__ = ('shape', 'fill', 'n_points', 'width', 'cmap')
 

@@ -1,86 +1,77 @@
 import marimo
 
-__generated_with = "0.23.6"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
 @app.cell
 def _():
-    from pathlib import Path
     import os
+    import numpy as np
+    import daspi as dsp
+    import marimo as mo
+    from pathlib import Path
+
     if not str(Path.cwd()).endswith('DaSPi'):
         os.chdir(Path.cwd().parent.resolve())
+
     Path.cwd()
+    DPI = 120
+    dsp.STR._username_ = 'j4ggr'
+    dsp.__version__
+    return DPI, Path, dsp, np
+
+
+@app.cell
+def _(dsp):
+    fA = dsp.Factor('A', (-1, 1))
+    fB = dsp.Factor('B', (-1, 1))
+    fC = dsp.Factor('C', (-1, 1))
+    frac_builder = dsp.FractionalFactorialDesignBuilder(
+        fA, fB, fC, generators=['C=AB'], fold='A', shuffle=False)
+
+    frac_builder.build_design(corrected=False)
     return
 
 
 @app.cell
-def _():
-    import daspi as dsp
-    DPI = 120
-    dsp.STR._username_ = 'j4ggr'
-    dsp.__version__
-    return DPI, dsp
-
-
-@app.cell
-def _():
-    import daspi as dsp
-    fA = dsp.Factor('A', (-1, 1))
-    fB = dsp.Factor('B', (-1, 1))
-    fC = dsp.Factor('C', (-1, 1))
-    builder = dsp.FractionalFactorialDesignBuilder(
-        fA, fB, fC, generators=['C=AB'], fold='A', shuffle=False)
-
-    df = builder.build_design(corrected=False)
-    return df, dsp
-
-
-@app.cell
-def _():
-    import daspi as dsp
-    import numpy as np
+def _(dsp, np):
 
     np.random.seed(42) # optional for reproducibility
 
     factor_a = dsp.Factor('A', (0, 1))
     factor_b = dsp.Factor('B', (0, 1))
-    builder = dsp.FullFactorial2kDesignBuilder(
+    ff2k_builder = dsp.FullFactorial2kDesignBuilder(
         factor_a, factor_b, replicates=3, central_points=2,
         blocks='highest', shuffle=True)
-    df = builder.build_design(corrected=True)
-    print(df)
-    return df, dsp
+    ff2k_builder.build_design(corrected=True)
+    return
 
 
 @app.cell
-def _():
-    import daspi as dsp
-    df = dsp.load_dataset('grnr_layer_thickness')
-    gage = dsp.GageStudyModel(
-        source=df,
+def _(dsp):
+
+    _df = dsp.load_dataset('grnr_layer_thickness')
+    _gage = dsp.GageStudyModel(
+        source=_df,
         target='result_gage',
         reference='reference',
-        u_cal=df['U_cal'][0],
-        tolerance=df['tolerance'][0],
-        resolution=df['resolution'][0],)
-    chart = dsp.GageStudyCharts(
-            gage, stretch_figsize=1.3
+        u_cal=_df['U_cal'][0],
+        tolerance=_df['tolerance'][0],
+        resolution=_df['resolution'][0],)
+    _chart = dsp.GageStudyCharts(
+            _gage, stretch_figsize=1.3
         ).plot(
         ).stripes(
         ).label(
         ) # .save('path/to/file.png')
-    gage # or print(repr(gage))
-    return df, dsp
+    _gage # or print(repr(_gage))
+    return
 
 
 @app.cell
-def _():
-    import numpy as np
-    import pandas as pd
-    import daspi as dsp
+def _(Path, dsp, pd):
 
-    from pathlib import Path
 
     valid_data_dir = Path.cwd()/'tests'/'data'
     df_lin = pd.read_csv(
@@ -107,36 +98,33 @@ def _():
         bias_corrected=True,
         k=2)
     gage_lin
-    return (dsp,)
+    return
 
 
 @app.cell
-def _():
-    import daspi as dsp
-    df = dsp.load_dataset('grnr_layer_thickness')
-    gage = dsp.GageStudyModel(
-        source=df,
+def _(dsp):
+    _df = dsp.load_dataset('grnr_layer_thickness')
+    _gage = dsp.GageStudyModel(
+        source=_df,
         target='result_gage',
         reference='reference',
-        u_cal=df['U_cal'][0],
-        tolerance=df['tolerance'][0],
-        resolution=df['resolution'][0],)
+        u_cal=_df['U_cal'][0],
+        tolerance=_df['tolerance'][0],
+        resolution=_df['resolution'][0],)
 
     rnr_model = dsp.GageRnRModel(
-        source=df,
+        source=_df,
         target='result_rnr',
         part='part',
         u_av='operator',
-        gage=gage)
-    chart = dsp.GageRnRCharts(rnr_model).plot().stripes().label()
+        gage=_gage)
+    _chart = dsp.GageRnRCharts(rnr_model).plot().stripes().label()
     rnr_model
-    return df, dsp
+    return
 
 
 @app.cell
-def _(DPI):
-    import daspi as dsp
-
+def _(DPI, dsp):
     df = dsp.load_dataset('anova')
     chart = dsp.SingleChart(
             source=df,
@@ -154,7 +142,7 @@ def _(DPI):
         )
 
     chart.save('./docs/img/anova_jitter_pain-color.png', dpi=DPI)
-    return df, dsp
+    return (df,)
 
 
 @app.cell
