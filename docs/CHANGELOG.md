@@ -14,6 +14,18 @@ __Types of changes__:
 - _Fixed_ for any bug fixes.
 - _Security_ in case of vulnerabilities.
 
+## [Unreleased]
+
+### Added
+
+- The `GeneralizedLinearModel` class for analyzing count and proportion data using Poisson, Negative Binomial, or Binomial distributions. Suitable for unbalanced factorial designs with non-normal response variables.
+- The `dunn_test()` function for non-parametric pairwise comparisons following Kruskal-Wallis test, with multiple comparison corrections (Bonferroni, Holm, Hochberg, Benjamini-Hochberg, Benjamini-Yekutieli).
+- The `pairwise_tests()` function with automatic test selection between t-test and Mann-Whitney U based on normality assessment, including multiple comparison corrections.
+
+### Removed
+
+- The `InteractionPlot` and `MainEffectsPlot` classes (incompatible with package design philosophy).
+
 ## [1.10.1] - 2026-03-03
 
 ### Added

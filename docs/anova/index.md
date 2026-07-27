@@ -8,7 +8,7 @@
 
 | Module | Contents |
 | -------- | ---------- |
-| [Linear & Gage Models](linear-model.md) | `LinearModel`, `GageStudyModel`, `GageRnRModel` |
+| [Linear & Gage Models](linear-model.md) | `LinearModel`, `GeneralizedLinearModel`, `GageStudyModel`, `GageRnRModel` |
 | [Gage Study Model](gage-study-model.md) | `GageStudyModel` — MSA Type-1 with GUM uncertainty budget |
 | [Gage R&R Model](gage-rnr-model.md) | `GageRnRModel` — crossed Gage R&R variance components |
 

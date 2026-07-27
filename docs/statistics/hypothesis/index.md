@@ -13,3 +13,5 @@
             - proportions_test
             - kurtosis_test
             - skew_test
+            - dunn_test
+            - pairwise_tests
