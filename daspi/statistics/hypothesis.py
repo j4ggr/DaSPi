@@ -64,9 +64,11 @@ statistic of interest is constant across sections — a lightweight
 alternative to control-chart analysis.
 """
 import numpy as np
+import pandas as pd
 
 from math import exp
 from typing import Any
+from typing import Dict
 from typing import Tuple
 from typing import Literal
 from typing import Sequence
@@ -108,7 +110,9 @@ __all__ = [
     'variance_test',
     'proportions_test',
     'kurtosis_test',
-    'skew_test',]
+    'skew_test',
+    'dunn_test',
+    'pairwise_tests',]
 
 # TDOD: further tests:
 # from scipy.stats import chi2
@@ -748,3 +752,343 @@ def skew_test(
         The computed z-score for this test"""
     statistic, p = skewtest(sample, nan_policy='omit', alternative='two-sided')
     return p, statistic
+
+
+def dunn_test(
+        groups: Dict[str, NumericSample1D],
+        p_adjust: Literal['bonferroni', 'holm', 'hochberg', 'hommel', 
+                          'BH', 'BY', 'none'] = 'bonferroni'
+        ) -> pd.DataFrame:
+    """Dunn's test for pairwise comparisons after Kruskal-Wallis.
+    
+    Dunn's test is a post-hoc test used after a significant 
+    Kruskal-Wallis test to determine which groups differ from each 
+    other. It performs pairwise comparisons using rank sums with 
+    multiple comparison correction.
+    
+    This test is appropriate for:
+    - Non-parametric data (no normality assumption)
+    - Unbalanced designs (different sample sizes per group)
+    - Ordinal or continuous data
+    - Multiple group comparisons
+    
+    Parameters
+    ----------
+    groups : Dict[str, NumericSample1D]
+        Dictionary mapping group names to sample data.
+        Example: {'Group1': [1, 2, 3], 'Group2': [4, 5, 6]}
+    p_adjust : str, optional
+        Method for p-value adjustment. Options:
+        - 'bonferroni': Conservative, controls FWER
+        - 'holm': Less conservative than Bonferroni
+        - 'hochberg': Similar to Holm
+        - 'BH' (Benjamini-Hochberg): Controls FDR
+        - 'BY' (Benjamini-Yekutieli): More conservative FDR
+        - 'none': No adjustment
+        Default is 'bonferroni'.
+    
+    Returns
+    -------
+    DataFrame
+        Results table with columns:
+        - 'Group1': First group in comparison
+        - 'Group2': Second group in comparison
+        - 'z_statistic': Standardized test statistic
+        - 'p_raw': Unadjusted p-value
+        - 'p_adjusted': Adjusted p-value
+        - 'significant': Boolean, True if p_adjusted < 0.05
+    
+    Examples
+    --------
+    After a significant Kruskal-Wallis test:
+    
+    ```python
+    import daspi as dsp
+    import pandas as pd
+    
+    # Example data: defect counts for 3 factor combinations
+    data = {
+        'A1_B1': [12, 10, 11, 13],
+        'A1_B2': [8, 7, 9, 8],
+        'A2_B1': [5, 4, 6, 5],
+    }
+    
+    # Perform Dunn's test
+    results = dsp.dunn_test(data, p_adjust='bonferroni')
+    print(results)
+    ```
+    
+    Notes
+    -----
+    Dunn's test compares rank sums between groups using the formula:
+    
+    $$
+    z_{ij} = \\frac{\\bar{R}_i - \\bar{R}_j}{SE}
+    $$
+    
+    where $\\bar{R}_i$ and $\\bar{R}_j$ are mean ranks for groups i and j,
+    and SE is the standard error accounting for ties.
+    
+    **Multiple comparison correction:**
+    - Bonferroni: $p_{adj} = \\min(p_{raw} \\times k, 1)$ where k = number of comparisons
+    - Benjamini-Hochberg: Controls False Discovery Rate (FDR)
+    
+    **When to use which correction:**
+    - Bonferroni/Holm: When you want strong control of Type I error (FWER)
+    - BH/BY: When you're willing to accept some false positives (FDR)
+    
+    References
+    ----------
+    Dunn, O. J. (1964). Multiple comparisons using rank sums.
+    Technometrics, 6(3), 241-252.
+    """
+    from scipy.stats import rankdata
+    from statsmodels.stats.multitest import multipletests
+    
+    # Prepare data
+    group_names = list(groups.keys())
+    n_groups = len(group_names)
+    
+    if n_groups < 2:
+        raise ValueError("Need at least 2 groups for pairwise comparisons")
+    
+    # Combine all data and compute ranks
+    all_data = []
+    group_sizes = {}
+    group_ranks = {}
+    
+    for name, data in groups.items():
+        data_array = np.asarray(data)
+        group_sizes[name] = len(data_array)
+        all_data.extend(data_array)
+    
+    # Compute overall ranks (handling ties)
+    all_ranks = rankdata(all_data)
+    
+    # Assign ranks back to groups
+    start_idx = 0
+    for name, size in group_sizes.items():
+        group_ranks[name] = all_ranks[start_idx:start_idx + size]
+        start_idx += size
+    
+    # Total sample size
+    N = len(all_data)
+    
+    # Count ties for tie correction
+    unique_ranks, counts = np.unique(all_ranks, return_counts=True)
+    tie_correction = np.sum(counts ** 3 - counts)
+    
+    # Compute pairwise comparisons
+    results = []
+    for i in range(n_groups):
+        for j in range(i + 1, n_groups):
+            name_i = group_names[i]
+            name_j = group_names[j]
+            
+            # Mean ranks
+            R_i = np.mean(group_ranks[name_i])
+            R_j = np.mean(group_ranks[name_j])
+            
+            # Sample sizes
+            n_i = group_sizes[name_i]
+            n_j = group_sizes[name_j]
+            
+            # Standard error with tie correction
+            SE = np.sqrt(
+                (N * (N + 1) / 12 - tie_correction / (12 * (N - 1))) *
+                (1 / n_i + 1 / n_j)
+            )
+            
+            # Z-statistic
+            z_stat = (R_i - R_j) / SE
+            
+            # Two-tailed p-value
+            p_raw = 2 * (1 - stats.norm.cdf(abs(z_stat)))
+            
+            results.append({
+                'Group1': name_i,
+                'Group2': name_j,
+                'z_statistic': z_stat,
+                'p_raw': p_raw
+            })
+    
+    # Create DataFrame
+    df_results = pd.DataFrame(results)
+    
+    # Adjust p-values
+    if p_adjust != 'none':
+        # Map user-friendly names to statsmodels names
+        method_map = {
+            'BH': 'fdr_bh',
+            'BY': 'fdr_by',
+            'bonferroni': 'bonferroni',
+            'holm': 'holm',
+            'hochberg': 'simes-hochberg',
+            'hommel': 'hommel'
+        }
+        sm_method = method_map.get(p_adjust, p_adjust)
+        
+        _, p_adjusted, _, _ = multipletests(
+            df_results['p_raw'],
+            method=sm_method
+        )
+        df_results['p_adjusted'] = p_adjusted
+    else:
+        df_results['p_adjusted'] = df_results['p_raw']
+    
+    # Mark significant results
+    df_results['significant'] = df_results['p_adjusted'] < 0.05
+    
+    return df_results
+
+
+def pairwise_tests(
+        groups: Dict[str, NumericSample1D],
+        test: Literal['t', 'mannwhitneyu', 'auto'] = 'auto',
+        p_adjust: Literal['bonferroni', 'holm', 'hochberg', 'hommel',
+                          'BH', 'BY', 'none'] = 'bonferroni',
+        equal_var: bool = True
+        ) -> pd.DataFrame:
+    """Perform pairwise comparisons between groups with multiple test correction.
+    
+    This function performs all pairwise comparisons between groups and 
+    applies multiple comparison correction. It can automatically select 
+    between parametric (t-test) and non-parametric (Mann-Whitney U) tests 
+    based on normality.
+    
+    Parameters
+    ----------
+    groups : Dict[str, NumericSample1D]
+        Dictionary mapping group names to sample data.
+    test : Literal['t', 'mannwhitneyu', 'auto'], optional
+        Statistical test to use:
+        - 't': Independent samples t-test (parametric)
+        - 'mannwhitneyu': Mann-Whitney U test (non-parametric)
+        - 'auto': Automatically select based on normality (default)
+    p_adjust : str, optional
+        Method for p-value adjustment (same options as dunn_test).
+        Default is 'bonferroni'.
+    equal_var : bool, optional
+        For t-test only: assume equal variances. Default is True.
+    
+    Returns
+    -------
+    DataFrame
+        Results table with columns similar to dunn_test plus:
+        - 'test_used': Which test was applied
+        - 'mean_diff': Difference in means (for t-test)
+    
+    Examples
+    --------
+    ```python
+    import daspi as dsp
+    
+    data = {
+        'Control': [10, 12, 11, 13, 12],
+        'Treatment1': [15, 16, 14, 17, 15],
+        'Treatment2': [8, 9, 7, 10, 8]
+    }
+    
+    # Automatic test selection with Bonferroni correction
+    results = dsp.pairwise_tests(data, test='auto', p_adjust='bonferroni')
+    print(results)
+    
+    # Force Mann-Whitney U test (non-parametric)
+    results_np = dsp.pairwise_tests(data, test='mannwhitneyu')
+    print(results_np)
+    ```
+    
+    Notes
+    -----
+    **Test selection (when test='auto'):**
+    - Checks normality of all groups using Anderson-Darling test
+    - If all groups are normal → uses t-test
+    - If any group is non-normal → uses Mann-Whitney U
+    
+    **Multiple comparison methods:**
+    - Use Bonferroni for strong Type I error control
+    - Use BH (Benjamini-Hochberg) for more power when many comparisons
+    
+    **Interpretation:**
+    - p_adjusted < 0.05: Groups significantly different at α=0.05 level
+    - mean_diff: Positive means Group1 > Group2
+    """
+    from statsmodels.stats.multitest import multipletests
+    
+    group_names = list(groups.keys())
+    n_groups = len(group_names)
+    
+    if n_groups < 2:
+        raise ValueError("Need at least 2 groups for pairwise comparisons")
+    
+    # Auto-select test based on normality if requested
+    if test == 'auto':
+        all_normal_flag = all_normal(*groups.values())
+        test = 't' if all_normal_flag else 'mannwhitneyu'
+    
+    # Perform pairwise tests
+    results = []
+    for i in range(n_groups):
+        for j in range(i + 1, n_groups):
+            name_i = group_names[i]
+            name_j = group_names[j]
+            
+            sample_i = np.asarray(groups[name_i])
+            sample_j = np.asarray(groups[name_j])
+            
+            if test == 't':
+                # Independent samples t-test
+                t_stat, p_raw = ttest_ind(
+                    sample_i, sample_j, equal_var=equal_var)
+                statistic = t_stat
+                mean_diff = np.mean(sample_i) - np.mean(sample_j)
+                test_used = 't-test'
+            
+            elif test == 'mannwhitneyu':
+                # Mann-Whitney U test
+                u_stat, p_raw = mannwhitneyu(
+                    sample_i, sample_j, alternative='two-sided')
+                statistic = u_stat
+                mean_diff = np.median(sample_i) - np.median(sample_j)
+                test_used = 'Mann-Whitney U'
+            
+            else:
+                raise ValueError(f"Unknown test: {test}")
+            
+            results.append({
+                'Group1': name_i,
+                'Group2': name_j,
+                'statistic': statistic,
+                'mean_diff': mean_diff,
+                'p_raw': p_raw,
+                'test_used': test_used
+            })
+    
+    # Create DataFrame
+    df_results = pd.DataFrame(results)
+    
+    # Adjust p-values
+    if p_adjust != 'none':
+        # Map user-friendly names to statsmodels names
+        method_map = {
+            'BH': 'fdr_bh',
+            'BY': 'fdr_by',
+            'bonferroni': 'bonferroni',
+            'holm': 'holm',
+            'hochberg': 'simes-hochberg',
+            'hommel': 'hommel'
+        }
+        sm_method = method_map.get(p_adjust, p_adjust)
+        
+        _, p_adjusted, _, _ = multipletests(
+            df_results['p_raw'],
+            method=sm_method
+        )
+        df_results['p_adjusted'] = p_adjusted
+    else:
+        df_results['p_adjusted'] = df_results['p_raw']
+    
+    # Mark significant results
+    df_results['significant'] = df_results['p_adjusted'] < 0.05
+    
+    return df_results

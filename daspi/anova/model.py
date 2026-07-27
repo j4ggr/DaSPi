@@ -127,6 +127,7 @@ __all__ = [
     'get_order',
     'hierarchical',
     'LinearModel',
+    'GeneralizedLinearModel',
     'GageStudyModel',
     'GageRnRModel']
 
@@ -2427,7 +2428,6 @@ class GageRnRModel(LinearModel):
     _u_rest: MeasurementUncertainty | None
     _u_mp: MeasurementUncertainty | None
     _evaluate_ia: bool | Literal['auto']
-    names_map: Dict[str, str]
 
     def __init__(
             self,
@@ -2984,3 +2984,531 @@ class GageRnRModel(LinearModel):
         self._df_u = pd.DataFrame()
         self._df_ump = pd.DataFrame()
         self._df_ums = pd.DataFrame()
+
+
+class GeneralizedLinearModel(BaseHTMLReprModel):
+    """Generalized Linear Model for count data and proportions.
+    
+    This class extends the functionality of LinearModel to handle 
+    non-normal response distributions, specifically:
+    - Poisson distribution for count data (e.g., defect counts)
+    - Negative Binomial for overdispersed count data
+    - Binomial for proportions/binary data
+    
+    Unlike standard ANOVA which assumes normally distributed errors,
+    GLM uses maximum likelihood estimation and is appropriate for:
+    - Count data (number of defects, failures, events)
+    - Rate data (defects per unit)
+    - Proportion data (pass/fail ratios)
+    - Unbalanced designs with different sample sizes
+    
+    Parameters
+    ----------
+    source : DataFrame
+        Pandas DataFrame in long format containing the data.
+    target : str
+        Column name of the response variable (counts or proportions).
+    factors : List[str]
+        Column names of predictor variables (categorical or continuous).
+    family : Literal['poisson', 'negbin', 'binomial'], optional
+        Distribution family:
+        - 'poisson': For count data with mean ≈ variance
+        - 'negbin': For overdispersed count data (variance > mean)
+        - 'binomial': For proportion/binary data
+        Default is 'poisson'.
+    offset : str | None, optional
+        Column name for offset variable (e.g., exposure time, sample 
+        size). Used to model rates instead of counts. Default is None.
+    alpha : float, optional
+        Significance level for hypothesis tests. Default is 0.05.
+    order : int, optional
+        Maximum interaction order to include. Default is 1 (main effects
+        only).
+    fit_at_init : bool, optional
+        Whether to fit the model immediately. Default is True.
+    
+    Examples
+    --------
+    Analyze defect counts from an unbalanced factorial experiment:
+    
+    ```python
+    import pandas as pd
+    import daspi as dsp
+    
+    # Example data: defect counts for different factor combinations
+    data = {
+        'Factor_A': ['Low', 'Low', 'High', 'High', 'High'],
+        'Factor_B': ['X', 'Y', 'X', 'Y', 'X'],
+        'Defects': [12, 8, 5, 3, 6],
+        'Sample_Size': [100, 100, 100, 100, 100]
+    }
+    df = pd.DataFrame(data)
+    
+    # Fit Poisson GLM
+    model = dsp.GLM(
+        source=df,
+        target='Defects',
+        factors=['Factor_A', 'Factor_B'],
+        family='poisson',
+        order=2  # Include interaction
+    )
+    
+    # View results
+    print(model.summary())
+    print(model.deviance_check())
+    
+    # Get factor effects
+    print(model.effects())
+    ```
+    
+    Check for overdispersion and switch to Negative Binomial if needed:
+    
+    ```python
+    # Check dispersion
+    if model.dispersion > 1.5:
+        print("Overdispersion detected! Using Negative Binomial instead.")
+        model = dsp.GLM(
+            source=df,
+            target='Defects',
+            factors=['Factor_A', 'Factor_B'],
+            family='negbin',
+            order=2
+        )
+    ```
+    
+    Notes
+    -----
+    **When to use GLM instead of standard ANOVA:**
+    - Response variable is count data (discrete, non-negative integers)
+    - Variance increases with the mean
+    - Data is unbalanced (unequal sample sizes per group)
+    - You want to model rates (e.g., defects per hour)
+    
+    **Interpreting coefficients:**
+    For Poisson/Negative Binomial models with log link:
+    - exp(coef) gives the multiplicative effect on the mean
+    - exp(coef) - 1 gives the % change in the mean
+    
+    **Checking model fit:**
+    - Use `deviance_check()` to assess goodness of fit
+    - Dispersion ≈ 1 indicates good fit for Poisson
+    - Dispersion > 1.5 suggests overdispersion → use Negative Binomial
+    """
+    __slots__ = (
+        'data',
+        'target',
+        'factors',
+        '_model',
+        '_alpha',
+        'family',
+        'offset',
+        'feature_map',
+        'main_term_map',
+        'target_map',
+        '_initial_terms',
+        '_p_values',
+        '_effects',
+        '_deviance',
+        'print_formula')
+    
+    data: DataFrame
+    target: str
+    factors: List[str]
+    _model: Any  # GLMResultsWrapper from statsmodels
+    _alpha: float
+    family: Literal['poisson', 'negbin', 'binomial']
+    offset: str | None
+    feature_map: Dict[str, str]
+    main_term_map: Dict[str, str]
+    target_map: Dict[str, str]
+    _initial_terms: List[str]
+    _p_values: Series
+    _effects: Series
+    _deviance: float | None
+    print_formula: bool
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            factors: List[str],
+            family: Literal['poisson', 'negbin', 'binomial'] = 'poisson',
+            offset: str | None = None,
+            alpha: float = 0.05,
+            order: int = 1,
+            fit_at_init: bool = True
+            ) -> None:
+        
+        assert order > 0 and isinstance(order, int), (
+            'Interaction order must be a positive integer')
+        assert family in ('poisson', 'negbin', 'binomial'), (
+            f'Family must be poisson, negbin, or binomial, got {family}')
+        
+        for column in factors + [target]:
+            assert column in source, f'Column {column} not found in source!'
+        
+        if offset is not None:
+            assert offset in source, f'Offset column {offset} not found!'
+        
+        self._captions = (
+            STR['lm_table_caption_summary'],
+            STR['lm_table_caption_statistics'],)
+        
+        self.target = target
+        self.factors = factors
+        self.family = family
+        self.offset = offset
+        self.alpha = alpha
+        self._model = None
+        self._deviance = None
+        
+        # Create name mappings
+        self.target_map = {target: 'y'}
+        f_main_terms = [f'x{i}' for i in range(len(factors))]
+        self.feature_map = {f: _f for f, _f in zip(factors, f_main_terms)}
+        self.main_term_map = {v: k for k, v in self.feature_map.items()}
+        
+        # Prepare data
+        columns_to_keep = list(self.feature_map.values()) + list(self.target_map.values())
+        if offset is not None:
+            offset_map = {offset: 'offset'}
+            columns_to_keep.append('offset')
+        else:
+            offset_map = {}
+        
+        self.data = (source
+            .rename(columns=self.feature_map | self.target_map | offset_map)
+            [columns_to_keep]
+            .copy())
+        
+        # Encode categorical factors
+        for term in f_main_terms:
+            if self.data[term].dtype == 'object' or self.data[term].dtype.name == 'category':
+                self.data[term] = self.data[term].astype('category')
+        
+        # Build formula with interactions
+        from itertools import combinations
+        terms = f_main_terms.copy()
+        for i in range(2, order + 1):
+            for combo in combinations(f_main_terms, i):
+                terms.append(':'.join(combo))
+        
+        self._initial_terms = terms
+        self._reset_tables_()
+        
+        if fit_at_init:
+            self.fit()
+        
+        self.print_formula = True
+    
+    @property
+    def fitted(self) -> bool:
+        """Whether the model is fitted (read-only)."""
+        return self._model is not None
+    
+    @property
+    def model(self) -> Any:
+        """Get fitted GLM results. Calls `fit` method if not yet fitted."""
+        if not self.fitted:
+            warnings.warn('Model not fitted yet, calling `fit` method.')
+            self.fit()
+        return self._model
+    
+    @property
+    def alpha(self) -> float:
+        """Significance threshold for hypothesis tests."""
+        return self._alpha
+    
+    @alpha.setter
+    def alpha(self, alpha: float) -> None:
+        assert 0 < alpha < 1, 'Alpha must be between 0 and 1'
+        self._alpha = alpha
+    
+    @property
+    def formula(self) -> str:
+        """Get the model formula (read-only)."""
+        terms_str = ' + '.join(self._initial_terms)
+        formula = f'{self.target_map[self.target]} ~ {terms_str}'
+        if self.offset is not None:
+            formula += ' + offset'
+        return formula
+    
+    @property
+    def deviance(self) -> float:
+        """Deviance of the fitted model (goodness of fit measure)."""
+        return float(self.model.deviance)
+    
+    @property
+    def dispersion(self) -> float:
+        """Dispersion parameter: deviance / df_resid.
+        
+        Values > 1 indicate overdispersion (variance > mean).
+        For Poisson models, dispersion should be ≈ 1.
+        If dispersion > 1.5, consider using Negative Binomial family.
+        """
+        return self.deviance / self.model.df_resid
+    
+    def _reset_tables_(self) -> None:
+        """Reset cached computation results."""
+        self._p_values = pd.Series(dtype='float64')
+        self._effects = pd.Series(dtype='float64')
+        self._deviance = None
+    
+    def _convert_term_name_(self, term_name: str) -> str:
+        """Convert encoded term names back to original factor names."""
+        if term_name == ANOVA.INTERCEPT:
+            return term_name
+        
+        # Handle categorical encoding like x0[T.Level1]
+        sep = '[T.' if '[T.' in term_name else '['
+        parts = term_name.split(sep)
+        if len(parts) > 1:
+            # Categorical variable
+            base = parts[0]
+            level = parts[1].rstrip(']')
+            original = self.main_term_map.get(base, base)
+            return f'{original}[T.{level}]'
+        
+        # Handle interactions like x0:x1
+        if ':' in term_name:
+            terms = term_name.split(':')
+            converted = [self.main_term_map.get(t, t) for t in terms]
+            return ANOVA.SEP.join(converted)
+        
+        # Simple term
+        return self.main_term_map.get(term_name, term_name)
+    
+    def fit(self, **kwds) -> Self:
+        """Fit the Generalized Linear Model.
+        
+        Parameters
+        ----------
+        **kwds
+            Additional keyword arguments passed to GLM.fit()
+        
+        Returns
+        -------
+        Self
+            The fitted model instance for method chaining.
+        """
+        self._reset_tables_()
+        
+        # Select the appropriate family
+        if self.family == 'poisson':
+            family_obj = sm.families.Poisson()
+        elif self.family == 'negbin':
+            # Note: Negative Binomial requires GLM or NegativeBinomial class
+            family_obj = sm.families.NegativeBinomial()
+        elif self.family == 'binomial':
+            family_obj = sm.families.Binomial()
+        else:
+            raise ValueError(f'Unknown family: {self.family}')
+        
+        # Build and fit model
+        formula = self.formula
+        try:
+            if self.offset is not None:
+                # GLM with offset
+                self._model = smf.glm(
+                    formula=formula,
+                    data=self.data,
+                    family=family_obj,
+                    offset=self.data['offset'],
+                    **kwds).fit()
+            else:
+                self._model = smf.glm(
+                    formula=formula,
+                    data=self.data,
+                    family=family_obj,
+                    **kwds).fit()
+        except Exception as e:
+            warnings.warn(
+                f'GLM fitting failed: {e}. Check your data and family specification.',
+                RuntimeWarning)
+            raise
+        
+        return self
+    
+    def deviance_check(self) -> Dict[str, Any]:
+        """Check model fit using deviance statistics.
+        
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary containing:
+            - 'deviance': Model deviance
+            - 'df_resid': Residual degrees of freedom  
+            - 'dispersion': Deviance / df_resid
+            - 'pearson_chi2': Pearson chi-square statistic
+            - 'overdispersed': Boolean indicating overdispersion
+            - 'recommendation': String with modeling recommendation
+        """
+        dev = self.deviance
+        df_resid = self.model.df_resid
+        disp = self.dispersion
+        pearson = float(self.model.pearson_chi2)
+        
+        overdispersed = disp > 1.5
+        
+        if self.family == 'poisson' and overdispersed:
+            recommendation = (
+                "Overdispersion detected (dispersion > 1.5). "
+                "Consider using family='negbin' (Negative Binomial) instead.")
+        elif self.family == 'negbin' and disp < 1.2:
+            recommendation = (
+                "Low dispersion (< 1.2). Poisson family might be sufficient.")
+        else:
+            recommendation = "Model fit appears reasonable."
+        
+        return {
+            'deviance': dev,
+            'df_resid': df_resid,
+            'dispersion': disp,
+            'pearson_chi2': pearson,
+            'overdispersed': overdispersed,
+            'recommendation': recommendation
+        }
+    
+    def summary(self) -> Any:
+        """Generate a comprehensive summary of the fitted model."""
+        return self.model.summary()
+    
+    def parameter_statistics(self, alpha: float | None = None) -> DataFrame:
+        """Get parameter statistics table.
+        
+        Parameters
+        ----------
+        alpha : float | None, optional
+            Significance level for confidence intervals.
+            If None, uses self.alpha.
+        
+        Returns
+        -------
+        DataFrame
+            Parameter statistics including coefficients, standard errors,
+            z-values, p-values, and confidence intervals.
+        """
+        if alpha is None:
+            alpha = self.alpha
+        
+        # Get summary frame
+        params = pd.DataFrame({
+            'coef': self.model.params,
+            'std err': self.model.bse,
+            'z': self.model.tvalues,
+            'p': self.model.pvalues,
+            'ci_low': self.model.conf_int(alpha=alpha)[0],
+            'ci_upp': self.model.conf_int(alpha=alpha)[1]
+        })
+        
+        # Convert index to original names
+        params.index = [self._convert_term_name_(idx) for idx in params.index]
+        
+        return params
+    
+    def effects(self) -> Series:
+        """Calculate standardized effects (coef / std_err).
+        
+        Returns
+        -------
+        Series
+            Standardized effects for each parameter.
+        """
+        if self._effects.empty:
+            effects = self.model.params / self.model.bse
+            effects.index = [self._convert_term_name_(idx) for idx in effects.index]
+            self._effects = effects
+        return self._effects.copy()
+    
+    def p_values(self) -> Series:
+        """Get p-values for all parameters.
+        
+        Returns
+        -------
+        Series
+            P-values from Wald tests for each parameter.
+        """
+        if self._p_values.empty:
+            p_vals = self.model.pvalues.copy()
+            p_vals.index = [self._convert_term_name_(idx) for idx in p_vals.index]
+            self._p_values = p_vals
+        return self._p_values.copy()
+    
+    def predict(self, xs: Dict[str, Any]) -> DataFrame:
+        """Predict response for given factor values.
+        
+        Parameters
+        ----------
+        xs : Dict[str, Any]
+            Dictionary mapping factor names to values.
+            Can be single values or lists for multiple predictions.
+        
+        Returns
+        -------
+        DataFrame
+            Predictions with input values and predicted response.
+        """
+        # Ensure all main factors are provided
+        for factor in self.factors:
+            assert factor in xs, f'Please provide a value for "{factor}"'
+        
+        # Map to encoded names
+        xs_encoded = {
+            self.feature_map[f]: (v if isinstance(v, (list, tuple)) else [v])
+            for f, v in xs.items()
+        }
+        
+        df_pred = pd.DataFrame(xs_encoded)
+        df_pred[self.target] = self.model.predict(df_pred)
+        
+        # Rename back to original names
+        return df_pred.rename(columns=self.main_term_map)
+    
+    def compare_groups(self) -> DataFrame:
+        """Compare predicted means across factor combinations.
+        
+        Returns
+        -------
+        DataFrame
+            Table showing mean predictions for each factor combination.
+        """
+        # Get unique combinations of factors
+        unique_combos = self.data[list(self.feature_map.values())].drop_duplicates()
+        
+        # Predict for each combination
+        predictions = self.model.predict(unique_combos)
+        
+        result = unique_combos.copy()
+        result['predicted_mean'] = predictions
+        result = result.rename(columns=self.main_term_map)
+        result = result.sort_values('predicted_mean')
+        
+        return result
+    
+    def _dfs_repr_(self) -> List[DataFrame]:
+        """DataFrames for HTML representation."""
+        return [
+            pd.DataFrame({
+                'Model': [f'GLM ({self.family})'],
+                'Deviance': [f'{self.deviance:.4f}'],
+                'Dispersion': [f'{self.dispersion:.4f}'],
+                'AIC': [f'{self.model.aic:.4f}'],
+                'BIC': [f'{self.model.bic:.4f}']
+            }),
+            self.parameter_statistics()
+        ]
+    
+    def __str__(self) -> str:
+        """String representation showing the formula."""
+        # Convert formula to use original names
+        formula_parts = self.formula.split(' ~ ')
+        if len(formula_parts) == 2:
+            target_part = self.target
+            terms_part = formula_parts[1]
+            
+            # Replace encoded names with original
+            for encoded, original in self.main_term_map.items():
+                terms_part = terms_part.replace(encoded, original)
+            
+            return f'{target_part} ~ {terms_part} (family={self.family})'
+        return self.formula

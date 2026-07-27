@@ -269,10 +269,12 @@ from .statistics.hypothesis import f_test
 from .statistics.hypothesis import t_test
 from .statistics.hypothesis import skew_test
 from .statistics.hypothesis import all_normal
+from .statistics.hypothesis import dunn_test
 from .statistics.hypothesis import levene_test
 from .statistics.hypothesis import position_test
 from .statistics.hypothesis import variance_test
 from .statistics.hypothesis import kurtosis_test
+from .statistics.hypothesis import pairwise_tests
 from .statistics.hypothesis import proportions_test
 from .statistics.hypothesis import mean_stability_test
 from .statistics.hypothesis import anderson_darling_test
@@ -364,6 +366,7 @@ from .anova.tables import terms_effect
 from .anova.tables import terms_probability
 from .anova.tables import variance_inflation_factor
 
+from .anova.model import GeneralizedLinearModel
 from .anova.model import LinearModel
 from .anova.model import GageRnRModel
 from .anova.model import hierarchical

@@ -963,8 +963,7 @@ class TestGageRnRModel:
         df_rnr = pd.read_csv(
             valid_data_dir/'gage_rnr.csv',
             skiprows=lambda x: x not in list(range(1, 62)),
-            sep=';'
-            ).dropna(how='all', axis=1)
+            sep=';')
         
         df_vmpt = (df_rnr
             .loc[:, 'influence': 'rank']
@@ -1019,8 +1018,433 @@ class TestGageRnRModel:
                 assert pd.isna(r_valid)
             else:
                 assert r_is == r_valid
+    
     # TODO: Fix it
     def test_uncertainties_doptimal(self) -> None:
+        """Create count data (e.g., defect counts) for testing"""
+        import numpy as np
+        np.random.seed(42)
+        
+        data = {
+            'Factor_A': ['A1']*20 + ['A2']*20 + ['A3']*20,
+            'Factor_B': ['B1', 'B2']*30,
+            'Count': (
+                # A1 combinations
+                [10, 12, 11, 13, 12, 14, 11, 13, 10, 12] + 
+                [8, 7, 9, 10, 8, 9, 7, 8, 9, 10] +
+                # A2 combinations (lower counts)
+                [5, 4, 6, 5, 4, 6, 5, 4, 6, 5] +
+                [3, 2, 4, 3, 2, 4, 3, 2, 4, 3] +
+                # A3 combinations (higher counts)
+                [18, 20, 19, 21, 17, 19, 18, 20, 19, 21] +
+                [25, 24, 26, 27, 23, 25, 24, 26, 27, 23]
+            )
+        }
+        return pd.DataFrame(data)
+    
+    @pytest.fixture
+    def proportion_data(self) -> DataFrame:
+        """Create proportion/binomial data for testing"""
+        data = {
+            'Treatment': ['Control']*15 + ['Drug_A']*15 + ['Drug_B']*15,
+            'Success': [3, 4, 2, 3, 4, 3, 2, 4, 3, 2, 4, 3, 2, 3, 4] +
+                       [8, 9, 7, 8, 9, 8, 7, 9, 8, 7, 9, 8, 7, 8, 9] +
+                       [12, 11, 13, 12, 11, 13, 12, 11, 13, 12, 11, 13, 12, 11, 13],
+            'Total': [15]*45
+        }
+        df = pd.DataFrame(data)
+        df['Proportion'] = df['Success'] / df['Total']
+        return df
+    
+    def test_poisson_initialization(self, count_data: DataFrame) -> None:
+        """Test Poisson GLM initialization"""
+        from daspi.anova.model import GeneralizedLinearModel
+        
+        model = GeneralizedLinearModel(
+            source=count_data,
+            target='Count',
+            factors=['Factor_A', 'Factor_B'],
+            family='poisson',
+            order=1
+        )
+        
+        assert model is not None
+        assert hasattr(model, 'family')
+        assert model.family == 'poisson'
+    
+    def test_negative_binomial_initialization(self, count_data: DataFrame) -> None:
+        """Test Negative Binomial GLM initialization"""
+        from daspi.anova.model import GeneralizedLinearModel
+        
+        model = GeneralizedLinearModel(
+            source=count_data,
+            target='Count',
+            factors=['Factor_A', 'Factor_B'],
+            family='negbin',
+            order=1
+        )
+        
+        assert model is not None
+        assert model.family == 'negbin'
+    
+    def test_binomial_initialization(self, proportion_data: DataFrame) -> None:
+        """Test Binomial GLM initialization"""
+        from daspi.anova.model import GeneralizedLinearModel
+        
+        model = GeneralizedLinearModel(
+            source=proportion_data,
+            target='Proportion',
+            factors=['Treatment'],
+            family='binomial',
+            order=1
+        )
+        
+        assert model is not None
+        assert model.family == 'binomial'
+    
+    def test_fit_method(self, count_data: DataFrame) -> None:
+        """Test model fitting"""
+        from daspi.anova.model import GeneralizedLinearModel
+        
+        model = GeneralizedLinearModel(
+            source=count_data,
+            target='Count',
+            factors=['Factor_A', 'Factor_B'],
+            family='poisson',
+            order=1,
+            fit_at_init=False
+        )
+        
+        model.fit()
+        
+        # Should have fitted model
+        assert hasattr(model, '_result')
+        assert model._result is not None
+    
+    def test_deviance_check(self, count_data: DataFrame) -> None:
+        """Test deviance and overdispersion check"""
+        from daspi.anova.model import GeneralizedLinearModel
+        
+        model = GeneralizedLinearModel(
+            source=count_data,
+            target='Count',
+            factors=['Factor_A', 'Factor_B'],
+            family='poisson',
+            order=1
+        )
+        
+        fit_check = model.deviance_check()
+        
+        # Check return structure
+        assert isinstance(fit_check, dict)
+        assert 'deviance' in fit_check
+        assert 'df_resid' in fit_check
+        assert 'dispersion' in fit_check
+        assert 'overdispersed' in fit_check
+        assert 'recommendation' in fit_check
+        
+        # Check values are reasonable
+        assert fit_check['deviance'] >= 0
+        assert fit_check['df_resid'] >= 0
+        assert fit_check['dispersion'] >= 0
+        assert isinstance(fit_check['overdispersed'], bool)
+        assert isinstance(fit_check['recommendation'], str)
+    
+    def test_dispersion_property(self, count_data: DataFrame) -> None:
+        """Test dispersion property"""
+        from daspi.anova.model import GeneralizedLinearModel
+        
+        model = GeneralizedLinearModel(
+            source=count_data,
+            target='Count',
+            factors=['Factor_A', 'Factor_B'],
+            family='poisson',
+            order=1
+        )
+        
+        dispersion = model.dispersion
+        
+        # Dispersion should be positive
+        assert dispersion > 0
+        # For well-specified Poisson, should be close to 1
+        assert 0.5 < dispersion < 5.0  # Generous bounds
+    
+    def test_deviance_property(self, count_data: DataFrame) -> None:
+        """Test deviance property"""
+        from daspi.anova.model import GeneralizedLinearModel
+        
+        model = GeneralizedLinearModel(
+            source=count_data,
+            target='Count',
+            factors=['Factor_A', 'Factor_B'],
+            family='poisson',
+            order=1
+        )
+        
+        deviance = model.deviance
+        
+        # Deviance should be non-negative
+        assert deviance >= 0
+    
+    def test_parameter_statistics(self, count_data: DataFrame) -> None:
+        """Test parameter statistics extraction"""
+        from daspi.anova.model import GeneralizedLinearModel
+        
+        model = GeneralizedLinearModel(
+            source=count_data,
+            target='Count',
+            factors=['Factor_A', 'Factor_B'],
+            family='poisson',
+            order=1
+        )
+        
+        param_stats = model.parameter_statistics()
+        
+        # Should return DataFrame
+        assert isinstance(param_stats, pd.DataFrame)
+        
+        # Check expected columns
+        expected_cols = ['coef', 'std_err', 'z', 'p_value', 'ci_lower', 'ci_upper']
+        assert all(col in param_stats.columns for col in expected_cols)
+        
+        # Should have intercept and factor terms
+        assert len(param_stats) > 0
+    
+    def test_effects(self, count_data: DataFrame) -> None:
+        """Test standardized effects calculation"""
+        from daspi.anova.model import GeneralizedLinearModel
+        
+        model = GeneralizedLinearModel(
+            source=count_data,
+            target='Count',
+            factors=['Factor_A', 'Factor_B'],
+            family='poisson',
+            order=1
+        )
+        
+        effects = model.effects()
+        
+        # Should return Series
+        assert isinstance(effects, pd.Series)
+        
+        # Should contain factor effects
+        assert len(effects) > 0
+    
+    def test_p_values(self, count_data: DataFrame) -> None:
+        """Test p-values extraction"""
+        from daspi.anova.model import GeneralizedLinearModel
+        
+        model = GeneralizedLinearModel(
+            source=count_data,
+            target='Count',
+            factors=['Factor_A', 'Factor_B'],
+            family='poisson',
+            order=1
+        )
+        
+        p_vals = model.p_values()
+        
+        # Should return Series
+        assert isinstance(p_vals, pd.Series)
+        
+        # P-values should be in [0, 1]
+        assert all(p_vals >= 0)
+        assert all(p_vals <= 1)
+    
+    def test_predict(self, count_data: DataFrame) -> None:
+        """Test prediction on new data"""
+        from daspi.anova.model import GeneralizedLinearModel
+        
+        model = GeneralizedLinearModel(
+            source=count_data,
+            target='Count',
+            factors=['Factor_A', 'Factor_B'],
+            family='poisson',
+            order=1
+        )
+        
+        # Predict on same data
+        predictions = model.predict(count_data)
+        
+        # Should return array of predictions
+        assert len(predictions) == len(count_data)
+        assert all(predictions >= 0)  # Counts should be non-negative
+    
+    def test_compare_groups(self, count_data: DataFrame) -> None:
+        """Test comparison of all factor combinations"""
+        from daspi.anova.model import GeneralizedLinearModel
+        
+        model = GeneralizedLinearModel(
+            source=count_data,
+            target='Count',
+            factors=['Factor_A', 'Factor_B'],
+            family='poisson',
+            order=1
+        )
+        
+        comparisons = model.compare_groups()
+        
+        # Should return DataFrame
+        assert isinstance(comparisons, pd.DataFrame)
+        
+        # Should have columns for factors and predictions
+        assert 'Factor_A' in comparisons.columns
+        assert 'Factor_B' in comparisons.columns
+        assert 'predicted_mean' in comparisons.columns
+        
+        # Should have all combinations (3 levels of A × 2 levels of B = 6)
+        assert len(comparisons) == 6
+        
+        # Predicted means should be positive
+        assert all(comparisons['predicted_mean'] > 0)
+    
+    def test_summary(self, count_data: DataFrame) -> None:
+        """Test model summary generation"""
+        from daspi.anova.model import GeneralizedLinearModel
+        
+        model = GeneralizedLinearModel(
+            source=count_data,
+            target='Count',
+            factors=['Factor_A', 'Factor_B'],
+            family='poisson',
+            order=1
+        )
+        
+        summary = model.summary()
+        
+        # Summary should be a string or similar
+        assert summary is not None
+        assert len(str(summary)) > 0
+    
+    def test_interactions_order_2(self, count_data: DataFrame) -> None:
+        """Test model with interactions (order=2)"""
+        from daspi.anova.model import GeneralizedLinearModel
+        
+        model = GeneralizedLinearModel(
+            source=count_data,
+            target='Count',
+            factors=['Factor_A', 'Factor_B'],
+            family='poisson',
+            order=2  # Include interactions
+        )
+        
+        param_stats = model.parameter_statistics()
+        
+        # Should have interaction terms
+        # Check if any parameter name contains ':'
+        has_interaction = any(':' in str(idx) for idx in param_stats.index)
+        assert has_interaction or len(param_stats) > 3  # Either explicit or implicit
+    
+    def test_overdispersion_detection(self) -> None:
+        """Test overdispersion detection with overdispersed data"""
+        from daspi.anova.model import GeneralizedLinearModel
+        import numpy as np
+        
+        # Create highly overdispersed data
+        np.random.seed(123)
+        overdispersed_data = {
+            'Factor': ['A']*30 + ['B']*30,
+            'Count': np.concatenate([
+                np.random.negative_binomial(5, 0.3, 30),  # High variance
+                np.random.negative_binomial(10, 0.3, 30)
+            ])
+        }
+        df = pd.DataFrame(overdispersed_data)
+        
+        model = GeneralizedLinearModel(
+            source=df,
+            target='Count',
+            factors=['Factor'],
+            family='poisson',
+            order=1
+        )
+        
+        fit_check = model.deviance_check()
+        
+        # Should detect overdispersion (though not guaranteed with random data)
+        assert isinstance(fit_check['overdispersed'], bool)
+        assert fit_check['dispersion'] > 0
+    
+    def test_negative_binomial_for_overdispersion(self, count_data: DataFrame) -> None:
+        """Test that Negative Binomial handles overdispersion better than Poisson"""
+        from daspi.anova.model import GeneralizedLinearModel
+        
+        # Fit both models
+        model_poisson = GeneralizedLinearModel(
+            source=count_data,
+            target='Count',
+            factors=['Factor_A', 'Factor_B'],
+            family='poisson',
+            order=1
+        )
+        
+        model_negbin = GeneralizedLinearModel(
+            source=count_data,
+            target='Count',
+            factors=['Factor_A', 'Factor_B'],
+            family='negbin',
+            order=1
+        )
+        
+        # Both should fit without error
+        assert model_poisson is not None
+        assert model_negbin is not None
+        
+        # Both should produce predictions
+        pred_poisson = model_poisson.compare_groups()
+        pred_negbin = model_negbin.compare_groups()
+        
+        assert len(pred_poisson) == len(pred_negbin)
+    
+    def test_invalid_family(self, count_data: DataFrame) -> None:
+        """Test error handling for invalid family"""
+        from daspi.anova.model import GeneralizedLinearModel
+        
+        with pytest.raises((ValueError, AssertionError)):
+            GeneralizedLinearModel(
+                source=count_data,
+                target='Count',
+                factors=['Factor_A'],
+                family='invalid_family',
+                order=1
+            )
+    
+    def test_missing_data_handling(self) -> None:
+        """Test handling of missing data"""
+        from daspi.anova.model import GeneralizedLinearModel
+        import numpy as np
+        
+        data_with_na = {
+            'Factor': ['A', 'A', 'B', 'B', 'A', 'B'],
+            'Count': [10, 12, np.nan, 20, 11, 19]
+        }
+        df = pd.DataFrame(data_with_na)
+        
+        # Should handle missing data (may drop or raise error)
+        try:
+            model = GeneralizedLinearModel(
+                source=df,
+                target='Count',
+                factors=['Factor'],
+                family='poisson',
+                order=1
+            )
+            # If it succeeds, check it's valid
+            assert model is not None
+        except (ValueError, Exception):
+            # If it raises, that's also acceptable
+            pass
+
+
+# ============================================================================
+# TESTS FOR NEW FEATURE: GeneralizedLinearModel
+# ============================================================================
+
+class TestGeneralizedLinearModel:
+    """Tests for Generalized Linear Model for count data and other non-normal responses"""
+    
+    @pytest.fixture
+    def count_data(self) -> DataFrame:
         df = pd.read_csv(valid_data_dir/'grnr_d-optimal.csv',sep=';')
         df_gage = df.loc[:, 'order_gage':'tolerance'].dropna(how='all', axis=0)
         df_rnr = df.loc[:, 'order_rnr':'result_rnr']

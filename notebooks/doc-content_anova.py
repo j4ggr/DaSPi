@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.23.14"
 app = marimo.App()
 
 
@@ -8,14 +8,14 @@ app = marimo.App()
 def _():
     import os
     import numpy as np
-    import daspi as dsp
     import marimo as mo
     from pathlib import Path
 
     if not str(Path.cwd()).endswith('DaSPi'):
         os.chdir(Path.cwd().parent.resolve())
+    
+    import daspi as dsp
 
-    Path.cwd()
     DPI = 120
     dsp.STR._username_ = 'j4ggr'
     dsp.__version__
