@@ -85,7 +85,8 @@ class Config:
     @username.setter
     def username(self, value: str) -> None:
         STR.username = value
-    
+
+    #TODO: this may be not aligned with the setted style in the plotlib.appearance module, we should ensure that it returns always the current setted style
     # Style property
     @property
     def style(self) -> str:

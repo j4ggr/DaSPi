@@ -242,6 +242,7 @@ from .doe import get_default_generators as get_default_generators
 from .statistics.montecarlo import Binning as Binning
 from .statistics.montecarlo import SpecLimits as SpecLimits
 from .statistics.montecarlo import Specification as Specification
+from .statistics.montecarlo import UNBOUNDED as UNBOUNDED
 from .statistics.montecarlo import round_to_nearest as round_to_nearest
 from .statistics.montecarlo import RandomProcessValue as RandomProcessValue
 from .statistics.montecarlo import inclination_displacement as inclination_displacement

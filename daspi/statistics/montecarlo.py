@@ -57,6 +57,7 @@ from scipy import stats
 from .._typing import FloatOrArray
 
 __all__ = [
+    'UNBOUNDED',
     'Binning',
     'RandomProcessValue',
     'SpecLimits',
@@ -118,17 +119,6 @@ def calculate_agreement_and_k(agreement: int | float) -> tuple[float, float]:  #
     return float(agreement), float(k)
 
 
-__all__ = [
-    'Binning',
-    'RandomProcessValue',
-    'SpecLimits',
-    'Specification',
-    'calculate_agreement_and_k',
-    'inclination_displacement',
-    'round_to_nearest',
-]
-
-#TODO: add an anbounded instance of SpecLimits, to use as a default at plotlib
 @dataclass(frozen=True)
 class SpecLimits:
     """Class to hold the limits of a parameter specification.
@@ -220,6 +210,27 @@ class SpecLimits:
             return self.to_tuple() == tuple(other)
         return False
     
+
+UNBOUNDED = SpecLimits()
+"""Unbounded specification limits instance for use as default.
+
+This constant provides an unbounded SpecLimits instance with lower=-inf 
+and upper=+inf. It can be used as a default value in plotting functions 
+and other contexts where specification limits are optional.
+
+Examples
+--------
+```python
+from daspi import UNBOUNDED
+
+# Use as default in function signatures
+def plot_data(data, spec_limits=UNBOUNDED):
+    if not spec_limits.both_unbounded:
+        # Draw specification limits
+        pass
+```
+"""
+
 
 class Specification:
     """Class for defining the boundaries of a parameter specification. 

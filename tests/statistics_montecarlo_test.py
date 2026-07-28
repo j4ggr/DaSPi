@@ -51,6 +51,14 @@ class TestSpecLimits:
         limits = SpecLimits(lower=10, upper=20)
         assert limits.both_unbounded is False
 
+    def test_unbounded_constant(self) -> None:
+        """Test the UNBOUNDED constant is properly configured."""
+        assert UNBOUNDED.lower == float('-inf')
+        assert UNBOUNDED.upper == float('inf')
+        assert UNBOUNDED.both_unbounded is True
+        assert UNBOUNDED.is_unbounded is True
+        assert UNBOUNDED.are_both_finite is False
+
     def test_range(self) -> None:
         limits = SpecLimits(lower=10, upper=20)
         assert limits.tolerance == 10
