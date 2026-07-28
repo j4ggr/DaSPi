@@ -40,7 +40,8 @@ Global instance
 A singleton ``CONFIG`` instance is created and exported from this
 module. It is also available from the top-level ``daspi`` package.
 """
-from contextlib import contextmanager
+from collections.abc import Generator
+from contextlib import _GeneratorContextManager, contextmanager
 from typing import Any, Literal
 
 from .strings import STR
@@ -101,7 +102,7 @@ class Config:
         self._style = value
     
     # Context managers
-    def use_style(self, style_name: str):
+    def use_style(self, style_name: str) -> _GeneratorContextManager:
         """Context manager for temporary style change.
         
         Parameters
@@ -123,7 +124,7 @@ class Config:
         ```
         """
         @contextmanager
-        def _context():
+        def _context() -> Generator[None, Any]:
             old_style = self._style
             try:
                 self.style = style_name
@@ -133,7 +134,7 @@ class Config:
         
         return _context()
     
-    def use_language(self, lang: Literal['en', 'de', 'fr']):
+    def use_language(self, lang: Literal['en', 'de', 'fr']) -> _GeneratorContextManager:
         """Context manager for temporary language change.
         
         Parameters
