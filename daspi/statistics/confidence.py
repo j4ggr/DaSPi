@@ -464,11 +464,11 @@ def bonferroni_ci(
             columns = columns)
     
     if isinstance(feature, str):
-        cat_values = list(groups.indices.keys())
+        data[feature] = pd.array(list(groups.indices.keys()))
     else:
-        cat_values = [list(k) for k in groups.indices] # pyright: ignore[reportArgumentType]
+        data[feature] = pd.DataFrame(
+            list(groups.indices.keys()), columns=feature)
     
-    data[feature] = pd.array(cat_values)
     return data
 
 def delta_mean_ci(

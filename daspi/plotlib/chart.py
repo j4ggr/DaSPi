@@ -1002,10 +1002,10 @@ class SingleChart(Chart):
         source = self.source
         if self._kw_where:
             source = source.where(**self._kw_where)
-            
-        if skip_variate:
-            variate_names = [
-                v for v in self.variate_names if v not in skip_variate]
+
+        _skip = skip_variate or []
+        variate_names = [v for v in self.variate_names if v not in _skip]
+        if variate_names:
             if len(variate_names) == 1:
                 variate_names = variate_names[0]
             for combo, data in source.groupby(variate_names, observed=True):
