@@ -15,8 +15,8 @@ def _():
 
     import daspi as dsp
     DPI = 120
-    dsp.STR.LANGUAGE = 'de'
-    dsp.STR._username_ = 'j4ggr'
+    dsp.STR.language = 'de'
+    dsp.STR.username = 'j4ggr'
     dsp.__version__
     return (dsp,)
 

@@ -28,7 +28,7 @@ def _():
     N_COLS = 3
     INFO = f'DaSPi v{dsp.__version__}'
     img_dir = './docs/img/'
-    dsp.STR._username_ = 'j4ggr'
+    dsp.STR.username = 'j4ggr'
     INFO
     return (
         BASE_FIGSIZE,

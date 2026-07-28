@@ -36,7 +36,7 @@ def _():
     # Create output directory if needed
     os.makedirs("../docs/img", exist_ok=True)
 
-    dsp.STR._username_ = 'j4ggr'
+    dsp.STR.username = 'j4ggr'
     return dsp, mo, plt
 
 

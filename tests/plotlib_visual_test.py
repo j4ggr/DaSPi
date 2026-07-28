@@ -193,8 +193,8 @@ class TestSingleChart:
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target
         assert texts[3].get_text() == self.feature
-        assert STR.TODAY in texts[4].get_text()
-        assert STR.USERNAME in texts[4].get_text()
+        assert STR.today in texts[4].get_text()
+        assert STR.username in texts[4].get_text()
         assert self.info_msg not in info_msg
 
         self.kind = 'hue_size'
@@ -227,8 +227,8 @@ class TestSingleChart:
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target_label
         assert texts[3].get_text() == self.feature_label
-        assert STR.TODAY in texts[4].get_text()
-        assert STR.USERNAME in texts[4].get_text()
+        assert STR.today in texts[4].get_text()
+        assert STR.username in texts[4].get_text()
         assert self.info_msg in info_msg
     
 
@@ -359,8 +359,8 @@ class TestSingleChart:
         assert texts[0].get_text() == self.sub_title
         assert texts[1].get_text() == self.target_label
         assert texts[2].get_text() == self.feature_label
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg not in info_msg
 
 
@@ -388,8 +388,8 @@ class TestSingleChart:
         assert texts[0].get_text() == self.sub_title
         assert texts[1].get_text() == self.target_label
         assert texts[2].get_text() == self.feature_label
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg not in info_msg
 
 
@@ -417,8 +417,8 @@ class TestSingleChart:
         assert texts[0].get_text() == self.sub_title
         assert texts[1].get_text() == self.target_label
         assert texts[2].get_text() == self.feature_label
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg not in info_msg
 
 
@@ -450,8 +450,8 @@ class TestSingleChart:
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target_label
         assert texts[3].get_text() == self.feature_label
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg not in info_msg
 
         self.kind = 'hue-shape'
@@ -482,8 +482,8 @@ class TestSingleChart:
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target_label
         assert texts[3].get_text() == self.feature_label
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg not in info_msg
 
         self.kind = 'size-shape'
@@ -514,8 +514,8 @@ class TestSingleChart:
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target_label
         assert texts[3].get_text() == self.feature_label
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg not in info_msg
 
         self.kind = 'full'
@@ -548,8 +548,8 @@ class TestSingleChart:
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target_label
         assert texts[3].get_text() == self.feature_label
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
     
     def test_pareto_plot(self) -> None:
@@ -588,8 +588,8 @@ class TestSingleChart:
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target_label
         assert texts[3].get_text() == self.cat1
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
 
         self.kind = 'transposed'
@@ -617,8 +617,8 @@ class TestSingleChart:
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.cat1
         assert texts[3].get_text() == self.target_label
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
         
     def test_kde_plot(self) -> None:
@@ -674,8 +674,8 @@ class TestSingleChart:
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == self.target
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg not in info_msg
     
     def test_beeswarm_plot(self) -> None:
@@ -704,8 +704,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
         
         self.kind = 'multiple'
@@ -733,8 +733,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
     
     def test_quantiles_plot(self) -> None:
@@ -765,8 +765,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
         
         self.kind = 'multiple'
@@ -799,8 +799,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
 
     def test_box_plot(self) -> None:
@@ -826,8 +826,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
 
         self.kind = 'fill'
@@ -851,8 +851,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
         
         self.kind = 'multiple'
@@ -878,8 +878,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
     
     def test_jitter_plot(self) -> None:
@@ -905,8 +905,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
         
         self.kind = 'multiple'
@@ -931,8 +931,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
 
 
@@ -956,8 +956,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 4 # feature label should not appear
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
 
         self.kind = 'simple'
@@ -978,8 +978,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
         
         self.kind = 'multiple'
@@ -1002,8 +1002,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
 
     def test_errorbar_plots(self) -> None:
@@ -1031,8 +1031,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
         
         self.kind = 'mean-test'
@@ -1057,8 +1057,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
         
         self.kind = 'var-test'
@@ -1085,8 +1085,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
         
         self.kind = 'std-test'
@@ -1114,8 +1114,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
     
     def test_bland_altman_plot(self) -> None:
@@ -1150,8 +1150,8 @@ class TestSingleChart:
         assert texts[1].get_text() == sub_title
         assert texts[2].get_text() == target_label
         assert texts[3].get_text() == feature_label
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
 
         self.kind = 'user'
@@ -1187,8 +1187,8 @@ class TestSingleChart:
         assert texts[1].get_text() == sub_title
         assert texts[2].get_text() == feature_label
         assert texts[3].get_text() == target_label
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
     
     def test_categorical_float_features(self) -> None:
@@ -1214,8 +1214,8 @@ class TestSingleChart:
         info_msg = texts[-1].get_text()
         assert self.file_name.is_file()
         assert len(texts) == 5
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
 
 
@@ -1420,8 +1420,8 @@ class TestJointChart:
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == 'QQ for different distributions'
         assert texts[2].get_text() == feature_label
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
 
     def test_regression_joint(self) -> None:
@@ -1461,8 +1461,8 @@ class TestJointChart:
         assert len(texts) == 3
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == 'Traveling Mode Dataset'
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
         for ax, flabel, tlabel in zip(chart.axes.flat, feature_labels, target_labels):
             assert ax.get_xlabel() == flabel
@@ -1506,8 +1506,8 @@ class TestJointChart:
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
         assert texts[2].get_text() == feature_label
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
 
     def test_pareto_plot(self) -> None:
@@ -1557,8 +1557,8 @@ class TestJointChart:
                 assert ax.get_ylabel() == self.cat1
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
 
 
@@ -1690,8 +1690,8 @@ class TestPrecasts:
         assert texts[1].get_text() == self.sub_title
         assert xlabels == ('', '', self.feature, '')
         assert ylabels == ('', '', self.target, '')
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
         
         self.base = f'{self.fig_title}_bivariate-univariate-charts'
@@ -1723,8 +1723,8 @@ class TestPrecasts:
         assert texts[1].get_text() == self.sub_title
         assert xlabels == ('', '', self.feature, '')
         assert ylabels == ('', '', self.target, '')
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
         
         self.kind = 'mean-test'
@@ -1760,8 +1760,8 @@ class TestPrecasts:
         assert texts[1].get_text() == self.sub_title
         assert xlabels == ('', '', self.feature_label, '')
         assert ylabels == ('', '', self.target_label, '')
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
 
         self.kind = 'contour-mean-test'
@@ -1797,8 +1797,8 @@ class TestPrecasts:
         assert texts[1].get_text() == self.sub_title
         assert xlabels == ('', '', self.feature_label, '')
         assert ylabels == ('', '', self.target_label, '')
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
 
         self.kind = 'user'
@@ -1838,8 +1838,8 @@ class TestPrecasts:
         assert texts[1].get_text() == self.sub_title
         assert xlabels == ('', '', self.feature_label, '')
         assert ylabels == ('', '', self.target_label, '')
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
 
         fitted_dists = []
@@ -1891,8 +1891,8 @@ class TestPrecasts:
             STR['cpk'], STR['cp'])
         assert ylabels == (
             target_label, STR['charts_flabel_quantiles'], '', '', '')
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
         assert self.info_msg in info_msg
     
     def test_parameter_relevance_charts(self) -> None:
@@ -2305,8 +2305,8 @@ class TestGaussianKDEContourUnivariateVisual:
         assert len(texts) == 5  # title, subtitle, feature label, target label, info
         assert texts[0].get_text() == self.fig_title
         assert texts[1].get_text() == self.sub_title
-        assert STR.TODAY in info_msg
-        assert STR.USERNAME in info_msg
+        assert STR.today in info_msg
+        assert STR.username in info_msg
 
     def test_single_chart_with_hue(self) -> None:
         """Test GaussianKDEContourUnivariate with SingleChart (with hue)."""
@@ -2605,4 +2605,5 @@ class TestGaussianKDEContourUnivariateVisual:
         ).close()
         
         assert self.file_name.is_file()
+
 

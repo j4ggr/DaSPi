@@ -1211,7 +1211,7 @@ class LabelFacets:
         self._margin['bottom'] = 0
         if self.info:
             _kwds = KW.INFO | {'x': self.x_aligned}
-            info_text = f'{STR.TODAY} {STR.USERNAME}'
+            info_text = f'{STR.today} {STR.username}'
             if isinstance(self.info, str):
                 info_text = f'{info_text}, {self.info}'
             _text = self.figure.text(s=info_text, **_kwds)
