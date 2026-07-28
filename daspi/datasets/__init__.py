@@ -1,13 +1,13 @@
-import pandas as pd
-
 from io import StringIO
 from pathlib import Path
-from pandas.core.frame import DataFrame
 from textwrap import dedent
 
+import pandas as pd
+from pandas.core.frame import DataFrame
+
 __all__ = [
-    'load_dataset',
-    'list_dataset']
+    'list_dataset',
+    'load_dataset',]
 
 
 DATASET_INFO = StringIO(dedent("""
@@ -86,7 +86,7 @@ def load_dataset(dataset_name: str) -> DataFrame:
     return pd.read_csv(SOURCE_DIR/f'{dataset_name}.csv', sep=',')
 
 def list_dataset():
-    """List available example datasets.
+    """list available example datasets.
 
     Returns
     -------

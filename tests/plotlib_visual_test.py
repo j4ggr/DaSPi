@@ -1,75 +1,57 @@
 import sys
-import pytest
-import matplotlib
-
-import pandas as pd
-import statsmodels.api as sm
-import matplotlib.pyplot as plt
-
-from typing import Any
-from typing import Dict
-from typing import List
 from pathlib import Path
+from typing import Any
+
+import matplotlib
+import pandas as pd
+import pytest
+import statsmodels.api as sm
 from matplotlib.text import Text
 from pandas.core.frame import DataFrame
 
-sys.path.append(Path(__file__).parent.resolve()) # type: ignore
+sys.path.append(Path(__file__).parent.resolve())  # type: ignore
 
-from daspi import STR
-from daspi import COLOR
-from daspi import SpecLimits
-from daspi import LinearModel
-from daspi import load_dataset
-from daspi import GageRnRModel
-from daspi import GageStudyModel
-
-from daspi.plotlib.chart import Chart
-from daspi.plotlib.chart import JointChart
-from daspi.plotlib.chart import SingleChart
-from daspi.plotlib.chart import MultivariateChart
-
-from daspi.plotlib.plotter import Bar
-from daspi.plotlib.plotter import Box
-from daspi.plotlib.plotter import Line
-from daspi.plotlib.plotter import Stem
-from daspi.plotlib.plotter import Pareto
-from daspi.plotlib.plotter import Jitter
-from daspi.plotlib.plotter import Plotter
-from daspi.plotlib.plotter import Scatter
-from daspi.plotlib.plotter import Violin
-from daspi.plotlib.plotter import Beeswarm
-from daspi.plotlib.plotter import ErrorBar
-from daspi.plotlib.plotter import MeanTest
-from daspi.plotlib.plotter import LoessLine
-from daspi.plotlib.plotter import StripeLine
-from daspi.plotlib.plotter import StripeSpan
-from daspi.plotlib.plotter import HideSubplot
-from daspi.plotlib.plotter import SkipSubplot
-from daspi.plotlib.plotter import SpreadWidth
-from daspi.plotlib.plotter import Probability
-from daspi.plotlib.plotter import BlandAltman
-from daspi.plotlib.plotter import GaussianKDE
-from daspi.plotlib.plotter import QuantileBoxes
-from daspi.plotlib.plotter import VariationTest
-from daspi.plotlib.plotter import ProportionTest
-from daspi.plotlib.plotter import CenterLocation
-from daspi.plotlib.plotter import TransformPlotter
-from daspi.plotlib.plotter import StandardErrorMean
-from daspi.plotlib.plotter import ConfidenceInterval
-from daspi.plotlib.plotter import ParallelCoordinate
-from daspi.plotlib.plotter import GaussianKDEContour
-from daspi.plotlib.plotter import GaussianKDEContourUnivariate
-from daspi.plotlib.plotter import LinearRegressionLine
-from daspi.plotlib.plotter import CategoricalObservation
-from daspi.plotlib.plotter import CapabilityConfidenceInterval
-
-from daspi.plotlib.precast import GageRnRCharts
-from daspi.plotlib.precast import GageStudyCharts
-from daspi.plotlib.precast import ResidualsCharts
-from daspi.plotlib.precast import PairComparisonCharts
-from daspi.plotlib.precast import ParameterRelevanceCharts
-from daspi.plotlib.precast import BivariateUnivariateCharts
-from daspi.plotlib.precast import ProcessCapabilityAnalysisCharts
+from daspi import (
+    COLOR,
+    GageRnRModel,
+    GageStudyModel,
+    LinearModel,
+    STR,
+    SpecLimits,
+    load_dataset,
+)
+from daspi.plotlib.chart import JointChart, MultivariateChart, SingleChart
+from daspi.plotlib.plotter import (
+    Bar,
+    Beeswarm,
+    BlandAltman,
+    Box,
+    GaussianKDE,
+    GaussianKDEContour,
+    GaussianKDEContourUnivariate,
+    HideSubplot,
+    Jitter,
+    Line,
+    LinearRegressionLine,
+    LoessLine,
+    MeanTest,
+    Pareto,
+    Probability,
+    QuantileBoxes,
+    Scatter,
+    StandardErrorMean,
+    VariationTest,
+    Violin,
+)
+from daspi.plotlib.precast import (
+    BivariateUnivariateCharts,
+    GageRnRCharts,
+    GageStudyCharts,
+    PairComparisonCharts,
+    ParameterRelevanceCharts,
+    ProcessCapabilityAnalysisCharts,
+    ResidualsCharts,
+)
 
 matplotlib.use("Agg")
 
@@ -139,13 +121,13 @@ https://www.statsmodels.org/stable/datasets/generated/modechoice.html
 """
 
 source = Path(__file__).parent/'data'
-KW_READ: Dict[str, Any] = dict(sep=';', index_col=0, skiprows=1)
+KW_READ: dict[str, Any] = {'sep': ';', 'index_col': 0, 'skiprows': 1}
 df_dist10: DataFrame = pd.read_csv(
-    source/f'dists_10-samples.csv', nrows=10, **KW_READ)
+    source/'dists_10-samples.csv', nrows=10, **KW_READ)
 df_dist25: DataFrame = pd.read_csv(
-    source/f'dists_25-samples.csv', nrows=25, **KW_READ)
+    source/'dists_25-samples.csv', nrows=25, **KW_READ)
 
-def get_texts(chart: SingleChart | JointChart | MultivariateChart) -> List[Text]:
+def get_texts(chart: SingleChart | JointChart | MultivariateChart) -> list[Text]:
     return sorted(chart.figure.texts, key=lambda t: t._y, reverse=True) # type: ignore
 
 

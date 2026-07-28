@@ -40,63 +40,46 @@ subclasses and are not normally created directly by library users.
 ``AxesFacets`` is part of the public API and is the recommended way to
 build custom subplot grids when the ``Chart`` classes are too opinionated.
 """
-import re
 import math
+import re
 import warnings
+from collections.abc import Callable, Generator, Sequence
+from typing import Any, Literal, Self, overload
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-
-from typing import Any
-from typing import Self
-from typing import List
-from typing import Dict
-from typing import Tuple
-from typing import Literal
-from typing import overload
-from typing import Sequence
-from typing import Generator
-from typing import Callable
-from numpy.typing import NDArray
-from matplotlib.text import Text
+from matplotlib.artist import Artist
 from matplotlib.axes import Axes
-from matplotlib.lines import Line2D
 from matplotlib.figure import Figure
 from matplotlib.legend import Legend
-from matplotlib.artist import Artist
-from matplotlib.ticker import Formatter
-from matplotlib.ticker import FuncFormatter
-from matplotlib.ticker import StrMethodFormatter
-from matplotlib.typing import HashableList
+from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from matplotlib.text import Text
+from matplotlib.ticker import Formatter, FuncFormatter, StrMethodFormatter
+from matplotlib.typing import HashableList
+from numpy.typing import NDArray
 
-from .plotter import Stripe
-from .plotter import StripeLine
-from .plotter import StripeSpan
-
-from .._typing import MosaicLayout
-from .._typing import NumericSample1D
-from .._typing import ShareAxisProperty
-from .._typing import LegendHandlesLabels
-
+from .._typing import (
+    LegendHandlesLabels,
+    MosaicLayout,
+    NumericSample1D,
+    ShareAxisProperty,
+)
+from ..constants import DEFAULT, KW, LABEL
+from ..statistics import ProcessEstimator, SpecLimits
 from ..strings import STR
-
-from ..constants import KW
-from ..constants import LABEL
-from ..constants import DEFAULT
-
-from ..statistics import SpecLimits
-from ..statistics import ProcessEstimator
-
+from .plotter import Stripe, StripeLine, StripeSpan
 
 __all__ = [
-    "flat_unique",
-    "LabelFacets",
-    "AxesFacets",
-    "StripesFacets",]
+    'AxesFacets',
+    'LabelFacets',
+    'StripesFacets',
+    'flat_unique',
+]
 
 
-def flat_unique(nested: NDArray | List[List]) -> List:
+def flat_unique(nested: NDArray | list[list]) -> list:
     """Flatten the given array and return unique elements while
     preserving the order."""
     if isinstance(nested, list):
@@ -137,7 +120,7 @@ class AxesFacets:
         Relative widths of the columns, by default None.
     height_ratios : array-like of length nrows, optional
         Relative heights of the rows, by default None.
-    stretch_figsize : bool | float | Tuple[float, float], optional
+    stretch_figsize : bool | float | tuple[float, float], optional
         If True, the height and width of the figure are stretched based 
         on the number rows and columns in the axes grid. If a float is 
         provided, the figure size is stretched by the given factor. If a 
@@ -195,7 +178,7 @@ class AxesFacets:
     efficient than creating a visible Axes and then hiding it.
     """
 
-    figsize: Tuple[float, float]
+    figsize: tuple[float, float]
     """The figsize passed when creating the subplots."""
     figure: Figure
     """The figure instance to label."""
@@ -229,7 +212,7 @@ class AxesFacets:
             sharey: ShareAxisProperty = 'none', 
             width_ratios: Sequence[float] | None = None,
             height_ratios: Sequence[float] | None = None, 
-            stretch_figsize: bool | float | Tuple[float, float] = False,
+            stretch_figsize: bool | float | tuple[float, float] = False,
             **kwds
             ) -> None:
         assert not all(arg is not None for arg in (nrows, ncols, mosaic)), (
@@ -243,8 +226,8 @@ class AxesFacets:
             self._ncols = len(self.mosaic[0])
             assert all(self._ncols == len(row) for row in self.mosaic), (
                 f'Received a non-rectangular grid for the {mosaic=}.')
-            self._sharex = True if sharex in (True, 'all') else False
-            self._sharey = True if sharey in (True, 'all') else False
+            self._sharex = sharex in (True, 'all')
+            self._sharey = sharey in (True, 'all')
         else:
             self.mosaic = None
             self._sharex = sharex
@@ -257,8 +240,8 @@ class AxesFacets:
         if stretch_figsize is False:
             stretch_x = stretch_y = 1
         elif stretch_figsize is True:
-            stretch_x = (1 + math.log(self._ncols, math.e))
-            stretch_y = (1 + math.log(self._nrows, math.e))
+            stretch_x = (1 + math.log(self._ncols))
+            stretch_y = (1 + math.log(self._nrows))
         elif isinstance(stretch_figsize, (tuple, list)):
             stretch_x, stretch_y = stretch_figsize
         elif isinstance(stretch_figsize, (int, float)):
@@ -268,14 +251,14 @@ class AxesFacets:
         self.figsize = (
             (stretch_x * figsize[0], stretch_y * figsize[1]))
 
-        _kwds: Dict[str, Any] = dict(
-            sharex=self._sharex,
-            sharey=self._sharey, 
-            figsize=self.figsize,
-            width_ratios=width_ratios,
-            height_ratios=height_ratios,
-            layout='tight',
-            ) | kwds
+        _kwds: dict[str, Any] = {
+            'sharex': self._sharex,
+            'sharey': self._sharey, 
+            'figsize': self.figsize,
+            'width_ratios': width_ratios,
+            'height_ratios': height_ratios,
+            'layout': 'tight',
+            } | kwds
         if self.mosaic:
             self.figure, axes = plt.subplot_mosaic(mosaic=self.mosaic, **_kwds)
             self.axes = np.array(
@@ -305,7 +288,7 @@ class AxesFacets:
         return self._ncols
     
     @property
-    def shape(self) -> Tuple[int, ...]:
+    def shape(self) -> tuple[int, ...]:
         """Get the shape of the axes array (read-only)."""
         return self.axes.shape
 
@@ -320,17 +303,17 @@ class AxesFacets:
         return self._sharey
     
     @property
-    def flat(self) -> List[Axes]:
+    def flat(self) -> list[Axes]:
         """Get a list of all the Axes in the grid.
 
         Returns
         -------
-        List[Axes]
+        list[Axes]
             A list of all the Axes in the grid.
         """
         return [ax for ax in flat_unique(self.axes) if isinstance(ax, Axes)]
     
-    def __iter__(self) -> Generator[Axes, Self, None]:
+    def __iter__(self) -> Generator[Axes, Self]:
         """Iterate over the axes in the grid.
 
         Returns
@@ -338,7 +321,7 @@ class AxesFacets:
         Generator[Axes, Self, None]
             The generator object that yields the axes in the grid.
         """
-        def ax_gen(self) -> Generator[Axes, Self, None]:
+        def ax_gen(self) -> Generator[Axes, Self]:
             for ax in self.flat:
                 self._ax = ax
                 yield ax
@@ -355,18 +338,18 @@ class AxesFacets:
         return next(self)
     
     @overload
-    def __getitem__(self, index: Tuple[slice, slice]) -> NDArray:...
+    def __getitem__(self, index: tuple[slice, slice]) -> NDArray:...
 
     @overload
-    def __getitem__(self, index: Tuple[int, slice]) -> NDArray:...
+    def __getitem__(self, index: tuple[int, slice]) -> NDArray:...
 
     @overload
-    def __getitem__(self, index: Tuple[slice, int]) -> NDArray:...
+    def __getitem__(self, index: tuple[slice, int]) -> NDArray:...
     
     @overload
-    def __getitem__(self, index: int | Tuple[int, int]) -> Axes:...
+    def __getitem__(self, index: int | tuple[int, int]) -> Axes:...
     
-    def __getitem__(self, index: int | Tuple[int | slice, int | slice]) -> Any:
+    def __getitem__(self, index: int | tuple[int | slice, int | slice]) -> Any:
         """Get the axes at the specified index in the grid. If the index
         is a number, the axes are fetched from left to right and from 
         top to bottom. If two numbers are specified, the axis is fetched 
@@ -376,7 +359,7 @@ class AxesFacets:
 
         Parameters
         ----------
-        index : int | Tuple[int, int]
+        index : int | tuple[int, int]
             The index of the axes in the grid.
 
         Returns
@@ -416,7 +399,7 @@ class StripesFacets:
         stripes are used on multiple axes. This affects how the 
         predefined legend labels are handled. If True, the corresponding
         position values are added to the label.
-    stripes : List[Type[Stripe]], optional
+    stripes : list[type[Stripe]], optional
         Additional non-predefined stripes to be added to the chart, 
         by default [].
     mean : bool, optional
@@ -460,7 +443,11 @@ class StripesFacets:
     """
 
     __slots__ = (
-        'estimation', '_confidence', 'single_axes', 'stripes', 'target_on_y')
+        '_confidence',
+        'estimation',
+        'single_axes',
+        'stripes',
+        'target_on_y',)
     
     estimation: ProcessEstimator
     """The process estimator object."""
@@ -471,7 +458,7 @@ class StripesFacets:
     stripes are used on multiple axes. This affects how the predefined
     legend labels are handled. If True, the corresponding position
     values are added to the label."""
-    stripes: Dict[str, Stripe]
+    stripes: dict[str, Stripe]
     """The stripes to plot on the chart."""
     target_on_y: bool
     """Whether the target is on the y-axis or the x-axis."""
@@ -482,14 +469,14 @@ class StripesFacets:
         *,
         target_on_y: bool,
         single_axes: bool,
-        stripes: List[Stripe] = [], 
+        stripes: list[Stripe] | None = None,
         mean: bool = False,
         median: bool = False,
         control_limits: bool = False,
-        spec_limits: SpecLimits = SpecLimits(),
+        spec_limits: SpecLimits = SpecLimits(), # TODO use default instance, when available
         confidence: float | None = None,
         strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
-        agreement: float | int = 6,
+        agreement: float | int = 6,  # noqa: PYI041
         **kwds) -> None:
         self.single_axes = single_axes
         self._confidence = confidence
@@ -500,7 +487,7 @@ class StripesFacets:
             agreement=agreement,
             **kwds)
         self.target_on_y = target_on_y
-        self.stripes = {s.identity: s for s in stripes}
+        self.stripes = {s.identity: s for s in (stripes or [])}
         add_confidence_span = confidence is not None
         
         self.add_specification_limit_stripes()
@@ -525,10 +512,10 @@ class StripesFacets:
         return 'horizontal' if self.target_on_y else 'vertical'
     
     @property
-    def _kwds(self) -> Dict[str, Any]:
-        kwds = dict(
-            orientation=self.orientation,
-            show_position=self.single_axes)
+    def _kwds(self) -> dict[str, Any]:
+        kwds = {
+            'orientation': self.orientation,
+            'show_position': self.single_axes}
         return kwds
 
     @property
@@ -725,7 +712,7 @@ class LabelFacets:
     sub_title : str, optional
         Subtitle, which should appear directly below the main title and
         slightly smaller than it, by default ''.
-    xlabel, ylabel: str or Tuple[str, ...], optional
+    xlabel, ylabel: str or tuple[str, ...], optional
         The axis label(s) of the figure. To label multiple axes with 
         different names, provide a tuple; otherwise, provide a string,
         by default ''.
@@ -773,23 +760,23 @@ class LabelFacets:
         automatically  added. If a string is provided, it's appended to
         the automatic date/user information, separated by a comma.
         By default, False.
-    rows: Tuple[str, ...], optional
+    rows: tuple[str, ...], optional
         The row labels of the figure for faceted plots, by default ().
-    cols: Tuple[str, ...], optional
+    cols: tuple[str, ...], optional
         The column labels of the figure for faceted plots,
         by default ().
     row_title : str, optional
         The title of the rows for faceted plots, by default ''.
     col_title : str, optional
         The title of the columns for faceted plots, by default ''.
-    axes_titles : Tuple[str, ...]
+    axes_titles : tuple[str, ...]
         Title for each Axes, useful for JointCharts with multiple
         subplots, by default ().
-    legend_data : Dict[str, LegendHandlesLabels], optional
+    legend_data : dict[str, LegendHandlesLabels], optional
         The legends to be added to the figure. The key is used as the 
         legend title, and the values must be a tuple of tuples, where
         the inner tuple contains a handle as a Patch or Line2D artist
-        and a label as a string, by default {}.
+        and a label as a string, by default None.
 
     Examples
     --------
@@ -874,9 +861,9 @@ class LabelFacets:
     """The title to display at the top of the chart."""
     sub_title: str
     """The subtitle to display directly below the title of the chart."""
-    xlabel: str | Tuple[str, ...]
+    xlabel: str | tuple[str, ...]
     """The x-axis label(s) of the figure."""
-    ylabel: str | Tuple[str, ...]
+    ylabel: str | tuple[str, ...]
     """The y-axis label(s) of the figure."""
     xlabel_formatter: Callable | Formatter | None
     """Function to format the x-axis tick labels."""
@@ -892,25 +879,25 @@ class LabelFacets:
     """Alignment for y-axis tick labels."""
     info: bool | str
     """Indicates whether to include an info text in the figure."""
-    rows: Tuple[str, ...]
+    rows: tuple[str, ...]
     """The row labels of the figure."""
-    cols: Tuple[str, ...]
+    cols: tuple[str, ...]
     """The column labels of the figure."""
     row_title: str
     """The title of the rows."""
     col_title: str
     """The title of the columns."""
-    axes_titles: Tuple[str, ...]
+    axes_titles: tuple[str, ...]
     """The titles of each axes."""
-    legend_data: Dict[str, LegendHandlesLabels]
+    legend_data: dict[str, LegendHandlesLabels]
     """The legend_data to be added to the figure."""
     _legend: Legend | None
     """Figure legend if one is added"""
-    _size: Tuple[int, int]
+    _size: tuple[int, int]
     """The size of the figure in pixels."""
-    _margin: Dict[str, int]
+    _margin: dict[str, int]
     """The required margin for the labels of the image in pixels."""
-    labels: Dict[str, Text]
+    labels: dict[str, Text]
     """The labels that were added to the image as text objects."""
 
     def __init__(
@@ -919,8 +906,8 @@ class LabelFacets:
             *,
             fig_title: str = '', 
             sub_title: str = '',
-            xlabel: str | Tuple[str, ...] = '',
-            ylabel: str | Tuple[str, ...] = '',
+            xlabel: str | tuple[str, ...] = '',
+            ylabel: str | tuple[str, ...] = '',
             xlabel_formatter: Callable | None = None,
             ylabel_formatter: Callable | None = None,
             xlabel_angle: float = 0,
@@ -928,12 +915,12 @@ class LabelFacets:
             xlabel_align: Literal['left', 'center', 'right'] = 'center',
             ylabel_align: Literal['bottom', 'center', 'top'] = 'center',
             info: bool | str = False,
-            rows: Tuple[str, ...] = (),
-            cols: Tuple[str, ...] = (),
+            rows: tuple[str, ...] = (),
+            cols: tuple[str, ...] = (),
             row_title: str = '',
             col_title: str = '',
-            axes_titles: Tuple[str, ...] = (),
-            legend_data: Dict[str, LegendHandlesLabels] = {}
+            axes_titles: tuple[str, ...] = (),
+            legend_data: dict[str, LegendHandlesLabels] | None = None,
             ) -> None:
         self.axes = axes
         self.figure = self.axes.figure
@@ -953,12 +940,12 @@ class LabelFacets:
         self.col_title = col_title
         self.axes_titles = axes_titles
         self.info = info
-        self.legend_data = legend_data
+        self.legend_data = legend_data or {}
         self._legend = None
         self._size = (
             int(self.figure.get_figwidth() * self.figure.dpi),
             int(self.figure.get_figheight() * self.figure.dpi))
-        self._margin = dict(left=0, bottom=0, right=0, top=0)
+        self._margin = {'left': 0, 'bottom': 0, 'right': 0, 'top': 0}
         self.labels = {}
     
     def _prepare_formatter(
@@ -1020,7 +1007,7 @@ class LabelFacets:
         return KW._margin + LABEL.X_ALIGNEMENT / self._size[0]
 
     @property
-    def margin_rectangle(self) -> Tuple[float, float, float, float]:
+    def margin_rectangle(self) -> tuple[float, float, float, float]:
         """Get rectangle of margins around the subplots used for the
         additional labels as fraction of figure size (read-only)."""
         margins = (
@@ -1085,7 +1072,7 @@ class LabelFacets:
         return int(base_margin * np.sin(angle_rad))
     
     @staticmethod
-    def get_legend_artists(legend: Legend) -> List[Artist]:
+    def get_legend_artists(legend: Legend) -> list[Artist]:
         """Get the inner children of a legend.
 
         Parameters
@@ -1095,7 +1082,7 @@ class LabelFacets:
 
         Returns
         -------
-        List[Artist]:
+        list[Artist]:
             The artists representing the inner children of the legend.
         """
         return legend.get_children()[0].get_children()
@@ -1106,7 +1093,7 @@ class LabelFacets:
         return self._legend
     
     @property
-    def legend_artists(self) -> List[Artist]:
+    def legend_artists(self) -> list[Artist]:
         """Get legend artists (read-only)."""
         if self.legend is None:
             return []
@@ -1120,17 +1107,17 @@ class LabelFacets:
         return int(self.legend.get_window_extent().width)
 
     def _add_legend(
-            self, handles: Tuple[Patch |Line2D, ...], labels: Tuple[str, ...],
+            self, handles: tuple[Patch |Line2D, ...], labels: tuple[str, ...],
             title: str) -> None:
         """Adds a legend at the right side of the figure. If there is 
         already one, the existing one is extended with the new one
         
         Parameters
         ----------
-        handles: Tuple[Patch | Line2D, ...]
+        handles: tuple[Patch | Line2D, ...]
             A list of Artists (lines, patches) to be added to the
             legend.
-        labels : Tuple[str, ...]
+        labels : tuple[str, ...]
             The labels must be in the same order as the corresponding 
             plots were drawn. If no labels are given, the handles and 
             labels of the first axes are used.
@@ -1220,10 +1207,10 @@ class LabelFacets:
         figure. By default, the info text contains today's date and the 
         user name. If attribute `info` is a string, it is added to the 
         info text separated by a comma."""
+        _kwds: dict[str, Any] = {}
         self._margin['bottom'] = 0
-
         if self.info:
-            _kwds = KW.INFO | dict(x=self.x_aligned)
+            _kwds = KW.INFO | {'x': self.x_aligned}
             info_text = f'{STR.TODAY} {STR.USERNAME}'
             if isinstance(self.info, str):
                 info_text = f'{info_text}, {self.info}'
@@ -1272,16 +1259,17 @@ class LabelFacets:
         """Add all provided labels at the top of the charts. These 
         labels include the figure title, sub title, column title and 
         column labels."""
+        _kwds: dict[str, Any] = {}
         self._margin['top'] = 0
 
         if self.fig_title:
-            _kwds = KW.FIG_TITLE | dict(x=self.x_aligned)
+            _kwds = KW.FIG_TITLE | {'x': self.x_aligned}
             _text = self.figure.text(s=self.fig_title, **_kwds)
             self._margin['top'] += self.estimate_height(_text) + LABEL.PADDING
             self.labels['fig_title'] = _text
 
         if self.sub_title:
-            _kwds = KW.SUB_TITLE | dict(x=self.x_aligned)
+            _kwds = KW.SUB_TITLE | {'x': self.x_aligned}
             _kwds['y'] -= self._margin['top'] / self._size[1]
             _text = self.figure.text(s=self.sub_title, **_kwds)
             self._margin['top'] += self.estimate_height(_text) + LABEL.PADDING
@@ -1343,7 +1331,7 @@ class LabelFacets:
                 self.figure.legends.remove(self.legend)
             self._legend = None
         
-        self._margin = dict(left=0, bottom=0, right=0, top=0)
+        self._margin = {'left': 0, 'bottom': 0, 'right': 0, 'top': 0}
     
     def draw(self) -> None:
         """Draw all the label facets to the figure."""

@@ -49,75 +49,43 @@ defaults. Both methods also accept keyword arguments forwarded to
 matplotlib.
 """
 import warnings
-import numpy as np
-import matplotlib.pyplot as plt
-
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Generator, Sequence
 from copy import deepcopy
-from typing import Any
-from typing import Type
-from typing import Self
-from typing import Dict
-from typing import List
-from typing import Tuple
-from typing import TypeVar
-from typing import Literal
-from typing import Callable
-from typing import Sequence
-from typing import Generator
-from pathlib import Path
 from functools import wraps
-from numpy.typing import NDArray
+from pathlib import Path
+from typing import Any, Literal, Self, TypeVar
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from matplotlib.axes import Axes
-from matplotlib.axis import XAxis
-from matplotlib.axis import YAxis
+from matplotlib.axis import XAxis, YAxis
 from matplotlib.figure import Figure
-from matplotlib.ticker import Formatter
-from matplotlib.ticker import AutoMinorLocator
+from matplotlib.ticker import AutoMinorLocator, Formatter
+from numpy.typing import NDArray
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
-from .appearance import style
-from .appearance import transpose_xy_axes_params
-
-from .classify import Dodger
-from .classify import HueLabel
-from .classify import SizeLabel
-from .classify import ShapeLabel
-
-from .facets import AxesFacets
-from .facets import LabelFacets
-from .facets import StripesFacets
-
-from .plotter import Stripe
-from .plotter import Plotter
-from .plotter import HideSubplot
-from .plotter import SkipSubplot
-
-from ..strings import STR
-
-from .._typing import MosaicLayout
-from .._typing import ShareAxisProperty
-from .._typing import LegendHandlesLabels
-
-from ..constants import KW
-from ..constants import COLOR
-from ..constants import PLOTTER
-from ..constants import CATEGORY
-
+from .._typing import LegendHandlesLabels, MosaicLayout, ShareAxisProperty
+from ..constants import CATEGORY, COLOR, KW, PLOTTER
 from ..statistics import SpecLimits
-
+from ..strings import STR
+from .appearance import style, transpose_xy_axes_params
+from .classify import Dodger, HueLabel, ShapeLabel, SizeLabel
+from .facets import AxesFacets, LabelFacets, StripesFacets
+from .plotter import HideSubplot, Plotter, SkipSubplot, Stripe
 
 __all__ = [
-    'SingleChart',
     'JointChart',
-    'MultivariateChart',]
+    'MultivariateChart',
+    'SingleChart',
+]
 
 
 T = TypeVar('T')
 
-def check_label_order(method: Callable[..., T]) -> Callable[..., T]:
+def check_label_order[T](method: Callable[..., T]) -> Callable[..., T]:
     """Decorator that checks if a method is called after label().
     
     This decorator ensures that plot() and stripes() methods cannot be 
@@ -156,17 +124,17 @@ class Chart(ABC):
     ----------
     source : pandas DataFrame
         A pandas DataFrame containing the data in long-format.
-    target : str or Tuple[str]
+    target : str or tuple[str]
         Column name for the target variable to be visualized.
-    feature : str or Tuple[str]
+    feature : str or tuple[str]
         Column name for the feature variable to be visualized.
     target_on_y : bool, optional
         If True, the target variable is plotted on the y-axis.
-    colors: Tuple[str, ...], optional
-        Tuple of unique colors used for hue categories as hex or str,
+    colors: tuple[str, ...], optional
+        tuple of unique colors used for hue categories as hex or str,
         by default `CATEGORY.PALETTE`.
-    markers : Tuple[str, ...], optional
-        Tuple of markers used for shape marker categories as strings,
+    markers : tuple[str, ...], optional
+        tuple of markers used for shape marker categories as strings,
         by default `CATEGORY.MARKERS`.
     n_size_bins : int, optional
         Number of bins for the size range, by default 
@@ -189,7 +157,7 @@ class Chart(ABC):
         Relative widths of the columns, by default None.
     height_ratios : array-like of length nrows, optional
         Relative heights of the rows, by default None.
-    stretch_figsize : bool | float | Tuple[float, float], optional
+    stretch_figsize : bool | float | tuple[float, float], optional
         If True, the height and width of the figure are stretched based 
         on the number rows and columns in the axes grid. If a float is 
         provided, the figure size is stretched by the given factor. If a 
@@ -201,9 +169,22 @@ class Chart(ABC):
         object.
     """
     __slots__ = (
-        'source', 'target', 'feature', 'target_on_y', 'axes', '_ax',
-        'label_facets', 'stripes_facets', '_data', '_plots', '_colors', 
-        '_markers', '_n_size_bins', '_kw_where', '_follow_palette_order')
+        '_ax',
+        '_colors',
+        '_data',
+        '_follow_palette_order',
+        '_kw_where',
+        '_markers',
+        '_n_size_bins',
+        '_plots',
+        'axes',
+        'feature',
+        'label_facets',
+        'source',
+        'stripes_facets',
+        'target',
+        'target_on_y',
+    )
     
     source: DataFrame
     """Pandas DataFrame containing the source data in long-format."""
@@ -226,15 +207,15 @@ class Chart(ABC):
     figure."""
     _data: DataFrame
     """Current source data subset used for current Axes."""
-    _colors: Tuple[str, ...]
-    """Tuple of colors used for hue categories as hex or str."""
-    _markers: Tuple[str, ...]
-    """Tuple of markers used for shape marker categories as strings."""
+    _colors: tuple[str, ...]
+    """tuple of colors used for hue categories as hex or str."""
+    _markers: tuple[str, ...]
+    """tuple of markers used for shape marker categories as strings."""
     _n_size_bins: int
     """Number of bins for the size range."""
-    _plots: List[Plotter]
+    _plots: list[Plotter]
     """All plotter objects used in `plot` method."""
-    _kw_where: Dict[str, Any]
+    _kw_where: dict[str, Any]
     """Key word arguments to filter data in the plot method. This 
     argument is passed in the `kw_where` argument of the `plot` method.
     It must then be applied to `source` within `variate_data`
@@ -251,8 +232,8 @@ class Chart(ABC):
             feature: str = '',
             *,
             target_on_y: bool = True,
-            colors: Tuple[str, ...] | None = None,
-            markers: Tuple[str, ...] | None = None,
+            colors: tuple[str, ...] | None = None,
+            markers: tuple[str, ...] | None = None,
             n_size_bins: int = CATEGORY.N_SIZE_BINS,
             axes: AxesFacets | None = None,
             nrows: int | None = None,
@@ -262,7 +243,7 @@ class Chart(ABC):
             sharey: ShareAxisProperty = 'none', 
             width_ratios: Sequence[float] | None = None,
             height_ratios: Sequence[float] | None = None, 
-            stretch_figsize: bool | float | Tuple[float, float] = False,
+            stretch_figsize: bool | float | tuple[float, float] = False,
             **kwds,
             ) -> None:
         self.source = source.copy()
@@ -302,29 +283,29 @@ class Chart(ABC):
         return len(self.axes)
     
     @property
-    def plots(self) -> List[Plotter]:
+    def plots(self) -> list[Plotter]:
         """Get plotter objects used in `plot` method"""
         ignore_types = (HideSubplot, SkipSubplot)
         return [p for p in self._plots if not isinstance(p, ignore_types)]
     
     @abstractmethod
     def _axis_label_(
-            self, label: Any, is_target: bool) -> str | Tuple[str, ...]:
+            self, label: Any, is_target: bool) -> str | tuple[str, ...]:
         """Helper method to get the axis label based on the provided 
         label and is_target flag."""
         
     @abstractmethod
     def axis_labels(
             self, feature_label: Any, target_label: Any
-            ) -> Tuple[str | Tuple[str, ...], str | Tuple[str, ...]]:
+            ) -> tuple[str | tuple[str, ...], str | tuple[str, ...]]:
         """Get the x and y axis labels based on the provided 
         `feature_label` and `target_label`."""
         
     @abstractmethod
     def variate_data(
             self,
-            skip_variate: List[str] = []
-            ) -> Generator[DataFrame, Any, None]:
+            skip_variate: list[str] | None = None
+            ) -> Generator[DataFrame, Any]:
         """Implement the data generator and add the currently yielded 
         data to self._data so that it can be used internally. Also 
         consider the `_kw_where` attribute to filter the data here for 
@@ -332,7 +313,7 @@ class Chart(ABC):
 
         Parameters
         ----------
-        skip_variate : List[str], optional
+        skip_variate : list[str], optional
             A list of variate names to skip during the grouping. If 
             provided, these variates will not be included in the 
             groupby operation. Default is [].
@@ -367,19 +348,20 @@ class Chart(ABC):
     @abstractmethod
     def plot(
             self,
-            plotter: Type[Plotter],
+            plotter: type[Plotter],
             *,
-            kw_call: Dict[str, Any] = {},
+            kw_call: dict[str, Any] | None = None,
             **kwds
             ) -> Self:
         """Plot the chart using the specified plotter.
 
         Parameters
         ----------
-        plotter : Type[Plotter]
+        plotter : type[Plotter]
             The plotter object.
-        kw_call : Dict[str, Any]
-            Additional keyword arguments for the plotter call method.
+        kw_call : dict[str, Any], optional
+            Additional keyword arguments for the plotter call method. 
+            Default is None.
         **kwds:
             Additional keyword arguments for the plotter object.
 
@@ -392,14 +374,14 @@ class Chart(ABC):
     @abstractmethod
     def stripes(
             self,
-            stripes: List[Stripe] = [],
+            stripes: list[Stripe] | None = None,
             **kwds) -> Self:
         """Add stripes to the chart.
 
         Parameters
         ----------
-        kwds : 
-            Additional keyword arguments.
+        kwds : dict[str, Any], optional
+            Additional keyword arguments. Default is None.
 
         Returns
         -------
@@ -496,13 +478,13 @@ class Chart(ABC):
     
     def specification_limits_iterator(
             self,
-            spec_limits: SpecLimits | Tuple[SpecLimits, ...],
-            ) -> Generator[SpecLimits, Any, None]:
+            spec_limits: SpecLimits | tuple[SpecLimits, ...],
+            ) -> Generator[SpecLimits, Any]:
         """Generates specification limits based on the provided input.
 
         Parameters
         ----------
-        spec_limits : SpecLimits | Tuple[SpecLimits, ...]
+        spec_limits : SpecLimits | tuple[SpecLimits, ...]
             The specification limits to generate from. If a single limit
             pair is provided, it will be used for all axes. If a tuple 
             of values is provided, each value corresponds to an axes.
@@ -527,15 +509,14 @@ class Chart(ABC):
         assert len(_spec_limits) == self.n_axes, (
             f'spec_limits length {len(_spec_limits)} does not match '
             f'the number of axes {self.n_axes}')
-        for axes_limits  in _spec_limits:
-            yield axes_limits
+        yield from _spec_limits
     
     def _repr_html_(self) -> str | None:
         """Get the HTML representation of the chart for display in 
         Jupyter notebooks."""
         return self.figure._repr_html_()
 
-    def _display_(self) -> List[Axes]:
+    def _display_(self) -> list[Axes]:
         """Get the display representation of the chart for Marimo 
         notebooks. Returns the Axes objects so Marimo renders the 
         figure inline using its built-in matplotlib support."""
@@ -584,11 +565,11 @@ class SingleChart(Chart):
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on the
         y-axis, by default True
-    colors: Tuple[str, ...], optional
-        Tuple of unique colors used for hue categories as hex or str,
+    colors: tuple[str, ...], optional
+        tuple of unique colors used for hue categories as hex or str,
         by default `CATEGORY.PALETTE`.
-    markers : Tuple[str, ...], optional
-        Tuple of markers used for shape marker categories as strings,
+    markers : tuple[str, ...], optional
+        tuple of markers used for shape marker categories as strings,
         by default `CATEGORY.MARKERS`.
     n_size_bins : int, optional
         Number of bins for the size range, by default 
@@ -604,9 +585,17 @@ class SingleChart(Chart):
     """
 
     __slots__ = (
-        'hue', 'shape', 'size', 'sizing', 'shaping', 'hueing', 'dodging',
-        'categorical_feature', '_variate_names', '_current_variate',
-        '_last_variate', )
+        '_current_variate',
+        '_last_variate',
+        '_variate_names',
+        'categorical_feature',
+        'dodging',
+        'hue',
+        'hueing',
+        'shape',
+        'shaping',
+        'size',
+        'sizing', )
     
     hue: str
     """The hue variable (column) for color differentiation."""
@@ -627,7 +616,7 @@ class SingleChart(Chart):
     """A handler for dodging categorical features along the axis."""
     categorical_feature: bool
     """Flag indicating whether the features are categorical."""
-    _current_variate: Dict[str, Any]
+    _current_variate: dict[str, Any]
     """Dictionary to store current variate information."""
     _last_variate: dict
     """Dictionary to store last variate information."""
@@ -644,8 +633,8 @@ class SingleChart(Chart):
             size: str = '', 
             categorical_feature: bool = False,
             target_on_y: bool = True,
-            colors: Tuple[str, ...] | None = None,
-            markers: Tuple[str, ...] | None = None,
+            colors: tuple[str, ...] | None = None,
+            markers: tuple[str, ...] | None = None,
             n_size_bins: int = CATEGORY.N_SIZE_BINS,
             axes: AxesFacets | None = None,
             **kwds
@@ -668,7 +657,8 @@ class SingleChart(Chart):
             **kwds)
         if self.categorical_feature:
             if self.feature not in self.source:
-                self.source[self.feature] = ''
+                self.source[self.feature] = pd.Series(
+                    [''] * len(self.source), index=self.source.index)
             self.source[self.feature] = (
                 self.source[self.feature].astype('category'))
         self.hueing = HueLabel(
@@ -709,7 +699,7 @@ class SingleChart(Chart):
         return self._ax
     
     @property
-    def variate_names(self) -> List[str]:
+    def variate_names(self) -> list[str]:
         """Get names of all set variates (read-only)."""
         return [v for v in self._variate_names if v]
     
@@ -732,7 +722,7 @@ class SingleChart(Chart):
         return self.sizing(self._data[self.size])
     
     @property
-    def legend_data(self) -> Dict[str, LegendHandlesLabels]:
+    def legend_data(self) -> dict[str, LegendHandlesLabels]:
         """Get dictionary of handles and labels (read-only).
         - keys: titles as str
         - values: handles and labels as tuple of tuples"""
@@ -809,7 +799,7 @@ class SingleChart(Chart):
             self,
             feature_label: bool | str | None, 
             target_label: bool | str | None
-            ) -> Tuple[str, str]:
+            ) -> tuple[str, str]:
         """Get the x and y axis labels based on the provided 
         `feature_label` and `target_label`.
             - If a string is passed, it will be taken.
@@ -825,7 +815,7 @@ class SingleChart(Chart):
 
         Returns
         -------
-        Tuple[str, str]
+        tuple[str, str]
             A tuple containing the x-axis label (xlabel) and y-axis 
             label (ylabel).
         """
@@ -835,7 +825,7 @@ class SingleChart(Chart):
             xlabel, ylabel = ylabel, xlabel
         return xlabel, ylabel
     
-    def unique_labels(self, colname: str) -> Tuple[Any, ...]:
+    def unique_labels(self, colname: str) -> tuple[Any, ...]:
         """Get sorted unique elements of given column name if in source.
 
         Parameters
@@ -845,7 +835,7 @@ class SingleChart(Chart):
 
         Returns:
         --------
-        Tuple:
+        tuple:
             Sorted unique elements of the given column name.
         """
         if not colname:
@@ -860,7 +850,7 @@ class SingleChart(Chart):
             target_angle: float = 0.0,
             feature_align: Literal['center', 'right', 'left'] = 'center',
             target_align: Literal['center', 'right', 'left'] = 'center'
-            ) -> Tuple[Callable | None, Callable | None, float, float, str, str]:
+            ) -> tuple[Callable | None, Callable | None, float, float, str, str]:
         """Map feature/target parameters to x/y axis parameters based on target_on_y.
         
         This method converts chart-level parameters (feature/target) to axis-level
@@ -883,7 +873,7 @@ class SingleChart(Chart):
             
         Returns
         -------
-        Tuple[Callable | None, Callable | None, float, float, str, str]
+        tuple[Callable | None, Callable | None, float, float, str, str]
             xlabel_formatter, ylabel_formatter, xlabel_angle, ylabel_angle, 
             xlabel_align, ylabel_align in that order
         """
@@ -987,8 +977,8 @@ class SingleChart(Chart):
 
     def variate_data(
             self,
-            skip_variate: List[str] = []
-            ) -> Generator[DataFrame, Self, None]:
+            skip_variate: list[str] | None = None
+            ) -> Generator[DataFrame, Self]:
         """Generate grouped data if `variate_names` are set, otherwise 
         yield the entire source DataFrame.
 
@@ -999,10 +989,10 @@ class SingleChart(Chart):
 
         Parameters
         ----------
-        skip_variate : List[str], optional
+        skip_variate : list[str], optional
             A list of variate names to skip during the grouping. If 
             provided, these variates will not be included in the groupby 
-            operation. Default is []
+            operation. Default is None
 
         Yields:
         -------
@@ -1012,9 +1002,10 @@ class SingleChart(Chart):
         source = self.source
         if self._kw_where:
             source = source.where(**self._kw_where)
-
-        variate_names = [v for v in self.variate_names if v not in skip_variate]
-        if variate_names:
+            
+        if skip_variate:
+            variate_names = [
+                v for v in self.variate_names if v not in skip_variate]
             if len(variate_names) == 1:
                 variate_names = variate_names[0]
             for combo, data in source.groupby(variate_names, observed=True):
@@ -1022,36 +1013,38 @@ class SingleChart(Chart):
                 self.update_variate(combo)
                 self.dodge()
                 yield self._data
+
         else:
             self._data = source
             self.dodge()
             yield self._data
+
         self._reset_variate_()
         self._kw_where = {}
 
     @check_label_order
     def plot(
             self,
-            plotter: Type[Plotter],
+            plotter: type[Plotter],
             *,
-            skip_variate: List[str] = [],
-            kw_call: Dict[str, Any] = {},
-            kw_where: Dict[str, Any] = {},
+            skip_variate: list[str] | None = None,
+            kw_call: dict[str, Any] | None = None,
+            kw_where: dict[str, Any] | None = None,
             **kwds
             ) -> Self:
         """Apply a plotter with the specified data on the axis.
 
         Parameters
         ----------
-        plotter : Type[Plotter]
+        plotter : type[Plotter]
             The plotter object.
-        skip_variate : List[str], optional
+        skip_variate : list[str], optional
             A list of variate names to skip during the grouping. If 
             provided, these variates will not be included in the groupby 
             operation. Default is []
-        kw_call : Dict[str, Any]
+        kw_call : dict[str, Any]
             Additional keyword arguments for the plotter call method.
-        kw_where : Dict[str, Any]
+        kw_where : dict[str, Any]
             Additional keyword arguments for the where method used to
             filter the data.
         **kwds:
@@ -1073,7 +1066,7 @@ class SingleChart(Chart):
         _marker = kwds.pop('marker', None)
         _size = kwds.pop('size', None)
         _width = kwds.pop('width', None)
-        self._kw_where = kw_where
+        self._kw_where = kw_where or {}
         for data in self.variate_data(skip_variate):
             if not self._check_current_data_():
                 continue
@@ -1090,22 +1083,22 @@ class SingleChart(Chart):
                 ax=self.axes.ax,
                 categorical_feature=self.categorical_feature,
                 **kwds)
-            plot(**kw_call)
+            plot(**(kw_call or {}))
             self._plots.append(plot)
         return self
     
     @check_label_order
     def stripes(
             self,
-            stripes: List[Stripe] = [],
+            stripes: list[Stripe] | None = None,
             *,
             mean: bool = False,
             median: bool = False,
             control_limits: bool = False, 
-            spec_limits: SpecLimits = SpecLimits(), 
+            spec_limits: SpecLimits = SpecLimits(), # TODO use default instance, when available
             confidence: float | None = None,
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
-            agreement: float | int = 6,
+            agreement: float | int = 6,  # noqa: PYI041
             **kwds,
             ) -> Self:
         """Plot location and spread width lines, specification limits 
@@ -1115,9 +1108,9 @@ class SingleChart(Chart):
 
         Parameters
         ----------
-        stripes : List[Stripe], optional
+        stripes : list[Stripe], optional
             Additional non-predefined stripes to be added to the chart,
-            by default [].
+            by default None.
         mean : bool, optional
             Whether to plot the mean value of the plotted data on the 
             axes, by default False.
@@ -1436,26 +1429,26 @@ class JointChart(Chart):
     ----------
     source : DataFrame
         The source data.
-    target : str or Tuple[str]
+    target : str or tuple[str]
         The target variable(s).
-    feature : str or Tuple[str]
+    feature : str or tuple[str]
         The feature variable(s).
     nrows : int
         Number of rows in the subplot grid.
     ncols : int
         Number of columns in the subplot grid.
-    hue : str or Tuple[str], optional
+    hue : str or tuple[str], optional
         The hue variable(s), by default ''.
-    shape : str or Tuple[str], optional
+    shape : str or tuple[str], optional
         The shape variable(s), by default ''.
-    size : str or Tuple[str], optional
+    size : str or tuple[str], optional
         The size variable(s), by default ''.
-    dodge : bool or Tuple[bool], optional
+    dodge : bool or tuple[bool], optional
         Flag indicating whether dodging is enabled, by default False.
-    categorical_feature : bool or Tuple[str], optional
+    categorical_feature : bool or tuple[str], optional
         Flag indicating whether feature is categorical, by default
         False.
-    target_on_y : bool or List[bool], optional
+    target_on_y : bool or list[bool], optional
         Flag indicating whether target is on y-axis, by default True.
     sharex : ShareAxisProperty, optional
         Flag indicating whether x-axis should be shared among subplots,
@@ -1463,22 +1456,22 @@ class JointChart(Chart):
     sharey : ShareAxisProperty, optional
         Flag indicating whether y-axis should be shared among subplots,
         by default False.
-    width_ratios : List[float], optional
+    width_ratios : list[float], optional
         The width ratios for the subplot grid, by default None.
-    height_ratios : List[float], optional
+    height_ratios : list[float], optional
         The height ratios for the subplot grid, by default None.
-    stretch_figsize : bool | float | Tuple[float, float], optional
+    stretch_figsize : bool | float | tuple[float, float], optional
         If True, the height and width of the figure are stretched based 
         on the number rows and columns in the axes grid. If a float is 
         provided, the figure size is stretched by the given factor. If a 
         tuple of two floats is provided, the figure size is stretched by 
         the given factors for the x and y axis, respectively.
         by default False.
-    colors: Tuple[str, ...], optional
-        Tuple of unique colors used for hue categories as hex or str,
+    colors: tuple[str, ...], optional
+        tuple of unique colors used for hue categories as hex or str,
         by default `CATEGORY.PALETTE`.
-    markers : Tuple[str, ...], optional
-        Tuple of markers used for shape marker categories as strings,
+    markers : tuple[str, ...], optional
+        tuple of markers used for shape marker categories as strings,
         by default `CATEGORY.MARKERS`.
     n_size_bins : int, optional
         Number of bins for the size range, by default 
@@ -1487,39 +1480,49 @@ class JointChart(Chart):
         Additional keyword arguments for Chart initialization.
     """
     __slots__ = (
-        'charts', '_last_chart', '_chart_iterator', 'sources', 'targets',
-        'features', 'hues', 'shapes', 'sizes', 'dodges', 'categorical_features',
-        'target_on_ys')
+        '_chart_iterator',
+        '_last_chart',
+        'categorical_features',
+        'charts',
+        'dodges',
+        'features',
+        'hues',
+        'shapes',
+        'sizes',
+        'sources',
+        'target_on_ys',
+        'targets',
+    )
 
-    charts: List[SingleChart]
-    """List of SingleChart instances created for each Axis throughout
+    charts: list[SingleChart]
+    """list of SingleChart instances created for each Axis throughout
     the chart."""
     _last_chart: SingleChart | None
     """Last SingleChart instance worked on."""
-    _chart_iterator: Generator[SingleChart, Self, None]
+    _chart_iterator: Generator[SingleChart, Self]
     """Iterator over SingleChart instances."""
-    sources: Tuple[DataFrame, ...]
+    sources: tuple[DataFrame, ...]
     """The source data associated with each subplot"""
-    targets: Tuple[str, ...]
+    targets: tuple[str, ...]
     """Column names for the target variable to be visualized for each
     axes."""
-    features: Tuple[str, ...]
+    features: tuple[str, ...]
     """Column names for the feature variable to be visualized for each
     axes."""
-    hues: Tuple[str, ...]
+    hues: tuple[str, ...]
     """The hue variable (column) for color differentiation for each
     axes."""
-    shapes: Tuple[str, ...]
+    shapes: tuple[str, ...]
     """The shape variables (column) for marker differentiation for each
     axes."""
-    sizes: Tuple[str, ...]
+    sizes: tuple[str, ...]
     """The size variable (column) for marker size differentiation for
     each axes."""
-    dodges: Tuple[bool, ...]
+    dodges: tuple[bool, ...]
     """Flag indicating whether dodging is enabled for each axes."""
-    categorical_features: Tuple[bool, ...]
+    categorical_features: tuple[bool, ...]
     """Flags indicating if feature is categorical for each axes."""
-    target_on_ys: Tuple[bool, ...]
+    target_on_ys: tuple[bool, ...]
     """Flags indicating whether target is on y-axis for each axes."""
     target_on_y: bool
     """Flag indicating whether target is on y-axis for current chart. 
@@ -1527,26 +1530,26 @@ class JointChart(Chart):
 
     def __init__(
             self,
-            source: DataFrame | Tuple[DataFrame, ...],
-            target: str | Tuple[str, ...],
-            feature: str | Tuple[str, ...],
+            source: DataFrame | tuple[DataFrame, ...],
+            target: str | tuple[str, ...],
+            feature: str | tuple[str, ...],
             *,
             nrows: int | None = None,
             ncols: int | None = None,
             mosaic: MosaicLayout | None = None,
-            hue: str | Tuple[str, ...] = '',
-            shape: str | Tuple[str, ...] = '',
-            size: str | Tuple[str, ...] = '',
-            dodge: bool | Tuple[bool, ...] = False,
-            categorical_feature: bool | Tuple[bool, ...] = False,
-            target_on_y: bool | Tuple[bool, ...] = True,
+            hue: str | tuple[str, ...] = '',
+            shape: str | tuple[str, ...] = '',
+            size: str | tuple[str, ...] = '',
+            dodge: bool | tuple[bool, ...] = False,
+            categorical_feature: bool | tuple[bool, ...] = False,
+            target_on_y: bool | tuple[bool, ...] = True,
             sharex: ShareAxisProperty = 'none', 
             sharey: ShareAxisProperty = 'none', 
-            width_ratios: List[float] | None = None,
-            height_ratios: List[float] | None = None,
-            stretch_figsize: bool | float | Tuple[float, float] = False,
-            colors: Tuple[str, ...] | None = None,
-            markers: Tuple[str, ...] | None = None,
+            width_ratios: list[float] | None = None,
+            height_ratios: list[float] | None = None,
+            stretch_figsize: bool | float | tuple[float, float] = False,
+            colors: tuple[str, ...] | None = None,
+            markers: tuple[str, ...] | None = None,
             n_size_bins: int = CATEGORY.N_SIZE_BINS,
             **kwds) -> None:
 
@@ -1611,7 +1614,7 @@ class JointChart(Chart):
         return all(chart.target_on_y == reference for chart in self.charts)
     
     @property
-    def legend_data(self) -> Dict[str, LegendHandlesLabels]:
+    def legend_data(self) -> dict[str, LegendHandlesLabels]:
         """Get dictionary of handles and labels (read-only).
             - keys: titles as str
             - values: handles and labels as tuple of tuples"""
@@ -1630,7 +1633,7 @@ class JointChart(Chart):
         return legend_data
     
     @property
-    def plots(self) -> List[Plotter]:
+    def plots(self) -> list[Plotter]:
         """Get plotter objects used in `plot` method"""
         return [p for c in self.charts for p in c.plots]
     
@@ -1695,7 +1698,7 @@ class JointChart(Chart):
         self._last_chart = next(self._chart_iterator)
         return self._last_chart
     
-    def itercharts(self) -> Generator[SingleChart, Self, None]:
+    def itercharts(self) -> Generator[SingleChart, Self]:
         """Iter over charts simultaneosly iters over axes of 
         `axes`. That ensures that the current Axes to which the 
         current chart belongs is set. The"""
@@ -1707,8 +1710,8 @@ class JointChart(Chart):
     
     def normalize_to_tuple(
             self,
-            attribute: DataFrame | str | float | int | bool | None | List[Any] | Tuple[Any, ...]
-            ) -> Tuple:
+            attribute: DataFrame | str | float | bool | None | list[Any] | tuple[Any, ...]
+            ) -> tuple:
         """Normalize the input attribute to ensure it is a tuple with a length
         equal to the number of subplots (n_axes). If a single value is provided, 
         it is replicated to create a tuple with the same length as n_axes.
@@ -1745,7 +1748,7 @@ class JointChart(Chart):
         elif isinstance(attribute, tuple):
             normalized = attribute
         else:
-            raise ValueError(f'Not supported type {type(attribute)}')
+            raise TypeError(f'Not supported type {type(attribute)}')
 
         assert len(normalized) == self.n_axes, (
             f'{attribute} does not have enough values, needed {self.n_axes}')
@@ -1754,36 +1757,38 @@ class JointChart(Chart):
     
     def variate_data(
             self,
-            skip_variate: List[str] = []
-            ) -> Generator[DataFrame, Self, None]:
+            skip_variate: list[str] | None = None
+            ) -> Generator[DataFrame, Self]:
         raise NotImplementedError(
             'Generating data for each variate not implemented.')
 
     def _axis_label_(
             self,
-            label: str | bool | None | Tuple[str | bool | None],
-            is_target: bool) -> str | Tuple[str, ...]:
+            label: str | bool | None | tuple[str | bool | None],
+            is_target: bool) -> str | tuple[str, ...]:
         """Helper method to get the axis label based on the provided 
         label and is_target flag.
 
         Parameters
         ----------
-        label: str | bool | None | Tuple[str | bool | None]
+        label: str | bool | None | tuple[str | bool | None]
             The label to use for the feature or target axis.
         is_target: bool
             Flag indicating whether the label is for the target variable.
 
         Returns
         -------
-        str | Tuple[str, ...]
+        str | tuple[str, ...]
             The axis label as a string for a global axis label or a
             tuple containing an individual label for each axis.
         """
         if label in (False, None, ''):
             return tuple('' for _ in self.charts)
+        
         elif isinstance(label, (tuple, list, set)):
             label_chart = zip(label, self.charts)
             return tuple(c._axis_label_(s, is_target) for s, c in label_chart)
+        
         elif label is True:
             _label = self.targets[0] if is_target else self.features[0]
         else:
@@ -1796,8 +1801,10 @@ class JointChart(Chart):
         return _label
 
     def _swap_labels_(
-            self, xlabel: str | Tuple[str, ...], ylabel: str | Tuple[str, ...]
-            ) -> Tuple[str | Tuple[str, ...], str | Tuple[str, ...]]:
+            self,
+            xlabel: str | tuple[str, ...],
+            ylabel: str | tuple[str, ...]
+            ) -> tuple[str | tuple[str, ...], str | tuple[str, ...]]:
         """Swaps axis labels based on certain conditions.
 
         If one of the label is a string, the method swaps the `xlabel` 
@@ -1807,14 +1814,14 @@ class JointChart(Chart):
 
         Parameters
         ----------
-        xlabel : str | Tuple[str, ...]
+        xlabel : str | tuple[str, ...]
             The x-axis label(s) coming from `_axis_label_` method.
-        ylabel : str | Tuple[str, ...]
+        ylabel : str | tuple[str, ...]
             The y-axis label(s) coming from `_axis_label_` method.
 
         Returns
         -------
-        Tuple[str | Tuple[str, ...], str | Tuple[str, ...]]
+        tuple[str | tuple[str, ...], str | tuple[str, ...]]
             The swapped x-axis label(s) and y-axis label(s).
         """
         if isinstance(xlabel, str) or isinstance(ylabel, str):
@@ -1829,9 +1836,9 @@ class JointChart(Chart):
     
     def axis_labels(
             self,
-            feature_label: str | bool | None | Tuple[str | bool | None], 
-            target_label: str | bool | None | Tuple[str | bool | None]
-            ) -> Tuple[str | Tuple[str, ...], str | Tuple[str, ...]]:
+            feature_label: str | bool | None | tuple[str | bool | None], 
+            target_label: str | bool | None | tuple[str | bool | None]
+            ) -> tuple[str | tuple[str, ...], str | tuple[str, ...]]:
         """Get the x and y axis labels based on the provided 
         `feature_label` and `target_label`."""
         xlabel = self._axis_label_(feature_label, False)
@@ -1842,10 +1849,10 @@ class JointChart(Chart):
     @check_label_order
     def plot(
             self,
-            plotter: Type[Plotter],
+            plotter: type[Plotter],
             *,
-            kw_call: Dict[str, Any] = {},
-            kw_where: Dict[str, Any] = {},
+            kw_call: dict[str, Any] | None = None,
+            kw_where: dict[str, Any] | None = None,
             on_last_axes: bool = False,
             **kwds
             ) -> Self:
@@ -1853,13 +1860,14 @@ class JointChart(Chart):
         
         Parameters
         ----------
-        plotter : Type[Plotter]
+        plotter : type[Plotter]
             The plotter object.
-        kw_call : Dict[str, Any]
+        kw_call : dict[str, Any], optional
             Additional keyword arguments for the plotter call method.
-        kw_where : Dict[str, Any]
+            Default is None.
+        kw_where : dict[str, Any], optional
             Additional keyword arguments for the where method used to
-            filter the data.
+            filter the data. Default is None.
         on_last_axes : bool, optional
             If True, plot on the last axes in the grid. If False, plot 
             on the next axes in the grid, by default False.
@@ -1893,15 +1901,15 @@ class JointChart(Chart):
     @check_label_order
     def stripes(
             self,
-            stripes: List[Stripe] | Tuple[List[Stripe], ...] = [],
+            stripes: list[Stripe] | tuple[list[Stripe], ...] | None = None,
             *,
-            mean: bool | Tuple[bool, ...] = False,
-            median: bool | Tuple[bool, ...] = False,
-            control_limits: bool | Tuple[bool, ...] = False, 
-            spec_limits: SpecLimits | Tuple[SpecLimits, ...] = SpecLimits(),
-            confidence: float | None | Tuple[float | None, ...] = None,
-            strategy: Literal['eval', 'fit', 'norm', 'data'] | Tuple = 'norm',
-            agreement: float | int | Tuple[int | float, ...] = 6,
+            mean: bool | tuple[bool, ...] = False,
+            median: bool | tuple[bool, ...] = False,
+            control_limits: bool | tuple[bool, ...] = False, 
+            spec_limits: SpecLimits | tuple[SpecLimits, ...] = SpecLimits(), #TODO: check if SpecLimits() is the right default
+            confidence: float | None | tuple[float | None, ...] = None,
+            strategy: Literal['eval', 'fit', 'norm', 'data'] | tuple = 'norm',
+            agreement: float | int | tuple[int | float, ...] = 6,  # noqa: PYI041
             **kwds) -> Self:
         """Plot location and spread width lines, specification limits 
         and/or confidence interval areas as stripes on each Axes. The
@@ -1910,24 +1918,24 @@ class JointChart(Chart):
 
         Parameters
         ----------
-        stripes : List[Stripe] | Tuple[List[Stripe]], optional
+        stripes : list[Stripe] | tuple[list[Stripe]], optional
             Additional non-predefined stripes to be added to the chart.
             Default is [].
-        mean : bool or Tuple[bool, ...], optional
+        mean : bool or tuple[bool, ...], optional
             Whether to plot the mean value of the plotted data on the 
             axes, by default False.
-        median : bool or Tuple[bool, ...], optional
+        median : bool or tuple[bool, ...], optional
             Whether to plot the median value of the plotted data on the 
             axes, by default False.
-        control_limits : bool or Tuple[bool, ...], optional
+        control_limits : bool or tuple[bool, ...], optional
             Whether to plot control limits representing the process 
             spread, by default False.
-        spec_limits : SpecLimits | Tuple[SpecLimits, ...], optional
+        spec_limits : SpecLimits | tuple[SpecLimits, ...], optional
             If provided, specifies the specification limits. Default
             is SpecLimits().
-        confidence : float | None | Tuple[float | None, ...], optional
+        confidence : float | None | tuple[float | None, ...], optional
             The confidence level between 0 and 1, by default None.
-        strategy : {'eval', 'fit', 'norm', 'data'} | Tuple, optional
+        strategy : {'eval', 'fit', 'norm', 'data'} | tuple, optional
             Which strategy should be used to determine the control 
             limits (process spread):
             - `eval`: The strategy is determined according to the given 
@@ -1943,7 +1951,7 @@ class JointChart(Chart):
             are read directly from the data.
             
             Default is 'norm'.
-        agreement : int | float | Tuple[int | float, ...], optional
+        agreement : int | float | tuple[int | float, ...], optional
             Specify the tolerated process variation for which the 
             control limits are to be calculated. 
             - If int, the spread is determined using the normal 
@@ -2004,12 +2012,12 @@ class JointChart(Chart):
             *,
             fig_title: str = '',
             sub_title: str = '',
-            feature_label: str | bool | Tuple = '', 
-            target_label: str | bool | Tuple = '', 
+            feature_label: str | bool | tuple = '', 
+            target_label: str | bool | tuple = '', 
             info: bool | str = False,
-            axes_titles: Tuple[str, ...] = (),
-            rows: Tuple[str, ...] = (),
-            cols: Tuple[str, ...] = (),
+            axes_titles: tuple[str, ...] = (),
+            rows: tuple[str, ...] = (),
+            cols: tuple[str, ...] = (),
             row_title: str = '',
             col_title: str = '',
             **kwds) -> Self:
@@ -2040,11 +2048,11 @@ class JointChart(Chart):
             provided, it will be shown next to the date and user,
             separated by a comma. By default, no additional information
             is displayed.
-        axes_titles : Tuple[str, ...]
+        axes_titles : tuple[str, ...]
             Title for each Axes, by default ()
-        rows: Tuple[str, ...], optional
+        rows: tuple[str, ...], optional
             The row labels of the figure, by default ().
-        cols: Tuple[str, ...], optional
+        cols: tuple[str, ...], optional
             The column labels of the figure, by default ().
         row_title : str, optional
             The title of the rows, by default ''.
@@ -2120,7 +2128,7 @@ class MultivariateChart(SingleChart):
         The row variable for facetting, by default ''.
     dodge : bool, optional
         Whether to dodge categorical variables, by default False.
-    stretch_figsize : bool | float | Tuple[float, float], optional
+    stretch_figsize : bool | float | tuple[float, float], optional
         If True, the height and width of the figure are stretched based 
         on the number rows and columns in the axes grid. If a float is 
         provided, the figure size is stretched by the given factor. If a 
@@ -2133,11 +2141,11 @@ class MultivariateChart(SingleChart):
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on the
         y-axis, by default True
-    colors: Tuple[str, ...], optional
-        Tuple of unique colors used for hue categories as hex or str,
+    colors: tuple[str, ...], optional
+        tuple of unique colors used for hue categories as hex or str,
         by default `CATEGORY.PALETTE`.
-    markers : Tuple[str, ...], optional
-        Tuple of markers used for shape marker categories as strings,
+    markers : tuple[str, ...], optional
+        tuple of markers used for shape marker categories as strings,
         by default `CATEGORY.MARKERS`.
     n_size_bins : int, optional
         Number of bins for the size range, by default 
@@ -2168,7 +2176,12 @@ class MultivariateChart(SingleChart):
     ```
     """
 
-    __slots__ = ('col', 'row', 'row_labels', 'col_labels')
+    __slots__ = (
+        'col',
+        'col_labels',
+        'row',
+        'row_labels')
+    
     col: str
     """The column variable for facetting (if applicable)."""
     row: str
@@ -2190,11 +2203,11 @@ class MultivariateChart(SingleChart):
             col: str = '',
             row: str = '',
             dodge: bool = False,
-            stretch_figsize: bool | float | Tuple[float, float] = False,
+            stretch_figsize: bool | float | tuple[float, float] = False,
             categorical_feature: bool = False,
             target_on_y: bool = True,
-            colors: Tuple[str, ...] | None = None,
-            markers: Tuple[str, ...] | None = None,
+            colors: tuple[str, ...] | None = None,
+            markers: tuple[str, ...] | None = None,
             n_size_bins: int = CATEGORY.N_SIZE_BINS,
             ) -> None:
         self.source = source
@@ -2252,7 +2265,7 @@ class MultivariateChart(SingleChart):
             self._ax = ax
             super()._categorical_feature_axis_()
     
-    def _axes_data(self) -> Generator[Series, Self, None]:
+    def _axes_data(self) -> Generator[Series, Self]:
         """Generate all target data of each axes in one Series there are
         multiple axes, otherwise yield the entire target column. This
         function ensures also the current axes of `axes`.
@@ -2283,11 +2296,11 @@ class MultivariateChart(SingleChart):
     @check_label_order
     def plot(
             self,
-            plotter: Type[Plotter],
+            plotter: type[Plotter],
             *,
-            skip_variate: List[str] = [],
-            kw_call: Dict[str, Any] = {},
-            kw_where: dict = {},
+            skip_variate: list[str] | None = None,
+            kw_call: dict[str, Any] | None = None,
+            kw_where: dict | None = None,
             **kwds
             ) -> Self:
         """Plot the chart using the specified plotter.
@@ -2297,16 +2310,19 @@ class MultivariateChart(SingleChart):
 
         Parameters
         ----------
-        plotter : Type[Plotter]
+        plotter : type[Plotter]
             The type of plotter to use.
-        skip_variate : List[str], optional
+        skip_variate : list[str], optional
             A list of variate names to skip during the grouping. If 
             provided, these variates will not be included in the groupby 
             operation. Default is None
-        kw_call : Dict[str, Any]
-            Additional keyword arguments for the plotter call method.
-        kw_where : dict
-            Do not use this argument in this instance.
+        kw_call : dict[str, Any], optional
+            These arguments are passed to the plotter's `call` method 
+            when plotting the data. Default is None.
+        kw_where : dict, optional
+            Do not use this argument in this instance! It is reserved 
+            for the plotter's `where` method to filter the data. 
+            Default is None.
         **kwds : Any
             Additional keyword arguments for the plotter object. Here 
             you can set the plotter specific initialization parameters. 
@@ -2339,22 +2355,22 @@ class MultivariateChart(SingleChart):
                 size=self.sizes,
                 width=self.dodging.width,
                 **kwds)
-            plot(**kw_call)
+            plot(**(kw_call or {}))
             self._plots.append(plot)
         return self
     
     @check_label_order
     def stripes(
             self,
-            stripes: List[Stripe] = [],
+            stripes: list[Stripe] | None = None,
             *,
             mean: bool = False,
             median: bool = False,
             control_limits: bool = False, 
-            spec_limits: SpecLimits = SpecLimits(), 
+            spec_limits: SpecLimits = SpecLimits(), #TODO: use default if available
             confidence: float | None = None,
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
-            agreement: float | int = 6,
+            agreement: float | int = 6,  # noqa: PYI041
             **kwds,
             ) -> Self:
         """Plot location and spread width lines, specification limits 
@@ -2364,9 +2380,9 @@ class MultivariateChart(SingleChart):
 
         Parameters
         ----------
-        stripes : List[Stripe], optional
+        stripes : list[Stripe], optional
             Additional non-predefined stripes to be added to the chart,
-            by default [].
+            by default None.
         mean : bool, optional
             Whether to plot the mean value of the plotted data on the 
             axes, by default False.
@@ -2376,7 +2392,7 @@ class MultivariateChart(SingleChart):
         control_limits : bool, optional
             Whether to plot control limits representing the process 
             spread, by default False.
-        spec_limits : Tuple[float], optional
+        spec_limits : tuple[float], optional
             If provided, specifies the specification limits. Default is
             SpecLimits().
         confidence : float, optional

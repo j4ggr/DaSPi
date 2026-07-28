@@ -25,30 +25,26 @@ pandas data structures. They do not carry state and are safe to call
 independently of the model classes.
 """
 import warnings
+from collections import defaultdict
+from collections.abc import Iterable
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-
-from typing import Any
-from typing import Literal
-from typing import Iterable
-from collections import defaultdict
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 from statsmodels.regression.linear_model import RegressionResultsWrapper
 
+from ..constants import ANOVA
 from .convert import get_term_name
 
-from ..constants import ANOVA
-
-
 __all__ = [
-    'uniques',
-    'terms_effect',
-    'variance_inflation_factor',
     'anova_table',
-    'terms_probability',]
+    'terms_effect',
+    'terms_probability',
+    'uniques',
+    'variance_inflation_factor',]
 
 
 def uniques(seq: Iterable) -> list[Any]:
@@ -62,7 +58,7 @@ def uniques(seq: Iterable) -> list[Any]:
 
     Returns
     -------
-    List[Any]
+    list[Any]
         A list of unique elements from the input sequence, preserving 
         the original order.
 
@@ -297,7 +293,7 @@ def anova_table(
 
         try:
             anova = sm.stats.anova_lm(model, typ=typ)
-        except ValueError as error:
+        except ValueError:
             for other_typ in (t for t in typs if t != typ):
                 warnings.warn(
                     f'ANOVA table could not be computed with type {typ}. '
@@ -309,7 +305,8 @@ def anova_table(
                     continue
                 finally:
                     if anova.empty:
-                        raise error
+                        raise
+                    
         anova = anova.rename(
             columns={'df': 'DF', 'sum_sq': 'SS', 'PR(>F)': 'p'})
 

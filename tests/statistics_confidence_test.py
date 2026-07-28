@@ -1,31 +1,28 @@
 import sys
-import pytest
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
-
-from typing import Any
-from typing import Dict
-from pytest import approx
-from pathlib import Path
+import pytest
 from pandas.core.frame import DataFrame
+from pytest import approx
 
 sys.path.append(Path(__file__).parent.resolve()) # type: ignore
 
 from daspi.statistics.confidence import *
 
-
 source = Path(__file__).parent/'data'
-KW_READ: Dict[str, Any] = dict(sep=';', index_col=0)
+KW_READ: dict[str, Any] = {'sep': ';', 'index_col': 0}
 
 df_dist10: DataFrame = pd.read_csv(
-    source/f'dists_10-samples.csv', skiprows=1, nrows=10, **KW_READ)
+    source/'dists_10-samples.csv', skiprows=1, nrows=10, **KW_READ)
 df_valid10: DataFrame = pd.read_csv(
-    source/f'dists_10-samples.csv', skiprows=14, **KW_READ)
+    source/'dists_10-samples.csv', skiprows=14, **KW_READ)
 df_dist25: DataFrame = pd.read_csv(
-    source/f'dists_25-samples.csv', skiprows=1, nrows=25, **KW_READ)
+    source/'dists_25-samples.csv', skiprows=1, nrows=25, **KW_READ)
 df_valid25: DataFrame = pd.read_csv(
-    source/f'dists_25-samples.csv', skiprows=29, **KW_READ)
+    source/'dists_25-samples.csv', skiprows=29, **KW_READ)
 
 # source data contains 8 decimal places
 rel_central: float = 1e-7
@@ -54,7 +51,6 @@ def test_confidence_to_alpha() -> None:
 def test_mean_ci() -> None:
     rows = ['mean', 'mean_95ci_low', 'mean_95ci_upp']
     
-    size = 10
     for dist in df_dist10.columns:
         x_bar, ci_low, ci_upp = mean_ci(df_dist10[dist], level=.95)
         _x_bar, _ci_low, _ci_upp = df_valid10[dist][rows]
@@ -62,7 +58,6 @@ def test_mean_ci() -> None:
         assert ci_low == approx(_ci_low, rel=rel_interval)
         assert ci_upp == approx(_ci_upp, rel=rel_interval)
     
-    size = 25
     for dist in df_dist25.columns:
         x_bar, ci_low, ci_upp = mean_ci(df_dist25[dist], level=.95)
         _x_bar, _ci_low, _ci_upp = df_valid25[dist][rows]
@@ -73,7 +68,6 @@ def test_mean_ci() -> None:
 def test_stdev_ci() -> None:
     rows = ['std', 'std_95ci_low', 'std_95ci_upp']
     
-    size = 10
     for dist in df_dist10.columns:
         std, ci_low, ci_upp = stdev_ci(df_dist10[dist], level=.95)
         _std, _ci_low, _ci_upp = df_valid10[dist][rows]
@@ -81,7 +75,6 @@ def test_stdev_ci() -> None:
         assert ci_low == approx(_ci_low, rel=rel_interval)
         assert ci_upp == approx(_ci_upp, rel=rel_interval)
     
-    size = 25
     for dist in df_dist25.columns:
         std, ci_low, ci_upp = stdev_ci(df_dist25[dist], level=.95)
         _std, _ci_low, _ci_upp = df_valid25[dist][rows]
@@ -96,7 +89,8 @@ def test_bonferroni_ci() -> None:
     })
     # Test case 1: Check if the output DataFrame has the expected columns
     result = bonferroni_ci(data, 'target', 'feature')
-    assert all([c in result.columns for c in ['midpoint', 'lower', 'upper', 'feature']])
+    assert all(
+        c in result.columns for c in ['midpoint', 'lower', 'upper', 'feature'])
 
     # Test case 2: Check if the confidence intervals are within the correct range
     assert (result['lower'] <= result['midpoint']).all()
@@ -174,7 +168,8 @@ def test_bonferroni_ci_edge_cases() -> None:
     # Test with missing values
     df = pd.DataFrame({'target': [1, 2, np.nan, 4], 'feature': ['A', 'A', 'B', 'B']})
     result = bonferroni_ci(df, 'target', 'feature')
-    assert all([c in result.columns for c in ['midpoint', 'lower', 'upper', 'feature']])
+    assert all(
+        c in result.columns for c in ['midpoint', 'lower', 'upper', 'feature'])
 
 def test_proportion_ci_basic() -> None:
     # Typical case

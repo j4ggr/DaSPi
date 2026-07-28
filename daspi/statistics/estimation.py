@@ -66,83 +66,57 @@ here.
 """
 # source for ci: https://aegis4048.github.io/comprehensive_confidence_intervals_for_python_developers#conf_int_of_var
 import warnings
+from abc import abstractmethod
+from collections.abc import Callable, Hashable
+from typing import Any, Literal, Self, TypeVar, Union, overload
 
 import numpy as np
 import pandas as pd
-
-from abc import abstractmethod
-from typing import Any
-from typing import Dict
-from typing import Type
-from typing import Self
-from typing import Tuple
-from typing import Union
-from typing import TypeVar
-from typing import Literal
-from typing import Hashable
-from typing import overload
-from typing import Callable
-from numpy.typing import NDArray
 from numpy.linalg import LinAlgError
-from scipy.interpolate import interp1d
+from numpy.typing import NDArray
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
-from scipy.stats._distn_infrastructure import rv_frozen
-from scipy.stats._distn_infrastructure import rv_continuous
-
 from scipy import stats
-from scipy.stats import norm
-from scipy.stats import skew
-from scipy.stats import kurtosis
+from scipy.interpolate import interp1d
+from scipy.stats import kurtosis, norm, skew
+from scipy.stats._distn_infrastructure import rv_continuous, rv_frozen
 
 from .._typing import NumericSample1D
-
-from ..constants import DIST
-from ..constants import DEFAULT
-from ..constants import SIGMA_DIFFERENCE
-from ..constants import PERCENT_DECIMALS
-
-from .montecarlo import SpecLimits
-from .montecarlo import Specification
-from .montecarlo import calculate_agreement_and_k
-
-from .confidence import cp_ci
-from .confidence import cpk_ci
-from .confidence import mean_ci
-from .confidence import stdev_ci
-from .confidence import median_ci
-from .confidence import confidence_to_alpha
-
-from .hypothesis import t_test
-from .hypothesis import skew_test
-from .hypothesis import kurtosis_test
-from .hypothesis import ensure_generic
-from .hypothesis import mean_stability_test
-from .hypothesis import anderson_darling_test
-from .hypothesis import variance_stability_test
-from .hypothesis import kolmogorov_smirnov_test
-
+from ..constants import DEFAULT, DIST, PERCENT_DECIMALS, SIGMA_DIFFERENCE
+from .confidence import confidence_to_alpha, cp_ci, cpk_ci, mean_ci, median_ci, stdev_ci
+from .hypothesis import (
+    anderson_darling_test,
+    ensure_generic,
+    kolmogorov_smirnov_test,
+    kurtosis_test,
+    mean_stability_test,
+    skew_test,
+    t_test,
+    variance_stability_test,
+)
+from .montecarlo import Specification, SpecLimits, calculate_agreement_and_k
 
 __all__ = [
-    'root_sum_squares',
-    'MeasurementUncertainty',
     'BaseEstimator',
     'DistributionEstimator',
-    'LocationDispersionEstimator',
-    'ProcessEstimator',
     'GageEstimator',
+    'LocationDispersionEstimator',
+    'Loess',
+    'Lowess',
+    'MeasurementUncertainty',
+    'ProcessEstimator',
+    'estimate_capability_confidence',
     'estimate_distribution',
     'estimate_kernel_density',
     'estimate_kernel_density_2d',
-    'estimate_capability_confidence',
     'estimate_resolution',
-    'Loess',
-    'Lowess']
+    'root_sum_squares',
+]
 
 
 T = TypeVar('T')
 
-def compare_measurement_uncertainty(
+def compare_measurement_uncertainty[T](
         func: Callable[[T, Any], Any]
         ) -> Callable[[T, Any], Any]:
     """Decorator to check if the other object is an instance of 
@@ -156,12 +130,12 @@ def compare_measurement_uncertainty(
         return func(self, other)
     return wrapper
 
-def root_sum_squares(*args: float | int,) -> float:
+def root_sum_squares(*args: float,) -> float:
     """Calculate the root sum of squares of the given arguments.
     
     Parameters
     ----------
-    *args : float or int
+    *args : float
         Values to be summed up
     
     Returns
@@ -183,8 +157,7 @@ def root_sum_squares(*args: float | int,) -> float:
     Raises
     ------
     AssertionError
-        If no arguments are provided or if any argument is not of type
-        int or float.
+        If no arguments are provided.
     """
     assert args, (
         'At least one argument is required to calculate the root '
@@ -195,7 +168,8 @@ def root_sum_squares(*args: float | int,) -> float:
     
     if len(args) == 1:
         return args[0]
-    return np.sqrt(sum(map(lambda x: x**2, args)))
+    
+    return np.sqrt(sum(x**2 for x in args))
 
 
 class MeasurementUncertainty:
@@ -288,13 +262,14 @@ class MeasurementUncertainty:
     """
     
     __slots__ = (
-        '_standard',
+        '_confidence_level',
+        '_distribution',
+        '_distribution_factor',
+        '_error_limit',
         '_expanded',
         '_k',
-        '_confidence_level',
-        '_error_limit',
-        '_distribution',
-        '_distribution_factor')
+        '_standard',
+    )
     
     _standard: float
     _expanded: float | None
@@ -544,7 +519,7 @@ class MeasurementUncertainty:
         return self.__mul__(factor)
     
     @compare_measurement_uncertainty
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: Any) -> bool:  # noqa: PYI032
         """Check if uncertainties are equal."""
         return (self.standard == other.standard and
                 self.confidence_level == other.confidence_level)
@@ -559,7 +534,7 @@ class MeasurementUncertainty:
         """Check if uncertainty is greater than another."""
         return self.standard > other.standard
     
-    def __ne__(self, other: Any) -> bool:
+    def __ne__(self, other: Any) -> bool:  # noqa: PYI032
         """Check if uncertainties are not equal."""
         return not self.__eq__(other)
     
@@ -571,19 +546,19 @@ class MeasurementUncertainty:
         """Check if uncertainty is greater than or equal to another."""
         return self.__gt__(other) or self.__eq__(other)
     
-    def summary(self) -> Dict[str, float | str]:
+    def summary(self) -> dict[str, float | str]:
         """Get a summary of uncertainty values.
         
         Returns
         -------
-        Dict[str, float | str]
+        dict[str, float | str]
             Dictionary containing various uncertainty representations.
         """
-        summary = dict(
-            standard=self.standard,
-            expanded=self.expanded,
-            error_limit=self.error_limit,
-            distribution=self.distribution,)
+        summary = {
+            'standard': self.standard,
+            'expanded': self.expanded,
+            'error_limit': self.error_limit,
+            'distribution': self.distribution,}
         return summary
 
 
@@ -614,14 +589,15 @@ class BaseEstimator:
         results.
     """
     __slots__ = (
-        '_samples',
+        '_attrs_describe',
         '_filtered',
-        '_sorted',
-        '_n_samples',
-        '_n_missing',
         '_n_filtered',
+        '_n_missing',
+        '_n_samples',
         '_nan_policy',
-        '_attrs_describe',)
+        '_samples',
+        '_sorted',
+    )
 
     _samples: pd.Series
     _filtered: pd.Series
@@ -630,7 +606,7 @@ class BaseEstimator:
     _n_missing: int | None
     _n_filtered: int | None
     _nan_policy : Literal['propagate', 'raise', 'omit']
-    _attrs_describe: Tuple[str, ...]
+    _attrs_describe: tuple[str, ...]
 
     def __init__(
             self, 
@@ -670,7 +646,7 @@ class BaseEstimator:
             'n_missing',)
     
     @property
-    def attrs_describe(self) -> Tuple[str, ...]:
+    def attrs_describe(self) -> tuple[str, ...]:
         """Get attribute names used for `describe` method."""
         return self._attrs_describe
     
@@ -768,13 +744,13 @@ class BaseEstimator:
     
     def describe(
             self,
-            exclude: Tuple[str, ...] = (),
+            exclude: tuple[str, ...] = (),
             colname: str | Hashable | None = None) -> DataFrame:
         """Generate descriptive statistics.
         
         Parameters
         ----------
-        exclude : Tuple[str,...], optional
+        exclude : tuple[str,...], optional
             Attributes to exclude from the summary statistics,
             by default ()
         colname : str | Hashable | None, optional
@@ -885,30 +861,31 @@ class DistributionEstimator(BaseEstimator):
     https://www.statsmodels.org/dev/_modules/statsmodels/graphics/gofplots.html
     """
     __slots__ = (
-        '_dist',
-        '_frozen',
         '_D',
-        '_shape_params',
-        '_p_ks',
-        '_p_ad',
-        '_excess',
-        '_p_excess', 
-        '_skew',
-        '_p_skew',
-        '_theoretical_percentiles',
-        '_theoretical_quantiles',
-        '_sample_percentiles',
-        '_sample_quantiles',
-        '_predicted',
-        '_log_likelihood',
-        '_ss',
         '_aic',
         '_bic',
-        'possible_dists',)
+        '_dist',
+        '_excess',
+        '_frozen',
+        '_log_likelihood',
+        '_p_ad',
+        '_p_excess',
+        '_p_ks',
+        '_p_skew',
+        '_predicted',
+        '_sample_percentiles',
+        '_sample_quantiles',
+        '_shape_params',
+        '_skew',
+        '_ss',
+        '_theoretical_percentiles',
+        '_theoretical_quantiles',
+        'possible_dists',
+    )
     _dist: rv_continuous | None
     _frozen: rv_frozen | None
     _D: float | None
-    _shape_params: Tuple[float, ...] | None
+    _shape_params: tuple[float, ...] | None
     _p_ks: float | None
     _p_ad: float | None
     _excess: float | None
@@ -924,8 +901,8 @@ class DistributionEstimator(BaseEstimator):
     _ss: float | None
     _aic: float | None
     _bic: float | None
-    _attrs_describe: Tuple[str, ...]
-    possible_dists: Tuple[str | rv_continuous, ...]
+    _attrs_describe: tuple[str, ...]
+    possible_dists: tuple[str | rv_continuous, ...]
     """Distributions given during initialization to which the data may 
     be subject."""
 
@@ -933,7 +910,7 @@ class DistributionEstimator(BaseEstimator):
             self, 
             samples: NumericSample1D, 
             dist: str | rv_continuous | None = None,
-            possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
+            possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
             ) -> None:
         super().__init__(samples=samples, nan_policy=nan_policy)
@@ -1049,7 +1026,8 @@ class DistributionEstimator(BaseEstimator):
         if self._frozen is None:
             self._frozen = self.dist(
                 *self.shape_params[:-2],
-                **dict(loc=self.loc, scale=self.scale))
+                loc=self.loc,
+                scale=self.scale)
         return self._frozen
     
     @property
@@ -1062,7 +1040,7 @@ class DistributionEstimator(BaseEstimator):
         return self._D
 
     @property
-    def shape_params(self) -> Tuple[float, ...]:
+    def shape_params(self) -> tuple[float, ...]:
         """Estimates for any distribution shape parameters (if 
         applicable), followed by those for location and scale. For most 
         random variables, shape statistics will be returned, but there 
@@ -1235,7 +1213,7 @@ class DistributionEstimator(BaseEstimator):
                 - 2 * self.log_likelihood)
         return self._bic
     
-    def distribution(self) -> Tuple[rv_continuous, float, Tuple[float, ...]]:
+    def distribution(self) -> tuple[rv_continuous, float, tuple[float, ...]]:
         """Estimate the distribution by selecting the one from the
         provided distributions that best reflects the filtered data.
 
@@ -1245,7 +1223,7 @@ class DistributionEstimator(BaseEstimator):
             A generic continous distribution class of best fit
         p : float
             The two-tailed p-value for the best fit
-        shape_params : Tuple[float, ...]
+        shape_params : tuple[float, ...]
             Estimates for any shape parameters (if applicable), followed
             by those for location and scale. For most random variables,
             shape statistics will be returned, but there are exceptions
@@ -1481,21 +1459,22 @@ class LocationDispersionEstimator(DistributionEstimator):
         results.
     """
     __slots__ = (
-        '_min',
-        '_max', 
         '_R',
+        '_agreement',
+        '_evaluate',
+        '_k',
+        '_lcl',
+        '_max',
         '_mean',
         '_median',
-        '_std',
-        '_sem',
-        '_lcl',
-        '_ucl',
-        '_strategy',
-        '_agreement',
-        '_k',
-        '_evaluate',
+        '_min',
         '_q_low',
-        '_q_upp')
+        '_q_upp',
+        '_sem',
+        '_std',
+        '_strategy',
+        '_ucl',
+    )
     
     _min: float | None
     _max: float | None
@@ -1517,8 +1496,8 @@ class LocationDispersionEstimator(DistributionEstimator):
             self,
             samples: NumericSample1D, 
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
-            agreement: int | float = 6, 
-            possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
+            agreement: int | float = 6,  # noqa: PYI041
+            possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             evaluate: Callable | None = None,
             nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
             ) -> None:
@@ -1711,7 +1690,7 @@ class LocationDispersionEstimator(DistributionEstimator):
             for standard deviation multipliers)."""
         return self._agreement
     @agreement.setter
-    def agreement(self, agreement: int | float) -> None:
+    def agreement(self, agreement: int | float) -> None:  # noqa: PYI041
         new_agreement, new_k = calculate_agreement_and_k(agreement)
         
         if self._agreement != new_agreement:
@@ -1750,7 +1729,7 @@ class LocationDispersionEstimator(DistributionEstimator):
         """
         return (x - self.mean) / self.std
 
-    def mean_ci(self, level: float = 0.95) -> Tuple[float, float]:
+    def mean_ci(self, level: float = 0.95) -> tuple[float, float]:
         """Two sided confidence interval for mean of filtered data
 
         Parameters
@@ -1766,7 +1745,7 @@ class LocationDispersionEstimator(DistributionEstimator):
         ci_low, ci_upp = mean_ci(sample=self.filtered, level=level)[1:]
         return ci_low, ci_upp
 
-    def median_ci(self, level: float = 0.95) -> Tuple[float, float]:
+    def median_ci(self, level: float = 0.95) -> tuple[float, float]:
         """Two sided confidence interval for median of filtered data
 
         Parameters
@@ -1782,7 +1761,7 @@ class LocationDispersionEstimator(DistributionEstimator):
         ci_low, ci_upp = median_ci(sample=self.filtered, level=level)[1:]
         return ci_low, ci_upp
 
-    def stdev_ci(self, level: float = 0.95) -> Tuple[float, float]:
+    def stdev_ci(self, level: float = 0.95) -> tuple[float, float]:
         """Two sided confidence interval for standard deviation of 
         filtered data
 
@@ -1834,7 +1813,7 @@ class LocationDispersionEstimator(DistributionEstimator):
             strategy = 'norm' if self.follows_norm_curve() else 'data'
         return strategy
     
-    def _calculate_control_limits_(self) -> Tuple[float, float]:
+    def _calculate_control_limits_(self) -> tuple[float, float]:
         """Calculate the control limits according to given strategy
         
         - `eval`: first evaluate the strategy according to evaluate 
@@ -2000,20 +1979,21 @@ class ProcessEstimator(LocationDispersionEstimator):
         results.
     """
     __slots__ = (
-        '_spec_limits',
-        '_n_ok',
-        '_n_nok',
-        '_ok',
-        '_nok',
-        '_nok_norm', 
-        '_nok_fit',
-        '_error_values',
-        '_n_errors',
-        '_errors',
+        '_Z',
+        '_Z_lt',
         '_cp',
         '_cpk',
-        '_Z', 
-        '_Z_lt')
+        '_error_values',
+        '_errors',
+        '_n_errors',
+        '_n_nok',
+        '_n_ok',
+        '_nok',
+        '_nok_fit',
+        '_nok_norm',
+        '_ok',
+        '_spec_limits',
+    )
     
     _spec_limits: SpecLimits
     _n_ok: int | None
@@ -2022,7 +2002,7 @@ class ProcessEstimator(LocationDispersionEstimator):
     _nok: float | None
     _nok_norm: float | None
     _nok_fit: float | None
-    _error_values: Tuple[float, ...]
+    _error_values: tuple[float, ...]
     _n_errrors: int | None
     _errors: float | None
     _cp: float | None
@@ -2034,10 +2014,10 @@ class ProcessEstimator(LocationDispersionEstimator):
             self,
             samples: NumericSample1D, 
             spec_limits: SpecLimits | Specification,
-            error_values: Tuple[float, ...] = (),
+            error_values: tuple[float, ...] = (),
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
-            agreement: float | int = 6, 
-            possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
+            agreement: float | int = 6,  # noqa: PYI041
+            possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             evaluate: Callable | None = None,
             nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
             ) -> None:
@@ -2067,7 +2047,7 @@ class ProcessEstimator(LocationDispersionEstimator):
             nan_policy=nan_policy)
     
     @property
-    def attrs_describe(self) -> Tuple[str, ...]:
+    def attrs_describe(self) -> tuple[str, ...]:
         """Get attribute names used for `describe` method (read-only)."""
         attrs = (
             'n_samples',
@@ -2205,7 +2185,7 @@ class ProcessEstimator(LocationDispersionEstimator):
         self.spec_limits = spec_limits
 
     @property
-    def control_limits(self) -> Tuple[float, float]:
+    def control_limits(self) -> tuple[float, float]:
         """Get lower and upper control limits (read-only)."""
         return (self.lcl, self.ucl)
     
@@ -2499,24 +2479,26 @@ class GageEstimator(LocationDispersionEstimator):
     """
 
     __slots__ = (
-        '_specification',
-        '_reference',
-        '_u_cal',
-        '_resolution',
-        '_cg_limit', 
-        '_cgk_limit',
-        '_tolerance_ratio',
-        '_resolution_ratio_limit', 
-        '_cg', 
-        '_cgk',
-        '_limits',
-        '_resolution_ratio', 
-        '_bias',
-        '_p_bias',
         '_T_min_cg',
         '_T_min_cgk',
-        '_T_min_res', 
-        '_process',)
+        '_T_min_res',
+        '_bias',
+        '_cg',
+        '_cg_limit',
+        '_cgk',
+        '_cgk_limit',
+        '_limits',
+        '_p_bias',
+        '_process',
+        '_reference',
+        '_resolution',
+        '_resolution_ratio',
+        '_resolution_ratio_limit',
+        '_specification',
+        '_tolerance_ratio',
+        '_u_cal',
+    )
+    
     _specification: Specification
     _reference: float
     _u_cal: MeasurementUncertainty
@@ -2543,8 +2525,8 @@ class GageEstimator(LocationDispersionEstimator):
             resolution: float | None,
             tolerance_ratio: float = 0.2,
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'eval',
-            agreement: float | int = 4,
-            possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
+            agreement: float | int = 4,  # noqa: PYI041
+            possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             evaluate: Callable | None = None,
             cg_limit: float = 1.33,
             cgk_limit: float = 1.33,
@@ -2795,14 +2777,14 @@ class GageEstimator(LocationDispersionEstimator):
                 self.resolution / self.resolution_ratio_limit)
         return self._T_min_res
     
-    def check(self) -> Dict[str, bool]:
+    def check(self) -> dict[str, bool]:
         """Perform a few checks to determine if the testing system is 
         capable of measuring the process."""
-        checks = dict(
-            U_cal=self.u_cal.expanded <= self.tolerance*self.tolerance_ratio/2,
-            resolution=self.resolution_ratio <= self.resolution_ratio_limit,
-            cg=True if self.cg is None else self.cg >= self.cg_limit,
-            cgk=True if self.cgk is None else self.cgk >= self.cgk_limit,)
+        checks = {
+            'U_cal': self.u_cal.expanded <= self.tolerance*self.tolerance_ratio/2,
+            'resolution': self.resolution_ratio <= self.resolution_ratio_limit,
+            'cg': True if self.cg is None else self.cg >= self.cg_limit,
+            'cgk': True if self.cgk is None else self.cgk >= self.cgk_limit,}
         return checks
     
     def estimate_resolution(self) -> float:
@@ -2830,8 +2812,8 @@ class GageEstimator(LocationDispersionEstimator):
 
 def estimate_distribution(
         data: NumericSample1D,
-        dists: Tuple[str | rv_continuous, ...] = DIST.COMMON
-        ) -> Tuple[rv_continuous, float, Tuple[float, ...]]:
+        dists: tuple[str | rv_continuous, ...] = DIST.COMMON
+        ) -> tuple[rv_continuous, float, tuple[float, ...]]:
     """First, the p-score is calculated by performing a 
     Kolmogorov-Smirnov test to determine how well each distribution fits
     the data. Whatever has the highest P-score is considered the most
@@ -2853,7 +2835,7 @@ def estimate_distribution(
         A generic continous distribution class of best fit
     p : float
         The two-tailed p-value for the best fit
-    shape_params : Tuple[float, ...]
+    shape_params : tuple[float, ...]
         Estimates for any shape parameters (if applicable), followed 
         by those for location and scale. For most random variables, 
         shape statistics will be returned, but there are exceptions 
@@ -2868,7 +2850,7 @@ def estimate_distribution(
 def _extended_range_(
         data: NumericSample1D,
         margin: float
-        ) -> Tuple[float, float]:
+        ) -> tuple[float, float]:
     """Returns the extended range of the data. The extended range is
     the range of the data plus a margin. The margin is a percentage
     of the range of the data. The margin is added to the lower and
@@ -2897,7 +2879,7 @@ def _extended_range_(
     
     Returns
     -------
-    Tuple[float, float]
+    tuple[float, float]
         The extended range of the data
     
     Raises
@@ -2932,7 +2914,7 @@ def estimate_kernel_density(
         base: float = 0,
         n_points: int = DEFAULT.KD_SEQUENCE_LEN,
         margin: float = 0.5,
-        ) -> Tuple[NDArray, NDArray]:
+        ) -> tuple[NDArray, NDArray]:
     """Estimates the kernel density of data and returns values that are 
     useful for a plot. If those values are plotted in combination with 
     a histogram, set height as max value of the hostogram.
@@ -2992,7 +2974,7 @@ def estimate_kernel_density_2d(
         *,
         n_points: int = DEFAULT.KD_SEQUENCE_LEN,
         margin: float = 0.5,
-        ) -> Tuple[NDArray, NDArray, NDArray]:
+        ) -> tuple[NDArray, NDArray, NDArray]:
     """Estimates the kernel density of 2 dimensional data and returns 
     values that are useful for a contour plot.
     
@@ -3066,7 +3048,7 @@ def estimate_capability_confidence(
         kind: Literal['cp', 'cpk'] = 'cpk',
         level: float = 0.95,
         n_groups: int = 1,
-        ) -> Tuple[float, float, float]:
+        ) -> tuple[float, float, float]:
     """Calculates the confidence interval for the process capability 
     index (Cp or Cpk) of a process.
     
@@ -3092,7 +3074,7 @@ def estimate_capability_confidence(
 
     Returns
     -------
-    Tuple[float, float, float]:
+    tuple[float, float, float]:
         A tuple containing the estimate, lower bound, and upper bound of 
         the confidence interval for the specified process capability 
         index.
@@ -3144,10 +3126,9 @@ def estimate_resolution(data: NumericSample1D) -> float:
         The estimated resolution.
     """
     n_digits = 0
-    for split in map(lambda x: str(x).split('.'), data):
+    for split in (str(x).split('.') for x in data):
         try:
-            _n = len(split[1])
-            n_digits = _n if _n > n_digits else n_digits
+            n_digits = max(n_digits, len(split[1]))
         except IndexError:
             continue
 
@@ -3472,8 +3453,15 @@ class Loess:
     [3] Btyner (2006), Local Regression [Wikipedia](https://en.wikipedia.org/w/index.php?title=Local_regression&oldid=1261263154)
     """
     __slots__ = (
-        'source', 'target', 'feature', 'smoothed', 'std_errors', 'fraction',
-        'kernel', 'order')
+        'feature',
+        'fraction',
+        'kernel',
+        'order',
+        'smoothed',
+        'source',
+        'std_errors',
+        'target',
+    )
     
     source: DataFrame
     """The data source for the plot"""
@@ -3560,7 +3548,7 @@ class Loess:
         return self.n_samples - self.order - 1
     
     @property
-    def available_kernels(self) -> Dict[str, Type[Kernel]]:
+    def available_kernels(self) -> dict[str, type[Kernel]]:
         """Available kernels for smoothing (read-only)."""
         kernels = {
             'tricube': TriCubeKernel,
@@ -3600,20 +3588,20 @@ class Loess:
             target values from feature values.
         """
         self._check_fitted_('interpolate')
-        _kwds: Dict[str, Any] = dict(
-            x=self.x,
-            y=self.smoothed,
-            kind='linear',
-            bounds_error=False,
-            fill_value='extrapolate',
-            assume_sorted=True
-            ) | kwds
+        _kwds: dict[str, Any] = {
+            'x': self.x,
+            'y': self.smoothed,
+            'kind': 'linear',
+            'bounds_error': False,
+            'fill_value': 'extrapolate',
+            'assume_sorted': True
+            } | kwds
         return interp1d(**_kwds)
 
     def _wls_(
             self,
             W: NDArray
-            ) -> Tuple[NDArray, NDArray, NDArray, NDArray]:
+            ) -> tuple[NDArray, NDArray, NDArray, NDArray]:
         X = np.vstack([self.x**i for i in range(self.order + 1)]).T
         XtW = X.T @ W           # (n_beta x n) @ (n x n) = (n_beta x n)
         XtWX = XtW @ X          # (n_beta x n) @ (n x n_beta) = (n_beta x n_beta)
@@ -3730,13 +3718,13 @@ class Loess:
     
     def predict(
         self,
-        x: int | float | NumericSample1D,
+        x: float | NumericSample1D,
         kind: str | int = 'linear') -> NDArray:
         """Predict the target value(s) for the given feature value(s).
 
         Parameters
         ----------
-        x : int | float | NumericSample1D
+        x : float | NumericSample1D
             The feature value(s) for which to predict the target 
             value(s).
         kind : str or int, optional
@@ -3766,15 +3754,15 @@ class Loess:
         return self._interpolate_(kind=kind)(x)
     
     @overload
-    def fitted_line(self) -> Tuple[NDArray, NDArray]: ...
+    def fitted_line(self) -> tuple[NDArray, NDArray]: ...
     @overload
     def fitted_line(
             self, confidence_level: None, n_points: int = ...
-            ) -> Tuple[NDArray, NDArray]: ...
+            ) -> tuple[NDArray, NDArray]: ...
     @overload
     def fitted_line(
             self, confidence_level: float, n_points: int = ...
-            ) -> Tuple[NDArray, NDArray, NDArray, NDArray]: ...
+            ) -> tuple[NDArray, NDArray, NDArray, NDArray]: ...
 
     def fitted_line(
             self,
@@ -3875,7 +3863,7 @@ class Lowess(Loess):
     ax.fill_between(sequence, lower, upper, alpha=0.2)
     ```
     """    
-    __slots__ = ('robustness_kernel')
+    __slots__ = ('robustness_kernel', )
     
     robustness_kernel: TukeyBiweightKernel
     """The kernel function used to assign weights for adjusting the 
@@ -3907,7 +3895,7 @@ class Lowess(Loess):
         y_hat_i = _fitted_values[index]
         robust_weights = self.robustness_kernel.weights(y_hat_i, _eta)
         Wr = np.diag(robust_weights)
-        beta_robust, X, XtWr, XtWrX_inv = self._wls_(Wr)
+        beta_robust, X, _XtWr, _XtWrX_inv = self._wls_(Wr)
         
         # Calculate the smoothed value using robust fitted values
         fitted_values = X @ beta_robust

@@ -1,35 +1,29 @@
 import sys
-import pytest
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
-
-from typing import Any
-from typing import Dict
-from typing import Literal
-from pytest import approx
-from pathlib import Path
+import pytest
 from pandas.core.frame import DataFrame
+from pytest import approx
 
-sys.path.append(Path(__file__).parent.resolve()) # type: ignore
+sys.path.append(str(Path(__file__).parent.resolve()))
 
-from daspi import SpecLimits
-from daspi import Specification
+from daspi import Specification, SpecLimits, load_dataset
 from daspi.statistics.estimation import *
-from daspi import load_dataset
-
 
 source = Path(__file__).parent/'data'
-KW_READ: Dict[str, Any] = dict(sep=';', index_col=0)
+KW_READ: dict[str, Any] = dict(sep=';', index_col=0)
 
 df_dist10: DataFrame = pd.read_csv(
-    source/f'dists_10-samples.csv', skiprows=1, nrows=10, **KW_READ)
+    source/'dists_10-samples.csv', skiprows=1, nrows=10, **KW_READ)
 df_valid10: DataFrame = pd.read_csv(
-    source/f'dists_10-samples.csv', skiprows=14, **KW_READ)
+    source/'dists_10-samples.csv', skiprows=14, **KW_READ)
 df_dist25: DataFrame = pd.read_csv(
-    source/f'dists_25-samples.csv', skiprows=1, nrows=25, **KW_READ)
+    source/'dists_25-samples.csv', skiprows=1, nrows=25, **KW_READ)
 df_valid25: DataFrame = pd.read_csv(
-    source/f'dists_25-samples.csv', skiprows=29, **KW_READ)
+    source/'dists_25-samples.csv', skiprows=29, **KW_READ)
 
 
 class TestMeasurementUncertainty:
@@ -155,13 +149,11 @@ class TestDistributionEstimator:
     def test_excess(self) -> None:
         rel = self.rel_curve
 
-        size = 10
         for dist in df_dist10.columns:
             estimate = DistributionEstimator(df_dist10[dist])
             excess = estimate.excess
             assert excess == approx(df_valid10[dist]['excess'], rel=rel)
         
-        size = 25
         for dist in df_dist10.columns:
             estimate = DistributionEstimator(df_dist25[dist])
             excess = estimate.excess
@@ -170,13 +162,11 @@ class TestDistributionEstimator:
     def test_skew(self) -> None:
         rel = self.rel_curve
 
-        size = 10
         for dist in df_dist10.columns:
             estimate = DistributionEstimator(df_dist10[dist])
             skew = estimate.skew
             assert skew == approx(df_valid10[dist]['skew'], rel=rel)
         
-        size = 25
         for dist in df_dist10.columns:
             estimate = DistributionEstimator(df_dist25[dist])
             skew = estimate.skew
@@ -502,7 +492,7 @@ class TestProcessEstimator:
         description = estimator.describe()
         expected_keys = (
             'lsl', 'usl', 'n_ok', 'n_nok', 'n_errors', 'cp', 'cpk', 'Z', 'Z_lt')
-        assert all([key in description.index for key in expected_keys])
+        assert all(key in description.index for key in expected_keys)
 
     def test_with_all_identical_values(self) -> None:
         data = pd.Series([1.0] * 10)
@@ -572,7 +562,7 @@ class TestProcessEstimator:
         assert isinstance(estimator_norm._nok_norm, float)
         assert 0 < estimator_norm._nok_norm < 1
         assert f'{100 * estimator_norm._nok_norm:.2f}' in result
-        estimator_norm.nok
+        _ = estimator_norm.nok
         assert estimator_norm._nok_norm > estimator_norm._nok
 
     def test_nok_fit(self, estimator_norm: ProcessEstimator) -> None:
@@ -582,8 +572,8 @@ class TestProcessEstimator:
         assert isinstance(estimator_norm._nok_fit, float)
         assert 0 < estimator_norm._nok_fit < 1
         assert f'{100 * estimator_norm._nok_fit:.2f}' in result
-        estimator_norm.nok
-        estimator_norm.nok_norm
+        _ = estimator_norm.nok
+        _ = estimator_norm.nok_norm
         assert estimator_norm._nok_fit < estimator_norm._nok
         assert estimator_norm._nok_fit < estimator_norm._nok_norm
 

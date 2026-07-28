@@ -63,56 +63,52 @@ split a single time-ordered sample into sections and test whether the
 statistic of interest is constant across sections — a lightweight
 alternative to control-chart analysis.
 """
+from collections.abc import Generator, Sequence
+from math import exp
+from typing import Any, Literal
+
 import numpy as np
 import pandas as pd
-
-from math import exp
-from typing import Any
-from typing import Dict
-from typing import Tuple
-from typing import Literal
-from typing import Sequence
-from typing import Generator
 from numpy.typing import NDArray
 from pandas.core.series import Series
-
 from scipy import stats
-from scipy.stats import f
-from scipy.stats import levene
-from scipy.stats import ks_1samp
-from scipy.stats import f_oneway
-from scipy.stats import anderson
-from scipy.stats import skewtest
-from scipy.stats import ttest_ind
-from scipy.stats import ttest_1samp
-from scipy.stats import kurtosistest
-from scipy.stats import fisher_exact
-from scipy.stats import mannwhitneyu
+from scipy.stats import (
+    anderson,
+    f,
+    f_oneway,
+    fisher_exact,
+    ks_1samp,
+    kurtosistest,
+    levene,
+    mannwhitneyu,
+    skewtest,
+    ttest_1samp,
+    ttest_ind,
+)
 from scipy.stats._distn_infrastructure import rv_continuous
-
 from statsmodels.stats.proportion import test_proportions_2indep
 
 from .._typing import NumericSample1D
 
-
 __all__ = [
-    'chunker',
-    'ensure_generic',
-    'anderson_darling_test',
     'all_normal',
-    'kolmogorov_smirnov_test',
-    'f_test',
-    't_test',
-    'levene_test',
-    'variance_stability_test',
-    'mean_stability_test',
-    'position_test',
-    'variance_test',
-    'proportions_test',
-    'kurtosis_test',
-    'skew_test',
+    'anderson_darling_test',
+    'chunker',
     'dunn_test',
-    'pairwise_tests',]
+    'ensure_generic',
+    'f_test',
+    'kolmogorov_smirnov_test',
+    'kurtosis_test',
+    'levene_test',
+    'mean_stability_test',
+    'pairwise_tests',
+    'position_test',
+    'proportions_test',
+    'skew_test',
+    't_test',
+    'variance_stability_test',
+    'variance_test',
+]
 
 # TDOD: further tests:
 # from scipy.stats import chi2
@@ -125,7 +121,7 @@ __all__ = [
 def chunker(
         samples: Sequence[Any] | Series | NDArray,
         n_sections: int
-        ) -> Generator[NDArray, Any, None]:
+        ) -> Generator[NDArray, Any]:
     """Divides the data into a specified number of sections.
     
     Parameters
@@ -184,13 +180,14 @@ def ensure_generic(
     """
     _dist: rv_continuous
     _dist = getattr(stats, dist) if isinstance(dist, str) else dist
-    assert hasattr(stats, getattr(_dist, 'name')), (
+    assert hasattr(stats, _dist.name), (
         f'{dist} is not a valid distribution')
+    
     return _dist
 
 def anderson_darling_test(
         sample: NumericSample1D
-        ) -> Tuple[float, float]:
+        ) -> tuple[float, float]:
     """The Anderson-Darling test compares the measured values with the
     theoretical values of a given distribution (in this case the normal
     distribution). This test is considered to be one of the most
@@ -286,13 +283,13 @@ def all_normal(
         If p_threshold is not within the range (0, 1).
     """
     assert 0 < p_threshold < 1, 'p_threshold must be within (0, 1)'
-    return all([anderson_darling_test(x)[0] > p_threshold for x in samples])
+    return all(anderson_darling_test(x)[0] > p_threshold for x in samples)
 
 def kolmogorov_smirnov_test(
         sample: NumericSample1D,
         dist: str | rv_continuous,
         alternative: Literal['two-sided', 'less', 'greater'] = 'two-sided'
-        ) -> Tuple[float, float, Tuple[float, ...]]:
+        ) -> tuple[float, float, tuple[float, ...]]:
     """Perform a one-sample Kolmogorov-Smirnov-Test. This hypothesis
     test compares the underlying distribution F(x) of a sample against a 
     given distribution G(x). This test is valid only for continuous 
@@ -320,7 +317,7 @@ def kolmogorov_smirnov_test(
         The two-tailed p-value for the test
     D : float
         Kolmogorov-Smirnov test statistic, either D, D+ or D-.
-    params : Tuple[float, ...]
+    params : tuple[float, ...]
         Estimates for any shape parameters (if applicable), followed by 
         those for location and scale. For most random variables, shape 
         statistics will be returned, but there are exceptions 
@@ -335,7 +332,7 @@ def kolmogorov_smirnov_test(
 def f_test(
         sample1: NumericSample1D,
         sample2: NumericSample1D
-        ) -> Tuple[float, float]:
+        ) -> tuple[float, float]:
     """F-test for equal variances between two independent populations.
 
     The F-test compares the variances of two samples. The underlying
@@ -392,7 +389,7 @@ def t_test(
         sample: NumericSample1D,
         mu: float = 0,
         alternative: Literal['two-sided', 'less', 'greater'] = 'two-sided'
-        ) -> Tuple[float, float, int]:
+        ) -> tuple[float, float, int]:
     """Perform one sample t-test.
     
     The t-test tests the null hypothesis that the mean of a sample is
@@ -427,7 +424,7 @@ def levene_test(
         sample1: NumericSample1D,
         sample2: NumericSample1D,
         heavy_tailed: bool = False
-        ) -> Tuple[float, float]:
+        ) -> tuple[float, float]:
     """Levene test for equal variances (variance homogeneity).
 
     The Levene test checks the null hypothesis that all input samples
@@ -488,7 +485,7 @@ def levene_test(
 def variance_stability_test(
         sample: NumericSample1D,
         n_sections: int = 3
-        ) -> Tuple[float, float]:
+        ) -> tuple[float, float]:
     """Perform Levene test for equal variances within one sample.
     
     Divides the data into the number of n_sections. A Levene test is 
@@ -515,7 +512,7 @@ def variance_stability_test(
 def mean_stability_test(
         sample: NumericSample1D,
         n_sections: int = 3
-        ) -> Tuple[float, float]:
+        ) -> tuple[float, float]:
     """Perform one-way ANOVA for equal means within one sample.
     
     Divides the data into the number of n_sections. A f_oneway test is 
@@ -545,7 +542,7 @@ def position_test(
         equal_var: bool = True,
         normal: bool | None = None,
         u_test: bool=True
-        ) -> Tuple[float, float, str]:
+        ) -> tuple[float, float, str]:
     """calculate the test for the means of *two independent* samples of 
     scores.
     This is a two-sided test for the null hypothesis that 2 independent
@@ -607,7 +604,7 @@ def variance_test(
         sample2: NumericSample1D,
         normal: bool | None = None,
         heavy_tailed: bool = False
-        ) -> Tuple[float, float, str]:
+        ) -> tuple[float, float, str]:
     """Perform test for equal variances of two independent variables.
     This test tests the null hypothesis that all input samples are 
     from populations with equal variances.
@@ -656,7 +653,7 @@ def proportions_test(
         events2: int,
         observations2: int,
         decision_threshold: int = 1000
-        ) -> Tuple[float, float, str]:
+        ) -> tuple[float, float, str]:
     """Hypothesis test for comparing two independent proportions
     This assumes that we have two independent binomial samples.
     
@@ -705,7 +702,7 @@ def proportions_test(
 
 def kurtosis_test(
         sample: NumericSample1D
-        ) -> Tuple[float, float]:
+        ) -> tuple[float, float]:
     """Two sided hypothesis test whether a dataset has normal kurtosis.
 
     This function tests the null hypothesis that the kurtosis of the 
@@ -730,7 +727,7 @@ def kurtosis_test(
 
 def skew_test(
         sample: NumericSample1D
-        ) -> Tuple[float, float]:
+        ) -> tuple[float, float]:
     """Two sided hypothesis whether the skew is different from the 
     normal distribution.
 
@@ -755,7 +752,7 @@ def skew_test(
 
 
 def dunn_test(
-        groups: Dict[str, NumericSample1D],
+        groups: dict[str, NumericSample1D],
         p_adjust: Literal['bonferroni', 'holm', 'hochberg', 'hommel', 
                           'BH', 'BY', 'none'] = 'bonferroni'
         ) -> pd.DataFrame:
@@ -774,7 +771,7 @@ def dunn_test(
     
     Parameters
     ----------
-    groups : Dict[str, NumericSample1D]
+    groups : dict[str, NumericSample1D]
         Dictionary mapping group names to sample data.
         Example: {'Group1': [1, 2, 3], 'Group2': [4, 5, 6]}
     p_adjust : str, optional
@@ -875,7 +872,7 @@ def dunn_test(
     N = len(all_data)
     
     # Count ties for tie correction
-    unique_ranks, counts = np.unique(all_ranks, return_counts=True)
+    _unique_ranks, counts = np.unique(all_ranks, return_counts=True)
     tie_correction = np.sum(counts ** 3 - counts)
     
     # Compute pairwise comparisons
@@ -943,7 +940,7 @@ def dunn_test(
 
 
 def pairwise_tests(
-        groups: Dict[str, NumericSample1D],
+        groups: dict[str, NumericSample1D],
         test: Literal['t', 'mannwhitneyu', 'auto'] = 'auto',
         p_adjust: Literal['bonferroni', 'holm', 'hochberg', 'hommel',
                           'BH', 'BY', 'none'] = 'bonferroni',
@@ -958,7 +955,7 @@ def pairwise_tests(
     
     Parameters
     ----------
-    groups : Dict[str, NumericSample1D]
+    groups : dict[str, NumericSample1D]
         Dictionary mapping group names to sample data.
     test : Literal['t', 'mannwhitneyu', 'auto'], optional
         Statistical test to use:

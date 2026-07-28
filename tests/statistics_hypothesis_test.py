@@ -5,26 +5,24 @@ import numpy as np
 import pandas as pd
 
 from typing import Any
-from typing import Dict
-from pytest import approx
 from pathlib import Path
 from pandas.core.frame import DataFrame
 
-sys.path.append(Path(__file__).parent.resolve()) # type: ignore
+sys.path.append(str(Path(__file__).parent.resolve())) 
 
 from daspi.statistics.hypothesis import *
 
 source = Path(__file__).parent/'data'
-KW_READ: Dict[str, Any] = dict(sep=';', index_col=0)
+KW_READ: dict[str, Any] = {'sep': ';', 'index_col': 0}
 
 df_dist10: DataFrame = pd.read_csv(
-    source/f'dists_10-samples.csv', skiprows=1, nrows=10, **KW_READ)
+    source/'dists_10-samples.csv', skiprows=1, nrows=10, **KW_READ)
 df_valid10: DataFrame = pd.read_csv(
-    source/f'dists_10-samples.csv', skiprows=14, **KW_READ)
+    source/'dists_10-samples.csv', skiprows=14, **KW_READ)
 df_dist25: DataFrame = pd.read_csv(
-    source/f'dists_25-samples.csv', skiprows=1, nrows=25, **KW_READ)
+    source/'dists_25-samples.csv', skiprows=1, nrows=25, **KW_READ)
 df_valid25: DataFrame = pd.read_csv(
-    source/f'dists_25-samples.csv', skiprows=29, **KW_READ)
+    source/'dists_25-samples.csv', skiprows=29, **KW_READ)
 
 
 class TestChunker:
@@ -173,7 +171,7 @@ class TestDunnTest:
     """Tests for Dunn's post-hoc test (non-parametric pairwise comparisons)"""
     
     @pytest.fixture
-    def sample_groups(self) -> Dict[str, np.ndarray]:
+    def sample_groups(self) -> dict[str, np.ndarray]:
         """Create sample groups with known differences"""
         np.random.seed(42)
         return {
@@ -182,7 +180,7 @@ class TestDunnTest:
             'Group_C': np.array([15, 17, 16, 18, 15, 16, 17, 16]),
         }
     
-    def test_basic_functionality(self, sample_groups: Dict[str, np.ndarray]) -> None:
+    def test_basic_functionality(self, sample_groups: dict[str, np.ndarray]) -> None:
         """Test basic execution and return structure"""
         from daspi.statistics.hypothesis import dunn_test
         
@@ -198,7 +196,7 @@ class TestDunnTest:
         # Check number of comparisons (n*(n-1)/2 for 3 groups = 3)
         assert len(result) == 3
     
-    def test_z_statistics(self, sample_groups: Dict[str, np.ndarray]) -> None:
+    def test_z_statistics(self, sample_groups: dict[str, np.ndarray]) -> None:
         """Test z-statistics are computed correctly"""
         from daspi.statistics.hypothesis import dunn_test
         
@@ -210,7 +208,7 @@ class TestDunnTest:
         # Absolute z-statistics should be > 0 for different groups
         assert all(result['z_statistic'].abs() > 0)
     
-    def test_p_values_range(self, sample_groups: Dict[str, np.ndarray]) -> None:
+    def test_p_values_range(self, sample_groups: dict[str, np.ndarray]) -> None:
         """Test p-values are in valid range [0, 1]"""
         from daspi.statistics.hypothesis import dunn_test
         
@@ -222,7 +220,7 @@ class TestDunnTest:
         assert all(result['p_adjusted'] >= 0)
         assert all(result['p_adjusted'] <= 1)
     
-    def test_bonferroni_correction(self, sample_groups: Dict[str, np.ndarray]) -> None:
+    def test_bonferroni_correction(self, sample_groups: dict[str, np.ndarray]) -> None:
         """Test Bonferroni correction increases adjusted p-values"""
         from daspi.statistics.hypothesis import dunn_test
         
@@ -231,7 +229,7 @@ class TestDunnTest:
         # Adjusted p-values should be >= raw p-values (conservative)
         assert all(result['p_adjusted'] >= result['p_raw'])
     
-    def test_different_correction_methods(self, sample_groups: Dict[str, np.ndarray]) -> None:
+    def test_different_correction_methods(self, sample_groups: dict[str, np.ndarray]) -> None:
         """Test different p-value correction methods"""
         from daspi.statistics.hypothesis import dunn_test
         
@@ -295,7 +293,7 @@ class TestPairwiseTests:
     """Tests for pairwise_tests() with automatic test selection"""
     
     @pytest.fixture
-    def normal_groups(self) -> Dict[str, np.ndarray]:
+    def normal_groups(self) -> dict[str, np.ndarray]:
         """Normal distributed groups for parametric tests"""
         np.random.seed(42)
         return {
@@ -305,7 +303,7 @@ class TestPairwiseTests:
         }
     
     @pytest.fixture
-    def non_normal_groups(self) -> Dict[str, np.ndarray]:
+    def non_normal_groups(self) -> dict[str, np.ndarray]:
         """Non-normal groups for non-parametric tests"""
         np.random.seed(42)
         return {
@@ -313,7 +311,7 @@ class TestPairwiseTests:
             'Group_B': np.random.exponential(5, 30),
         }
     
-    def test_basic_functionality(self, normal_groups: Dict[str, np.ndarray]) -> None:
+    def test_basic_functionality(self, normal_groups: dict[str, np.ndarray]) -> None:
         """Test basic execution"""
         from daspi.statistics.hypothesis import pairwise_tests
         
@@ -330,7 +328,7 @@ class TestPairwiseTests:
         # Check number of comparisons
         assert len(result) == 3  # 3 choose 2
     
-    def test_auto_test_selection_normal(self, normal_groups: Dict[str, np.ndarray]) -> None:
+    def test_auto_test_selection_normal(self, normal_groups: dict[str, np.ndarray]) -> None:
         """Test automatic selection of t-test for normal data"""
         from daspi.statistics.hypothesis import pairwise_tests
         
@@ -341,7 +339,7 @@ class TestPairwiseTests:
         assert 'test_used' in result.columns
         assert result['test_used'].iloc[0] in ['t-test', 'Mann-Whitney U']
     
-    def test_forced_t_test(self, normal_groups: Dict[str, np.ndarray]) -> None:
+    def test_forced_t_test(self, normal_groups: dict[str, np.ndarray]) -> None:
         """Test forcing t-test"""
         from daspi.statistics.hypothesis import pairwise_tests
         
@@ -350,7 +348,7 @@ class TestPairwiseTests:
         # Check test used
         assert all(result['test_used'] == 't-test')
     
-    def test_forced_mann_whitney(self, non_normal_groups: Dict[str, np.ndarray]) -> None:
+    def test_forced_mann_whitney(self, non_normal_groups: dict[str, np.ndarray]) -> None:
         """Test forcing Mann-Whitney U test"""
         from daspi.statistics.hypothesis import pairwise_tests
         
@@ -359,7 +357,7 @@ class TestPairwiseTests:
         # Check test used
         assert all(result['test_used'] == 'Mann-Whitney U')
     
-    def test_p_value_corrections(self, normal_groups: Dict[str, np.ndarray]) -> None:
+    def test_p_value_corrections(self, normal_groups: dict[str, np.ndarray]) -> None:
         """Test different correction methods"""
         from daspi.statistics.hypothesis import pairwise_tests
         
@@ -371,7 +369,7 @@ class TestPairwiseTests:
             # Adjusted p-values should be >= raw p-values
             assert all(result['p_adjusted'] >= result['p_raw'])
     
-    def test_significance_threshold(self, normal_groups: Dict[str, np.ndarray]) -> None:
+    def test_significance_threshold(self, normal_groups: dict[str, np.ndarray]) -> None:
         """Test significance threshold - fixed at 0.05 in implementation"""
         from daspi.statistics.hypothesis import pairwise_tests
         
@@ -419,7 +417,7 @@ class TestPairwiseTests:
         with pytest.raises((ValueError, KeyError, AssertionError)):
             pairwise_tests({})
     
-    def test_invalid_test_type(self, normal_groups: Dict[str, np.ndarray]) -> None:
+    def test_invalid_test_type(self, normal_groups: dict[str, np.ndarray]) -> None:
         """Test error for invalid test type"""
         from daspi.statistics.hypothesis import pairwise_tests
         

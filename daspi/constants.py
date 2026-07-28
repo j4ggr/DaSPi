@@ -1,33 +1,29 @@
 import re
-import matplotlib.pyplot as plt
-
-from re import Pattern
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Tuple
-from typing import Literal
-from patsy.desc import INTERCEPT
 from dataclasses import dataclass
+from re import Pattern
+from typing import Any, Literal
+
+import matplotlib.pyplot as plt
+from patsy.desc import INTERCEPT
 from scipy.stats._continuous_distns import _distn_names
 
 from ._typing import LineStyle
 
-
 __all__ = [
-    'SIGMA_DIFFERENCE',
-    'PERCENT_DECIMALS',
-    'LINE',
-    'KW',
-    'RE',
-    'DIST',
-    'COLOR',
-    'LABEL',
     'ANOVA',
-    'PLOTTER',
-    'DEFAULT',
     'CATEGORY',
-    'DOE',]
+    'COLOR',
+    'DEFAULT',
+    'DIST',
+    'DOE',
+    'KW',
+    'LABEL',
+    'LINE',
+    'PERCENT_DECIMALS',
+    'PLOTTER',
+    'RE',
+    'SIGMA_DIFFERENCE',
+]
 
 
 SIGMA_DIFFERENCE: float = 1.5
@@ -70,188 +66,197 @@ class _Kw_:
     """Margin between label and figure border."""
 
     @property
-    def LINE(self) -> Dict[str, Any]:
+    def LINE(self) -> dict[str, Any]:
         """Base kwds for horizontal or vertical lines."""
-        return dict(lw=LINE.WIDTH, ls=LINE.DASHED)
+        return {'lw': LINE.WIDTH, 'ls': LINE.DASHED}
 
     @property
-    def HUE_HANDLES(self) -> Dict[str, Any]:
+    def HUE_HANDLES(self) -> dict[str, Any]:
         """Patch keyword arguments for genereting handles on 
         HueLabel."""
-        return dict(alpha=COLOR.FILL_ALPHA)
+        return {'alpha': COLOR.FILL_ALPHA}
 
     @property
-    def SHAPE_HANDLES(self) -> Dict[str, Any]:
+    def SHAPE_HANDLES(self) -> dict[str, Any]:
         """Line2D keyword arguments for genereting handles on 
         SizeLabel."""
-        return dict(xdata=[], ydata=[], color=COLOR.HANDLES, lw=0)
+        return {'xdata': [], 'ydata': [], 'color': COLOR.HANDLES, 'lw': 0}
 
     @property
-    def SIZE_HANDLES(self) -> Dict[str, Any]:
+    def SIZE_HANDLES(self) -> dict[str, Any]:
         """Line2D keyword arguments for genereting handles on 
         ShapeLabel."""
-        return dict(
-            xdata=[], ydata=[], color=COLOR.HANDLES, marker='o', lw=0, 
-            alpha=COLOR.MARKER_ALPHA)
+        return {
+            'xdata': [], 'ydata': [], 'color': COLOR.HANDLES, 'marker': 'o', 
+            'lw': 0, 'alpha': COLOR.MARKER_ALPHA}
 
     @property
-    def CI_HANDLE(self) -> Dict[str, Any]:
+    def CI_HANDLE(self) -> dict[str, Any]:
         """Keyword arguments for confidence interval handle."""
-        return dict(color=COLOR.HANDLES, alpha=COLOR.CI_ALPHA)
+        return {'color': COLOR.HANDLES, 'alpha': COLOR.CI_ALPHA}
 
     @property
-    def LEGEND(self) -> Dict[str, Any]:
+    def LEGEND(self) -> dict[str, Any]:
         """Figure legend at right side of figure."""
-        return dict(
-            loc='upper right', alignment='left',
-            bbox_to_anchor=(1 - self._margin, 1 - self._margin))
+        return {
+            'loc': 'upper right', 'alignment': 'left',
+            'bbox_to_anchor': (1 - self._margin, 1 - self._margin)}
 
     @property
-    def SAVE_CHART(self) -> Dict[str, Any]:
+    def SAVE_CHART(self) -> dict[str, Any]:
         """Key word arguments for matplotlib savefig."""
-        return dict(bbox_inches='tight')
+        return {'bbox_inches': 'tight'}
 
     @property
-    def XLABEL(self) -> Dict[str, Any]:
+    def XLABEL(self) -> dict[str, Any]:
         """Keyword arguments for Figure.text method used to add a 
         centered xlabel."""
-        return dict(
-            x=0.5, y=self._margin, ha='center', va='bottom')
+        return {'x': 0.5, 'y': self._margin, 'ha': 'center', 'va': 'bottom'}
 
     @property
-    def YLABEL(self) -> Dict[str, Any]:
+    def YLABEL(self) -> dict[str, Any]:
         """Keyword arguments for Figure.text method used to add a 
         centered xlabel."""
-        return dict(
-            x=self._margin, y=0.5, ha='left', va='center', rotation=90)
+        return {
+            'x': self._margin, 'y': 0.5, 'ha': 'left', 'va': 'center',
+            'rotation': 90}
 
     @property
-    def ROW_LABEL(self) -> Dict[str, Any]:
+    def ROW_LABEL(self) -> dict[str, Any]:
         """Keyword Arguments for the Axes.text method used to add a 
         row label to each axes as text on LabelFacets."""
-        return dict(
-            x=1, y=0.5, ha='left', va='center', rotation=-90)
+        return {
+            'x': 1, 'y': 0.5, 'ha': 'left', 'va': 'center', 'rotation': -90}
 
     @property
-    def ROW_TITLE(self) -> Dict[str, Any]:
+    def ROW_TITLE(self) -> dict[str, Any]:
         """Keyword Arguments for the Axes.text method used to add a 
         row title to ax as text on LabelFacets."""
-        return self.ROW_LABEL | dict(x=1 - self._margin, ha='right')
+        return {**self.ROW_LABEL, 'x': 1 - self._margin, 'ha': 'right'}
 
     @property
-    def COL_LABEL(self) -> Dict[str, Any]:
+    def COL_LABEL(self) -> dict[str, Any]:
         """Keyword Arguments for the Axes.text method used to add a 
         column label to each plot axis as text on LabelFacets."""
-        return dict(x=0.5, y=1, ha='center', va='bottom')
+        return {'x': 0.5, 'y': 1, 'ha': 'center', 'va': 'bottom'}
 
     @property
-    def COL_TITLE(self) -> Dict[str, Any]:
+    def COL_TITLE(self) -> dict[str, Any]:
         """Keyword Arguments for the Figure.text method used to add a 
         column title to each plot axis as text on LabelFacets."""
-        return self.COL_LABEL | dict(y=1 - self._margin, va='top')
+        return {**self.COL_LABEL, 'y': 1 - self._margin, 'va': 'top'}
 
     @property
-    def FIG_TITLE(self) -> Dict[str, Any]:
+    def FIG_TITLE(self) -> dict[str, Any]:
         """Keyword arguments for Figure.text method used for adding
         figure title on LabelFacets."""
-        return dict(
-            x=self._margin, y=1 - self._margin, ha='left', va='top',
-            size='x-large', in_layout=True)
+        return {
+            'x': self._margin, 'y': 1 - self._margin, 'ha': 'left',
+            'va': 'top', 'size': 'x-large', 'in_layout': True}
 
     @property
-    def SUB_TITLE(self) -> Dict[str, Any]:
+    def SUB_TITLE(self) -> dict[str, Any]:
         """Keyword arguments for Figure.set_title method used for adding
         sub title at LabelFacets."""
-        return self.FIG_TITLE | dict(size='large')
+        return {**self.FIG_TITLE, 'size': 'large'}
 
     @property
-    def INFO(self) -> Dict[str, Any]:
+    def INFO(self) -> dict[str, Any]:
         """Adding info text at bottom left of figure."""
-        return dict(
-            x=self._margin, y=self._margin, ha='left', va='bottom',
-            size='x-small', in_layout=True)
+        return {
+            'x': self._margin, 'y': self._margin, 'ha': 'left', 'va': 'bottom',
+            'size': 'x-small', 'in_layout': True}
 
     @property
-    def ERROR_BAR(self) -> Dict[str, Any]:
+    def ERROR_BAR(self) -> dict[str, Any]:
         """Base keyword arguments for error bars."""
-        return dict(color='k', lw=0.5, fmt='none')
+        return {'color': 'k', 'lw': 0.5, 'fmt': 'none'}
 
     @property
-    def FIT_LINE(self) -> Dict[str, Any]:
+    def FIT_LINE(self) -> dict[str, Any]:
         """Keyword arguments for confidence interval area for fit."""
-        return dict(zorder=2.2, alpha=0.8, marker='')
+        return {'zorder': 2.2, 'alpha': 0.8, 'marker': ''}
 
     @property
-    def FIT_CI(self) -> Dict[str, Any]:
+    def FIT_CI(self) -> dict[str, Any]:
         """Keyword arguments for confidence interval area for fit."""
-        return dict(zorder=2.3, alpha=COLOR.FILL_ALPHA, lw=0)
+        return {'zorder': 2.3, 'alpha': COLOR.FILL_ALPHA, 'lw': 0}
 
     @property
-    def LOWESS_CI(self) -> Dict[str, Any]:
+    def LOWESS_CI(self) -> dict[str, Any]:
         """Keyword arguments for confidence interval area for fit."""
         return self.FIT_CI
 
     @property
-    def PRED_CI(self) -> Dict[str, Any]:
+    def PRED_CI(self) -> dict[str, Any]:
         """Keyword arguments for confidence interval area for fit."""
-        return dict(
-            zorder=2.1, alpha=COLOR.CI_ALPHA, lw=LINE.WIDTH, ls=LINE.DASHED)
+        return {
+            'zorder': 2.1, 'alpha': COLOR.CI_ALPHA, 'lw': LINE.WIDTH,
+            'ls': LINE.DASHED}
 
     @property
-    def PROB_PC_FORMAT(self) -> Dict[str, Any]:
+    def PROB_PC_FORMAT(self) -> dict[str, Any]:
         """Keyword arguments for percentage formatter used at 
         Probability Plotter."""
-        return dict(xmax=1.0, decimals=None, symbol='%')
+        return {'xmax': 1.0, 'decimals': None, 'symbol': '%'}
 
     @property
-    def MEAN_LINE(self) -> Dict[str, Any]:
+    def MEAN_LINE(self) -> dict[str, Any]:
         """Keyword arguments for mean line."""
-        return dict(lw=LINE.WIDTH, ls=LINE.DASHED, color=COLOR.MEAN, zorder=0.9)
+        return {
+            'lw': LINE.WIDTH, 'ls': LINE.DASHED, 'color': COLOR.MEAN,
+            'zorder': 0.9}
 
     @property
-    def MEDIAN_LINE(self) -> Dict[str, Any]:
+    def MEDIAN_LINE(self) -> dict[str, Any]:
         """Keyword arguments for median line."""
-        return dict(
-            lw=LINE.WIDTH, ls=LINE.DOTTED, color=COLOR.MEDIAN, zorder=0.8)
+        return {
+            'lw': LINE.WIDTH, 'ls': LINE.DOTTED, 'color': COLOR.MEDIAN,
+            'zorder': 0.8}
 
     @property
-    def CONTROL_LINE(self) -> Dict[str, Any]:
+    def CONTROL_LINE(self) -> dict[str, Any]:
         """Keyword arguments for control limit line."""
-        return dict(
-            lw=LINE.WIDTH, ls=LINE.SOLID, color=COLOR.PERCENTIL, zorder=0.7)
+        return {
+            'lw': LINE.WIDTH, 'ls': LINE.SOLID, 'color': COLOR.PERCENTIL,
+            'zorder': 0.7}
 
     @property
-    def SPECIFICATION_LINE(self) -> Dict[str, Any]:
+    def SPECIFICATION_LINE(self) -> dict[str, Any]:
         """Keyword arguments for specification limit line."""
-        return dict(
-            lw=LINE.WIDTH, ls=LINE.SOLID, color=COLOR.BAD[:7], zorder=0.7)
+        return {
+            'lw': LINE.WIDTH, 'ls': LINE.SOLID, 'color': COLOR.BAD[:7],
+            'zorder': 0.7}
 
     @property
-    def STRIPES_CONFIDENCE(self) -> Dict[str, Any]:
+    def STRIPES_CONFIDENCE(self) -> dict[str, Any]:
         """Keyword arguments for confidence area for stripes."""
-        return dict(alpha=COLOR.CI_ALPHA, lw=0, zorder=0.6)
+        return {'alpha': COLOR.CI_ALPHA, 'lw': 0, 'zorder': 0.6}
 
     @property
-    def PARETO_V(self) -> Dict[str, Any]:
+    def PARETO_V(self) -> dict[str, Any]:
         """Keyword arguments for adding percentage texts in pareto chart.
         Use `PARETO_H` if `target_on_y' is False."""
-        return dict(
-            x=1, va='bottom', ha='right', color=plt.rcParams['text.color'],
-            fontsize='x-small', zorder=0.1)
+        return {
+            'x': 1, 'va': 'bottom', 'ha': 'right',
+            'color': plt.rcParams['text.color'], 'fontsize': 'x-small',
+            'zorder': 0.1}
 
     @property
-    def PARETO_H(self) -> Dict[str, Any]:
+    def PARETO_H(self) -> dict[str, Any]:
         """Keyword arguments for adding percentage texts in pareto chart.
         Use `PARETO_V` if `target_on_y' is True."""
-        return dict(
-            y=1, va='top', ha='left', color=plt.rcParams['text.color'],
-            fontsize='x-small', rotation=-90, zorder=0.1)
+        return {
+            'y': 1, 'va': 'top', 'ha': 'left',
+            'color': plt.rcParams['text.color'], 'fontsize': 'x-small',
+            'rotation': -90, 'zorder': 0.1}
 
     @property
-    def PARETO_LINE(self) -> Dict[str, Any]:
+    def PARETO_LINE(self) -> dict[str, Any]:
         """Keyword arguments for plotting line in pareto chart."""
-        return dict(
-            marker=plt.rcParams['scatter.marker'], alpha=COLOR.MARKER_ALPHA)
+        return {
+            'marker': plt.rcParams['scatter.marker'],
+            'alpha': COLOR.MARKER_ALPHA}
     
 KW = _Kw_()
 
@@ -308,17 +313,17 @@ class _Color_:
     """Color for special area 2."""
 
     @property
-    def PALETTE(self) -> List[str]:
+    def PALETTE(self) -> list[str]:
         """Get prop cycler color palette."""
         return plt.rcParams['axes.prop_cycle'].by_key()['color']
 
     @property
-    def LIMITS(self) -> Tuple[str, str]:
+    def LIMITS(self) -> tuple[str, str]:
         """Color for specification limits."""
         return (self.BAD, self.BAD)
 
     @property
-    def STATISTIC_LINES(self) -> Tuple[str, str, str]:
+    def STATISTIC_LINES(self) -> tuple[str, str, str]:
         """Statistic lines color in order lower (Percentil Q_0.99865)
         upper (Percentil Q_0.00135) and mean."""
         return (self.PERCENTIL, self.PERCENTIL, self.MEAN)
@@ -385,7 +390,7 @@ class _Plotter_:
     """Column name for subgroups used mostly in TransformPlotter."""
 
     @property
-    def REGRESSION_CI_NAMES(self) -> Tuple[str, str, str, str]:
+    def REGRESSION_CI_NAMES(self) -> tuple[str, str, str, str]:
         """Get names for regression confidences in order:
         
             - lower confidence level of fitted values
@@ -403,9 +408,9 @@ PLOTTER = _Plotter_()
 @dataclass(frozen=True)
 class _Category_:
 
-    MARKERS: Tuple[str, ...] = ('o', 's', '^', 'p', 'D', 'v', 'P', 'X', '*')
+    MARKERS: tuple[str, ...] = ('o', 's', '^', 'p', 'D', 'v', 'P', 'X', '*')
     """Markers for visually easy distinction."""
-    MARKERSIZE_LIMITS: Tuple[int, int] = (1, 13)
+    MARKERSIZE_LIMITS: tuple[int, int] = (1, 13)
     """Marker size limits used for sizing."""
     N_SIZE_BINS: int = 5
     """Amount of size bins in the legend."""
@@ -416,14 +421,14 @@ class _Category_:
     """Padding between dodget artists."""
 
     @property
-    def SIZE_LIMITS(self) -> Tuple[int, int]:
+    def SIZE_LIMITS(self) -> tuple[int, int]:
         """Used for scatter plots. The area must be specified there 
         instead of the height, as with markers in line plots.
         See: https://stackoverflow.com/a/14860958/11362192"""
         return (self.MARKERSIZE_LIMITS[0]**2, self.MARKERSIZE_LIMITS[1]**2)
 
     @property
-    def PALETTE(self) -> Tuple[str, ...]:
+    def PALETTE(self) -> tuple[str, ...]:
         """Get the current color palette as tuple."""
         return tuple(COLOR.PALETTE)
     
@@ -433,27 +438,27 @@ CATEGORY = _Category_()
 @dataclass(frozen=True)
 class _Distribution_:
 
-    _ignore_: Tuple[str, ...] = ('levy_stable', 'studentized_range')
+    _ignore_: tuple[str, ...] = ('levy_stable', 'studentized_range')
 
-    COMMON: Tuple[str, ...] = (
+    COMMON: tuple[str, ...] = (
         'norm', 'chi2', 'foldnorm', 'rayleigh', 'weibull_min', 'gamma', 'wald',
         'expon', 'logistic', 'lognorm')
     """Get distributions that commonly occur in practice."""
 
     @property
-    def POSSIBLE(self) -> Tuple[str, ...]:
+    def POSSIBLE(self) -> tuple[str, ...]:
         """Get all possible continuous distributions from Scipy, except 
         'levy_stable' and 'studentized_range'."""
         return tuple(d for d in _distn_names if d not in self._ignore_)
 
     @property
-    def COMMON_NOT_NORM(self) -> Tuple[str, ...]:
+    def COMMON_NOT_NORM(self) -> tuple[str, ...]:
         """Get all common distributions but norm, usefull to fit if norm
         tests fail."""
         return tuple(d for d in self.COMMON if d != 'norm')
 
     @property
-    def UNCERTAINTY_FACTORS(self) -> Dict[str, float]:
+    def UNCERTAINTY_FACTORS(self) -> dict[str, float]:
         """Factors used to calculate the measurement uncertainty 
         (equivalent to the standard deviation) of a distribution using 
         the error limit. 
@@ -469,10 +474,10 @@ class _Distribution_:
         -------
         - https://de.wikipedia.org/wiki/Stetige_Gleichverteilung
         - https://www.versuchsmethoden.de/Mess-System-Analyse.pdf"""
-        factors = dict(
-            rectangular=3**0.5,  # ≈ 1.732
-            triangular=2.0,
-            normal=1.0)
+        factors = {
+            'rectangular': 3**0.5,  # ≈ 1.732
+            'triangular': 2.0,
+            'normal': 1.0}
         return factors
     
 DIST = _Distribution_()
@@ -494,7 +499,7 @@ class _Default_:
     """Default color in plots if there is no hueing only used for styles
     they dont use the regular color palette order (e.g. daspi and 
     ggplot2)."""
-    QUANTILE_RANGES: Tuple[float, float, float] = (0.682, 0.954, 0.997)
+    QUANTILE_RANGES: tuple[float, float, float] = (0.682, 0.954, 0.997)
     """Default quantile ranges for the Quantile Plotter.
 
     These values represent the quantiles corresponding to the standard 
@@ -503,7 +508,7 @@ class _Default_:
     - 0.954 = approximately ±2 σ, capturing about 95.4% of the data.
     - 0.997 = approximately ±3 σ, capturing about 99.7% of the data.
     """
-    AGREEMENTS: Tuple[int, int, int] = (2, 4, 6)
+    AGREEMENTS: tuple[int, int, int] = (2, 4, 6)
     """Default agreement levels for the Quantile Plotter and for the
     quantiles in GaussianKDE and Violin Plotter.
     
@@ -570,55 +575,55 @@ class _Anova_:
     """Name in rnr table for sum of R&R."""
 
     @property
-    def TABLE_COLNAMES(self) -> List[str]:
+    def TABLE_COLNAMES(self) -> list[str]:
         """Column names when crating the anova table using LinearModel 
         class"""
         return ['DF', 'SS', 'MS', 'F', 'p', 'n2']
     
     @property
-    def VIF_COLNAMES(self) -> List[str]:
+    def VIF_COLNAMES(self) -> list[str]:
         """Column names when crating the vif table using the 
         `variance_inflation_factor` function."""
         return ['DF', self.VIF, 'GVIF', 'Threshold', 'Collinear', 'Method']
     
     @property
-    def RNR_COLNAMES(self) -> List[str]:
+    def RNR_COLNAMES(self) -> list[str]:
         """Column names when crating the rnr table using the 
         `variance_inflation_factor` function."""
         return ['MS', 'MS/Total', 's', '6s', '6s/Total', '6s/Tolerance']
     
     @property
-    def CAPABILITY_COLNAMES(self) -> List[str]:
+    def CAPABILITY_COLNAMES(self) -> list[str]:
         """Column names when crating the capability table using the 
         `capability` method of GageStudyModel."""
         return ['Value', 'Limit', 'Capable', 'T_min']
     
     @property
-    def CAPABILITY_ROWS(self) -> List[str]:
+    def CAPABILITY_ROWS(self) -> list[str]:
         """Row names (indices) when crating the capability table using
         the `capability` method of GageStudyModel."""
         return ['Cg', 'Cgk', 'RE_ratio', 'Q_MS', 'p_BI']
 
     @property
-    def UNCERTAINTY_COLNAMES(self) -> List[str]:
+    def UNCERTAINTY_COLNAMES(self) -> list[str]:
         """Column names when crating the uncertainty table using the 
         `uncertainties` method of GageRnRModel."""
         return ['u', 'U', 'Q', 'rank']
 
     @property
-    def UNCERTAINTY_ROWS_MS(self) -> List[str]:
+    def UNCERTAINTY_ROWS_MS(self) -> list[str]:
         """Row names (indices) when crating the uncertainty table using
         the `uncertainties` method of GageStudyModel."""
         return ['CAL', 'RE', 'BI', 'LIN', 'EVR', 'REST', 'MS']
 
     @property
-    def UNCERTAINTY_ROWS_MP(self) -> List[str]:
+    def UNCERTAINTY_ROWS_MP(self) -> list[str]:
         """Row names (indices) when crating the uncertainty table using
         the `uncertainties` method of GageRnRModel."""
         return ['EVO', 'AV', 'GV', 'IA', 'T', 'STAB', 'OBJ', 'REST', 'MP']
     
     @property
-    def REFERENCE_ANALYSIS_COLNAMES(self) -> List[str]:
+    def REFERENCE_ANALYSIS_COLNAMES(self) -> list[str]:
         """Column names when crating the reference analysis table using
         the `reference_analysis` method of GageRnRModel."""
         return ['Ref',	'mean', 'Bias', 's', 'R']

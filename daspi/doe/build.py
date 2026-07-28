@@ -56,55 +56,47 @@ assignment and run order. The DataFrame can be passed directly to
 been carried out and the response column has been added.
 """
 import warnings
+from abc import ABC, abstractmethod
+from itertools import product
+from typing import Literal, cast
 
 import numpy as np
 import pandas as pd
-
-from typing import List
-from typing import Dict
-from typing import Tuple
-from typing import Literal
-
-from abc import ABC
-from abc import abstractmethod
-from itertools import product
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
 from .._typing import LevelType
-
 from ..constants import DOE
 
-
 __all__ = [
-    'get_default_generators',
-    'translate_generators',
-    'Factor',
     'BaseDesignBuilder',
-    'FullFactorialDesignBuilder',
+    'Factor',
+    'FractionalFactorialDesignBuilder',
     'FullFactorial2kDesignBuilder',
-    'FractionalFactorialDesignBuilder',]
+    'FullFactorialDesignBuilder',
+    'get_default_generators',
+    'translate_generators',]
 
 
 def translate_generators(
-        generators: List[str], 
-        factor_names: List[str]) -> List[str]:
+        generators: list[str], 
+        factor_names: list[str]) -> list[str]:
     """
     Translate generator notation from standard letters (A, B, C, ...) 
     to actual factor names.
 
     Parameters
     ----------
-    generators : List[str]
+    generators : list[str]
         Generator strings using standard letter notation, e.g. ['D=AB', 
         'E=AC'].
-    factor_names : List[str]
+    factor_names : list[str]
         Actual factor names in order, e.g. ['F1', 'F2', 'F3', 'F4', 
         'F5'].
 
     Returns
     -------
-    List[str]
+    list[str]
         Generators translated to use actual factor names, 
         e.g. ['F4=F1F2', 'F5=F1F3'].
 
@@ -147,8 +139,8 @@ def get_default_generators(k: int, p: int) -> list[str]:
 
     Returns
     -------
-    List[str]
-        List of generator strings, e.g. ['C=AB', 'D=AC'].
+    list[str]
+        list of generator strings, e.g. ['C=AB', 'D=AC'].
 
     Notes
     -----
@@ -190,7 +182,7 @@ class Factor:
     ----------
     name : str
         Name of the factor.
-    levels : Tuple[LevelType, ...]
+    levels : tuple[LevelType, ...]
         Levels of the factor (numeric or categorical).
     is_categorical : bool, optional
         Whether the factor is categorical. This is automatically 
@@ -200,16 +192,16 @@ class Factor:
     
     _name: str
     """Name of the factor."""
-    _levels: Tuple[LevelType, ...]
+    _levels: tuple[LevelType, ...]
     """Levels of the factor (numeric or categorical)."""
     _central_point: LevelType | None = None
     """Optional central point level."""
     _is_categorical: bool = False
     """Whether the factor is categorical."""
-    _corrected_levels: Tuple[float | int, ...]
+    _corrected_levels: tuple[float | int, ...]
     """Corrected levels for float-coded designs."""
 
-    _corrected_level_map: Dict[float | int, LevelType]
+    _corrected_level_map: dict[float | int, LevelType]
     """Mapping from float or int codes to their corresponding factor 
     levels. This is used for float-coded designs where levels are 
     represented by floats. Set this from outside the class, e.g. in a 
@@ -219,7 +211,7 @@ class Factor:
     def __init__(
             self,
             name: str,
-            levels: Tuple[LevelType, ...],
+            levels: tuple[LevelType, ...],
             is_categorical: bool = False
             ) -> None:
         self._n_levels = len(levels)
@@ -275,7 +267,7 @@ class Factor:
         return self._is_categorical
     
     @property
-    def levels(self) -> Tuple[LevelType, ...]:
+    def levels(self) -> tuple[LevelType, ...]:
         """Levels of the factor (read-only)."""
         return self._levels
 
@@ -291,7 +283,7 @@ class Factor:
         return sum(self.corrected_levels) == 0
 
     @property
-    def corrected_central_points(self) -> Tuple[float | int, ...]:
+    def corrected_central_points(self) -> tuple[float | int, ...]:
         """Corrected central points as tuple, used for float-coded 
         designs (read-only).
         
@@ -311,12 +303,12 @@ class Factor:
             return self.corrected_levels
 
     @property
-    def corrected_levels(self) -> Tuple[float | int, ...]:
+    def corrected_levels(self) -> tuple[float | int, ...]:
         """Corrected levels for float-coded designs (read-only)."""
         return self._corrected_levels
     
     @property
-    def corrected_level_map(self) -> Dict[float | int, LevelType]:
+    def corrected_level_map(self) -> dict[float | int, LevelType]:
         """Mapping from float or int codes to their corresponding factor 
         levels (read-only)."""
         return self._corrected_level_map
@@ -331,9 +323,9 @@ class BaseDesignBuilder(ABC):
         Factors defining the design space.
     replicates : int, optional
         Number of replicates. Must be positive, by default 1.
-    blocks : int | str | List[str] | Literal['highest', 'replica'], optional
+    blocks : int | str | list[str] | Literal['highest', 'replica'], optional
         Block assignment: integer for evenly spaced blocks, 
-        str | List[str] for user-defined block generator, or Literal 
+        str | list[str] for user-defined block generator, or Literal 
         'highest'/'replica'. Must be positive or 'highest'/'replica', by 
         default 1.
     central_points : int, optional
@@ -359,12 +351,12 @@ class BaseDesignBuilder(ABC):
         - Factor names must be unique.
     """
 
-    _factors : Tuple[Factor, ...]
-    _factor_names: List[str]
+    _factors : tuple[Factor, ...]
+    _factor_names: list[str]
     _replicates : int
     _central_points : int
-    _blocks : int | str | List[str] | Literal['highest', 'replica']
-    _level_counts : Tuple[int, ...]
+    _blocks : int | str | list[str] | Literal['highest', 'replica']
+    _level_counts : tuple[int, ...]
     fold: bool | str
     """Whether to add a foldover to the design."""
     shuffle : bool
@@ -374,7 +366,7 @@ class BaseDesignBuilder(ABC):
             self, 
             *factors: Factor,
             replicates: int = 1,
-            blocks: int | str | List[str] | Literal['highest', 'replica'] = 1,
+            blocks: int | str | list[str] | Literal['highest', 'replica'] = 1,
             central_points: int = 0,
             shuffle: bool = True,
             ) -> None:
@@ -385,11 +377,11 @@ class BaseDesignBuilder(ABC):
         self.shuffle = shuffle
 
     @property
-    def factors(self) -> Tuple[Factor, ...]:
-        """Tuple of factors defining the design space."""
+    def factors(self) -> tuple[Factor, ...]:
+        """tuple of factors defining the design space."""
         return self._factors
     @factors.setter
-    def factors(self, factors: Tuple[Factor, ...]) -> None:
+    def factors(self, factors: tuple[Factor, ...]) -> None:
         factor_names = [f.name for f in factors]
     
         assert factors, 'At least one factor is required.'
@@ -406,13 +398,13 @@ class BaseDesignBuilder(ABC):
         self._level_counts = tuple(f.n_levels for f in self.factors)
 
     @property
-    def factor_names(self) -> List[str]:
-        """List of factor names (read-only)."""
+    def factor_names(self) -> list[str]:
+        """list of factor names (read-only)."""
         return self._factor_names
 
     @property
-    def level_counts(self) -> Tuple[int, ...]:
-        """Tuple of level counts for each factor (read-only)."""
+    def level_counts(self) -> tuple[int, ...]:
+        """tuple of level counts for each factor (read-only)."""
         return self._level_counts
 
     @property
@@ -439,15 +431,15 @@ class BaseDesignBuilder(ABC):
         self._central_points = central_points
 
     @property
-    def blocks(self) -> int | str | List[str] | Literal['highest','replica']:
+    def blocks(self) -> int | str | list[str] | Literal['highest','replica']:
         """Block assignment: integer for evenly spaced blocks, 
-        str | List[str] for user-defined block generator, or Literal 
+        str | list[str] for user-defined block generator, or Literal 
         'highest'/'replica'."""
         return self._blocks
     @blocks.setter
     def blocks(
             self,
-            blocks: int | str | List[str]  | Literal['highest', 'replica']
+            blocks: int | str | list[str]  | Literal['highest', 'replica']
             ) -> None:
         if blocks in ('highest', 'replica'):
             self._blocks = blocks
@@ -468,8 +460,8 @@ class BaseDesignBuilder(ABC):
                 f"Literal['highest', 'replica'], got {blocks}.")
 
     @property
-    def standard_columns(self) -> List[str]:
-        """List of standard columns in the design matrix."""
+    def standard_columns(self) -> list[str]:
+        """list of standard columns in the design matrix."""
         return [
             DOE.STD_ORDER,
             DOE.RUN_ORDER,
@@ -478,8 +470,8 @@ class BaseDesignBuilder(ABC):
             DOE.BLOCK]
     
     @property
-    def columns(self) -> List[str]:
-        """List of columns in the design matrix."""
+    def columns(self) -> list[str]:
+        """list of columns in the design matrix."""
         return self.standard_columns + self.factor_names
     
     @property
@@ -490,7 +482,7 @@ class BaseDesignBuilder(ABC):
     @staticmethod
     def _decode_values(
             df_design: DataFrame,
-            factors: Tuple[Factor, ...],
+            factors: tuple[Factor, ...],
             ) -> DataFrame:
         """
         Map integer-coded design matrix to original factor values.
@@ -499,7 +491,7 @@ class BaseDesignBuilder(ABC):
         ----------
         df_design : NDArray
             Matrix with integer indices for levels.
-        factors : Tuple[Factor, ...]
+        factors : tuple[Factor, ...]
             Factors for mapping indices to original values.
 
         Returns
@@ -542,7 +534,6 @@ class BaseDesignBuilder(ABC):
         DataFrame
             Base design matrix with corrected values of factor levels.
         """
-        pass
 
     def _fold_design(self, df_design: DataFrame) -> DataFrame:
         """Fold the design matrix if fold is True.
@@ -570,6 +561,7 @@ class BaseDesignBuilder(ABC):
         assert fold in self.factor_names or isinstance(fold, bool), (
             f'Fold factor "{fold}" not found in factor names: '
             f'{self.factor_names}')
+            
         if not fold:
             return df_design
 
@@ -785,10 +777,10 @@ class BaseDesignBuilder(ABC):
                 shuffled[DOE.BLOCK] = block_value
                 return shuffled
             
-            df_design = (df_design
+            df_design = cast(DataFrame, (df_design
                 .groupby(DOE.BLOCK, group_keys=False)
                 .apply(shuffle_group)
-                .reset_index(drop=True))
+                .reset_index(drop=True)))
         df_design[DOE.RUN_ORDER] = np.arange(len(df_design))
         return df_design
     
@@ -824,7 +816,7 @@ class BaseDesignBuilder(ABC):
 
         - If `blocks` is an int > 1: blocks are assigned evenly 
           (not statistically confounded).
-        - If `blocks` is an str or List[str]: blocks are assigned by 
+        - If `blocks` is an str or list[str]: blocks are assigned by 
           confounding with the specified interaction 
           (statistically correct).
         - If `blocks` is 'highest': blocks are assigned by confounding
@@ -851,7 +843,7 @@ class BaseDesignBuilder(ABC):
         (all factors) is used. This ensures that block effects are 
         orthogonal to main effects and lower-order interactions when 
         using a confounding generator, as recommended in DOE literature 
-        (see Montgomery, 2017). If `blocks` is a str or List[str], the
+        (see Montgomery, 2017). If `blocks` is a str or list[str], the
         specified interaction is used. If `blocks` is 'replica', blocks
         are assigned by replicate. If `blocks` is an int, blocks are
         assigned evenly (not statistically confounded).
@@ -879,7 +871,7 @@ class FullFactorialDesignBuilder(BaseDesignBuilder):
         Factors defining the design space.
     replicates : int, optional
         Number of replicates. Must be positive, by default 1.
-    blocks : int | str | List[str] | Literal['highest', 'replica'], optional
+    blocks : int | str | list[str] | Literal['highest', 'replica'], optional
         Number of blocks or block assignment strategy. For more
         information, see the docstring of the `build_design` method.
         Defaults to 1.
@@ -962,7 +954,7 @@ class FullFactorialDesignBuilder(BaseDesignBuilder):
             self,
             *factors: Factor,
             replicates: int = 1,
-            blocks: int | str | List[str] | Literal['highest', 'replica'] = 1,
+            blocks: int | str | list[str] | Literal['highest', 'replica'] = 1,
             central_points: int = 0,
             shuffle: bool = True
             ) -> None:
@@ -1011,9 +1003,9 @@ class FullFactorial2kDesignBuilder(FullFactorialDesignBuilder):
         2 levels.
     replicates : int, optional
         Number of replicates. Must be positive, by default 1.
-    blocks : int | str | List[str] | Literal['highest', 'replica'], optional
+    blocks : int | str | list[str] | Literal['highest', 'replica'], optional
         Block assignment: integer for evenly spaced blocks, 
-        str | List[str] for user-defined block generator, or Literal 
+        str | list[str] for user-defined block generator, or Literal 
         'highest'/'replica'. Must be positive or 'highest'/'replica', by 
         default 1.
     central_points : int, optional
@@ -1099,7 +1091,7 @@ class FullFactorial2kDesignBuilder(FullFactorialDesignBuilder):
             self,
             *factors: Factor,
             replicates: int = 1,
-            blocks: int | str | List[str] | Literal['highest', 'replica'] = 1,
+            blocks: int | str | list[str] | Literal['highest', 'replica'] = 1,
             central_points: int = 0,
             shuffle: bool = True
             ) -> None:
@@ -1141,8 +1133,8 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
     factors : Iterable[Factor]
         Factors defining the design space. All factors must have exactly 
         2 levels.
-    generators : List[str]
-        List of generator strings that define how dependent factors are 
+    generators : list[str]
+        list of generator strings that define how dependent factors are 
         constructed from basic factors. For example, if you have 4 
         factors A, B, C, and D, you can set generators to 
         ['C=AB', 'D=BC']. This means that factor C is defined as the 
@@ -1247,8 +1239,8 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
           foldover does not apply in the classical sense.
     """
     
-    generators: List[str]
-    """List of generator strings defining dependent factors."""
+    generators: list[str]
+    """list of generator strings defining dependent factors."""
 
     @classmethod
     def by_resolution(
@@ -1436,7 +1428,7 @@ class FractionalFactorialDesignBuilder(BaseDesignBuilder):
     def __init__(
             self,
             *factors: Factor,
-            generators: List[str],
+            generators: list[str],
             fold: bool | str = False,
             replicates: int = 1,
             central_points: int = 0,

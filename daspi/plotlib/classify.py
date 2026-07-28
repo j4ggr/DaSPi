@@ -44,33 +44,26 @@ ordinary users rarely need to instantiate them directly — the
 ``Chart`` classes manage them automatically.
 """
 
+from abc import ABC, abstractmethod
+from collections.abc import Sequence
+from typing import Any
+
 import numpy as np
 import pandas as pd
-
-from abc import ABC
-from abc import abstractmethod
-from typing import Any
-from typing import Dict
-from typing import Tuple
-from typing import Sequence
-from numpy.typing import NDArray
-from numpy.typing import ArrayLike
-from pandas._typing import Scalar
-from pandas.core.series import Series
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from numpy.typing import ArrayLike, NDArray
+from pandas._typing import Scalar
+from pandas.core.series import Series
 
 from .._typing import LegendHandlesLabels
-from ..constants import KW
-from ..constants import DEFAULT
-from ..constants import CATEGORY
-
+from ..constants import CATEGORY, DEFAULT, KW
 
 __all__ = [
+    'Dodger',
     'HueLabel',
     'ShapeLabel',
     'SizeLabel',
-    'Dodger',
     ]
 
 
@@ -96,13 +89,13 @@ class _CategoryLabel(ABC):
         categorical data they represent.
     """
 
-    __slots__ = ('_default', '_categories', '_labels', '_n')
+    __slots__ = ('_categories', '_default', '_labels', '_n')
 
     _default: Any
     """Default category item."""
-    _categories: Tuple[Any, ...]
+    _categories: tuple[Any, ...]
     """Available categories."""
-    _labels: Tuple[str, ...]
+    _labels: tuple[str, ...]
     """Labels corresponding to the categories."""
     _n: int
     """Number of used categories."""
@@ -110,14 +103,14 @@ class _CategoryLabel(ABC):
     def __init__(
             self,
             labels: Sequence[Scalar],
-            categories: Tuple[Any, ...]) -> None:
+            categories: tuple[Any, ...]) -> None:
         self._n = len(labels)
         self._default = None
         self._categories = categories
         self.labels = labels
 
     @property
-    def categories(self) -> Tuple[Any, ...]:
+    def categories(self) -> tuple[Any, ...]:
         """Get the available categories (read-only)."""
         return self._categories[:self.n_used]
 
@@ -129,7 +122,7 @@ class _CategoryLabel(ABC):
         return self._default
 
     @property
-    def labels(self) -> Tuple[str, ...]:
+    def labels(self) -> tuple[str, ...]:
         """Get and set the labels corresponding to the categories."""
         return self._labels
     @labels.setter
@@ -189,7 +182,6 @@ class _CategoryLabel(ABC):
         LegendHandlesLabels
             A tuple containing legend handles and labels.
         """
-        pass
 
 
 class HueLabel(_CategoryLabel):
@@ -204,7 +196,7 @@ class HueLabel(_CategoryLabel):
     labels : Sequence[Scalar]
         Labels corresponding to the hue categories. These labels will be 
         used to identify different categories in the plot.
-    colors : Tuple[str, ...], optional
+    colors : tuple[str, ...], optional
         A tuple of available hue categories represented as hex codes or
         named colors. By default, this is set to `CATEGORY.PALETTE`, 
         which provides a predefined set of colors for the categories.
@@ -226,7 +218,7 @@ class HueLabel(_CategoryLabel):
         follow_order=True)
     ```
     """
-    __slots__ = ('follow_order')
+    __slots__ = ('follow_order', )
 
     follow_order: bool
     """Determines how colors are assigned to hue categories. If set to 
@@ -237,7 +229,7 @@ class HueLabel(_CategoryLabel):
     def __init__(
             self,
             labels: Sequence[Scalar],
-            colors: Tuple[str, ...],
+            colors: tuple[str, ...],
             follow_order: bool = False
             ) -> None:
         self.follow_order = follow_order
@@ -246,8 +238,8 @@ class HueLabel(_CategoryLabel):
             self._default = DEFAULT.PLOTTING_COLOR
     
     @property
-    def categories(self) -> Tuple[str, ...]:
-        """Tuple containing the available hue categories as the current
+    def categories(self) -> tuple[str, ...]:
+        """tuple containing the available hue categories as the current
         color palette as defined in constants `CATEGORY.PALETTE` or
         the given colors during initialization (read-only)."""
         if self.follow_order or self.n_used in (0, 1):
@@ -257,7 +249,7 @@ class HueLabel(_CategoryLabel):
         return self._categories[::step][:self.n_used]
 
     @property
-    def colors(self) -> Tuple[str, ...]:
+    def colors(self) -> tuple[str, ...]:
         """Get the available hue colors (read-only)."""
         return self.categories
 
@@ -287,7 +279,7 @@ class ShapeLabel(_CategoryLabel):
         A sequence of labels corresponding to the shape marker 
         categories. These labels will be used to identify and 
         differentiate the shapes in the plot.
-    markers : Tuple[str, ...], optional
+    markers : tuple[str, ...], optional
         A tuple of available shape marker categories represented as 
         strings. This defines the shapes that can be used for the 
         corresponding categories. By default, this is set to 
@@ -306,18 +298,18 @@ class ShapeLabel(_CategoryLabel):
     def __init__(
             self,
             labels: Sequence[Scalar],
-            markers: Tuple[str, ...]) -> None:
+            markers: tuple[str, ...]) -> None:
         super().__init__(tuple(map(str, labels)), markers)
     
     @property
-    def categories(self) -> Tuple[str, ...]:
-        """Tuple containing the available shape markers as defined
+    def categories(self) -> tuple[str, ...]:
+        """tuple containing the available shape markers as defined
         in constants `CATEGORY.MARKERS` or the given markers during
         initialization (read-only)."""
         return super().categories
     
     @property
-    def markers(self) -> Tuple[str, ...]:
+    def markers(self) -> tuple[str, ...]:
         """Get the used shape markers (read-only)."""
         return self.categories
 
@@ -363,7 +355,7 @@ class SizeLabel(_CategoryLabel):
     ```
     """
 
-    __slots__ = ('_min', '_max')
+    __slots__ = ('_max', '_min')
 
     _min: int | float
     """Minimum value for the size range."""
@@ -372,8 +364,8 @@ class SizeLabel(_CategoryLabel):
 
     def __init__(
             self, 
-            min_value: int | float,
-            max_value: int | float,
+            min_value: int | float,  # noqa: PYI041
+            max_value: int | float,  # noqa: PYI041
             n_bins: int) -> None:
         assert max_value > min_value
         self._min = min_value
@@ -385,14 +377,14 @@ class SizeLabel(_CategoryLabel):
         if use_integer:
             labels = tuple(map(str, labels))
         else:
-            labels = tuple(map(lambda x: f'{x:.3f}', labels))
+            labels = tuple(f'{x:.3f}' for x in labels)
         handle_sizes = tuple(np.linspace(
             *CATEGORY.MARKERSIZE_LIMITS, n_bins, dtype=int))
         super().__init__(labels, handle_sizes)
     
     @property
-    def categories(self) -> Tuple[int, ...]:
-        """Tuple containing the available marker sizes (read-only)."""
+    def categories(self) -> tuple[int, ...]:
+        """tuple containing the available marker sizes (read-only)."""
         return super().categories
     
     @property
@@ -418,12 +410,12 @@ class SizeLabel(_CategoryLabel):
             Line2D(markersize=s, **KW.SIZE_HANDLES) for s in self.categories)
         return handles, self.labels
     
-    def __getitem__(self, item: int | float | None) -> float:
+    def __getitem__(self, item: float | None) -> float:
         """Get the size value corresponding to the given item.
 
         Parameters
         ----------
-        item : int | float | None
+        item : float | None
             The item for which to retrieve the size value.
 
         Returns
@@ -432,6 +424,7 @@ class SizeLabel(_CategoryLabel):
             The size value corresponding to the item."""
         if item is None:
             return self.default
+            
         return self([item])[0]
     
     def __call__(self, values: ArrayLike) -> NDArray:
@@ -462,11 +455,11 @@ class Dodger:
 
     Parameters
     ----------
-    categories : Tuple[str, ...]
+    categories : tuple[str, ...]
         A tuple of categories corresponding to the features being 
         plotted. These categories will be used to determine the 
         positions of the dodged elements in the visualization.
-    tick_labels : Tuple[str, ...]
+    tick_labels : tuple[str, ...]
         A tuple of labels for the ticks on the axis. These labels will 
         correspond to the categories and will be displayed along the 
         axis to enhance the interpretability of the plot.
@@ -481,30 +474,37 @@ class Dodger:
     """
 
     __slots__ = (
-        'categories', 'ticks', 'tick_labels', 'amount', 'width', 'dodge',
-        '_default', '_pos_to_label_map')
+        '_default',
+        '_pos_to_label_map',
+        'amount',
+        'categories',
+        'dodge',
+        'tick_labels',
+        'ticks',
+        'width',
+    )
     
-    categories: Tuple[str, ...]
+    categories: tuple[str, ...]
     """Categories corresponding to the features."""
     ticks: NDArray[np.int_]
     """Numeric positions of the ticks."""
-    tick_labels: Tuple[str, ...]
+    tick_labels: tuple[str, ...]
     """Labels for the ticks on the axis."""
     width: float
     """Width of each category bar."""
     amount: int
     """Number of categories."""
-    dodge: Dict[str, float]
+    dodge: dict[str, float]
     """Dictionary mapping categories to dodge values."""
     _default: int
     """Default dodge value."""
-    _pos_to_label_map: Dict[str, str]
+    _pos_to_label_map: dict[str, str]
     """Dictionary mapping tick positions to tick labels."""
 
     def __init__(
             self,
-            categories: Tuple[str, ...],
-            tick_labels: Tuple[Any, ...]) -> None:
+            categories: tuple[str, ...],
+            tick_labels: tuple[Any, ...]) -> None:
         self.categories = categories
         self.tick_labels = tuple(map(str, tick_labels))
         self.ticks = np.arange(len(tick_labels)) + DEFAULT.FEATURE_BASE
@@ -518,7 +518,7 @@ class Dodger:
         self._pos_to_label_map = {}
     
     @property
-    def lim(self) -> Tuple[float, float]:
+    def lim(self) -> tuple[float, float]:
         """Get the required axis limits (read-only)."""
         return (min(self.ticks) - 0.5, max(self.ticks) + 0.5)
     

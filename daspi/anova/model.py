@@ -72,64 +72,47 @@ calculations, *patsy* for formula encoding of the design matrix, and
 the :mod:`daspi.statistics` package for capability indices and
 measurement uncertainty propagation.
 """
-import warnings
 import itertools
+import warnings
+from abc import ABC, abstractmethod
+from collections.abc import Generator
+from typing import Any, Literal, LiteralString, Self
 
 import numpy as np
 import pandas as pd
-import scipy.stats as stats
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
-
-from abc import ABC
-from abc import abstractmethod
-from typing import Any
-from typing import Set
-from typing import Self
-from typing import List
-from typing import Dict
-from typing import Tuple
-from typing import Literal
-from typing import LiteralString
-from typing import Generator
-from patsy.desc import ModelDesc
 from numpy.linalg import LinAlgError
 from pandas.core.frame import DataFrame
-from patsy.design_info import DesignInfo
 from pandas.core.series import Series
+from patsy.desc import ModelDesc
+from patsy.design_info import DesignInfo
+from scipy import stats
+from statsmodels.iolib.summary import Summary, forg, summary_params_frame
 from statsmodels.iolib.table import SimpleTable
-from statsmodels.iolib.summary import forg
-from statsmodels.iolib.summary import Summary
-from statsmodels.iolib.summary import summary_params_frame
 from statsmodels.iolib.tableformatting import fmt_base
 from statsmodels.regression.linear_model import RegressionResultsWrapper
-from .convert import frames_to_html
-from .convert import get_term_name
 
-from .tables import anova_table
-from .tables import terms_effect
-from .tables import terms_probability
-from .tables import variance_inflation_factor
-
-from ..constants import RE
-from ..constants import ANOVA
-
+from ..constants import ANOVA, RE
+from ..statistics.estimation import GageEstimator, MeasurementUncertainty
+from ..statistics.montecarlo import Specification, SpecLimits
 from ..strings import STR
-
-from ..statistics.montecarlo import SpecLimits
-from ..statistics.montecarlo import Specification
-from ..statistics.estimation import GageEstimator
-from ..statistics.estimation import MeasurementUncertainty
-
+from .convert import frames_to_html, get_term_name
+from .tables import (
+    anova_table,
+    terms_effect,
+    terms_probability,
+    variance_inflation_factor,
+)
 
 __all__ = [
-    'is_main_parameter',
+    'GageRnRModel',
+    'GageStudyModel',
+    'GeneralizedLinearModel',
+    'LinearModel',
     'get_order',
     'hierarchical',
-    'LinearModel',
-    'GeneralizedLinearModel',
-    'GageStudyModel',
-    'GageRnRModel']
+    'is_main_parameter',]
 
 
 def is_main_parameter(parameter: str) -> bool:
@@ -142,7 +125,7 @@ def get_order(parameter: str) -> int:
     contains)."""
     return parameter.count(ANOVA.SEP) + 1
 
-def hierarchical(parameters: List[str]) -> List[str]:
+def hierarchical(parameters: list[str]) -> list[str]:
     """Get all parameters such that all lower interactions and main 
     effects are present with the same parameters that appear in the 
     higher interactions
@@ -183,14 +166,14 @@ class BaseHTMLReprModel(ABC):
     """
     __slots__ = (
         '_captions', 'print_formula')
-    _captions: Tuple[str, ...]
+    _captions: tuple[str, ...]
     target: str
     """The name of the target variable for the model."""
     print_formula: bool
     """Whether to print the formula in the HTML representation."""
     
     @property
-    def captions(self) -> Tuple[str, ...]:
+    def captions(self) -> tuple[str, ...]:
         """Get the captions for the tables used for html output
         (read-only)."""
         return self._captions
@@ -201,7 +184,7 @@ class BaseHTMLReprModel(ABC):
         ...
     
     @abstractmethod
-    def _dfs_repr_(self) -> List[DataFrame]:
+    def _dfs_repr_(self) -> list[DataFrame]:
         """Returns a list of DataFrames to be used for html output."""
         ...
     
@@ -257,7 +240,7 @@ class BaseHTMLReprModel(ABC):
         _repr = spacing.join(
             f'{c}:\n{df}' for df, c in zip(self._dfs_repr_(), self.captions))
         if self.print_formula:
-           _repr = f'{STR["formula"]}:\n{str(self)}{spacing}{_repr}'
+           _repr = f'{STR["formula"]}:\n{self!s}{spacing}{_repr}'
         return _repr
     
     def __str__(self) -> str:
@@ -300,13 +283,14 @@ class LinearModel(BaseHTMLReprModel):
         model.
     target : str
         Column name of the endogenous variable.
-    factors : List[str]
+    factors : list[str]
         Column names of the exogenous variables that can be actively 
         changed (factor levels for DOE or EVOP). Interactions are also 
         created for these variables if the order is set > 1.
-    covariates : List[str], optional
+    covariates : list[str], optional
         Column names for exogenous variables that are logged but cannot 
         be influenced. No interactions are created for these variables.
+        Default is None, which means no covariates are used.
     alpha : float, optional
         Threshold as alpha risk. All factors, including continuous and 
         intercept, that have a p-value smaller than alpha are removed 
@@ -340,7 +324,8 @@ class LinearModel(BaseHTMLReprModel):
         target='dissolution',
         factors=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
         covariates=['temperature', 'preparation'],
-        order=2)
+        order=2,
+        covariates=None)
 
     # Store goodnes of fit values for each elimination step
     df_gof = pd.concat(model.recursive_elimination())
@@ -377,66 +362,29 @@ class LinearModel(BaseHTMLReprModel):
       composition with the original factor names.
     """
     __slots__ = (
-        'data',
-        'target',
-        'factors',
-        'covariates',
-        '_model',
         '_alpha',
-        'skip_intercept_as_least',
-        'generalized_vif',
-        'feature_map', 
-        'main_term_map',
-        'target_map',
-        'excluded',
-        '_initial_terms', 
-        '_p_values',
         '_anova',
         '_effects',
-        '_vif')
+        '_initial_terms',
+        '_model',
+        '_p_values',
+        '_vif',
+        'covariates',
+        'data',
+        'excluded',
+        'factors',
+        'feature_map',
+        'generalized_vif',
+        'main_term_map',
+        'skip_intercept_as_least',
+        'target',
+        'target_map',)
     
-    data: DataFrame
-    """The Pandas DataFrame containing the data for the linear model."""
-    target: str
-    """The name of the target variable for the linear model."""
-    factors: List[str]
-    """The list of factors used in the linear model."""
-    covariates: List[str]
-    """The list of covariates variables used in the linear 
-    model."""
     _alpha: float
     """The alpha risk threshold used for automatic elimination of 
     factors during model simplification. All factors, including 
     continuous and intercept, that have a p-value smaller than this 
     alpha are removed from the model."""
-    skip_intercept_as_least: bool
-    """If True, the intercept is not treated as a least significant term"""
-    generalized_vif: bool
-    """If True, the generalized VIF is calculated when possible.
-    Otherwise, only the straightforward VIF (via R2) is calculated."""
-    _model: RegressionResultsWrapper | None
-    """The regression results of the fitted model. This property raises 
-    an AssertionError if no model has been fitted yet."""
-    feature_map: Dict[str, str]
-    """A dictionary that maps the original factor names to the encoded 
-    names (term) used in the model."""
-    main_term_map: Dict[str, str]
-    """A dictionary that maps the main term names (no interactions) back 
-    to the original factor names used in the model."""
-    target_map: Dict[str, str]
-    """A dictionary that maps the original factor names to the encoded 
-    factor names used in the model."""
-    excluded: Set[str]
-    """A set of factor names that should be excluded from the model."""
-    _initial_terms: List[LiteralString]
-    """The list of initial terms used in the linear model. These terms 
-    include the encoded names of covariates and the factors with all 
-    interactions up to the specified interaction order."""
-    _p_values: 'Series[float]'
-    """The `_p_values` attribute is a Pandas Series that stores the 
-    p-values for the factors in the linear regression model. This 
-    attribute is an implementation detail and is not part of the public 
-    API."""
     _anova: DataFrame
     """The `_anova` attribute is a Pandas DataFrame that stores the 
     ANOVA table for the fitted linear regression model. This attribute 
@@ -447,6 +395,18 @@ class LinearModel(BaseHTMLReprModel):
     effects (coefficients) of the factors in the linear regression 
     model. This attribute is an implementation detail and is not part 
     of the public API."""
+    _initial_terms: list[LiteralString]
+    """The list of initial terms used in the linear model. These terms 
+    include the encoded names of covariates and the factors with all 
+    interactions up to the specified interaction order."""
+    _model: RegressionResultsWrapper | None
+    """The regression results of the fitted model. This property raises 
+    an AssertionError if no model has been fitted yet."""
+    _p_values: 'Series[float]'
+    """The `_p_values` attribute is a Pandas Series that stores the 
+    p-values for the factors in the linear regression model. This 
+    attribute is an implementation detail and is not part of the public 
+    API."""
     _vif: DataFrame
     """The `_vif` attribute is a Pandas DataFrame that stores the 
     Variance Inflation Factors (VIFs), the Generalized Variance
@@ -454,13 +414,38 @@ class LinearModel(BaseHTMLReprModel):
     linear regression model. This attribute is an implementation detail 
     and is not part of the public API. Get a VIF-table by calling
     the `variance_inflation_factor()` method."""
+    covariates: list[str]
+    """The list of covariates variables used in the linear 
+    model."""
+    data: DataFrame
+    """The Pandas DataFrame containing the data for the linear model."""
+    excluded: set[str]
+    """A set of factor names that should be excluded from the model."""
+    factors: list[str]
+    """The list of factors used in the linear model."""
+    feature_map: dict[str, str]
+    """A dictionary that maps the original factor names to the encoded 
+    names (term) used in the model."""
+    generalized_vif: bool
+    """If True, the generalized VIF is calculated when possible.
+    Otherwise, only the straightforward VIF (via R2) is calculated."""
+    main_term_map: dict[str, str]
+    """A dictionary that maps the main term names (no interactions) back 
+    to the original factor names used in the model."""
+    skip_intercept_as_least: bool
+    """If True, the intercept is not treated as a least significant term"""
+    target: str
+    """The name of the target variable for the linear model."""
+    target_map: dict[str, str]
+    """A dictionary that maps the original factor names to the encoded 
+    factor names used in the model."""
 
     def __init__(
             self,
             source: DataFrame,
             target: str,
-            factors: List[str],
-            covariates: List[str] = [],
+            factors: list[str],
+            covariates: list[str] | None = None,
             alpha: float = 0.05,
             order: int = 1,
             skip_intercept_as_least: bool = True,
@@ -471,7 +456,8 @@ class LinearModel(BaseHTMLReprModel):
         assert order > 0 and isinstance(order, int), (
             'Interaction order must be a positive integer')
         
-        for column in factors + covariates:
+        self.covariates = covariates or []
+        for column in factors + self.covariates:
             assert column in source, f'Column {column} not found in source!'
 
         self._captions = (
@@ -482,13 +468,12 @@ class LinearModel(BaseHTMLReprModel):
         
         self.target = target
         self.factors = factors
-        self.covariates = covariates
         self.target_map = {target: 'y'}
-        f_main_terms = [f'x{i}' for i in range(len(factors))]
-        d_main_terms = [f'e{i}' for i in range(len(covariates))]
+        f_main_terms = [f'x{i}' for i in range(len(self.factors))]
+        d_main_terms = [f'e{i}' for i in range(len(self.covariates))]
         self.feature_map = (
-            {f: _f for f, _f in zip(factors, f_main_terms)}
-            | {c: _c for c, _c in zip(covariates, d_main_terms)})
+            {f: _f for f, _f in zip(self.factors, f_main_terms)}
+            | {c: _c for c, _c in zip(self.covariates, d_main_terms)})
         self.main_term_map = {v: k for k, v in self.feature_map.items()}
         self.alpha = alpha
         self.skip_intercept_as_least = skip_intercept_as_least
@@ -572,26 +557,26 @@ class LinearModel(BaseHTMLReprModel):
         return self.model.model.data.design_info
     
     @property
-    def terms(self) -> List[str]:
+    def terms(self) -> list[str]:
         """Get the encoded names of all variables for the current 
         fitted model (read-only)."""
         return self.model.model.data.design_info.term_names
     
     @property
-    def parameters(self) -> List[str]:
+    def parameters(self) -> list[str]:
         """Get the names of all variables for the current fitted 
         model in the composition using the original factor and 
         covariates names (read-only)."""
         return list(map(self._convert_term_name_, self.terms))
 
     @property
-    def term_map(self) -> Dict[str, str]:
+    def term_map(self) -> dict[str, str]:
         """Get the names of all internal used and original terms 
         variables for the current fitted model as dict (read-only)"""
         return {n: self._convert_term_name_(n) for n in self.terms}
     
     @property
-    def main_parameters(self) -> List[str]:
+    def main_parameters(self) -> list[str]:
         """Get all main parameters of current model excluding intercept
         (read-only)."""
         main_parameters = [
@@ -731,7 +716,7 @@ class LinearModel(BaseHTMLReprModel):
                 leasts = effects[effects.isna()]
             else:
                 leasts = effects[effects == effects.min()]
-            least = sorted(leasts.index, key=get_order)[-1]
+            least = max(leasts.index, key=get_order)
         else:
             if has_intercept and self.skip_intercept_as_least:
                 p_values = p_values.drop(ANOVA.INTERCEPT)
@@ -844,7 +829,7 @@ class LinearModel(BaseHTMLReprModel):
     
     def summary(
             self, 
-            anova_typ: Literal['', 'I', 'II', 'III', None] = None,
+            anova_typ: Literal['', 'I', 'II', 'III'] | None = None,
             vif: bool = True,
             **kwds
             ) -> Summary:
@@ -871,10 +856,10 @@ class LinearModel(BaseHTMLReprModel):
             A summary object containing information about the fitted 
             model.
         """
-        _kwds = dict(
-            yname=self.target,
-            xname=list(map(self._convert_term_name_, self.model.params.index))
-            ) | kwds
+        _kwds = {
+            'yname': self.target,
+            'xname': list(map(self._convert_term_name_, self.model.params.index))
+            } | kwds
         summary: Summary = self.model.summary(**_kwds)
         summary.tables = [summary.tables[i] for i in [0, 2, 1]]
    
@@ -956,11 +941,12 @@ class LinearModel(BaseHTMLReprModel):
         AssertionError: 
             If the given term is not in the model.
         """ 
-        term = ANOVA.SEP.join(map(
-            lambda x: get_term_name(self.feature_map.get(x, x)),
-            parameter.split(ANOVA.SEP)))
+        term = ANOVA.SEP.join(
+            get_term_name(self.feature_map.get(x, x))
+            for x in parameter.split(ANOVA.SEP))
         assert term in self.terms, (
             f'Given term {term} is not in model')
+        
         self.excluded.add(term)
         return self
 
@@ -990,9 +976,9 @@ class LinearModel(BaseHTMLReprModel):
         lm
         ```
         """
-        term = ANOVA.SEP.join(map(
-            lambda x: get_term_name(self.feature_map.get(x, x)),
-            parameter.split(ANOVA.SEP)))
+        term = ANOVA.SEP.join(
+            get_term_name(self.feature_map.get(x, x))
+            for x in parameter.split(ANOVA.SEP))
         if term not in self.excluded:
             warnings.warn(
                 f'Given parameter {parameter} was not excluded from model',
@@ -1005,7 +991,7 @@ class LinearModel(BaseHTMLReprModel):
             rsquared_max: float = 0.99,
             ensure_hierarchy: bool = True,
             **kwds
-            ) -> Generator[DataFrame, Any, None]:
+            ) -> Generator[DataFrame, Any]:
         """Perform a recursive parameter elimination on the fitted model.
         
         This function starts with the complete model and recursively 
@@ -1260,7 +1246,7 @@ class LinearModel(BaseHTMLReprModel):
 
     def highest_parameters(
             self,
-            factors_only: bool = False) -> List[str]:
+            factors_only: bool = False) -> list[str]:
         """Determines all main and interaction parameters that do not 
         occur in a higher interaction in this constellation.
         
@@ -1272,15 +1258,15 @@ class LinearModel(BaseHTMLReprModel):
         
         Returns
         -------
-        List[str]
-            List of highest parameters.
+        list[str]
+            list of highest parameters.
         """
         splitted_params = sorted(
             [p.split(ANOVA.SEP) for p in self.parameters], 
             key=len,
             reverse=True)
         
-        _parameters: List[List[str]] = []
+        _parameters: list[list[str]] = []
         highest_order = len(splitted_params[0])
         last_order = highest_order
         current_params = []
@@ -1345,7 +1331,7 @@ class LinearModel(BaseHTMLReprModel):
         return False
     
     @staticmethod
-    def _as_tuple_(value: Any) -> Tuple:
+    def _as_tuple_(value: Any) -> tuple:
         """Ensure that the given value is a tuple."""
         if isinstance(value, tuple):
             return value
@@ -1354,13 +1340,13 @@ class LinearModel(BaseHTMLReprModel):
         else:
             return (value,)
 
-    def predict(self, xs: Dict[str, Any]) -> DataFrame:
+    def predict(self, xs: dict[str, Any]) -> DataFrame:
         """Predict y with given xs. Ensure that all non interactions are 
         given in xs
         
         Parameters
         ----------
-        xs : Dict[str, Any]
+        xs : dict[str, Any]
             The values for which you want to predict. Make sure that all
             non interaction parameters are given in xs. If multiple 
             values are to be predicted, provide a list of values for 
@@ -1376,7 +1362,7 @@ class LinearModel(BaseHTMLReprModel):
             assert parameter in xs, (
                 f'Please provide a value for "{parameter}"')
         
-        for x in xs.keys():
+        for x in xs:
             assert x in self.main_parameters, (
                 f'"{x}" is not a main parameter of the model.')
         
@@ -1389,16 +1375,16 @@ class LinearModel(BaseHTMLReprModel):
     def optimize(
             self,
             maximize: bool = True,
-            bounds: Dict[str, Any] = {}
-            ) -> Dict[str, Any]:
+            bounds: dict[str, Any] | None = None
+            ) -> dict[str, Any]:
         """Optimize the prediction by optimizing the parameters.
 
         Parameters
         ----------
         maximize : bool, optional
             Whether to maximize the prediction or minimize it.
-        bounds : Dict[str, Any], optional
-            Bounds for the parameters to optimize.
+        bounds : dict[str, Any], optional
+            Bounds for the parameters to optimize, default is None.
             - You can freeze a paramater by setting it to the desired 
                 value. For example, to fix the value of a parameter to 1, 
                 you can set bounds = {'param_name': 1}.
@@ -1415,11 +1401,11 @@ class LinearModel(BaseHTMLReprModel):
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The optimized parameters.
         """
         minimize = not maximize
-        bounds = {k: self._as_tuple_(v) for k, v in bounds.items()}
+        bounds = {k: self._as_tuple_(v) for k, v in (bounds or {}).items()}
         xs_optimized = {k: v[0] for k, v in bounds.items() if len(v) == 1}
 
         coefficients = (self
@@ -1518,14 +1504,14 @@ class LinearModel(BaseHTMLReprModel):
         data[ANOVA.OBSERVATION] = np.arange(len(data)) + 1
         return data[[ANOVA.OBSERVATION, ANOVA.RESIDUAL, ANOVA.PREDICTION]]
     
-    def _dfs_repr_(self) -> List[DataFrame]:
+    def _dfs_repr_(self) -> list[DataFrame]:
         """Returns a list of DataFrames containing the goodness-of-fit 
         metrics, ANOVA table, and parameter statistics for the fitted 
         model.
         
         Returns
         -------
-        dfs : List[pandas.DataFrame]
+        dfs : list[pandas.DataFrame]
             A list containing the following DataFrames:
             - Goodness-of-fit metrics
             - Parameter statistics
@@ -1674,49 +1660,59 @@ class GageStudyModel(LinearModel):
     standard deviation of the biases of the GageEstimator instances.
     """
     __slots__ = (
-        'source',
-        'target',
-        'reference',
-        '_gage',
-        '_ref_gages',
-        '_n_references',
-        '_references_analysis',
-        '_capabilities',
-        '_df_u',
-        '_u_re',
-        '_u_bi',
-        '_u_lin',
-        '_u_evr',
-        '_u_rest',
-        '_u_ms',
-        '_k',
+        '_T_min_UMS',
+        '_alpha',
         '_bias',
         '_bias_corrected',
+        '_capabilities',
+        '_df_u',
+        '_gage',
+        '_k',
+        '_n_references',
         '_q_ms_limit',
-        '_alpha',
-        '_T_min_UMS')
+        '_ref_gages',
+        '_references_analysis',
+        '_u_bi',
+        '_u_evr',
+        '_u_lin',
+        '_u_ms',
+        '_u_re',
+        '_u_rest',
+        'reference',
+        'source',
+        'target',)
     
-    source: DataFrame
-    target: str
-    reference: str
-    _gage: GageEstimator
-    _ref_gages: List[GageEstimator]
-    _n_references: int
-    _references_analysis: DataFrame
-    _capabilities: DataFrame
-    _df_u: DataFrame
-    _u_re: MeasurementUncertainty | None
-    _u_bi: MeasurementUncertainty | None
-    _u_lin: MeasurementUncertainty | None
-    _u_evr: MeasurementUncertainty | None
-    _u_rest: MeasurementUncertainty | None
-    _u_ms: MeasurementUncertainty | None
-    _k: int | float
+    _T_min_UMS: float | None
+    _alpha: float
     _bias: float | None
     _bias_corrected: bool
+    _capabilities: DataFrame
+    _df_u: DataFrame
+    _gage: GageEstimator
+    _k: int | float
+    _n_references: int
     _q_ms_limit: float
-    _alpha: float
-    _T_min_UMS: float | None
+    _ref_gages: list[GageEstimator]
+    _references_analysis: DataFrame
+    _u_bi: MeasurementUncertainty | None
+    _u_evr: MeasurementUncertainty | None
+    _u_lin: MeasurementUncertainty | None
+    _u_ms: MeasurementUncertainty | None
+    _u_re: MeasurementUncertainty | None
+    _u_rest: MeasurementUncertainty | None
+    reference: str
+    """Reference column name for the measured parts. This column is also
+    used to identify which measured values belong to which reference 
+    part. If the column has missing values, the pandas method `ffill()` 
+    is used to ensure that the column is filled. The uncertainty u_lin
+    is determined if the column contains several reference values,
+    unless a known measurement uncertainty is given with the argument
+    `u_lin`."""
+    source: DataFrame
+    """Pandas DataFrame as tabular data in a long format used for the
+    model."""
+    target: str
+    """Column name for source data holding the measurement values."""
 
     def __init__(
             self,
@@ -1729,7 +1725,7 @@ class GageStudyModel(LinearModel):
             u_bi: MeasurementUncertainty | None = None,
             u_lin: MeasurementUncertainty | None = None,
             u_rest: MeasurementUncertainty | None = None,
-            k: int | float = 2,
+            k: int | float = 2, # noqa: PYI041
             tolerance_ratio: float = 0.2,
             q_ms_limit: float = 0.15,
             cg_limit: float = 1.33,
@@ -1791,8 +1787,8 @@ class GageStudyModel(LinearModel):
     
     @staticmethod
     def from_gage_estimators(
-            gages: GageEstimator | List[GageEstimator],
-            k: int | float = 2,
+            gages: GageEstimator | list[GageEstimator],
+            k: int | float = 2, # noqa: PYI041
             bias_corrected: bool = False) -> 'GageStudyModel':
         """Create a GageStudyModel from a list of GageEstimator 
         instances. This method is useful when you already have 
@@ -1802,7 +1798,7 @@ class GageStudyModel(LinearModel):
         
         Parameters
         ----------
-        gages : GageEstimator | List[GageEstimator]
+        gages : GageEstimator | list[GageEstimator]
             A list of GageEstimator instances to create the model from.
         k : int | float, optional
             The coverage factor for expanded uncertainty. It is used as 
@@ -1850,9 +1846,9 @@ class GageStudyModel(LinearModel):
     
     @staticmethod
     def _ensure_tuple_(
-            value: float | Tuple[float, ...],
+            value: float | tuple[float, ...],
             n_values: int
-            ) -> Tuple[float, ...]:
+            ) -> tuple[float, ...]:
         """Ensure that the given value is a tuple."""
         if isinstance(value, tuple):
             values = value
@@ -1871,7 +1867,7 @@ class GageStudyModel(LinearModel):
         return self._gage
     
     @property
-    def ref_gages(self) -> List[GageEstimator]:
+    def ref_gages(self) -> list[GageEstimator]:
         """Returns a list of GageEstimator instances used in the model
         (read_only).
 
@@ -1952,8 +1948,9 @@ class GageStudyModel(LinearModel):
         - k=3 corresponds to a confidence interval of 99.73%
         """
         return self._k
+    
     @k.setter
-    def k(self, k: int | float) -> None:
+    def k(self, k: int | float) -> None: # noqa: PYI041
         assert k > 0, f'k must be positive, typically 2 or 3. Got {k=}'
         self._k = k
         self._reset_tables_()
@@ -2248,7 +2245,7 @@ class GageStudyModel(LinearModel):
             vif: bool = False) -> DataFrame:
         return super().anova(typ, vif)
     
-    def _dfs_repr_(self) -> List[DataFrame]:
+    def _dfs_repr_(self) -> list[DataFrame]:
         dfs = [
             self.references_analysis(),
             self.capabilities(),
@@ -2378,56 +2375,56 @@ class GageRnRModel(LinearModel):
     """
 
     __slots__ = (
-        'part',
-        'has_operator',
-        'u_map',
-        'n_levels',
-        '_n_samples',
-        '_rnr',
         '_df_u',
         '_df_ump',
         '_df_ums',
+        '_evaluate_ia',
         '_gage',
         '_k',
-        '_u_evo',
+        '_n_samples',
+        '_rnr',
         '_u_av',
+        '_u_evo',
         '_u_gv',
         '_u_ia',
-        '_u_t',
-        '_u_stab',
+        '_u_mp',
         '_u_obj',
         '_u_rest',
-        '_u_mp',
-        '_evaluate_ia',
+        '_u_stab',
+        '_u_t',
+        'has_operator',
+        'n_levels',
+        'part',
+        'u_map',
         )
     
-    part: str
-    """Column name of the part (unit under test) variable."""
-    has_operator: bool
-    """Indicates whether the model has an operator variable."""
-    u_map: Dict[str, str]
-    """Dictionary for mapping original names of uncertainties in the 
-    source data to the uncertainty abbreviations used in the model."""
-    n_levels: 'Series[int]'
-    """Series with the number of levels for each variable. The amount
-    of replications are stored under equipment variation 'EV'."""
-    _n_samples: int
-    _rnr: DataFrame
     _df_u: DataFrame
     _df_ump: DataFrame
     _df_ums: DataFrame
+    _evaluate_ia: bool | Literal['auto']
     _gage: GageStudyModel
     _k: int | float
-    _u_evo: MeasurementUncertainty | None
+    _n_samples: int
+    _rnr: DataFrame
     _u_av: MeasurementUncertainty | str | None
+    _u_evo: MeasurementUncertainty | None
     _u_gv: MeasurementUncertainty | str | None
     _u_ia: MeasurementUncertainty | None
-    _u_t: MeasurementUncertainty | str | None
-    _u_stab: MeasurementUncertainty | str | None
+    _u_mp: MeasurementUncertainty | None
     _u_obj: MeasurementUncertainty | str | None
     _u_rest: MeasurementUncertainty | None
-    _u_mp: MeasurementUncertainty | None
-    _evaluate_ia: bool | Literal['auto']
+    _u_stab: MeasurementUncertainty | str | None
+    _u_t: MeasurementUncertainty | str | None
+    has_operator: bool
+    """Indicates whether the model has an operator variable."""
+    n_levels: 'Series[int]'
+    """Series with the number of levels for each variable. The amount
+    of replications are stored under equipment variation 'EV'."""
+    part: str
+    """Column name of the part (unit under test) variable."""
+    u_map: dict[str, str]
+    """dictionary for mapping original names of uncertainties in the 
+    source data to the uncertainty abbreviations used in the model."""
 
     def __init__(
             self,
@@ -2531,15 +2528,16 @@ class GageRnRModel(LinearModel):
     def k(self) -> int | float:
         """The coverage factor for the expanded measurement uncertainty."""
         return self._k
+    
     @k.setter
-    def k(self, k: int | float) -> None:
+    def k(self, k: int | float) -> None: # noqa: PYI041
         assert k > 0, f'k must be greater than 0, got {k}'
         if hasattr(self, '_df_u') and k != getattr(self, '_k', 0):
             self._df_u = pd.DataFrame()
         self._k = k
     
     @property
-    def interactions(self) -> List[str]:
+    def interactions(self) -> list[str]:
         """Get the interaction parameter names if interaction is present 
         in the fitted model (read-only)."""
         return [p for p in self.parameters if ANOVA.SEP in p]
@@ -2828,7 +2826,7 @@ class GageRnRModel(LinearModel):
 
         anova = self.anova().copy().rename(index=idx_map)
         ms = anova['MS']
-        ems: Dict[str, float] = {ANOVA.EV: ms[ANOVA.EV]}
+        ems: dict[str, float] = {ANOVA.EV: ms[ANOVA.EV]}
         if self._evaluate_ia:
             ms_iai = [ms[i] for i in self.interactions]
             _ms = sum(ms_iai)
@@ -2952,14 +2950,14 @@ class GageRnRModel(LinearModel):
         self._df_ump = df_u.loc[df_ump.index, :].copy()
         return pd.concat([self._df_ums, self._df_ump])
     
-    def _dfs_repr_(self) -> List[DataFrame]:
+    def _dfs_repr_(self) -> list[DataFrame]:
         """Returns a list of DataFrames containing the goodness-of-fit 
         metrics, ANOVA table, and parameter statistics for the fitted 
         model.
         
         Returns
         -------
-        dfs : List[pandas.DataFrame]
+        dfs : list[pandas.DataFrame]
             A list containing the following DataFrames:
             - Goodness-of-fit metrics
             - Parameter statistics
@@ -3008,7 +3006,7 @@ class GeneralizedLinearModel(BaseHTMLReprModel):
         Pandas DataFrame in long format containing the data.
     target : str
         Column name of the response variable (counts or proportions).
-    factors : List[str]
+    factors : list[str]
         Column names of predictor variables (categorical or continuous).
     family : Literal['poisson', 'negbin', 'binomial'], optional
         Distribution family:
@@ -3095,43 +3093,53 @@ class GeneralizedLinearModel(BaseHTMLReprModel):
     - Dispersion > 1.5 suggests overdispersion → use Negative Binomial
     """
     __slots__ = (
-        'data',
-        'target',
-        'factors',
-        '_model',
         '_alpha',
+        '_deviance',
+        '_effects',
+        '_initial_terms',
+        '_model',
+        '_p_values',
+        'data',
+        'factors',
         'family',
-        'offset',
         'feature_map',
         'main_term_map',
-        'target_map',
-        '_initial_terms',
-        '_p_values',
-        '_effects',
-        '_deviance',
-        'print_formula')
+        'offset',
+        'print_formula',
+        'target',
+        'target_map',)
     
-    data: DataFrame
-    target: str
-    factors: List[str]
-    _model: Any  # GLMResultsWrapper from statsmodels
     _alpha: float
-    family: Literal['poisson', 'negbin', 'binomial']
-    offset: str | None
-    feature_map: Dict[str, str]
-    main_term_map: Dict[str, str]
-    target_map: Dict[str, str]
-    _initial_terms: List[str]
-    _p_values: Series
-    _effects: Series
     _deviance: float | None
+    _effects: Series
+    _initial_terms: list[str]
+    _model: Any  # GLMResultsWrapper from statsmodels
+    _p_values: Series
+    data: DataFrame
+    """The data used for fitting the model, with renamed columns
+    for internal processing."""
+    factors: list[str]
+    """List of factor column names used in the model."""
+    family: Literal['poisson', 'negbin', 'binomial']
+    """The distribution family for the GLM."""
+    feature_map: dict[str, str]
+    """Mapping of original factor names to internal names (x0, x1, ...)."""
+    main_term_map: dict[str, str]
+    """Mapping of internal names back to original factor names."""
+    offset: str | None
+    """Column name of the offset variable, if any."""
     print_formula: bool
+    """Whether to print the model formula."""
+    target: str
+    """Column name of the response variable."""
+    target_map: dict[str, str]
+    """Mapping of original target name to internal name ('y')."""
 
     def __init__(
             self,
             source: DataFrame,
             target: str,
-            factors: List[str],
+            factors: list[str],
             family: Literal['poisson', 'negbin', 'binomial'] = 'poisson',
             offset: str | None = None,
             alpha: float = 0.05,
@@ -3141,6 +3149,7 @@ class GeneralizedLinearModel(BaseHTMLReprModel):
         
         assert order > 0 and isinstance(order, int), (
             'Interaction order must be a positive integer')
+        
         assert family in ('poisson', 'negbin', 'binomial'), (
             f'Family must be poisson, negbin, or binomial, got {family}')
         
@@ -3329,13 +3338,13 @@ class GeneralizedLinearModel(BaseHTMLReprModel):
         
         return self
     
-    def deviance_check(self) -> Dict[str, Any]:
+    def deviance_check(self) -> dict[str, Any]:
         """Check model fit using deviance statistics.
         
         Returns
         -------
-        Dict[str, Any]
-            Dictionary containing:
+        dict[str, Any]
+            dictionary containing:
             - 'deviance': Model deviance
             - 'df_resid': Residual degrees of freedom  
             - 'dispersion': Deviance / df_resid
@@ -3416,7 +3425,8 @@ class GeneralizedLinearModel(BaseHTMLReprModel):
         """
         if self._effects.empty:
             effects = self.model.params / self.model.bse
-            effects.index = [self._convert_term_name_(idx) for idx in effects.index]
+            effects.index = [
+                self._convert_term_name_(idx) for idx in effects.index]
             self._effects = effects
         return self._effects.copy()
     
@@ -3430,16 +3440,17 @@ class GeneralizedLinearModel(BaseHTMLReprModel):
         """
         if self._p_values.empty:
             p_vals = self.model.pvalues.copy()
-            p_vals.index = [self._convert_term_name_(idx) for idx in p_vals.index]
+            p_vals.index = [
+                self._convert_term_name_(idx) for idx in p_vals.index]
             self._p_values = p_vals
         return self._p_values.copy()
     
-    def predict(self, xs: Dict[str, Any]) -> DataFrame:
+    def predict(self, xs: dict[str, Any]) -> DataFrame:
         """Predict response for given factor values.
         
         Parameters
         ----------
-        xs : Dict[str, Any]
+        xs : dict[str, Any]
             Dictionary mapping factor names to values.
             Can be single values or lists for multiple predictions.
         
@@ -3473,7 +3484,8 @@ class GeneralizedLinearModel(BaseHTMLReprModel):
             Table showing mean predictions for each factor combination.
         """
         # Get unique combinations of factors
-        unique_combos = self.data[list(self.feature_map.values())].drop_duplicates()
+        unique_combos = self.data[
+            list(self.feature_map.values())].drop_duplicates()
         
         # Predict for each combination
         predictions = self.model.predict(unique_combos)
@@ -3485,7 +3497,7 @@ class GeneralizedLinearModel(BaseHTMLReprModel):
         
         return result
     
-    def _dfs_repr_(self) -> List[DataFrame]:
+    def _dfs_repr_(self) -> list[DataFrame]:
         """DataFrames for HTML representation."""
         return [
             pd.DataFrame({

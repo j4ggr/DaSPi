@@ -13,16 +13,13 @@ Functions
     string with per-table ``<caption>`` elements; used by
     ``BaseHTMLReprModel`` to build the notebook HTML representation.
 """
-from typing import List
-from typing import Tuple
 from pandas.core.frame import DataFrame
 
-from ..constants import RE
-from ..constants import ANOVA
+from ..constants import ANOVA, RE
 
 __all__ = [
-    'get_term_name',
     'frames_to_html',
+    'get_term_name',
 ]
 
 def get_term_name(name: str) -> str:
@@ -68,8 +65,8 @@ def get_term_name(name: str) -> str:
     return ANOVA.SEP.join([(m[0] if m else n) for m, n in zip(matches, names)])
 
 def frames_to_html(
-        dfs: DataFrame | List[DataFrame] | Tuple[DataFrame, ...],
-        captions: str | List[str] | Tuple[str, ...]) -> str:
+        dfs: DataFrame | list[DataFrame] | tuple[DataFrame, ...],
+        captions: str | list[str] | tuple[str, ...]) -> str:
     """Converts one or more DataFrames to HTML tables with captions.
 
     Parameters

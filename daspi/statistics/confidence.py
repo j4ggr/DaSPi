@@ -51,45 +51,38 @@ Comprehensive confidence intervals for Python developers:
 https://aegis4048.github.io/comprehensive_confidence_intervals_for_python_developers
 """
 # source for ci: https://aegis4048.github.io/comprehensive_confidence_intervals_for_python_developers#conf_int_of_var
+from collections.abc import Callable
+from math import sqrt
+
 import numpy as np
 import pandas as pd
-
-from math import sqrt
-from typing import List
-from typing import Tuple
-from typing import Callable
-from scipy.stats import t
-from scipy.stats import f
-from scipy.stats import chi2
-from scipy.stats import norm
 from numpy.typing import NDArray
 from pandas.core.frame import DataFrame
-from statsmodels.stats.proportion import proportion_confint
-from statsmodels.stats.proportion import confint_proportions_2indep
+from scipy.stats import chi2, norm, t
 from statsmodels.regression.linear_model import RegressionResults
-from statsmodels.stats.outliers_influence import OLSInfluence
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
+from statsmodels.stats.outliers_influence import OLSInfluence
+from statsmodels.stats.proportion import confint_proportions_2indep, proportion_confint
 
 from .._typing import NumericSample1D
 
-
 __all__ = [
-    'sem',
-    'mean_ci',
-    'median_ci',
-    'variance_ci',
-    'stdev_ci',
-    'proportion_ci',
+    'bonferroni_ci',
+    'confidence_to_alpha',
     'cp_ci',
     'cpk_ci',
-    'bonferroni_ci',
     'delta_mean_ci',
-    'delta_variance_ci',
-    'delta_stdev_ci',
     'delta_proportions_ci',
+    'delta_stdev_ci',
+    'delta_variance_ci',
     'fit_ci',
+    'mean_ci',
+    'median_ci',
     'prediction_ci',
-    'confidence_to_alpha',]
+    'proportion_ci',
+    'sem',
+    'stdev_ci',
+    'variance_ci',]
 
 
 def sem(
@@ -119,7 +112,7 @@ def mean_ci(
         sample: NumericSample1D,
         level: float = 0.95,
         n_groups: int = 1
-        ) -> Tuple[float, float, float]:
+        ) -> tuple[float, float, float]:
     """Two sided confidence interval for mean of data.
 
     Parameters
@@ -160,7 +153,7 @@ def median_ci(
         sample: NumericSample1D,
         level: float = 0.95,
         n_groups: int = 1
-        ) -> Tuple[float, float, float]:
+        ) -> tuple[float, float, float]:
     """Two sided confidence interval for median of data
 
     Parameters
@@ -201,7 +194,7 @@ def variance_ci(
         sample: NumericSample1D,
         level: float = 0.95,
         n_groups: int = 1
-        ) -> Tuple[float, float, float]:
+        ) -> tuple[float, float, float]:
     """Two sided confidence interval for variance of data
 
     Parameters
@@ -235,7 +228,7 @@ def stdev_ci(
         sample: NumericSample1D,
         level: float = 0.95,
         n_groups: int = 1
-        ) -> Tuple[float, float, float]:
+        ) -> tuple[float, float, float]:
     """Two sided confidence interval for standard deviation of data
 
     Parameters
@@ -266,7 +259,7 @@ def proportion_ci(
         observations: int,
         level: float = 0.95,
         n_groups: int = 1
-        ) -> Tuple[float, float, float]:
+        ) -> tuple[float, float, float]:
     """Confidence interval for a binomial proportion with a asymptotic 
     normal approximation.
 
@@ -301,7 +294,7 @@ def cp_ci(
         n_samples: int,
         level: float = 0.95,
         n_groups: int = 1
-        ) -> Tuple[float, float, float]:
+        ) -> tuple[float, float, float]:
     """Calculate the confidence interval for the Cp estimator of process 
     capability.
 
@@ -356,7 +349,7 @@ def cpk_ci(
         n_samples: int,
         level: float = 0.95,
         n_groups: int = 1
-        ) -> Tuple[float, float, float]:
+        ) -> tuple[float, float, float]:
     """Calculate the confidence interval for the Cpk estimator of 
     process capability.
 
@@ -415,7 +408,7 @@ def cpk_ci(
 def bonferroni_ci(
         data: DataFrame,
         target: str,
-        feature: str | List[str],
+        feature: str | list[str],
         level: float = 0.95,
         ci_func: Callable = stdev_ci,
         n_groups: int | None = None,
@@ -431,7 +424,7 @@ def bonferroni_ci(
         data frame containing sample and feature data
     target : str
         name of target sample data column
-    feature : str | List[str]
+    feature : str | list[str]
         name of categorical feature. The confidence intervals are 
         calculated separately for these groups
     level : float in (0, 1), optional
@@ -473,16 +466,16 @@ def bonferroni_ci(
     if isinstance(feature, str):
         cat_values = list(groups.indices.keys())
     else:
-        cat_values = list(map(list, groups.indices.keys())) # type: ignore
+        cat_values = [list(k) for k in groups.indices] # pyright: ignore[reportArgumentType]
     
-    data[feature] = cat_values
+    data[feature] = pd.array(cat_values)
     return data
 
 def delta_mean_ci(
         sample1: NumericSample1D,
         sample2: NumericSample1D,
         level: float = 0.95
-        ) -> Tuple[float, float, float]:
+        ) -> tuple[float, float, float]:
     """Two sided confidence interval for mean difference of two
     independent variables.
 
@@ -525,7 +518,7 @@ def delta_variance_ci(
         sample1: NumericSample1D,
         sample2: NumericSample1D,
         level: float = 0.95
-        ) -> Tuple[float, float, float]:
+        ) -> tuple[float, float, float]:
     """two sided confidence interval for variance difference of two
     independent variables.
 
@@ -568,7 +561,7 @@ def delta_stdev_ci(
         sample1: NumericSample1D,
         sample2: NumericSample1D,
         level: float = 0.95
-        ) -> Tuple[float, float, float]:
+        ) -> tuple[float, float, float]:
     """two sided confidence interval for standard deviation difference 
     of two independent variables.
 
@@ -613,7 +606,7 @@ def delta_proportions_ci(
         events2: int,
         observations2: int,
         level: float = 0.95
-        ) -> Tuple[float, float, float]:
+        ) -> tuple[float, float, float]:
     """Confidence intervals for comparing two independent proportions
     This assumes that we have two independent binomial sample.
 
@@ -651,7 +644,7 @@ def delta_proportions_ci(
 def fit_ci(
         model: RegressionResults,
         level: float = 0.95
-        ) -> Tuple[NDArray, NDArray, NDArray]:
+        ) -> tuple[NDArray, NDArray, NDArray]:
     """calculate confidence interval fitted line. Applies to fitted WLS 
     and OLS models, not to general GLS
     
@@ -694,7 +687,7 @@ def fit_ci(
 def prediction_ci(
         model: RegressionResults,
         level: float = 0.95
-        ) -> Tuple[NDArray, NDArray, NDArray]:
+        ) -> tuple[NDArray, NDArray, NDArray]:
     """calculate confidence interval for prediction and to observe 
     outliers. Applies to fitted WLS and OLS models, not to general GLS.
     
@@ -751,8 +744,10 @@ def confidence_to_alpha(
     """
     assert 0 <= confidence_level <= 1, (
         f'Confidence level {confidence_level} not in (0, 1)')
+    
     assert isinstance(n_groups, int) and n_groups > 0, (
-        f'Number of groups must be a unsigned integer > 0')
+        f'Number of groups must be a unsigned integer > 0, but got {n_groups}')
+    
     sides = 2 if two_sided else 1
     alpha = (1 - confidence_level)/(sides * n_groups)
     return alpha

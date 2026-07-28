@@ -20,15 +20,14 @@ def _():
 
     from scipy import stats
     from typing import Any
-    from typing import Dict
     DPI = 120
     dsp.STR._username_ = 'j4ggr'
     dsp.__version__
-    return Any, DPI, Dict, dsp, np, pd, stats
+    return Any, DPI, dict, dsp, np, pd, stats
 
 
 @app.cell
-def _(Any, Dict, dsp, np, pd, stats):
+def _(Any, dict, dsp, np, pd, stats):
     np.random.seed(3)
     N_SAMPLES = 500
     HEIGHT = 0.9
@@ -76,17 +75,17 @@ def _(Any, Dict, dsp, np, pd, stats):
         ax.spines['left'].set_visible(False)
         ax.set(ylim=(-0.1, None), xlim=(-1, 1))
 
-    kw_base: Dict[str, Any] = dict(
+    kw_base: dict[str, Any] = dict(
         feature='position',
         target='values',
         target_on_y=False,
         ax=chart.axes[0, 0],
         color=hueing.categories[1])
-    kw_kde: Dict[str, Any] = dict(
+    kw_kde: dict[str, Any] = dict(
         height=HEIGHT,
         fill=True,
         ignore_feature=False)
-    kw_spread: Dict[str, Any] = dict(
+    kw_spread: dict[str, Any] = dict(
         marker='o',
         agreement=4,
     )

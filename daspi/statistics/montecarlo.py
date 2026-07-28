@@ -45,34 +45,29 @@ sample statistics to engineering tolerances. `calculate_agreement_and_k`
 is a shared helper that is also re-exported from this module.
 """
 import random
+from dataclasses import dataclass
+from math import pi, sin
+from typing import Literal, Self
 
 import numpy as np
-
-from math import pi
-from math import sin
-from scipy import stats
-from typing import Any
-from typing import Self
-from typing import Tuple
-from typing import Literal
-from dataclasses import dataclass
 from numpy.typing import NDArray
 from pandas.core.series import Series
+from scipy import stats
 
 from .._typing import FloatOrArray
 
-
 __all__ = [
+    'Binning',
+    'RandomProcessValue',
     'SpecLimits',
     'Specification',
-    'RandomProcessValue',
-    'Binning',
-    'round_to_nearest',
+    'calculate_agreement_and_k',
     'inclination_displacement',
-    'calculate_agreement_and_k']
+    'round_to_nearest',
+]
 
 
-def calculate_agreement_and_k(agreement: int | float) -> Tuple[float, float]:
+def calculate_agreement_and_k(agreement: int | float) -> tuple[float, float]:  # noqa: PYI041
     """Calculate agreement and coverage factor k from input agreement.
     
     This utility function standardizes the calculation of agreement and 
@@ -90,7 +85,7 @@ def calculate_agreement_and_k(agreement: int | float) -> Tuple[float, float]:
     
     Returns
     -------
-    Tuple[float, float]
+    tuple[float, float]
         A tuple containing (agreement, k) where:
         - agreement: The standardized agreement value (always >= 1)
         - k: The coverage factor
@@ -124,15 +119,16 @@ def calculate_agreement_and_k(agreement: int | float) -> Tuple[float, float]:
 
 
 __all__ = [
+    'Binning',
+    'RandomProcessValue',
     'SpecLimits',
     'Specification',
-    'RandomProcessValue',
-    'Binning',
-    'round_to_nearest',
+    'calculate_agreement_and_k',
     'inclination_displacement',
-    'calculate_agreement_and_k']
+    'round_to_nearest',
+]
 
-
+#TODO: add an anbounded instance of SpecLimits, to use as a default at plotlib
 @dataclass(frozen=True)
 class SpecLimits:
     """Class to hold the limits of a parameter specification.
@@ -178,12 +174,12 @@ class SpecLimits:
         (read-only)."""
         return (self.upper + self.lower) / 2
     
-    def to_tuple(self) -> Tuple[float, float]:
+    def to_tuple(self) -> tuple[float, float]:
         """Returns the lower and upper limits as a tuple.
 
         Returns
         -------
-        Tuple[float, float]
+        tuple[float, float]
             A tuple containing the lower and upper limits in order.
         """
         return (self.lower, self.upper)
@@ -203,7 +199,7 @@ class SpecLimits:
         """
         return self.lower <= value <= self.upper
     
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Checks if this SpecLimits instance is equal to another 
         SpecLimits instance or a tuple.
@@ -233,7 +229,7 @@ class Specification:
 
     Parameters
     ----------
-    limits : SpecLimits | Tuple[float, float] | None, optional
+    limits : SpecLimits | tuple[float, float] | None, optional
         The limits of the specification. The limits are automatically 
         calculated if only tolerance is given. Default is None.
     tolerance : float or None, optional
@@ -282,7 +278,11 @@ class Specification:
     ```
     """
 
-    __slots__ = ('_limits', '_tolerance', '_nominal', '_resolution')
+    __slots__ = (
+        '_limits',
+        '_nominal',
+        '_resolution',
+        '_tolerance')
 
     _limits: SpecLimits
     """The limits of the specification parameter."""
@@ -299,7 +299,7 @@ class Specification:
     def __init__(
             self,
             *,
-            limits: SpecLimits | Tuple[float, float] | None = None, 
+            limits: SpecLimits | tuple[float, float] | None = None, 
             tolerance: float | None = None,
             nominal: float | None = None,
             n_digits: int = 10
@@ -440,7 +440,7 @@ class RandomProcessValue:
     ```
     """
 
-    _allowed_dists: Tuple[str, ...] = (
+    _allowed_dists: tuple[str, ...] = (
         'normal', 'uniform', 'circular', 'coaxial', 'perpendicular')
     """Allowed distributions for the RandomProcessValue class."""
 
@@ -449,7 +449,7 @@ class RandomProcessValue:
             specification: Specification,
             dist: Literal['normal', 'uniform', 'circular', 'coaxial', 'perpendicular'],
             clip: bool = False,
-            agreement: int | float = 6,
+            agreement: int | float = 6,  # noqa: PYI041
             ) -> None:
         assert dist in self._allowed_dists, (
             f'Distribution must be one of {self._allowed_dists}, got {dist}.')
@@ -479,7 +479,7 @@ class RandomProcessValue:
         return self._agreement
     
     @agreement.setter
-    def agreement(self, agreement: int | float) -> None:
+    def agreement(self, agreement: int | float) -> None:  # noqa: PYI041
         self._agreement, self._k = calculate_agreement_and_k(agreement)
     
     @property

@@ -43,25 +43,13 @@ All public names from each submodule are re-exported at the package
 level, so ``from daspi.plotlib import Scatter`` works without knowing
 which submodule it lives in.
 """
-
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-
-from typing import List
-from pathlib import Path
-
 from .appearance import *
-
-from .classify import *
-
-from .plotter import *
-
-from .facets import *
-
 from .chart import *
-
+from .classify import *
+from .facets import *
+from .plotter import *
 from .precast import *
 
 # TODO: some alpha fails for vspan when using daspi and ggplot2 styles
-style.use('daspi')
+style.use('daspi') # TODO: implement a setting function for various settings, including language and stuff
 

@@ -88,113 +88,89 @@ Control marks:
   tick labels).
 """
 import warnings
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Generator, Hashable, Iterable
+from itertools import cycle
+from typing import Any, Literal, Self
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-import matplotlib.pyplot as plt
-
-from abc import ABC
-from abc import abstractmethod
-
-from typing import Any
-from typing import Self
-from typing import List
-from typing import Dict
-from typing import Tuple
-from typing import Literal
-from typing import Hashable
-from typing import Callable
-from typing import Iterable
-from typing import Generator
-
-from numpy.typing import NDArray
-from numpy.typing import ArrayLike
-
 from matplotlib import colors as mcolors
 from matplotlib.axes import Axes
-from matplotlib.lines import Line2D
-from matplotlib.figure import Figure
-from matplotlib.ticker import PercentFormatter
 from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.patches import Patch
 from matplotlib.container import BarContainer
-
-from scipy.stats import semicircular
-from scipy.stats._distn_infrastructure import rv_continuous
-
-from itertools import cycle
-
-from statsmodels.regression.linear_model import OLSResults
-
+from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
+from matplotlib.ticker import PercentFormatter
+from numpy.typing import ArrayLike, NDArray
 from pandas.api.types import is_scalar
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
+from scipy.stats import semicircular
+from scipy.stats._distn_infrastructure import rv_continuous
+from statsmodels.regression.linear_model import OLSResults
 
 from .._typing import LineStyle
-
+from ..constants import CATEGORY, COLOR, DEFAULT, DIST, KW, LINE, PLOTTER
+from ..statistics import (
+    DistributionEstimator,
+    LocationDispersionEstimator,
+    Loess,
+    Lowess,
+    ProcessEstimator,
+    SpecLimits,
+    estimate_capability_confidence,
+    estimate_kernel_density,
+    estimate_kernel_density_2d,
+    fit_ci,
+    mean_ci,
+    prediction_ci,
+    proportion_ci,
+    stdev_ci,
+    variance_ci,
+)
 from ..strings import STR
 
-from ..constants import KW
-from ..constants import LINE
-from ..constants import DIST
-from ..constants import COLOR
-from ..constants import DEFAULT
-from ..constants import PLOTTER
-from ..constants import CATEGORY
-
-from ..statistics import Loess
-from ..statistics import Lowess
-from ..statistics import fit_ci
-from ..statistics import mean_ci
-from ..statistics import stdev_ci
-from ..statistics import SpecLimits
-from ..statistics import variance_ci
-from ..statistics import prediction_ci
-from ..statistics import proportion_ci
-from ..statistics import ProcessEstimator
-from ..statistics import DistributionEstimator
-from ..statistics import estimate_kernel_density
-from ..statistics import estimate_kernel_density_2d
-from ..statistics import LocationDispersionEstimator
-from ..statistics import estimate_capability_confidence
-
-
 __all__ = [
-    'Plotter',
-    'Scatter',
-    'Line',
-    'Stem',
-    'LinearRegressionLine',
-    'LoessLine',
-    'Probability',
-    'ParallelCoordinate',
-    'TransformPlotter',
-    'CenterLocation',
     'Bar',
-    'Pareto',
-    'Box',
-    'Jitter',
     'Beeswarm',
+    'BlandAltman',
+    'Box',
+    'CapabilityConfidenceInterval',
     'CategoricalObservation',
-    'QuantileBoxes',
+    'CenterLocation',
+    'ConfidenceInterval',
+    'ErrorBar',
     'GaussianKDE',
     'GaussianKDEContour',
     'GaussianKDEContourUnivariate',
-    'Violin',
-    'ErrorBar',
-    'StandardErrorMean',
-    'SpreadWidth',
-    'ConfidenceInterval',
-    'MeanTest',
-    'VariationTest',
-    'ProportionTest',
-    'CapabilityConfidenceInterval',
     'HideSubplot',
+    'Jitter',
+    'Line',
+    'LinearRegressionLine',
+    'LoessLine',
+    'MeanTest',
+    'ParallelCoordinate',
+    'Pareto',
+    'Plotter',
+    'Probability',
+    'ProportionTest',
+    'QuantileBoxes',
+    'Scatter',
     'SkipSubplot',
+    'SpreadWidth',
+    'StandardErrorMean',
+    'Stem',
     'Stripe',
     'StripeLine',
     'StripeSpan',
-    'BlandAltman',]
+    'TransformPlotter',
+    'VariationTest',
+    'Violin',
+]
 
 
 class SpreadOpacity:
@@ -227,7 +203,7 @@ class SpreadOpacity:
         
         Default is 'data'.
 
-    agreements : Tuple[float, ...] or Tuple[int, ...], optional
+    agreements : tuple[float, ...] or tuple[int, ...], optional
         Specifies the tolerated process variation for calculating 
         quantiles. These quantiles are used to represent the filled area 
         with different opacity, thus highlighting the quantiles in the
@@ -241,25 +217,27 @@ class SpreadOpacity:
           acceptable proportions for the quantiles, e.g., 0.9973 
           corresponds to ~6σ.
         
-        Default is `DEFAULT.AGREEMENTS` = (2, 4, 6), corresponding to 
+        Default is `DEFAULT.AGREEMENTS` = (2, 4), corresponding to 
         (±1σ, ±2σ, ±3σ).
     possible_dists : tuple of strings or rv_continous, optional
         Distributions to which the data may be subject. Only 
         continuous distributions of scipy.stats are allowed,
         by default `DIST.COMMON`
     """
-    strategy: Literal['eval', 'fit', 'norm', 'data']
-    """Strategy for estimating the spread width."""
-    _agreements: Tuple[float, ...] | Tuple[int, ...]
+    # Note: __slots__ removed to allow multiple inheritance with Plotter subclasses
+    
+    _agreements: tuple[float, ...] | tuple[int, ...]
     """The agreement values used to calculate the quantiles."""
-    possible_dists: Tuple[str | rv_continuous, ...]
-    """Tuple of possible distributions for the spread width
-    estimation."""
     estimation: LocationDispersionEstimator
     """The estimator used to calculate the quantiles."""
+    possible_dists: tuple[str | rv_continuous, ...]
+    """tuple of possible distributions for the spread width
+    estimation."""
+    strategy: Literal['eval', 'fit', 'norm', 'data']
+    """Strategy for estimating the spread width."""
     
     @property
-    def agreements(self) -> Tuple[float, ...] | Tuple[int, ...]:
+    def agreements(self) -> tuple[float, ...] | tuple[int, ...]:
         """Get a tuple containing unique agreement values, which can be 
         either floats or integers. The values are sorted in ascending 
         order.
@@ -269,13 +247,14 @@ class SpreadOpacity:
         and sorts them in ascending order before storing them in the 
         instance."""
         return self._agreements
+    
     @agreements.setter
     def agreements(
-            self, agreements: Tuple[float, ...] | Tuple[int, ...]) -> None:
+            self, agreements: tuple[float, ...] | tuple[int, ...]) -> None:
         self._agreements = tuple(sorted(np.unique(agreements), reverse=False))
 
     @property
-    def _alphas(self) -> Dict[float | int, float]:
+    def _alphas(self) -> dict[float | int, float]:
         """Get color transparency for each quantile range."""
         n = len(self.agreements)
         alphas = ((i + 1) * COLOR.FILL_ALPHA / n for i in range(n))
@@ -283,22 +262,42 @@ class SpreadOpacity:
     
     def _kw_fill(
             self,
-            color: str | Tuple,
+            color: str | tuple,
             agreement: float,
             data: DataFrame
-            ) -> Dict[str, Any]:
-        """"""
+            ) -> dict[str, Any]:
+        """
+        Generate keyword arguments for filling areas in a plot based on
+        the specified color, agreement, and data.
+        
+        Parameters
+        ----------
+        color : str or tuple
+            The color to be used for filling the area. It can be a named
+            color (e.g., 'blue') or an RGB(A) tuple.
+        agreement : float
+            The agreement value used to determine the transparency of the
+            filled area.
+        data : pandas DataFrame
+            The data used to determine where the area should be filled.
+        
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing keyword arguments for the fill
+            operation, including color, alpha (transparency), edgecolor,
+            linewidth, where, and interpolate."""
         alpha = self._alphas.get(agreement, COLOR.FILL_ALPHA)
-        kw = dict(
-            color=color,
-            alpha=alpha,
-            edgecolor=mcolors.to_rgb(color) + (alpha/2,),
-            linewidth=1,
-            where=data[PLOTTER.SUBGROUP]==agreement,
-            interpolate=False)
+        kw = {
+            'color': color,
+            'alpha': alpha,
+            'edgecolor': mcolors.to_rgb(color) + (alpha/2,),
+            'linewidth': 1,
+            'where': data[PLOTTER.SUBGROUP]==agreement,
+            'interpolate': False}
         return kw
 
-    def quantiles(self, target_data: Series) -> List[float]:
+    def quantiles(self, target_data: Series) -> list[float]:
         """Calculate the quantiles in ascending order.
 
         This method calculates the quantiles based on the specified 
@@ -317,7 +316,7 @@ class SpreadOpacity:
         
         Returns
         -------
-        List[float]
+        list[float]
             quantiles in ascending order
         """
         quantiles = []
@@ -335,7 +334,8 @@ class SpreadOpacity:
     def subgroup_values(
             self,
             sequence: NDArray | int,
-            quantiles: List[float]) -> List[float | int]:
+            quantiles: list[float]
+            ) -> list[float | int]:
         """Generate a list of subgroup values based on the agreements.
 
         This method creates a list of subgroup values derived from the 
@@ -351,13 +351,13 @@ class SpreadOpacity:
             an integer is provided, it is interpreted as the number of 
             values in the sequence, and the subgroup values are generated 
             accordingly.
-        quantiles : List[float]
+        quantiles : list[float]
             The list of quantiles used to determine the subgroup 
             boundaries.
 
         Returns
         -------
-        List[float | int]:
+        list[float | int]:
             A list of subgroup values, which can include both floats 
             and integers.
         """
@@ -371,9 +371,9 @@ class SpreadOpacity:
         quantiles = sorted(quantiles)
         for name, beg, end in zip(names, quantiles[:-1:2], quantiles[1::2]):
             if not subgroup:
-                n_values = np.count_nonzero((sequence <= end))
+                n_values = np.count_nonzero(sequence <= end)
             elif name == names[-1]:
-                n_values = np.count_nonzero((sequence > beg))
+                n_values = np.count_nonzero(sequence > beg)
             else:
                 n_values = np.count_nonzero((sequence > beg) & (sequence <= end))
             subgroup.extend([name] * n_values)
@@ -432,8 +432,17 @@ class Plotter(ABC):
     functionality should be implemented in derived classes.
     """
     __slots__ = (
-        'source', 'target', 'feature', 'target_on_y', '_color', '_marker',
-        'fig', 'ax', '_visible_spines', '_hide_axis')
+        '_color',
+        '_hide_axis',
+        '_marker',
+        '_visible_spines',
+        'ax',
+        'feature',
+        'fig',
+        'source',
+        'target',
+        'target_on_y',)
+    
     source: DataFrame
     """The data source for the plot"""
     target: str
@@ -493,6 +502,7 @@ class Plotter(ABC):
         and the spines are drawn according to the stylesheet.
         """
         return self._visible_spines
+
     @visible_spines.setter
     def visible_spines(
             self,
@@ -509,7 +519,7 @@ class Plotter(ABC):
         ys = positions[:2]
         xs = positions[2:]
         for pos in positions:
-            self.ax.spines[pos].set_visible(plt.rcParams[f'axes.spines.{pos}'])
+            self.ax.spines[pos].set_visible(plt.rcParams[f'axes.spines.{pos}']) # pyright: ignore[reportArgumentType]
 
         if visible_spines == 'target':
             hidden_positions = ys if self.target_on_y else xs
@@ -526,6 +536,7 @@ class Plotter(ABC):
     @property
     def hide_axis(self) -> Literal['target', 'feature', 'both'] | None:
         return self._hide_axis
+    
     @hide_axis.setter
     def hide_axis(
             self,
@@ -561,7 +572,7 @@ class Plotter(ABC):
 
     @property
     @abstractmethod
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Override this property to provide the default keyword 
         arguments for plotting as read-only."""
         raise NotImplementedError
@@ -599,7 +610,7 @@ class Plotter(ABC):
         return self._marker
     
     @staticmethod
-    def figure_axes(ax: Axes | None) -> Tuple[Figure, Axes]:
+    def figure_axes(ax: Axes | None) -> tuple[Figure, Axes]:
         """Create a figure and axes object if not provided."""
         ax = plt.gca() if ax is None else ax
         fig: Figure = ax.get_figure() # type: ignore
@@ -608,7 +619,7 @@ class Plotter(ABC):
     @staticmethod
     def shared_axes(
             ax: Axes, which: Literal['x', 'y'], exclude: bool = True
-            ) -> List[bool]:
+            ) -> list[bool]:
         """Get all the axes from the figure of the given `ax` and 
         compare whether the `ax` share the given axis. 
         Get a map of boolean values as a list where all are `True` when 
@@ -625,7 +636,7 @@ class Plotter(ABC):
         
         Returns
         -------
-        List[bool]
+        list[bool]
             Flat map for axes that shares same axis
         """
         assert which in ('x', 'y')
@@ -770,7 +781,8 @@ class Scatter(Plotter):
     ```
     
     """
-    __slots__ = ('size')
+    __slots__ = ('size',)
+    
     size: Iterable[int] | None
     """The sizes of the markers in the scatter plot."""
 
@@ -800,13 +812,13 @@ class Scatter(Plotter):
         self.size = size
     
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(
-            color=self.color,
-            marker=self.marker,
-            s=self.size,
-            alpha=COLOR.MARKER_ALPHA)
+        kwds = {
+            'color': self.color,
+            'marker': self.marker,
+            's': self.size,
+            'alpha': COLOR.MARKER_ALPHA}
         return kwds
     
     def __call__(self, **kwds) -> None:
@@ -916,9 +928,9 @@ class Line(Plotter):
             hide_axis=hide_axis)
         
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(color=self._color)
+        kwds = {'color': self._color}
         return kwds
     
     def __call__(self, marker: str | None = None, **kwds) -> None:
@@ -935,7 +947,7 @@ class Line(Plotter):
             method.
         """
         alpha = COLOR.MARKER_ALPHA if marker is not None else None
-        _kwds = self.kw_default | dict(marker=marker, alpha=alpha) | kwds
+        _kwds = self.kw_default | {'marker': marker, 'alpha': alpha} | kwds
         self.ax.plot(self.x, self.y, **_kwds)
 
 
@@ -1039,7 +1051,10 @@ class Stem(Plotter):
     further information see:
     https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.stem.html
     """
-    __slots__ = ('bottom', 'line_color', 'base_color')
+    __slots__ = (
+        'base_color',
+        'bottom',
+        'line_color')
 
     bottom: float
     """The Y/X position of the baseline (depending on the orientation or 
@@ -1083,14 +1098,14 @@ class Stem(Plotter):
         self.base_color = base_color if base_color is not None else self.color
     
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kw_default = dict(
-            markerfmt=f'{self.marker}',
-            linefmt=f'{self.line_color}',
-            basefmt=f'{self.base_color}',
-            orientation='vertical' if self.target_on_y else 'horizontal',
-            bottom=self.bottom)
+        kw_default = {
+            'markerfmt': f'{self.marker}',
+            'linefmt': f'{self.line_color}',
+            'basefmt': f'{self.base_color}',
+            'orientation': 'vertical' if self.target_on_y else 'horizontal',
+            'bottom': self.bottom}
         return kw_default
 
     def __call__(
@@ -1237,7 +1252,11 @@ class LinearRegressionLine(Plotter):
     ```
     """
     __slots__ = (
-        'model', 'fit', 'show_scatter', 'show_fit_ci', 'show_pred_ci')
+        'fit',
+        'model',
+        'show_fit_ci',
+        'show_pred_ci',
+        'show_scatter',)
     
     model: OLSResults
     """The fitted results of the linear regression model."""
@@ -1295,9 +1314,9 @@ class LinearRegressionLine(Plotter):
             hide_axis=hide_axis)
     
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = KW.FIT_LINE | dict(color=self.color)
+        kwds = KW.FIT_LINE | {'color': self.color}
         return kwds
     
     @property
@@ -1325,9 +1344,9 @@ class LinearRegressionLine(Plotter):
     
     def __call__(
             self,
-            kw_scatter: dict = {},
-            kw_fit_ci: dict = {},
-            kw_pred_ci: dict = {},
+            kw_scatter: dict[str, Any] | None = None,
+            kw_fit_ci: dict[str, Any] | None = None,
+            kw_pred_ci: dict[str, Any] | None = None,
             **kwds) -> None:
         """
         Perform the linear regression plot operation.
@@ -1336,26 +1355,27 @@ class LinearRegressionLine(Plotter):
         ----------
         kw_scatter : dict, optional
             Additional keyword arguments for the Axes `scatter` method,
-            by default {}.
+            by default None.
         kw_fit_ci : dict, optional
             Additional keyword arguments for the confidence interval of 
-            the fitted line (Axes `fill_between` method), by default {}.
+            the fitted line (Axes `fill_between` method), by default 
+            None.
         kw_pred_ci : dict, optional
             Additional keyword arguments for the confidence interval of
-            the predictions (Axes plot method), by default {}
+            the predictions (Axes plot method), by default None.
         **kwds:
             Additional keyword arguments to be passed to the fit line
             plot (Axes `plot` method).
         """
-        color = dict(color=self.color)
+        color = {'color': self.color}
         _kwds = self.kw_default | kwds
         self.ax.plot(self.x_fit, self.y_fit, **_kwds)
         
         if self.show_scatter:
-            kw_scatter = color | dict(marker=self.marker) | kw_scatter
+            kw_scatter = color | {'marker': self.marker} | (kw_scatter or {})
             self.ax.scatter(self.x, self.y, **kw_scatter)
         if self.show_fit_ci:
-            kw_fit_ci = KW.FIT_CI | color | kw_fit_ci
+            kw_fit_ci = KW.FIT_CI | color | (kw_fit_ci or {})
             lower = self.source[PLOTTER.FIT_CI_LOW]
             upper = self.source[PLOTTER.FIT_CI_UPP]
             if self.target_on_y:
@@ -1363,7 +1383,7 @@ class LinearRegressionLine(Plotter):
             else:
                 self.ax.fill_betweenx(self.y, lower, upper, **kw_fit_ci)
         if self.show_pred_ci:
-            kw_pred_ci = KW.PRED_CI | color | kw_pred_ci
+            kw_pred_ci = KW.PRED_CI | color | (kw_pred_ci or {})
             lower = self.source[PLOTTER.PRED_CI_LOW]
             upper = self.source[PLOTTER.PRED_CI_UPP]
             if self.target_on_y:
@@ -1502,7 +1522,9 @@ class LoessLine(Plotter):
     ```
     """
     __slots__ = (
-        'model', 'show_scatter', 'show_fit_ci')
+        'model',
+        'show_fit_ci',
+        'show_scatter',)
     
     model: Loess | Lowess
     """The fitted results of the linear regression model."""
@@ -1558,15 +1580,15 @@ class LoessLine(Plotter):
             hide_axis=hide_axis)
     
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = KW.FIT_LINE | dict(color=self.color)
+        kwds = KW.FIT_LINE | {'color': self.color}
         return kwds
     
     def __call__(
             self,
-            kw_scatter: dict = {},
-            kw_fit_ci: dict = {},
+            kw_scatter: dict[str, Any] | None = None,
+            kw_fit_ci: dict[str, Any] | None = None,
             **kwds) -> None:
         """
         Perform the linear regression plot operation.
@@ -1575,23 +1597,24 @@ class LoessLine(Plotter):
         ----------
         kw_scatter : dict, optional
             Additional keyword arguments for the Axes `scatter` method,
-            by default {}.
+            by default None.
         kw_fit_ci : dict, optional
             Additional keyword arguments for the confidence interval of 
-            the lowess line (Axes `fill_between` method), by default {}.
+            the lowess line (Axes `fill_between` method), by default 
+            None.
         **kwds:
             Additional keyword arguments to be passed to the fit line
             plot (Axes `plot` method).
         """
-        color = dict(color=self.color)
+        color = {'color': self.color}
         _kwds = self.kw_default | kwds
         self.ax.plot(self.x, self.y, **_kwds)
         
         if self.show_scatter:
-            kw_scatter = color | dict(marker=self.marker) | kw_scatter
+            kw_scatter = color | {'marker': self.marker} | (kw_scatter or {})
             self.ax.scatter(self.x, self.y, **kw_scatter)
         if self.show_fit_ci:
-            _kw_fit_ci = KW.FIT_CI | color | kw_fit_ci
+            _kw_fit_ci: dict[str, Any] = KW.FIT_CI | color | (kw_fit_ci or {})
             lower = self.source[PLOTTER.LOWESS_LOW]
             upper = self.source[PLOTTER.LOWESS_UPP]
             if self.target_on_y:
@@ -1767,7 +1790,7 @@ class Probability(LinearRegressionLine):
             visible_spines=visible_spines,
             hide_axis=hide_axis)
     
-    def _xy_scale_(self) -> Tuple[str, str]:
+    def _xy_scale_(self) -> tuple[str, str]:
         """If given distribution is exponential or logaritmic, change
         axis scale for samples or quantiles (not for percentiles) from
         'linear' to 'log'."""
@@ -1818,9 +1841,9 @@ class Probability(LinearRegressionLine):
     
     def __call__(
             self,
-            kw_scatter: dict = {},
-            kw_fit_ci: dict = {},
-            kw_pred_ci: dict = {},
+            kw_scatter: dict[str, Any] | None = None,
+            kw_fit_ci: dict[str, Any] | None = None,
+            kw_pred_ci: dict[str, Any] | None = None,
             **kwds) -> None:
         """Perform the probability plot operation.
 
@@ -1828,13 +1851,14 @@ class Probability(LinearRegressionLine):
         ----------
         kw_scatter : dict, optional
             Additional keyword arguments for the Axes `scatter` method,
-            by default {}.
+            by default None.
         kw_fit_ci : dict, optional
             Additional keyword arguments for the confidence interval of 
-            the fitted line (Axes `fill_between` method), by default {}.
+            the fitted line (Axes `fill_between` method), by default
+            None.
         kw_pred_ci : dict, optional
             Additional keyword arguments for the confidence interval of
-            the predictions (Axes plot method), by default {}
+            the predictions (Axes plot method), by default None.
         **kwds:
             Additional keyword arguments to be passed to the fit line
             plot (Axes `plot` method).
@@ -1961,9 +1985,9 @@ class ParallelCoordinate(Plotter):
             hide_axis=hide_axis)
     
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(color=self.color)
+        kwds = {'color': self.color}
         return kwds
 
     def __call__(self, **kwds) -> None:
@@ -1977,7 +2001,7 @@ class ParallelCoordinate(Plotter):
         marker = kwds.pop('marker', self.marker) or DEFAULT.MARKER
         if not self.show_scatter:
             marker = None
-        _kwds = self.kw_default | dict(marker=marker) | kwds
+        _kwds: dict[str, Any] = self.kw_default | {'marker': marker} | kwds
         for i, group in self.source.groupby(self.identity, observed=True):
             self.ax.plot(group[self.x_column], group[self.y_column], **_kwds)
 
@@ -2049,7 +2073,7 @@ class TransformPlotter(Plotter):
             source: DataFrame,
             target: str,
             feature: str = '',
-            f_base: int | float = DEFAULT.FEATURE_BASE,
+            f_base: int | float = DEFAULT.FEATURE_BASE, # noqa: PYI041
             skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
@@ -2079,7 +2103,7 @@ class TransformPlotter(Plotter):
             hide_axis=hide_axis)
     
     def feature_grouped(
-            self, source: DataFrame) -> Generator[Tuple, Self, None]:
+            self, source: DataFrame) -> Generator[tuple, Self]:
         """Group the data by the feature variable and yield the 
         transformed data for each group.
 
@@ -2119,7 +2143,10 @@ class TransformPlotter(Plotter):
 
     @abstractmethod
     def transform(
-        self, feature_data: float | int, target_data: Series) -> DataFrame:
+        self,
+        feature_data: float | int, # noqa: PYI041
+        target_data: Series
+        ) -> DataFrame:
          """Perform the transformation on the target data and return the
         transformed data.
 
@@ -2271,7 +2298,10 @@ class CenterLocation(TransformPlotter):
     `show_center` or `show_line` must be True, otherwise this plot makes 
     no sense. If both are False, nothing will be drawn.
     """
-    __slots__ = ('_kind', 'show_line', 'show_center')
+    __slots__ = (
+        '_kind',
+        'show_center',
+        'show_line')
 
     _kind: Literal['mean', 'median']
     """The type of center to plot ('mean' or'median')."""
@@ -2288,7 +2318,7 @@ class CenterLocation(TransformPlotter):
             kind: Literal['mean', 'median'] = 'mean',
             show_line: bool = True,
             show_center: bool = True,
-            f_base: int | float = DEFAULT.FEATURE_BASE,
+            f_base: int | float = DEFAULT.FEATURE_BASE, # noqa: PYI041
             skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
@@ -2317,14 +2347,14 @@ class CenterLocation(TransformPlotter):
         self._marker = marker
 
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(
-            color=self.color,
-            marker=self.marker,
-            linestyle=self.linestyle)
+        kwds = {
+            'color': self.color,
+            'marker': self.marker,
+            'linestyle': self.linestyle}
         if self.marker:
-            kwds = kwds | dict(alpha=COLOR.MARKER_ALPHA)
+            kwds = kwds | {'alpha': COLOR.MARKER_ALPHA}
         return kwds
     
     @property
@@ -2358,7 +2388,10 @@ class CenterLocation(TransformPlotter):
         return plt.rcParams['lines.linestyle'] if self.show_line else ''
     
     def transform(
-            self, feature_data: float | int, target_data: Series) -> DataFrame:
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> DataFrame:
         """Calculate the mean or median of the target data and return the
         transformed data.
 
@@ -2418,7 +2451,7 @@ class Bar(TransformPlotter):
         Width of the bars, by default `CATEGORY.FEATURE_SPACE`
     kw_method : dict, optional
         Additional keyword arguments to be passed to the method,
-        by default {}
+        by default None
     method : str, optional
         A pandas Series method to use for aggregating target values 
         within each feature level. Like 'sum', 'count' or similar
@@ -2542,13 +2575,17 @@ class Bar(TransformPlotter):
         ).label() # neded to label feature ticks
     ```
     """
-    __slots__ = ('method', 'kw_method', 'stack', 'width')
+    __slots__ = (
+        'kw_method',
+        'method',
+        'stack',
+        'width')
 
+    kw_method: dict
+    """The provided keyword arguments to be passed to the method."""
     method: str | None
     """The provided pandas Series method to use for aggregating target
     values."""
-    kw_method: dict
-    """The provided keyword arguments to be passed to the method."""
     stack: bool
     """Whether to stack the bars."""
     width: float
@@ -2562,8 +2599,8 @@ class Bar(TransformPlotter):
             stack: bool = True,
             width: float = CATEGORY.FEATURE_SPACE,
             method: str | None = None,
-            kw_method: dict = {},
-            f_base: int | float = DEFAULT.FEATURE_BASE,
+            kw_method: dict[str, Any] | None = None,
+            f_base: int | float = DEFAULT.FEATURE_BASE, # noqa: PYI041
             skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
@@ -2574,7 +2611,7 @@ class Bar(TransformPlotter):
         self.stack = stack
         self.width = width
         self.method = method
-        self.kw_method = kw_method
+        self.kw_method = kw_method or {}
         super().__init__(
             source=source,
             target=target,
@@ -2594,17 +2631,17 @@ class Bar(TransformPlotter):
             self.target = target
 
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
         facecolor = mcolors.to_rgba(self.color, alpha=COLOR.FILL_ALPHA) # type: ignore[attr-defined]
-        kwds = dict(
-            facecolor=facecolor,
-            edgecolor=self.color,
-            linewidth=plt.rcParams['lines.linewidth'])
+        kwds = {
+            'facecolor': facecolor,
+            'edgecolor': self.color,
+            'linewidth': plt.rcParams['lines.linewidth']}
         return kwds
     
     @property
-    def bars(self) -> List[BarContainer]:
+    def bars(self) -> list[BarContainer]:
         """Get a list of BarContainer objects representing the bars in
         the plot."""
         return [c for c in self.ax.containers if isinstance(c, BarContainer)]
@@ -2638,7 +2675,10 @@ class Bar(TransformPlotter):
         return t_base
     
     def transform(
-            self, feature_data: float | int, target_data: Series) -> DataFrame:
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> DataFrame:
         """Perform the given Series method on the target data if given 
         and return the transformed data. If no method is given, the 
         target data is adopted directly.
@@ -2743,7 +2783,7 @@ class Pareto(Bar):
         returns a scalar, by default None.
     kw_method : dict, optional
         Additional keyword arguments to be passed to the method,
-        by default {}.
+        by default None.
     skip_na : Literal['none', 'all', 'any'], optional
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
@@ -2844,7 +2884,9 @@ class Pareto(Bar):
         feature axis.
     """
     __slots__ = (
-        'highlight', 'highlight_color', 'highlighted_as_last',
+        'highlight',
+        'highlight_color',
+        'highlighted_as_last',
         'no_percentage_line')
 
     highlight: Any
@@ -2867,7 +2909,7 @@ class Pareto(Bar):
             no_percentage_line: bool = False,
             width: float = CATEGORY.FEATURE_SPACE,
             method: str | None = None,
-            kw_method: dict = {},
+            kw_method: dict[str, Any] | None = None,
             skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
@@ -2911,7 +2953,7 @@ class Pareto(Bar):
         return any(self.shared_axes(self.ax, which, True))
 
     @property
-    def indices(self) -> List[int] | List[Hashable]:
+    def indices(self) -> list[int] | list[Hashable]:
         """Get arranged index values to access the target data (from 
         source data) in the order to be plotted."""
         indices = (self.source
@@ -3149,25 +3191,25 @@ class Box(TransformPlotter):
     ```
     """
     __slots__ = (
-        'width',
+        '_grouped_data',
+        '_positions',
+        'fill',
         'showfliers',
         'whis',
-        'fill',
-        '_grouped_data',
-        '_positions')
+        'width',)
 
-    width: float
-    """The width of the boxes."""
+    _grouped_data: list
+    """list of arrays containing the target data for each feature group."""
+    _positions: list
+    """list of positions for each box on the feature axis."""
+    fill: bool
+    """Whether to fill the boxes with color."""
     showfliers: bool
     """Whether to show outliers beyond the whiskers."""
     whis: float | tuple
     """The whisker length definition."""
-    fill: bool
-    """Whether to fill the boxes with color."""
-    _grouped_data: list
-    """List of arrays containing the target data for each feature group."""
-    _positions: list
-    """List of positions for each box on the feature axis."""
+    width: float
+    """The width of the boxes."""
 
     def __init__(
             self,
@@ -3178,7 +3220,7 @@ class Box(TransformPlotter):
             showfliers: bool = True,
             whis: float | tuple = 1.5,
             fill: bool = False,
-            f_base: int | float = DEFAULT.FEATURE_BASE,
+            f_base: int | float = DEFAULT.FEATURE_BASE, # noqa: PYI041
             skip_na: Literal['all', 'any'] | None = None,
             target_on_y: bool = True,
             color: str | None = None,
@@ -3206,37 +3248,40 @@ class Box(TransformPlotter):
             **kwds)
     
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
         fill_color = self.color if self.fill else  COLOR.TRANSPARENT
-        kwds = dict(
-            widths=self.width,
-            showfliers=self.showfliers,
-            whis=self.whis,
-            capprops=dict(
-                color=self.color),
-            boxprops=dict(
-                color=self.color,
-                edgecolor=self.color,
-                facecolor=fill_color,
-                alpha=COLOR.FILL_ALPHA if self.fill else None),
-            whiskerprops=dict(
-                color=self.color),
-            flierprops=dict(
-                color=self.color,
-                markeredgecolor=self.color,
-                markerfacecolor=fill_color,
-                alpha=COLOR.MARKER_ALPHA if self.fill else None),
-            medianprops=dict(
-                color=self.color),
-            meanprops=dict(
-                color=self.color,
-                markerfacecolor=self.color,
-                markeredgecolor=self.color),)
+        kwds = {
+            'widths': self.width,
+            'showfliers': self.showfliers,
+            'whis': self.whis,
+            'capprops': {
+                'color': self.color},
+            'boxprops': {
+                'color': self.color,
+                'edgecolor': self.color,
+                'facecolor': fill_color,
+                'alpha': COLOR.FILL_ALPHA if self.fill else None},
+            'whiskerprops': {
+                'color': self.color},
+            'flierprops': {
+                'color': self.color,
+                'markeredgecolor': self.color,
+                'markerfacecolor': fill_color,
+                'alpha': COLOR.MARKER_ALPHA if self.fill else None},
+            'medianprops': {
+                'color': self.color},
+            'meanprops': {
+                'color': self.color,
+                'markerfacecolor': self.color,
+                'markeredgecolor': self.color},}
         return kwds
         
     def transform(
-            self, feature_data: float | int, target_data: Series) -> DataFrame:
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> DataFrame:
         """Store the grouped target data for boxplot and return minimal
         DataFrame for compatibility.
 
@@ -3392,7 +3437,7 @@ class Jitter(TransformPlotter):
         ).label() # neded to label feature ticks
     ```
     """
-    __slots__ = ('width')
+    __slots__ = ('width',)
 
     width: float
     """The width of the jitter."""
@@ -3426,9 +3471,9 @@ class Jitter(TransformPlotter):
         self._marker = marker
     
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(color=self.color, marker=self.marker)
+        kwds = {'color': self.color, 'marker': self.marker}
         return kwds
         
     def jitter(self, loc: float, size: int) -> NDArray:
@@ -3457,7 +3502,10 @@ class Jitter(TransformPlotter):
         return jiiter
         
     def transform(
-            self, feature_data: float | int, target_data: Series) -> DataFrame:
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> DataFrame:
         """Normally randomize the target data for each feature value in 
         the feature axis direction.
 
@@ -3603,12 +3651,14 @@ class Beeswarm(TransformPlotter):
     This code is based on the following source: 
     https://python-graph-gallery.com/509-introduction-to-swarm-plot-in-matplotlib/
     """
-    __slots__ = ('width', 'n_bins')
+    __slots__ = (
+        'n_bins',
+        'width',)
 
-    width: float
-    """The maximum width of the beeswarm."""
     n_bins: int
     """The number of bins to divide the data into"""
+    width: float
+    """The maximum width of the beeswarm."""
 
     def __init__(
             self,
@@ -3643,16 +3693,16 @@ class Beeswarm(TransformPlotter):
         self._marker = marker
     
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(color=self.color, marker=self.marker)
+        kwds = {'color': self.color, 'marker': self.marker}
         return kwds
         
     def _spread_(
             self,
             n_values: int,
             delta: float
-            ) -> Generator[float, Any, None]:
+            ) -> Generator[float, Any]:
         """Generates the spread values for the beeswarm within the 
         current bin.
 
@@ -3691,7 +3741,10 @@ class Beeswarm(TransformPlotter):
             yield next(direction) * pos
         
     def transform(
-            self, feature_data: float | int, target_data: Series) -> DataFrame:
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> DataFrame:
         """Generates the spread values for the beeswarm plot by 
         arranging the target data into bins.
 
@@ -3716,7 +3769,7 @@ class Beeswarm(TransformPlotter):
         hist, _ = np.histogram(target_data, bins=self.n_bins)
         delta = self.width / hist.max()
         beeswarm = np.array(
-            [pos for n in hist for pos in self._spread_(n, delta)])
+            [pos for n in hist for pos in self._spread_(int(n), delta)])
         
         data = pd.DataFrame({
             self.target: sorted(target_data),
@@ -3847,16 +3900,16 @@ class CategoricalObservation(TransformPlotter):
     ```
     """
     __slots__ = (
-        'width',
         'show_line',
-        'show_scatter')
+        'show_scatter',
+        'width',)
 
-    width: float
-    """The width of the categorical range."""
     show_line: bool
     """Whether to draw a line between the individual points."""
     show_scatter: bool
     """Whetter to draw the scatter points."""
+    width: float
+    """The width of the categorical range."""
 
     def __init__(
             self,
@@ -3893,14 +3946,14 @@ class CategoricalObservation(TransformPlotter):
         self._marker = marker
     
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
         if self.show_scatter:
             marker = self.marker if self.marker else DEFAULT.MARKER
         else:
             marker = None
         
-        kwds = dict(color=self.color, marker=marker)
+        kwds = {'color': self.color, 'marker': marker}
         if not self.show_line:
             kwds['ls'] = ''
         return kwds
@@ -3926,7 +3979,10 @@ class CategoricalObservation(TransformPlotter):
         return np.linspace(loc - half_width, loc + half_width, size)
         
     def transform(
-            self, feature_data: float | int, target_data: Series) -> DataFrame:
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> DataFrame:
         """Normally randomize the target data for each feature value in 
         the feature axis direction.
 
@@ -3997,7 +4053,7 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
           are read directly from the data.
         
         Default is 'data'.
-    agreements : Tuple[float, ...] or Tuple[int, ...], optional
+    agreements : tuple[float, ...] or tuple[int, ...], optional
         Specifies the tolerated process variation for calculating 
         quantiles. These quantiles are used to represent the filled area 
         with different opacity, thus highlighting the quantiles. The 
@@ -4106,8 +4162,13 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
     ```
     """
     __slots__ = (
-        'strategy', '_agreements', 'possible_dists', 'estimation', 
-        'vary_width', 'width')
+        '_agreements',
+        'estimation',
+        'possible_dists',
+        'strategy',
+        'vary_width',
+        'width',
+    )
     
     vary_width: bool
     """Flag that indicates whether the width of the boxes should vary, 
@@ -4122,8 +4183,8 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
             target: str,
             feature: str = '',
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'data',
-            agreements: Tuple[float, ...] = DEFAULT.AGREEMENTS,
-            possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
+            agreements: tuple[float, ...] = DEFAULT.AGREEMENTS,
+            possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             vary_width: bool = True,
             width: float = CATEGORY.FEATURE_SPACE,
             skip_na: Literal['all', 'any'] | None = None,
@@ -4151,9 +4212,9 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
             **kwds)
     
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(color=self.color)
+        kwds = {'color': self.color}
         return kwds
     
     def width_values(self) -> NDArray:
@@ -4166,7 +4227,10 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
         return np.array(widths + widths[::-1])
     
     def transform(
-            self, feature_data: float | int, target_data: Series) -> DataFrame:
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> DataFrame:
         """Generates the spread values for the quantile plot by 
         arranging the target data into bins.
 
@@ -4263,7 +4327,7 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
         show the minimum and maximum value. Default is 0.
     fill : bool, optional
         Flag whether to fill in the curves, by default True
-    agreements : Tuple[float, ...] or Tuple[int, ...], optional
+    agreements : tuple[float, ...] or tuple[int, ...], optional
         Specifies the tolerated process variation for calculating 
         quantiles. These quantiles are used to represent the filled area 
         with different opacity, thus highlighting the quantiles.If you 
@@ -4366,8 +4430,15 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
     ```
     """
     __slots__ = (
-        'strategy', '_agreements', 'possible_dists', '_height', '_stretch', 
-        'fill', 'n_points', 'margin')
+        '_agreements',
+        '_height',
+        '_stretch',
+        'estimation',
+        'fill',
+        'margin',
+        'n_points',
+        'possible_dists',
+        'strategy',)
 
     _height: float | None
     """Height of kde curve at its maximum."""
@@ -4375,12 +4446,12 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
     """Factor by which the curve was stretched in height."""
     fill: bool
     """Flag whether to fill in the curves"""
-    n_points: int
-    """Number of points that have the kde and its sequence."""
     margin: float
     """Margin for the sequence as factor of data range (max - min ). If
     margin is 0, The two ends of the estimated density curve then show 
     the minimum and maximum value."""
+    n_points: int
+    """Number of points that have the kde and its sequence."""
 
     def __init__(
             self,
@@ -4392,7 +4463,7 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
             ignore_feature: bool = True,
             margin: float = 0,
             fill: bool = True,
-            agreements: Tuple[float, ...] | Tuple[int, ...] = DEFAULT.AGREEMENTS,
+            agreements: tuple[float, ...] | tuple[int, ...] = DEFAULT.AGREEMENTS,
             target_on_y: bool = True,
             color: str | None = None,
             n_points: int = DEFAULT.KD_SEQUENCE_LEN,
@@ -4426,10 +4497,10 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
             **kwds)
     
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(
-            color=COLOR.DARKEN if self.fill else self.color,)
+        kwds = {
+            'color': COLOR.DARKEN if self.fill else self.color,}
         return kwds
     
     @property
@@ -4448,7 +4519,10 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
         return bool(self.agreements) and self.fill
         
     def transform(
-            self, feature_data: float | int, target_data: Series) -> DataFrame:
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> DataFrame:
         """Perform the transformation on the target data by estimating 
         its kernel density. To obtain a uniform curve, a sequence 
         is generated with a specific number of points in the same range 
@@ -4500,20 +4574,27 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
         return data
     
     def _get_lower_estimation_(
-        self, f_base: float | int, estim_upp: Series) -> Series:
+        self,
+        f_base: float | int, # noqa: PYI041
+        estim_upp: Series
+        ) -> Series:
         """Get the lower estimation of the kernel density. For the KDE 
         it is just a straight line at the location of the feature base. 
         For Violin the upper kernel density estimate is mirrored at the
         feature base."""
         if self.__class__.__name__ == 'Violin':
-            estim_low = 2*f_base - estim_upp
+            estim_low = 2 * f_base - estim_upp
         else:
             estim_low = pd.Series(
                 f_base * np.ones(len(estim_upp)),
                 index=estim_upp.index)
         return estim_low
         
-    def __call__(self, kw_line: Dict[str, Any] = {}, **kwds) -> None:
+    def __call__(
+            self,
+            kw_line: dict[str, Any] | None = None,
+            **kwds
+            ) -> None:
         """Perform the plotting operation.
 
         The estimated kernel density is plotted as a line. The curves 
@@ -4522,18 +4603,18 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
 
         Parameters
         ----------
-        kw_line : Dict[str, Any], optional
+        kw_line : dict[str, Any], optional
             Additional keyword arguments for the axes `plot` method,
-            by default {}.
-        **kwds : Dict[str, Any], optional
+            by default None.
+        **kwds : dict[str, Any], optional
             Additional keyword arguments for the axes `fill_between`
-            method, by default {}.
+            method.
         """
-        _kw_line = self.kw_default | kw_line
+        _kw_line = self.kw_default | (kw_line or {})
         column = PLOTTER.F_BASE_NAME
         for f_base, group in self.source.groupby(column, observed=True):
             estim_upp = group[self.feature]
-            estim_low = self._get_lower_estimation_(f_base, estim_upp) # type: ignore
+            estim_low = self._get_lower_estimation_(f_base, estim_upp) # pyright: ignore[reportArgumentType]
             sequence = group[self.target]
             
             for agreement in group[PLOTTER.SUBGROUP].unique():
@@ -4644,14 +4725,17 @@ class GaussianKDEContour(Plotter):
         ).label() # neded to add legend
     ```
     """
-    __slots__ = ('cmap', 'shape', 'fill', 'n_points')
+    __slots__ = (
+        'cmap',
+        'fill',
+        'shape')
 
     cmap : LinearSegmentedColormap
     """The colormap to be used for the contour plot."""
-    shape: Tuple[int, int]
-    """Shape used to reshape data before plotting the contours."""
     fill: bool
     """Flag indicating whether to fill between the contour lines."""
+    shape: tuple[int, int]
+    """Shape used to reshape data before plotting the contours."""
 
     def __init__(
             self,
@@ -4697,9 +4781,9 @@ class GaussianKDEContour(Plotter):
         self.cmap = LinearSegmentedColormap.from_list('', colors)
 
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Return the default keyword arguments for the plot."""
-        kwds = dict(cmap=self.cmap)
+        kwds = {'cmap': self.cmap}
         return kwds
 
     def __call__(self, **kwds) -> None:
@@ -4874,18 +4958,23 @@ class GaussianKDEContourUnivariate(TransformPlotter):
         )
     ```
     """
-    __slots__ = ('shape', 'fill', 'n_points', 'width', 'cmap')
+    __slots__ = (
+        'cmap',
+        'fill',
+        'n_points',
+        'shape',
+        'width')
 
-    shape: Tuple[int, int]
-    """Shape used to reshape data before plotting the contours."""
+    cmap : LinearSegmentedColormap
+    """The colormap to be used for the contour plot."""
     fill: bool
     """Flag indicating whether to fill between the contour lines."""
     n_points: int
     """Number of points the estimate and the sequence should have."""
+    shape: tuple[int, int]
+    """Shape used to reshape data before plotting the contours."""
     width: float
     """The maximum width of the contour."""
-    cmap : LinearSegmentedColormap
-    """The colormap to be used for the contour plot."""
 
     def __init__(
             self,
@@ -4928,13 +5017,16 @@ class GaussianKDEContourUnivariate(TransformPlotter):
         self.cmap = LinearSegmentedColormap.from_list('', colors)
 
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Return the default keyword arguments for the plot."""
-        kwds = dict(cmap=self.cmap)
+        kwds = {'cmap': self.cmap}
         return kwds
     
     def transform(
-            self, feature_data: float | int, target_data: Series) -> DataFrame:
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> DataFrame:
         """Perform the transformation on the target data by estimating
         its 2D kernel density. Feature data is generated with a gaussian
         distribution centered at feature_data with width as std, and target
@@ -4954,9 +5046,11 @@ class GaussianKDEContourUnivariate(TransformPlotter):
             Transformed data with estimated 2D kernel density.
         """
         _factors = semicircular.pdf(np.linspace(
-            semicircular.ppf(0.001), semicircular.ppf(0.999), self.n_points))
+            semicircular.ppf(0.001), semicircular.ppf(0.999),
+            self.n_points))
         _features = np.linspace(
-            feature_data - self.width/2, feature_data + self.width/2, self.n_points)
+            feature_data - self.width/2, feature_data + self.width/2,
+            self.n_points)
         sequence, estimation = estimate_kernel_density(
             data=target_data,
             n_points=self.n_points,
@@ -5011,7 +5105,7 @@ class Violin(GaussianKDE):
         show the minimum and maximum value. Default is 0.
     fill : bool, optional
         Flag whether to fill in the curves, by default True
-    agreements : Tuple[float, ...] or Tuple[int, ...], optional
+    agreements : tuple[float, ...] or tuple[int, ...], optional
         Specifies the tolerated process variation for calculating 
         quantiles. These quantiles are used to represent the filled area 
         with different opacity, thus highlighting the quantiles.If you 
@@ -5111,7 +5205,7 @@ class Violin(GaussianKDE):
             width: float = CATEGORY.FEATURE_SPACE,
             margin: float = 0,
             fill: bool = True,
-            agreements: Tuple[float, ...] | Tuple[int, ...] = DEFAULT.AGREEMENTS,
+            agreements: tuple[float, ...] | tuple[int, ...] = DEFAULT.AGREEMENTS,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -5135,9 +5229,9 @@ class Violin(GaussianKDE):
             **kwds)
 
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(color=self.color, alpha=COLOR.FILL_ALPHA)
+        kwds = {'color': self.color, 'alpha': COLOR.FILL_ALPHA}
         return kwds
 
 
@@ -5262,17 +5356,21 @@ class ErrorBar(TransformPlotter):
         ).label() # neded to add legend
     ```
     """
-    __slots__ = ('lower', 'upper', 'show_center', 'bars_same_color')
+    __slots__ = (
+        'bars_same_color',
+        'lower',
+        'show_center',
+        'upper')
 
-    lower: str
-    """Column name of the lower error values."""
-    upper: str
-    """Column name of the upper error values."""
-    show_center: bool
-    """Flag indicating whether to show the center points."""
     bars_same_color: bool
     """Flag indicating whether to use same color for error bars as 
     markers for center."""
+    lower: str
+    """Column name of the lower error values."""
+    show_center: bool
+    """Flag indicating whether to show the center points."""
+    upper: str
+    """Column name of the upper error values."""
 
     def __init__(
             self,
@@ -5316,9 +5414,9 @@ class ErrorBar(TransformPlotter):
         self._marker = marker
 
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        _color = dict(color=self.color) if self.bars_same_color else {}
+        _color = {'color': self.color} if self.bars_same_color else {}
         kwds = KW.ERROR_BAR | _color
         return kwds
     
@@ -5331,7 +5429,10 @@ class ErrorBar(TransformPlotter):
         return self._marker if self.show_center else ''
         
     def transform(
-            self, feature_data: float | int, target_data: Series) -> DataFrame:
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> DataFrame:
         """Perform the transformation on the target data and return the
         transformed data.
 
@@ -5364,20 +5465,26 @@ class ErrorBar(TransformPlotter):
             self.source[self.upper] - self.source[self.target]]))
         return err
     
-    def __call__(self, kw_center: dict = {}, **kwds) -> None:
+    def __call__(
+            self,
+            kw_center: dict[str, Any] | None = None,
+            **kwds) -> None:
         """Perform the plotting operation.
 
         Parameters
         ----------
         kw_center : dict, optional
             Additional keyword arguments for the axes `scatter` method,
-            by default {}.
+            by default None.
         **kwds :
             Additional keyword arguments for the axes `errorbar` method.
         """
         if self.show_center:
-            kw_center = dict(color=self.color, marker=self.marker) | kw_center
-            self.ax.scatter(self.x, self.y, **kw_center)
+            _kw_center: dict[str, Any] = {
+                'color': self.color, 'marker': self.marker
+                } | (kw_center or {})
+            self.ax.scatter(self.x, self.y, **_kw_center)
+
         _kwds = self.kw_default | kwds
         if self.target_on_y:
             self.ax.errorbar(self.x, self.y, yerr=self.err, **_kwds)
@@ -5521,7 +5628,10 @@ class StandardErrorMean(ErrorBar):
             hide_axis=hide_axis)
 
     def transform(
-            self, feature_data: float | int, target_data: Series) -> DataFrame:
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> DataFrame:
         """Perform the transformation on the target data using the 
         `Estimator` class and return the transformed data.
 
@@ -5709,19 +5819,23 @@ class SpreadWidth(ErrorBar):
     correspond to the minimum and maximum of the data.
     """
     __slots__ = (
-        'strategy', 'agreement', 'possible_dists', '_kind', 'estimation')
+        '_kind',
+        'agreement',
+        'estimation',
+        'possible_dists',
+        'strategy',)
 
-    strategy: Literal['eval', 'fit', 'norm', 'data']
-    """Strategy for estimating the spread width."""
-    agreement: float | int
-    """Agreement value for the spread width estimation."""
-    possible_dists: Tuple[str | rv_continuous, ...]
-    """Tuple of possible distributions for the spread width
-    estimation."""
     _kind: Literal['mean', 'median']
     """The type of center to plot ('mean' or'median')."""
+    agreement: float | int
+    """Agreement value for the spread width estimation."""
     estimation: LocationDispersionEstimator
     """Estimator instance used for spread width and center estimation."""
+    possible_dists: tuple[str | rv_continuous, ...]
+    """tuple of possible distributions for the spread width
+    estimation."""
+    strategy: Literal['eval', 'fit', 'norm', 'data']
+    """Strategy for estimating the spread width."""
 
     def __init__(
             self,
@@ -5729,8 +5843,8 @@ class SpreadWidth(ErrorBar):
             target: str,
             feature: str = '',
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
-            agreement: float | int = 6,
-            possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON,
+            agreement: float | int = 6, # noqa: PYI041
+            possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             show_center: bool = True,
             kind: Literal['mean', 'median'] = 'mean',
             bars_same_color: bool = False,
@@ -5790,7 +5904,10 @@ class SpreadWidth(ErrorBar):
         self._kind = kind
 
     def transform(
-            self, feature_data: float | int, target_data: Series) -> DataFrame:
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> DataFrame:
         """Perform the transformation on the target data using the 
         `Estimator` class and return the transformed data.
 
@@ -5809,7 +5926,9 @@ class SpreadWidth(ErrorBar):
             The transformed data source for the plot.
         """
         self.estimation = LocationDispersionEstimator(
-            samples=target_data, strategy=self.strategy, agreement=self.agreement,
+            samples=target_data,
+            strategy=self.strategy,
+            agreement=self.agreement,
             possible_dists=self.possible_dists)
         data = pd.DataFrame({
             self.target: [getattr(self.estimation, self.kind)],
@@ -5818,19 +5937,23 @@ class SpreadWidth(ErrorBar):
             self.upper: [self.estimation.ucl]})
         return data
     
-    def __call__(self, kw_center: dict = {}, **kwds) -> None:
+    def __call__(
+            self,
+            kw_center: dict[str, Any] | None = None,
+            **kwds
+            ) -> None:
         """Perform the plotting operation.
 
         Parameters
         ----------
         kw_center : dict, optional
             Additional keyword arguments for the axes `scatter` method,
-            by default {}.
+            by default None.
         **kwds :
             Additional keyword arguments for the axes `errorbar` method.
         """
-        kw_center = dict(marker=self.marker) | kw_center
-        return super().__call__(kw_center, **kwds)
+        _kw_center = {'marker': self.marker} | (kw_center or {})
+        return super().__call__(_kw_center, **kwds)
 
 
 class ConfidenceInterval(ErrorBar):
@@ -5966,12 +6089,15 @@ class ConfidenceInterval(ErrorBar):
         ).label() # neded to label the feature tick labels
     ```
     """
-    __slots__ = ('confidence_level', 'ci_func', 'n_groups')
+    __slots__ = (
+        'ci_func',
+        'confidence_level',
+        'n_groups')
 
-    confidence_level: float
-    """Confidence level for the confidence intervals."""
     ci_func: Callable
     """Provided function for calculating the confidence intervals."""
+    confidence_level: float
+    """Confidence level for the confidence intervals."""
     n_groups: int
     """Number of unique feature values."""
 
@@ -6016,7 +6142,9 @@ class ConfidenceInterval(ErrorBar):
             hide_axis=hide_axis)
     
     def transform(
-            self, feature_data: float | int, target_data: Series
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
             ) -> pd.DataFrame:
         """Perform the transformation on the target data by using the
         given function `ci_func' and return the transformed data.
@@ -6532,7 +6660,7 @@ class ProportionTest(ConfidenceInterval):
     pre-aggregated data.
     """
 
-    __slots__ = ('method')
+    __slots__ = ('method',)
 
     method: Literal['sum', 'mean', 'median']
     """The provided Pandas Series method for aggregating events and
@@ -6581,7 +6709,9 @@ class ProportionTest(ConfidenceInterval):
             hide_axis=hide_axis)
     
     def transform(
-            self, feature_data: float | int, target_data: Series
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
             ) -> pd.DataFrame:
         """Perform the transformation on the target data by using the
         given function `ci_func' and return the transformed data.
@@ -6685,13 +6815,14 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
     hide_axis : Literal['target', 'feature', 'both'] | None, optional
         Specifies which axes should be hidden. If None, both axes 
         are displayed. Defaults to None.
-    kw_estim : Dict[str, Any]
+    kw_estim : dict[str, Any], optional
         Additional keyword arguments that are passed to the 
-        `ProcessEstimator` class. Possible keword arguments are:
-        - error_values: Tuple[float, ...] = (),
+        `ProcessEstimator` class. Possible keword arguments are (default
+        is None):
+        - error_values: tuple[float, ...] = (),
         - strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
         - agreement: float | int = 6,
-        - possible_dists: Tuple[str | rv_continuous, ...] = DIST.COMMON
+        - possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON
     
     **kwds:
         Additional keyword arguments that have no effect and are
@@ -6762,21 +6893,28 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
     """
 
     __slots__ = (
-        'spec_limits', 'kind', 'show_feature_axis', 'processes', 'kw_estim')
+        'kind',
+        'kw_estim',
+        'processes',
+        'show_feature_axis',
+        'spec_limits',)
 
-    spec_limits: SpecLimits
-    """Spec limits used for calculating the capability values."""
     kind: Literal['cp', 'cpk']
     """whether to calculate the confidence interval for Cp or Cpk 
     ('cp' or 'cpk')."""
-    processes: Dict[str, ProcessEstimator]
+    kw_estim: dict[str, Any]
+    """Additional keyword arguments that are passed to the 
+    `ProcessEstimator` classes."""
+    processes: dict[str, ProcessEstimator]
     """ProcessEstimator classes used to calculate the cp and cpk values.
     One for each feature level.
     - key: feature level as str
     - value: ProcessEstimator instance"""
-    kw_estim: Dict[str, Any]
-    """Additional keyword arguments that are passed to the 
-    `ProcessEstimator` classes."""
+    show_feature_axis: bool
+    """Flag indicating whether to show the feature axis (spine, ticks 
+    and labels). If False, the feature axis is hidden."""
+    spec_limits: SpecLimits
+    """Spec limits used for calculating the capability values."""
 
     def __init__(
             self,
@@ -6797,7 +6935,7 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
             ax: Axes | None = None,
             visible_spines: Literal['target', 'feature', 'none'] | None = None,
             hide_axis: Literal['target', 'feature', 'both'] | None = None,
-            kw_estim: Dict[str, Any] = {},
+            kw_estim: dict[str, Any] | None = None,
             **kwds) -> None:
 
         self.processes = {}
@@ -6806,7 +6944,7 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
         if show_feature_axis is None:
             show_feature_axis = bool(feature)
         self.show_feature_axis = show_feature_axis
-        self.kw_estim = kw_estim
+        self.kw_estim = kw_estim or {}
         
         super().__init__(
             source=source,
@@ -6833,7 +6971,9 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
         self.ax.spines[spine].set_visible(False)
     
     def transform(
-            self, feature_data: float | int, target_data: Series
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
             ) -> pd.DataFrame:
         """Perform the transformation on the target data by using the
         given function `ci_func' and return the transformed data.
@@ -6869,14 +7009,18 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
         self.processes[str(self._original_f_values[-1])] = process
         return data 
     
-    def __call__(self, kw_center: dict = {}, **kwds) -> None:
+    def __call__(
+            self,
+            kw_center: dict[str, Any] | None = None,
+            **kwds
+            ) -> None:
         """Perform the plotting operation.
 
         Parameters
         ----------
         kw_center : dict, optional
             Additional keyword arguments for the axes `scatter` method,
-            by default {}.
+            by default None.
         **kwds :
             Additional keyword arguments for the axes `errorbar` method.
         """
@@ -6907,7 +7051,7 @@ class HideSubplot(Plotter):
         self.ax = ax
     
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         return {}
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
@@ -6921,16 +7065,14 @@ class SkipSubplot(Plotter):
 
     def __init__(self, *args, **kwds) -> None:
         """Initialize the class and store nothing."""
-        pass
 
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Get empty dict (read-only)."""
         return {}
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         """Do Nothing"""
-        pass
 
 
 class Stripe(ABC):
@@ -6989,41 +7131,48 @@ class Stripe(ABC):
     """
 
     __slots__ = (
-        '_label', 'position', 'width', 'orientation', 'color', 'alpha',
-        'lower_limit', 'upper_limit', 'zorder', 'show_position', '_decimals',
-        '_axes')
+        '_axes',
+        '_decimals',
+        '_label',
+        'alpha',
+        'color',
+        'lower_limit',
+        'orientation',
+        'position',
+        'show_position',
+        'upper_limit',
+        'width',
+        'zorder',)
     
-    _label: str
-    """The label of the stripe as it appears in the legend."""
-    position: float
-    """The position of the stripe on the x- or y-axis."""
-    width: float
-    """The width of the stripe."""
-    orientation: Literal['horizontal', 'vertical']
-    """The orientation of the stripe."""
-    color: str
-    """The color of the stripe as string or hex value."""
-    alpha: float | None
-    """Value used for blending the color."""
-    lower_limit: float
-    """The lower limit (start) of the stripe relative to the plotting
-    area. Should be between 0 and 1."""
-    upper_limit: float
-    """The upper limit (end) of the stripe relative to the plotting
-    area. Should be between 0 and 1."""
-    linestyle: LineStyle
-    """The linestyle of the stripe."""
-    zorder: float
-    """The zorder of the stripe."""
-    show_position: bool
-    """Whether position value of the stripe should be displayed the 
-    label."""
+    _axes: list[Axes]
+    """The axes objects the stripe is plotted on. This attribute is 
+    necessary so that each strip can only be drawn once on each axis."""
     _decimals: int
     """The number of decimals for the position value showed in the 
     label. Only has an effect if show_position is True"""
-    _axes: List[Axes]
-    """The axes objects the stripe is plotted on. This attribute is 
-    necessary so that each strip can only be drawn once on each axis."""
+    _label: str
+    """The label of the stripe as it appears in the legend."""
+    alpha: float | None
+    """Value used for blending the color."""
+    color: str
+    """The color of the stripe as string or hex value."""
+    lower_limit: float
+    """The lower limit (start) of the stripe relative to the plotting
+    area. Should be between 0 and 1."""
+    orientation: Literal['horizontal', 'vertical']
+    """The orientation of the stripe."""
+    position: float
+    """The position of the stripe on the x- or y-axis."""
+    show_position: bool
+    """Whether position value of the stripe should be displayed the 
+    label."""
+    upper_limit: float
+    """The upper limit (end) of the stripe relative to the plotting
+    area. Should be between 0 and 1."""
+    width: float
+    """The width of the stripe."""
+    zorder: float
+    """The zorder of the stripe."""
 
     def __init__(
             self,
@@ -7066,7 +7215,7 @@ class Stripe(ABC):
         self._decimals = decimals
     
     @staticmethod
-    def determine_decimals(value: int | float) -> int:
+    def determine_decimals(value: float) -> int:
         """Determine the number of decimal places to format values for 
         e.g. legend labels. The number of decimal places depends on the
         size of the provided value."""
@@ -7090,6 +7239,7 @@ class Stripe(ABC):
         if self.show_position:
             label = f'{label}={self.position:.{self.decimals}f}'
         return f'${label}$'
+    
     @label.setter
     def label(self, label: str) -> None:
         self._label = label.strip('$')
@@ -7253,7 +7403,7 @@ class StripeLine(Stripe):
     ensures that each stripe is only drawn once per Axes instance.
     """
 
-    __slots__ = ('linestyle')
+    __slots__ = ('linestyle',)
 
     linestyle: LineStyle
     """The linestyle of the stripe."""
@@ -7306,17 +7456,18 @@ class StripeLine(Stripe):
         """Draw the stripe on the given Axes object."""
         if ax in self._axes:
             return
+
         args = (
             self.position,
             self.lower_limit,
             self.upper_limit)
-        kwds = dict(
-            color=self.color,
-            alpha=self.alpha,
-            linewidth=self.width,
-            linestyle=self.linestyle,
-            zorder=self.zorder
-            )
+        kwds = {
+            'color': self.color,
+            'alpha': self.alpha,
+            'linewidth': self.width,
+            'linestyle': self.linestyle,
+            'zorder': self.zorder}
+
         if self.orientation == 'horizontal':
             ax.axhline(*args, **kwds)
         else:
@@ -7441,15 +7592,18 @@ class StripeSpan(Stripe):
     but not both. The class will compute the missing values accordingly.
     """
 
-    __slots__ = ('lower_position', 'upper_position', 'border_linewidth')
+    __slots__ = (
+        'border_linewidth',
+        'lower_position',
+        'upper_position')
     
+    border_linewidth: float
+    """Width of the border line. Could also be set during initialisation
+    via `lw` or `linewidth`."""
     lower_position: float
     """Target position of the lower border of the stripe."""
     upper_position: float
     """Target position of the upper border of the stripe."""
-    border_linewidth: float
-    """Width of the border line. Could also be set during initialisation
-    via `lw` or `linewidth`."""
 
     def __init__(
             self,
@@ -7490,7 +7644,7 @@ class StripeSpan(Stripe):
             upper: float | None,
             pos: float | None, 
             width: float | None
-            ) -> Tuple[float, float]:
+            ) -> tuple[float, float]:
         """Check if either the edges values or the position and width is
         given but not both. Then set the edges attributes and return
         position and width."""
@@ -7527,12 +7681,12 @@ class StripeSpan(Stripe):
             self.upper_position,
             self.lower_limit,
             self.upper_limit)
-        kwds = dict(
-            color=self.color,
-            alpha=self.alpha,
-            linewidth=self.border_linewidth,
-            zorder=self.zorder
-            )
+        kwds = {
+            'color': self.color,
+            'alpha': self.alpha,
+            'linewidth': self.border_linewidth,
+            'zorder': self.zorder
+            }
         if self.orientation == 'horizontal':
             ax.axhspan(*args, **kwds)
         else:
@@ -7654,22 +7808,27 @@ class BlandAltman(Plotter):
            assessing agreement between two methods of clinical
            measurement. The lancet, 327(8476), 307-310.
     """
-    __slots__ = ('identity', 'confidence', 'estimation', 'stripes',
-        'lines_same_color')
+    __slots__ = (
+        'confidence',
+        'estimation',
+        'identity',
+        'lines_same_color',
+        'stripes',
+    )
 
-    identity: str
-    """Column name containing identities of each sample.""" 
     confidence: float
     """Confidence level of the confidence interval for mean and
     agreements."""
     estimation: LocationDispersionEstimator
     """Estimator instance to estimate the mean and limits of agreement."""
-    stripes: Dict[str, Stripe]
-    """Dictionary of Stripe objects used for drawing lines and their
-    confidence intervals."""
+    identity: str
+    """Column name containing identities of each sample.""" 
     lines_same_color: bool
     """Whether to use same color for lines and their confidence 
     intervals as for the points."""
+    stripes: dict[str, Stripe]
+    """Dictionary of Stripe objects used for drawing lines and their
+    confidence intervals."""
 
     def __init__(
             self,
@@ -7691,7 +7850,7 @@ class BlandAltman(Plotter):
             **kwds) -> None:
         self.identity = identity
         
-        first, second = sorted(list(source[feature].unique()), reverse=reverse)
+        first, second = sorted(source[feature].unique(), reverse=reverse)
         target1 = f'{target}-{first}'
         target2 = f'{target}-{second}'
         _target = f'{target2} - {target1}'
@@ -7730,9 +7889,9 @@ class BlandAltman(Plotter):
             samples=df[_target], strategy='norm', agreement=agreement)
 
     @property
-    def kw_default(self) -> Dict[str, Any]:
+    def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
-        kwds = dict(color=self.color, marker=self.marker)
+        kwds = {'color': self.color, 'marker': self.marker}
         return kwds
     
     def __call__(self, **kwds) -> None:
@@ -7748,9 +7907,9 @@ class BlandAltman(Plotter):
         self.ax.scatter(self.x, self.y, **_kwds)
 
         orientation = 'horizontal' if self.target_on_y else 'vertical'
-        kw_stripe: Dict[str, Any] = dict(
-            orientation=orientation,
-            show_position=True)
+        kw_stripe: dict[str, Any] = {
+            'orientation': orientation,
+            'show_position': True}
         if self.lines_same_color:
             kw_stripe['color'] = self.color
         span_label = f'{100*self.confidence:.0f} \\%-{STR["ci"]}'

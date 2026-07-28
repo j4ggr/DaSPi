@@ -47,29 +47,24 @@ under the BSD 3-clause licence.
 # https://github.com/mwaskom/seaborn/tree/master
 # Copyright (c) 2012-2023, Michael L. Waskom All rights reserved.
 
+from pathlib import Path
+from typing import Any, Literal
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-
-from typing import Any
-from typing import List
-from typing import Dict
-from typing import Tuple
-from typing import Literal
-from pathlib import Path
 from matplotlib import colormaps
 from matplotlib.axes import Axes
 from matplotlib.axis import Axis
-from matplotlib.colors import Colormap
-from matplotlib.colors import ListedColormap
-
+from matplotlib.colors import Colormap, ListedColormap
 
 __all__ = [
-    'style',
+    'cmap_from_lut',
     'get_shared_axes',
     'positions_of_shared_axes',
-    'transpose_xy_axes_params',
     'register_colormap',
-    'cmap_from_lut']
+    'style',
+    'transpose_xy_axes_params',
+]
 
 
 class Style:
@@ -80,7 +75,7 @@ class Style:
     from the matplotlib library and custom styles defined in .mplstyle 
     files."""
     
-    _ignore_params: Tuple[str, ...] = (
+    _ignore_params: tuple[str, ...] = (
         'backend',
         'backend_fallback',
         'date.epoch',
@@ -99,7 +94,7 @@ class Style:
     """A tuple of matplotlib parameters to ignore when saving styles.
     These parameters are not included in the saved .mplstyle file."""
 
-    _mandatory_params: Dict[str, Any] = {
+    _mandatory_params: dict[str, Any] = {  # noqa: RUF012
         'text.parse_math': True,
         'figure.autolayout': False,                 # When True, automatically adjust subplot parameters to make the plot fit the figure using `tight_layout`
         'figure.constrained_layout.use': True,      # When True, automatically make plot elements fit on the figure. (Not compatible with `autolayout`, above).
@@ -139,18 +134,18 @@ class Style:
         return self.current not in ['daspi', 'daspi-dark', 'ggplot2']
 
     @property
-    def daspi_styles(self) -> Tuple[str, ...]:
-        """Tuple of available styles in daspi package (read-only)."""
+    def daspi_styles(self) -> tuple[str, ...]:
+        """tuple of available styles in daspi package (read-only)."""
         return tuple(s.stem for s in self.folder.glob('*.mplstyle'))
     
     @property
-    def mpl_styles(self) -> Tuple[str, ...]:
-        """Tuple of available styles coming from matplotlib (read-only)."""
+    def mpl_styles(self) -> tuple[str, ...]:
+        """tuple of available styles coming from matplotlib (read-only)."""
         return tuple(plt.style.available)
 
     @property
-    def available(self) -> Tuple[str, ...]:
-        """List of available styles (read-only)."""
+    def available(self) -> tuple[str, ...]:
+        """list of available styles (read-only)."""
         return self.daspi_styles + self.mpl_styles
 
     def use(self, name: str | Path) -> None:
@@ -211,7 +206,7 @@ class Style:
             self,
             folder: Path | str,
             style_name: str,
-            comment_lines: List[str] = []
+            comment_lines: list[str] | None = None
             ) -> Path:
         """Save the current matplotlib style configuration to a specified 
         .mplstyle file.
@@ -258,7 +253,12 @@ class Style:
         folder = Path(folder)
         if not style_name.endswith('.mplstyle'):
             style_name = f'{style_name}.mplstyle'
-        lines = [l if l.startswith('#') else f'# {l}' for l in comment_lines]
+
+        if comment_lines is None:
+            lines = []
+        else:
+            lines = [
+                l if l.startswith('#') else f'# {l}' for l in comment_lines]
         
         rc_params = dict(mpl.rcParams.items()) | self._mandatory_params
         for key, value in rc_params.items():
@@ -288,7 +288,7 @@ class Style:
         method to ensure that all titles, legends, and row and column 
         labels are not outside the graph."""
         for key, value in self._mandatory_params.items():
-            mpl.rcParams[key] = value
+            mpl.rcParams[key] = value # pyright: ignore[reportArgumentType]
 
 style = Style()
 """A instance of the Style class for managing and applying matplotlib 
@@ -300,7 +300,7 @@ built-in styles from the matplotlib library and custom styles defined in
 def get_shared_axes(
         ax: Axes,
         axis: Literal['x', 'y']
-        ) -> List[Axes]:
+        ) -> list[Axes]:
     """Gets the shared Axes object of the given axis.
     
     Parameters
@@ -312,17 +312,17 @@ def get_shared_axes(
     
     Returns
     -------
-    List[Axes]
+    list[Axes]
         The shared Axes object of the given axis.
     """
     xy_axis: Axis = getattr(ax, f'{axis}axis')
-    shared_axis: List[Axis] = xy_axis._get_shared_axis() # type: ignore
+    shared_axis: list[Axis] = xy_axis._get_shared_axis() # type: ignore
     return [a.axes for a in shared_axis]
 
 def positions_of_shared_axes(
         ax: Axes,
         axis: Literal['x', 'y']
-        ) -> List[int]:
+        ) -> list[int]:
     """Gets the positions in the flat axis grid of the shared axes.
 
     First get the shared Axes object of the given axis. Then get the
@@ -337,7 +337,7 @@ def positions_of_shared_axes(
 
     Returns
     -------
-    List[int]
+    list[int]
         The positions of the shared axes of the given axis.
     """
     if ax.figure is None:
@@ -390,7 +390,7 @@ def transpose_xy_axes_params(
         ax.yaxis.set_tick_params(which='minor', reset=False, **x_minor)
         
 
-_rocket_lut: List[List[float]] = [
+_rocket_lut: list[list[float]] = [
     [ 0.01060815, 0.01808215, 0.10018654],
     [ 0.01428972, 0.02048237, 0.10374486],
     [ 0.01831941, 0.0229766 , 0.10738511],
@@ -910,7 +910,7 @@ _mako_lut = [
 ]
 
 
-_vlag_lut: List[List[float]] = [
+_vlag_lut: list[list[float]] = [
     [ 0.13850039, 0.41331206, 0.74052025],
     [ 0.15077609, 0.41762684, 0.73970427],
     [ 0.16235219, 0.4219191 , 0.7389667 ],
@@ -1170,7 +1170,7 @@ _vlag_lut: List[List[float]] = [
 ]
 
 
-_icefire_lut: List[List[float]] = [
+_icefire_lut: list[list[float]] = [
     [ 0.73936227, 0.90443867, 0.85757238],
     [ 0.72888063, 0.89639109, 0.85488394],
     [ 0.71834255, 0.88842162, 0.8521605 ],
@@ -1430,7 +1430,7 @@ _icefire_lut: List[List[float]] = [
 ]
 
 
-_flare_lut: List[List[float]] = [
+_flare_lut: list[list[float]] = [
     [0.92907237, 0.68878959, 0.50411509],
     [0.92891402, 0.68494686, 0.50173994],
     [0.92864754, 0.68116207, 0.4993754],
@@ -1690,7 +1690,7 @@ _flare_lut: List[List[float]] = [
 ]
 
 
-_crest_lut: List[List[float]] = [
+_crest_lut: list[list[float]] = [
     [0.6468274, 0.80289262, 0.56592265],
     [0.64233318, 0.80081141, 0.56639461],
     [0.63791969, 0.7987162, 0.56674976],
@@ -1950,14 +1950,37 @@ _crest_lut: List[List[float]] = [
 ]
 
 def register_colormap(cmap: Colormap) -> None:
+    """Register a colormap if it is not already registered.
+
+    Parameters
+    ----------
+    cmap : Colormap
+        The colormap to register.
+    """
     if cmap.name not in colormaps:
         colormaps.register(cmap)
 
 def cmap_from_lut(
         name: str,
-        lut: List[List[float] | str],
+        lut: list[list[float] | str],
         reverse: bool = False) -> ListedColormap:
-    """"""
+    """Create a ListedColormap from a lookup table (LUT).
+
+    Parameters
+    ----------
+    name : str
+        Name of the colormap.
+    lut : list[list[float] | str]
+        List of colors defining the colormap.
+    reverse : bool, optional
+        If True, the colormap is reversed and the suffix '_r' is
+        appended to the name, by default False.
+
+    Returns
+    -------
+    ListedColormap
+        The created colormap.
+    """
     if reverse:
         cmap = ListedColormap(lut[::-1], f'{name}_r')
     else:
