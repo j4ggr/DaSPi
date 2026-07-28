@@ -158,6 +158,7 @@ pip install daspi
 
 ## 🔧 Technical Features
 
+- **Centralized configuration** — Manage language, username, and styles globally  
 - **Multivariate visualization** — Explore complex relationships  
 - **Linear models & ANOVA** — Statistical inference made simple  
 - **Hypothesis testing** — Confidence intervals and p-values  

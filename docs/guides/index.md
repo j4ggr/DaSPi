@@ -116,6 +116,7 @@ Once you master the three workflows, explore:
 | Guide | What You'll Learn |
 | ----- | ----------------- |
 | [Installing](installing.md) | Install DaSPi from PyPI and verify your setup |
+| [Configuration](configuration.md) | Configure language, username, and plotting styles |
 | [Plotting](plotting.md) | Create professional charts for process data visualization |
 
 ---

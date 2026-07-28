@@ -51,5 +51,6 @@ from .plotter import *
 from .precast import *
 
 # TODO: some alpha fails for vspan when using daspi and ggplot2 styles
-style.use('daspi') # TODO: implement a setting function for various settings, including language and stuff
+from ..config import CONFIG
+CONFIG.style = 'daspi'
 

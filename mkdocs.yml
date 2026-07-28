@@ -111,6 +111,7 @@ nav:
       - guides/workflow-root-cause.md
       - guides/workflow-spc.md
     - guides/installing.md
+    - guides/configuration.md
     - guides/anova.md
     - guides/doe.md
     - guides/plotting.md

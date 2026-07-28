@@ -218,6 +218,7 @@ Where applicable, DaSPi acts as a convenient wrapper around well-established pac
 
 from ._version import __version__ as __version__
 
+from .config import CONFIG as CONFIG
 from .strings import STR as STR
 
 from .constants import ANOVA as ANOVA

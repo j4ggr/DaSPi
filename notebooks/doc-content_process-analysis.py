@@ -21,7 +21,7 @@ def _():
     from scipy import stats
     from typing import Any
     DPI = 120
-    dsp.STR.username = 'j4ggr'
+    dsp.CONFIG.username = 'j4ggr'
     dsp.__version__
     return Any, DPI, dict, dsp, np, pd, stats
 
