@@ -230,10 +230,6 @@ font.size:    8.0                           # The font.size property is the defa
 
 text.color:             404040
 text.hinting:           force_autohint
-
-text.hinting_factor:    8                   # Specifies the amount of softness for hinting in the
-                                            # horizontal direction.  A value of 1 will hint to full
-                                            # pixels.  A value of 2 will hint to half pixels etc.
 text.antialiased:       True                # If True (default), the text will be antialiased.
                                             # This only affects raster outputs.
 
