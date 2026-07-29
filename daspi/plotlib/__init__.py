@@ -43,6 +43,7 @@ All public names from each submodule are re-exported at the package
 level, so ``from daspi.plotlib import Scatter`` works without knowing
 which submodule it lives in.
 """
+from ..config import CONFIG
 from .appearance import *
 from .chart import *
 from .classify import *
@@ -50,7 +51,5 @@ from .facets import *
 from .plotter import *
 from .precast import *
 
-# TODO: some alpha fails for vspan when using daspi and ggplot2 styles
-from ..config import CONFIG
 CONFIG.style = 'daspi'
 
