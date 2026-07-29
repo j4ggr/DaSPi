@@ -64,7 +64,6 @@ statistic of interest is constant across sections — a lightweight
 alternative to control-chart analysis.
 """
 from collections.abc import Generator, Sequence
-from math import exp
 from typing import Any, Literal
 
 import numpy as np
@@ -203,25 +202,16 @@ def anderson_darling_test(
               \\bigl(\\ln F(x_i) + \\ln(1 - F(x_{N-i+1}))\\bigr)
     $$
 
-    To obtain a p-value the statistic is adjusted for finite sample
+    To obtain a p-value, the statistic is adjusted for finite sample
     size:
 
     $$
         A^* = A^2 \\left(1 + \\frac{0.75}{N} + \\frac{2.25}{N^2}\\right)
     $$
 
-    The p-value is then derived from $A^*$ using the following piecewise
-    approximation:
-
-    $$
-        p = \\begin{cases}
-          0 & A^* \\ge 13 \\\\
-          \\exp(1.2937 - 5.709\\,A^* + 0.0186\\,(A^*)^2) & 6 \\le A^* < 13 \\\\
-          \\exp(0.9177 - 4.279\\,A^* - 1.38\\,(A^*)^2) & 0.34 < A^* < 0.6 \\\\
-          1 - \\exp(42.796\\,A^* - 59.938\\,(A^*)^2 - 8.318) & 0.2 < A^* \\le 0.34 \\\\
-          1 - \\exp(101.14\\,A^* - 223.73\\,(A^*)^2 - 13.436) & A^* \\le 0.2
-        \\end{cases}
-    $$
+    The p-value is computed by SciPy using interpolation from
+    pre-calculated tables, which provides more accurate results than
+    piecewise approximation formulas.
 
     Parameters
     ----------
@@ -237,22 +227,17 @@ def anderson_darling_test(
 
     Notes
     -----
-    This test was inspired by the Excel Add-in by Charles Zaiontz, see:
-    https://real-statistics.com/non-parametric-tests/goodness-of-fit-tests/anderson-darling-test/
+    This implementation uses SciPy's `anderson` function with
+    `method='interpolate'` to compute accurate p-values from
+    pre-calculated tables. The adjusted statistic $A^*$ is returned
+    for compatibility with the literature and for manual interpretation
+    using critical value tables.
     """
     N = len(sample)
-    A2: float = anderson(sample, dist='norm')[0] # type: ignore
-    A_star = A2*(1 + 0.75/N + 2.25/N**2)
-    if 13 <= A_star:
-        p = 0.0
-    elif 0.6 <= A_star < 13:
-        p = exp(1.2937 - 5.709*A_star + 0.0186*(A_star**2))
-    elif 0.34 < A_star < 0.6:
-        p = exp(0.9177 - 4.279*A_star - 1.38*(A_star**2))
-    elif 0.2 < A_star <= 0.34:
-        p = 1 - exp(42.796*A_star - 59.938*(A_star**2) - 8.318)
-    else:
-        p = 1 - exp(101.14*A_star - 223.73*(A_star**2) - 13.436)
+    result = anderson(sample, dist='norm', method='interpolate')
+    A2: float = result.statistic  # pyright: ignore[reportAttributeAccessIssue]
+    p: float = result.pvalue  # pyright: ignore[reportAttributeAccessIssue]
+    A_star = A2 * (1 + 0.75/N + 2.25/N**2)
     return p, A_star
 
 def all_normal(
