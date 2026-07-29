@@ -16,15 +16,77 @@ __Types of changes__:
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-07-29
+
+### Breaking Changes
+
+- **Python 3.13+ and pandas v3 required**: Upgraded minimum dependencies to Python 3.13 and pandas v3 with full compatibility support.
+- **ANOVA terminology**: Renamed `features` parameter to `factors` throughout the ANOVA module for better alignment with statistical terminology.
+- **String properties**: Changed `STR` property names to follow Python conventions: `LANGUAGE` → `language`, `USERNAME` → `username`, `TODAY` → `today`. Uppercase names are reserved for module-level constants.
+- **Plotter naming consistency**: 
+  - Renamed `Errorbar` to `ErrorBar` for PascalCase consistency.
+  - Renamed `Violine` to `Violin` for correct spelling.
+- **Box plotter API**: Changed `vert` parameter (bool) to `orientation` parameter (str) following matplotlib 3.11+ deprecation of `vert` parameter.
+
 ### Added
 
-- The `GeneralizedLinearModel` class for analyzing count and proportion data using Poisson, Negative Binomial, or Binomial distributions. Suitable for unbalanced factorial designs with non-normal response variables.
-- The `dunn_test()` function for non-parametric pairwise comparisons following Kruskal-Wallis test, with multiple comparison corrections (Bonferroni, Holm, Hochberg, Benjamini-Hochberg, Benjamini-Yekutieli).
-- The `pairwise_tests()` function with automatic test selection between t-test and Mann-Whitney U based on normality assessment, including multiple comparison corrections.
+- **Configuration system**: New `CONFIG` singleton for centralized configuration management with properties for `language`, `username`, and `style`.
+  - Context managers: `CONFIG.use_language()` and `CONFIG.use_style()` for temporary scoped changes.
+  - Methods: `CONFIG.configure()` for bulk updates, `CONFIG.reset()` for defaults.
+  - Full documentation in new configuration guide.
+- **UNBOUNDED constant**: Global constant (`dsp.UNBOUNDED`) for default specification limits, providing a standard way to represent unbounded specifications throughout the package.
+- **Context managers**: Added `STR.use_language()` context manager for temporary language switching that automatically reverts.
+- **Plotters**:
+  - `GaussianKDEContourUnivariate` plotter for univariate kernel density estimation contour plots.
+  - Notebook display support for all Chart classes (automatic rendering in Jupyter/IPython environments).
+  - `ensure_dir` option to `save()` method of all Chart classes for automatic directory creation.
+  - `**kwds` passthrough to `JointChart.label()` method for enhanced customization.
+- **Statistical analysis**:
+  - `GeneralizedLinearModel` class for analyzing count and proportion data using Poisson, Negative Binomial, or Binomial distributions.
+  - `dunn_test()` function for non-parametric pairwise comparisons following Kruskal-Wallis test with multiple comparison corrections (Bonferroni, Holm, Hochberg, Benjamini-Hochberg, Benjamini-Yekutieli).
+  - `pairwise_tests()` function with automatic test selection between t-test and Mann-Whitney U based on normality assessment.
+  - Comprehensive tests for `cp` and `cpk` capability indices covering edge cases and caching behavior.
+- **Documentation**:
+  - Package rebranded as "Process Analytics & Six Sigma in Python".
+  - Comprehensive three flagship workflows documentation.
+  - Documentation for count data analysis features.
+  - Enriched hypothesis test docstrings with statistical theory and improved math notation.
+  - Module-level docstrings for all statistics, ANOVA, and DOE submodules.
+- **DOE improvements**: Support for multi-character factor names in fractional factorial designs.
+- **Examples**: Added comprehensive examples to `DistributionEstimator`.
+
+### Changed
+
+- **Anderson-Darling test**: Updated to use scipy's built-in interpolated p-values (more accurate, eliminates FutureWarning about missing method parameter in SciPy 1.19.0+).
+- **Configuration synchronization**: `CONFIG.style` now properly synchronized with `plotlib.appearance.style`, always reflecting the actual current matplotlib style.
+- **Matplotlib compatibility**: Removed deprecated rcParams parameters (`text.hinting_factor`, `text.kerning_factor`) for matplotlib 3.11+ compatibility.
+- **Notebooks**: Replaced Jupyter notebooks with marimo notebooks in examples and documentation generation.
+- **Type hints**: Modernized typing throughout package, replacing `Dict`/`List` with built-in `dict`/`list` types and moving sequence types to `collections.abc`.
+- **Code quality**: 
+  - Improved typings in `config.py`.
+  - Fixed mutable default arguments.
+  - Alphabetically reordered imports and `__slots__`.
+  - Converted `dict(...)` to `{...}` literals.
+- **Default arguments**: Uses `UNBOUNDED` as default argument in various methods instead of creating new instances.
+
+### Fixed
+
+- **Configuration**: CONFIG.style synchronization issue when style was changed directly via `plotlib.appearance.style.use()`.
+- **LabelFacets**: 
+  - `clear()` method no longer fails when artist doesn't have a `_remove_method()` method.
+  - `estimate_height()` method now correctly considers multiple lines.
+- **TransformPlotter**: Now uses `self.target` and `self.feature` in `super().__init__()` call instead of parameters.
+- **Chart classes**: Fixed categorical assignment in Chart classes.
+- **Documentation**: Fixed path handling (changed backslashes to forward slashes for cross-platform compatibility).
+- **Test suite**:
+  - Fixed GeneralizedLinearModel test structure and API usage.
+  - Repaired test failures introduced during refactoring.
+  - All tests passing with improved coverage.
 
 ### Removed
 
-- The `InteractionPlot` and `MainEffectsPlot` classes (incompatible with package design philosophy).
+- **Legacy plotters**: `InteractionPlot` and `MainEffectsPlot` classes (incompatible with package design philosophy).
+- **Dependencies**: Cleaned up unnecessary dependencies.
 
 ## [1.10.1] - 2026-03-03
 
