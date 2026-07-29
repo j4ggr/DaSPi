@@ -65,7 +65,9 @@ class Config:
     """
     
     def __init__(self) -> None:
-        self._style: str = 'daspi'
+        # Style will be initialized to 'daspi' by plotlib.__init__
+        # when the plotlib module is imported
+        pass
     
     # Language property (delegates to STR)
     @property
@@ -87,19 +89,18 @@ class Config:
     def username(self, value: str) -> None:
         STR.username = value
 
-    #TODO: this may be not aligned with the setted style in the plotlib.appearance module, we should ensure that it returns always the current setted style
     # Style property
     @property
     def style(self) -> str:
         """Current matplotlib style name."""
-        return self._style
+        from .plotlib.appearance import style
+        return style.current
     
     @style.setter
     def style(self, value: str) -> None:
-        """Set matplotlib style and cache the name."""
+        """Set matplotlib style."""
         from .plotlib.appearance import style
         style.use(value)
-        self._style = value
     
     # Context managers
     def use_style(self, style_name: str) -> _GeneratorContextManager:
@@ -125,7 +126,7 @@ class Config:
         """
         @contextmanager
         def _context() -> Generator[None, Any]:
-            old_style = self._style
+            old_style = self.style
             try:
                 self.style = style_name
                 yield

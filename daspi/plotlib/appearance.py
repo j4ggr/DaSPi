@@ -110,6 +110,10 @@ class Style:
     current: str
     """Name of current style is being used."""
 
+    def __init__(self) -> None:
+        """Initialize the Style instance with default style."""
+        self.current = 'default'
+
     @property
     def folder(self) -> Path:
         """The directory where style files are stored (read-only)."""

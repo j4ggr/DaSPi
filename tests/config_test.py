@@ -146,14 +146,38 @@ class TestConfig:
         CONFIG.language = 'en'
         CONFIG.style = 'daspi'
         
-        with CONFIG.use_language('de'):
-            with CONFIG.use_style('default'):
-                assert CONFIG.language == 'de'
-                assert CONFIG.style == 'default'
+        with CONFIG.use_language('de'), CONFIG.use_style('default'):
+            assert CONFIG.language == 'de'
+            assert CONFIG.style == 'default'
         
         # Both should revert
         assert CONFIG.language == 'en'
         assert CONFIG.style == 'daspi'
+    
+    def test_style_sync_with_appearance_module(self) -> None:
+        """Test that CONFIG.style reflects direct changes to plotlib.appearance.style.
+        
+        This test verifies the TODO fix: CONFIG.style should always return the
+        current matplotlib style, even when changed directly via style.use().
+        """
+        from daspi.plotlib.appearance import style
+        
+        # Set initial style
+        CONFIG.style = 'daspi'
+        assert CONFIG.style == 'daspi'
+        assert style.current == 'daspi'
+        
+        # Change style directly via appearance module (not through CONFIG)
+        style.use('ggplot')
+        
+        # CONFIG.style should reflect this change
+        assert CONFIG.style == 'ggplot', "CONFIG.style should reflect direct style.use() calls"
+        assert style.current == 'ggplot'
+        
+        # Change back via appearance module
+        style.use('default')
+        assert CONFIG.style == 'default', "CONFIG.style should stay synchronized"
+        assert style.current == 'default'
     
     def teardown_method(self) -> None:
         """Reset configuration after each test."""
