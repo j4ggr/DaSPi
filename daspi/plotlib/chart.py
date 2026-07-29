@@ -69,7 +69,7 @@ from pandas.core.series import Series
 
 from .._typing import LegendHandlesLabels, MosaicLayout, ShareAxisProperty
 from ..constants import CATEGORY, COLOR, KW, PLOTTER
-from ..statistics import SpecLimits
+from ..statistics import UNBOUNDED, SpecLimits
 from ..strings import STR
 from .appearance import style, transpose_xy_axes_params
 from .classify import Dodger, HueLabel, ShapeLabel, SizeLabel
@@ -1095,7 +1095,7 @@ class SingleChart(Chart):
             mean: bool = False,
             median: bool = False,
             control_limits: bool = False, 
-            spec_limits: SpecLimits = SpecLimits(), # TODO use default instance, when available
+            spec_limits: SpecLimits = UNBOUNDED,
             confidence: float | None = None,
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: float | int = 6,  # noqa: PYI041
@@ -1122,7 +1122,7 @@ class SingleChart(Chart):
             spread, by default False.
         spec_limits : SpecLimits, optional
             If provided, specifies the specification limits. 
-            Default is SpecLimits(float('-inf'), float('inf')).
+            Default is UNBOUNDED.
         confidence : float, optional
             The confidence level between 0 and 1, by default None.
         strategy : {'eval', 'fit', 'norm', 'data'}, optional
@@ -1906,7 +1906,7 @@ class JointChart(Chart):
             mean: bool | tuple[bool, ...] = False,
             median: bool | tuple[bool, ...] = False,
             control_limits: bool | tuple[bool, ...] = False, 
-            spec_limits: SpecLimits | tuple[SpecLimits, ...] = SpecLimits(), #TODO: check if SpecLimits() is the right default
+            spec_limits: SpecLimits | tuple[SpecLimits, ...] = UNBOUNDED,
             confidence: float | None | tuple[float | None, ...] = None,
             strategy: Literal['eval', 'fit', 'norm', 'data'] | tuple = 'norm',
             agreement: float | int | tuple[int | float, ...] = 6,  # noqa: PYI041
@@ -1932,7 +1932,7 @@ class JointChart(Chart):
             spread, by default False.
         spec_limits : SpecLimits | tuple[SpecLimits, ...], optional
             If provided, specifies the specification limits. Default
-            is SpecLimits().
+            is UNBOUNDED.
         confidence : float | None | tuple[float | None, ...], optional
             The confidence level between 0 and 1, by default None.
         strategy : {'eval', 'fit', 'norm', 'data'} | tuple, optional
@@ -2367,7 +2367,7 @@ class MultivariateChart(SingleChart):
             mean: bool = False,
             median: bool = False,
             control_limits: bool = False, 
-            spec_limits: SpecLimits = SpecLimits(), #TODO: use default if available
+            spec_limits: SpecLimits = UNBOUNDED,
             confidence: float | None = None,
             strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
             agreement: float | int = 6,  # noqa: PYI041
@@ -2392,9 +2392,9 @@ class MultivariateChart(SingleChart):
         control_limits : bool, optional
             Whether to plot control limits representing the process 
             spread, by default False.
-        spec_limits : tuple[float], optional
+        spec_limits : SpecLimits, optional
             If provided, specifies the specification limits. Default is
-            SpecLimits().
+            UNBOUNDED.
         confidence : float, optional
             The confidence level between 0 and 1, by default None.
         strategy : {'eval', 'fit', 'norm', 'data'}, optional

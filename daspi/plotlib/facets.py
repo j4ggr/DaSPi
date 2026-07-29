@@ -67,7 +67,7 @@ from .._typing import (
     ShareAxisProperty,
 )
 from ..constants import DEFAULT, KW, LABEL
-from ..statistics import ProcessEstimator, SpecLimits
+from ..statistics import UNBOUNDED, ProcessEstimator, SpecLimits
 from ..strings import STR
 from .plotter import Stripe, StripeLine, StripeSpan
 
@@ -409,7 +409,7 @@ class StripesFacets:
     control_limits : bool, optional
         Whether to include control limits on the chart, by default False.
     spec_limits : SpecLimits, optional
-        The specification limits for the chart, by default SpecLimits().
+        The specification limits for the chart, by default UNBOUNDED.
     confidence : float, optional
         The confidence level for the confidence intervals,
         by default None.
@@ -473,7 +473,7 @@ class StripesFacets:
         mean: bool = False,
         median: bool = False,
         control_limits: bool = False,
-        spec_limits: SpecLimits = SpecLimits(), # TODO use default instance, when available
+        spec_limits: SpecLimits = UNBOUNDED,
         confidence: float | None = None,
         strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
         agreement: float | int = 6,  # noqa: PYI041

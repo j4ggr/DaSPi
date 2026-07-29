@@ -66,7 +66,7 @@ from scipy.stats._distn_infrastructure import rv_continuous
 
 from ..anova import GageRnRModel, GageStudyModel, LinearModel
 from ..constants import ANOVA, CATEGORY, COLOR, DEFAULT, DIST
-from ..statistics import ProcessEstimator, SpecLimits
+from ..statistics import UNBOUNDED, ProcessEstimator, SpecLimits
 from ..strings import STR
 from .chart import JointChart, check_label_order
 from .plotter import (
@@ -1139,7 +1139,7 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             median=tuple(flags(median)),
             control_limits=tuple(flags(control_limits)),
             spec_limits=tuple(
-                self.spec_limits if f else SpecLimits() for f in flags(True)))
+                self.spec_limits if f else UNBOUNDED for f in flags(True)))
         return self
 
     def label( # type: ignore
