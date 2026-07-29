@@ -3252,6 +3252,8 @@ class Box(TransformPlotter):
         """Default keyword arguments for plotting (read-only)"""
         fill_color = self.color if self.fill else  COLOR.TRANSPARENT
         kwds = {
+            'positions': self._positions,
+            'orientation': 'vertical' if self.target_on_y else 'horizontal',
             'widths': self.width,
             'showfliers': self.showfliers,
             'whis': self.whis,
@@ -3327,20 +3329,7 @@ class Box(TransformPlotter):
         if not self._grouped_data:
             return
         
-        _kwds = self.kw_default | kwds
-        
-        if self.target_on_y:
-            self.ax.boxplot(
-                self._grouped_data,
-                positions=self._positions,
-                vert=True,
-                **_kwds)
-        else:
-            self.ax.boxplot(
-                self._grouped_data,
-                positions=self._positions,
-                vert=False,
-                **_kwds)
+        self.ax.boxplot(self._grouped_data, **(self.kw_default | kwds))
 
 
 class Jitter(TransformPlotter):
