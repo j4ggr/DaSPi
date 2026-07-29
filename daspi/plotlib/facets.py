@@ -1315,7 +1315,6 @@ class LabelFacets:
                 bbox.x1 / self._size[0],
                 (bbox.y1 - self._margin['top']) / self._size[1]))
     
-    # TODO: this does not work as expected
     def clear(self) -> None:
         """Remove all the label facets."""
         for label in self.labels.values():
@@ -1326,7 +1325,10 @@ class LabelFacets:
         self.labels = {}
 
         if self.legend:
-            self.legend.remove()
+            try:
+                self.legend.remove()
+            except NotImplementedError:
+                pass
             if self.legend in self.figure.legends:
                 self.figure.legends.remove(self.legend)
             self._legend = None
