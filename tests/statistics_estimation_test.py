@@ -442,7 +442,6 @@ class TestLoess:
         assert isinstance(residuals, pd.Series)
 
 
-# TODO: Add tests for cp and cpk
 class TestProcessEstimator:
 
     @pytest.fixture
@@ -576,6 +575,139 @@ class TestProcessEstimator:
         _ = estimator_norm.nok_norm
         assert estimator_norm._nok_fit < estimator_norm._nok
         assert estimator_norm._nok_fit < estimator_norm._nok_norm
+    
+    def test_cp_with_both_limits(self) -> None:
+        """Test cp calculation with both upper and lower spec limits."""
+        np.random.seed(42)
+        data = np.random.normal(10, 1, 100)
+        estimator = ProcessEstimator(data, SpecLimits(lower=5, upper=15))
+        
+        # cp = (USL - LSL) / (agreement * std)
+        # With default agreement=6: cp = (15 - 5) / (6 * std)
+        expected_cp = 10 / (6 * estimator.std)
+        assert estimator.cp == pytest.approx(expected_cp, rel=1e-6)
+        assert isinstance(estimator.cp, float)
+    
+    def test_cp_with_only_upper_limit(self) -> None:
+        """Test cp returns None when only upper spec limit is provided."""
+        data = np.random.normal(10, 1, 100)
+        estimator = ProcessEstimator(data, SpecLimits(upper=15))
+        assert estimator.cp is None
+    
+    def test_cp_with_only_lower_limit(self) -> None:
+        """Test cp returns None when only lower spec limit is provided."""
+        data = np.random.normal(10, 1, 100)
+        estimator = ProcessEstimator(data, SpecLimits(lower=5))
+        assert estimator.cp is None
+    
+    def test_cp_with_no_limits(self) -> None:
+        """Test cp returns None when no spec limits are provided."""
+        data = np.random.normal(10, 1, 100)
+        estimator = ProcessEstimator(data, SpecLimits())
+        assert estimator.cp is None
+    
+    def test_cpk_with_both_limits(self) -> None:
+        """Test cpk calculation with both upper and lower spec limits."""
+        # Create data centered between limits
+        np.random.seed(42)
+        data = np.random.normal(10, 1, 100)
+        estimator = ProcessEstimator(data, SpecLimits(lower=5, upper=15))
+        
+        # cpk should be min(cpu, cpl)
+        assert estimator.cpk == pytest.approx(min(estimator.cpu, estimator.cpl))
+        assert isinstance(estimator.cpk, float)
+    
+    def test_cpk_with_only_upper_limit(self) -> None:
+        """Test cpk calculation with only upper spec limit."""
+        np.random.seed(42)
+        data = np.random.normal(10, 1, 100)
+        estimator = ProcessEstimator(data, SpecLimits(upper=15))
+        
+        # With only upper limit, cpl should be inf, so cpk = cpu
+        assert estimator.cpk == pytest.approx(estimator.cpu)
+        assert np.isinf(estimator.cpl)
+    
+    def test_cpk_with_only_lower_limit(self) -> None:
+        """Test cpk calculation with only lower spec limit."""
+        np.random.seed(42)
+        data = np.random.normal(10, 1, 100)
+        estimator = ProcessEstimator(data, SpecLimits(lower=5))
+        
+        # With only lower limit, cpu should be inf, so cpk = cpl
+        assert estimator.cpk == pytest.approx(estimator.cpl)
+        assert np.isinf(estimator.cpu)
+    
+    def test_cpk_with_no_limits(self) -> None:
+        """Test cpk returns None when no spec limits are provided."""
+        data = np.random.normal(10, 1, 100)
+        estimator = ProcessEstimator(data, SpecLimits())
+        assert estimator.cpk is None
+    
+    def test_cpl_calculation(self) -> None:
+        """Test cpl (lower capability index) calculation."""
+        np.random.seed(42)
+        data = np.random.normal(10, 1, 100)
+        estimator = ProcessEstimator(data, SpecLimits(lower=5, upper=15))
+        
+        # cpl = (mean - lsl) / (mean - lcl)
+        expected_cpl = (estimator.mean - 5) / (estimator.mean - estimator.lcl)
+        assert estimator.cpl == pytest.approx(expected_cpl, rel=1e-6)
+    
+    def test_cpu_calculation(self) -> None:
+        """Test cpu (upper capability index) calculation."""
+        np.random.seed(42)
+        data = np.random.normal(10, 1, 100)
+        estimator = ProcessEstimator(data, SpecLimits(lower=5, upper=15))
+        
+        # cpu = (usl - mean) / (ucl - mean)
+        expected_cpu = (15 - estimator.mean) / (estimator.ucl - estimator.mean)
+        assert estimator.cpu == pytest.approx(expected_cpu, rel=1e-6)
+    
+    def test_cp_cpk_relationship_centered(self) -> None:
+        """Test cp and cpk relationship for a well-centered process."""
+        # Create data centered between limits
+        np.random.seed(42)
+        data = np.random.normal(10, 0.5, 200)
+        estimator = ProcessEstimator(data, SpecLimits(lower=7, upper=13))
+        
+        # For a centered process, cpk should be close to cp
+        # but cpk <= cp always (cpk accounts for centering)
+        assert estimator.cpk is not None
+        assert estimator.cp is not None
+        assert estimator.cpk <= estimator.cp + 0.01  # Small tolerance for rounding
+    
+    def test_cp_cpk_relationship_off_center(self) -> None:
+        """Test cp and cpk relationship for an off-center process."""
+        # Create data off-center (closer to upper limit)
+        np.random.seed(42)
+        data = np.random.normal(12, 0.5, 200)
+        estimator = ProcessEstimator(data, SpecLimits(lower=7, upper=13))
+        
+        # For off-center process, cpk should be notably less than cp
+        assert estimator.cpk is not None
+        assert estimator.cp is not None
+        assert estimator.cpk < estimator.cp
+    
+    def test_cp_cpk_caching(self) -> None:
+        """Test that cp value is cached after first calculation."""
+        np.random.seed(42)
+        data = np.random.normal(10, 1, 100)
+        estimator = ProcessEstimator(data, SpecLimits(lower=5, upper=15))
+        
+        # First access should compute and cache for cp
+        assert estimator._cp is None
+        
+        cp_value = estimator.cp
+        
+        # Cached value should now exist for cp
+        assert estimator._cp is not None
+        
+        # Second access should return same cached value
+        assert estimator.cp == cp_value
+        
+        # cpk is computed on-the-fly (not cached)
+        cpk_value = estimator.cpk
+        assert estimator.cpk == cpk_value
 
 
 class TestGageEstimator:
