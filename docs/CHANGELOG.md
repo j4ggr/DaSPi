@@ -16,6 +16,23 @@ __Types of changes__:
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-07-30
+
+### Added
+
+- Gage R&R analysis is now positioned as Workflow 1 in the documentation to emphasize DaSPi's measurement-system-analysis capabilities.
+
+### Changed
+
+- Documentation and navigation were streamlined: workflows were renumbered, docs index content was reorganized, and guide pages were updated for clearer onboarding.
+- README was expanded and refreshed, including updated narrative, examples, and generated doc content.
+- Package-level `daspi.__init__` documentation text was simplified to reduce duplication with the documentation site.
+- Documentation assets were refreshed, including updated workflow images and logo/base branding resources.
+
+### Fixed
+
+- Matplotlib style warnings about unavailable font weight `100` are resolved by updating style definitions to use supported font weight `400` for figure and axes titles.
+
 ## [2.0.0] - 2026-07-29
 
 ### Breaking Changes
