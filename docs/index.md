@@ -26,6 +26,7 @@ Process analysis in practice is fragmented:
 
 DaSPi provides **integrated workflows for process analytics**:
 
+- ✅ **Gage R&R analysis** (MSA, repeatability, reproducibility)  
 - ✅ **Capability analysis** (Cp, Cpk)  
 - ✅ **Root cause analysis** (ANOVA, regression)  
 - ✅ **Statistical process control** (SPC)  
@@ -35,13 +36,58 @@ All in one consistent and intuitive interface.
 
 ---
 
-## 🚀 Three Flagship Workflows
+## 🚀 Four Flagship Workflows
 
-DaSPi provides **three ready-to-use workflows** that cover the most common process analysis tasks. Each workflow produces **visual output + interpretation** in under 20 lines of code.
+DaSPi provides **four ready-to-use workflows** that cover the complete quality cycle. Each workflow produces **visual output + interpretation** in under 20 lines of code.
 
 ---
 
-### 📊 Workflow 1: Process Capability Analysis
+### 📏 Workflow 1: Gage R&R Analysis
+
+**Verify your measurement system is capable before analyzing process data.**
+
+```python
+import daspi as dsp
+
+# Load data
+df = dsp.load_dataset("grnr_layer_thickness")
+
+# Step 1: Evaluate the gage itself (MSA Type 1)
+gage = dsp.GageStudyModel(
+    source=df,
+    target="result_gage",
+    reference="reference",
+    u_cal=df["U_cal"][0],
+    tolerance=df["tolerance"][0],
+    resolution=df["resolution"][0]
+)
+
+# Step 2: Evaluate repeatability & reproducibility (MSA Type 2)
+model = dsp.GageRnRModel(
+    source=df,
+    target="result_rnr",
+    part="part",
+    gage=gage,
+    u_av="operator"  # Operator variation
+)
+
+# Visualize complete analysis
+chart = dsp.GageRnRCharts(
+    model, 
+    stretch_figsize=True
+).plot().stripes().label(
+    fig_title="Gage R&R Analysis: Layer Thickness",
+    info=True
+)
+
+chart.show()
+```
+
+**Output:** Comprehensive measurement system evaluation with repeatability (EV), reproducibility (AV), variance components, ANOVA tables, and capability indices (Cg, Cgk).
+
+---
+
+### 📊 Workflow 2: Process Capability Analysis
 
 **Evaluate if your process meets specifications.**
 
@@ -67,7 +113,7 @@ chart.show()
 
 ---
 
-### 🔍 Workflow 2: Root Cause Analysis
+### 🔍 Workflow 3: Root Cause Analysis
 
 **Identify which factors significantly impact your process.**
 
@@ -95,7 +141,7 @@ dsp.ParameterRelevanceCharts(model).plot().stripes().label(info=True)
 
 ---
 
-### 📈 Workflow 3: Statistical Process Control (SPC)
+### 📈 Workflow 4: Statistical Process Control (SPC)
 
 **Monitor process stability and detect out-of-control conditions.**
 
@@ -197,9 +243,3 @@ DaSPi leverages the Python scientific stack:
 👉 We would love to hear your use case.
 
 Feedback, ideas, and contributions are very welcome.
-
----
-
-::: daspi
-    options:
-        members: no
