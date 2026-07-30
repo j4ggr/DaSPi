@@ -23,7 +23,10 @@ chart = dsp.ProcessCapabilityAnalysisCharts(
     target="distance",
     spec_limits=spec_limits,
     hue="method"
-).plot().stripes().label(info=True)
+).plot().stripes().label(
+    fig_title="Process Capability Analysis of Drop Card Data",
+    sub_title="Comparison of two methods",
+    info=True)
 ```
 
 **Output:** Distribution analysis, Cp/Cpk/Pp/Ppk indices, capability interpretation.

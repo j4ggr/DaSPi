@@ -1,6 +1,12 @@
 # DaSPi — Process Analytics & Six Sigma in Python
 
+![logo](https://raw.githubusercontent.com/j4ggr/DaSPi/main/docs/img/logo.svg)
+
 **DaSPi helps engineers analyze and improve processes using statistical workflows.**
+
+![pypi](https://badge.fury.io/py/daspi.svg)
+![licence](https://img.shields.io/github/license/j4ggr/daspi.svg)
+![GitHub last commit](https://img.shields.io/github/last-commit/j4ggr/daspi)
 
 ---
 

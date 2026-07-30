@@ -159,13 +159,7 @@ gage = dsp.GageStudyModel(
     bias_corrected=False  # Include bias in uncertainty
 )
 
-# Create visualization
-chart = dsp.GageStudyCharts(
-    gage, 
-    stretch_figsize=1.5
-).plot().stripes().label()
-
-# Display model summary
+# Display model summary in Notebook
 gage
 ```
 
@@ -206,8 +200,6 @@ The output tables include:
 | REST | 0.000000 | 0.000000 | 0.000000 |      nan |
 |   MS | 0.000723 | 0.001446 | 0.096371 |      nan |
 
-![Gage Study Single Reference](../img/gage_study_single_reference.png)
-
 ### Visualizing Gage Study Results
 
 The `GageStudyCharts` class creates a comprehensive dashboard with:
@@ -219,15 +211,19 @@ The `GageStudyCharts` class creates a comprehensive dashboard with:
 
 ```python
 # Customize the chart appearance
-chart = dsp.GageStudyCharts(gage, stretch_figsize=1.5)
-chart.plot()      # Create all plots
-chart.stripes()   # Add reference lines and zones
-chart.label(      # Add labels and titles
-    fig_title='Gage Study Results',
-    sub_title='Layer Thickness Measurement System'
-)
-# chart.save('gage_study_results.png')  # Optionally save
+chart = dsp.GageStudyCharts(
+        gage,
+        stretch_figsize=1.5
+    ).plot(     # Create all plots
+    ).stripes(  # Add reference lines and zones
+    ).label(    # Add labels and titles
+        fig_title='Gage Study Layer Thickness Measurement System',
+        sub_title='Measurement System Analysis (MSA Type 1)',
+        info=True
+    ) # .save('gage_study_results.png')  # Optionally save
 ```
+
+![Gage Study Single Reference](../img/gage_study_single_reference.png)
 
 ### Working with Measurement Uncertainty
 
@@ -309,13 +305,7 @@ model = dsp.GageRnRModel(
     # u_gv='fixture'       # Use this instead for Type 3
 )
 
-# Step 3: Visualize Results
-chart = dsp.GageRnRCharts(
-    model, 
-    stretch_figsize=True
-).plot().stripes().label()
-
-# Step 4: Review the model
+# Step 3: Review the model
 model  # Displays comprehensive uncertainty budget
 ```
 
@@ -500,20 +490,18 @@ The `GageRnRCharts` creates six diagnostic plots:
 
 ```python
 chart = dsp.GageRnRCharts(
-    model,
-    spread_accepted_limit=0.1,   # 10% threshold for acceptance
-    spread_rejected_limit=0.3,   # 30% threshold for rejection
-    u_accepted_limit=0.15,       # 15% uncertainty threshold
-    stretch_figsize=True
-)
-
-chart.plot()
-chart.stripes()  # Adds acceptance zones
-chart.label(
-    fig_title='Gage R&R Study',
-    sub_title='Layer Thickness Measurement Process'
-)
-# chart.save('docs/img/gage_rnr_layer_thickness.png')
+        model,
+        spread_accepted_limit=0.1,   # 10% threshold for acceptance
+        spread_rejected_limit=0.3,   # 30% threshold for rejection
+        u_accepted_limit=0.15,       # 15% uncertainty threshold
+        stretch_figsize=1.5
+    ).plot(
+    ).stripes(  # Adds acceptance zones
+    ).label(
+        fig_title='Gage R&R Layer Thickness Measurement System',
+        sub_title='Measurement System Analysis (MSA Type 2)',
+        info=True
+    ) # .save('gage_rnr_layer_thickness.png')
 ```
 
 ![Gage R&R Layer Thickness](../img/gage_rnr_layer_thickness.png)
