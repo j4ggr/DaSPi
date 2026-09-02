@@ -97,9 +97,23 @@ def terms_effect(model: RegressionResultsWrapper) -> Series:
     Series
         A pandas Series containing the effects of each factor
         on the target variable.
+
+    Notes
+    -----
+    The effect size is calculated as the absolute value of the parameter
+    coefficient divided by its standard error. This is a measure of the
+    strength of the relationship between the predictor and the target
+    variable, with larger values indicating a stronger effect.
+
+    The index of the returned Series corresponds to the factor names in
+    the model, and the values represent the calculated effect sizes. 
+
+    Only terms that are present in the model are included in the output,
+    which is determined by filtering the effects based on the unique 
+    factor names derived from the model's design information.
     """
     params: Series = model.params
-    se: Series = model.scale
+    terms = model.model.data.design_info.term_names
     names_map = {n: get_term_name(n) for n in params.index}
     se = (model.bse
         .rename(index=names_map)
@@ -112,7 +126,7 @@ def terms_effect(model: RegressionResultsWrapper) -> Series:
         .groupby(level=0)
         .sum())
     effects = params.abs() / se
-    effects = effects[uniques(names_map.values())]
+    effects = effects[uniques(n for n in names_map.values() if n in terms)] # Filter out terms that are not in the model (this can happen when the model is imbalanced and some terms are dropped)
     effects.name = ANOVA.EFFECTS
     effects.index.name = ANOVA.FACTORS
     return effects

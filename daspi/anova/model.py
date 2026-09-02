@@ -1024,7 +1024,8 @@ class LinearModel(BaseHTMLReprModel):
             get_term_name(self.feature_map.get(x, x))
             for x in parameter.split(ANOVA.SEP))
         assert term in self.terms, (
-            f'Given term {term} is not in model')
+            f'Given term {term} (or "{parameter}") is not in model, '
+            f'got: {self.terms}')
         
         self.excluded.add(term)
         return self
@@ -1064,7 +1065,7 @@ class LinearModel(BaseHTMLReprModel):
                 UserWarning)
         self.excluded.discard(term)
         return self
-    # TODO: This method can fail if the model is not hierarchical and the least parameter is a low order term. Test this method with a non-hierarchical model and a low order term as least parameter.
+    
     def recursive_elimination(
             self,
             rsquared_max: float = 0.99,
