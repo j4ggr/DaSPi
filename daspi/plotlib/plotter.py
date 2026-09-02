@@ -2088,7 +2088,7 @@ class TransformPlotter(Plotter):
         self.skip_na = skip_na
         
         df =  pd.concat(
-            [self.transform(f, t) for f, t in self.feature_grouped(source)],
+            (self.transform(f, t) for f, t in self.feature_grouped(source)),
             axis=0,
             ignore_index=True)
 
@@ -2120,24 +2120,29 @@ class TransformPlotter(Plotter):
         target_data : pandas Series
             feature grouped target data used for transformation.
         """
+        feature_data = self._f_base
         if self.feature and self.feature != PLOTTER.TRANSFORMED_FEATURE:
-            for i, (f_value, group) in enumerate(
-                    source.groupby(self.feature, sort=True, observed=True),
-                    start=DEFAULT.FEATURE_BASE):
+            use_feature_value = any((
+                pd.api.types.is_numeric_dtype(source[self.feature]),
+                pd.api.types.is_datetime64_dtype(source[self.feature]),
+                pd.api.types.is_timedelta64_dtype(source[self.feature])))
+
+            grouped = source.groupby(self.feature, sort=True, observed=True)
+            for feature_value, group in grouped:
                 target_data = group[self.target]
                 if self.skip_na and getattr(target_data.isna(), self.skip_na)():
                     continue
                 
-                self._original_f_values = self._original_f_values + (f_value, )
-                if isinstance(f_value, (float, int, pd.Timestamp)):
-                    feature_data = f_value
+                self._original_f_values += (feature_value,)
+                if use_feature_value:
+                    yield feature_value, target_data
                 else:
-                    feature_data = i
-                yield feature_data, target_data
+                    yield feature_data, target_data
+                    feature_data += 1
+                
         else:
             self.feature = PLOTTER.TRANSFORMED_FEATURE
             self._original_f_values = (self._f_base, )
-            feature_data = self._f_base
             target_data = source[self.target]
             yield feature_data, target_data
 
@@ -4294,6 +4299,13 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
         plot.
     target : str
         Column name of the target variable for the plot.
+    feature : str, optional
+        Column name of the feature variable for the plot, by default ''.
+        Please note that this class is designed for univariate plots, so
+        by default, all curves will be drawn on the same feature axis. 
+        If you want to draw curves on different feature axes, change the
+        "ignore_feature" parameter to False and provide a feature column 
+        in the source DataFrame.
     stretch : float, optional
         Factor by which the curve was stretched in height,
         by default 1.
@@ -4446,6 +4458,7 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
             self,
             source: DataFrame,
             target: str,
+            feature: str = '',
             stretch: float = 1,
             height: float | None = None,
             skip_na: Literal['all', 'any'] | None = None,
@@ -4467,15 +4480,16 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
         self.n_points = n_points
         self.margin = margin
         self.fill = fill
-        if not ignore_feature and kwds.get('feature', False):
+        if feature and not ignore_feature:
             height = height if height else CATEGORY.FEATURE_SPACE
         else:
-            kwds['feature'] = PLOTTER.TRANSFORMED_FEATURE
+            feature = PLOTTER.TRANSFORMED_FEATURE
         self._height = height
         f_base = kwds.pop('f_base', DEFAULT.FEATURE_BASE)
         super().__init__(
             source=source,
             target=target,
+            feature=feature,
             f_base=f_base,
             skip_na=skip_na,
             target_on_y=target_on_y,
