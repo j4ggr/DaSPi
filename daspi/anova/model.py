@@ -76,7 +76,8 @@ import itertools
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Generator
-from typing import Any, Literal, LiteralString, Self
+from functools import lru_cache
+from typing import Any, Literal, LiteralString, Self, overload
 
 import numpy as np
 import pandas as pd
@@ -110,19 +111,61 @@ __all__ = [
     'GageStudyModel',
     'GeneralizedLinearModel',
     'LinearModel',
-    'get_order',
     'hierarchical',
-    'is_main_parameter',]
+    'interaction_order',
+    'is_main_parameter',
+]
 
+
+@overload
+def _drop_intercept(data: DataFrame) -> DataFrame: ...
+@overload
+def _drop_intercept(data: Series) -> Series: ...
+def _drop_intercept(data: DataFrame | Series) -> DataFrame | Series:
+    """Drop the intercept index from a DataFrame or Series if it exists.
+
+    Parameters
+    ----------
+    data : DataFrame or Series
+        The input data from which to drop the intercept.
+
+    Returns
+    -------
+    DataFrame or Series
+        The input data with the intercept dropped, if it was present.
+    """
+    mask = ~data.index.str.contains(ANOVA.INTERCEPT, regex=False)
+    if isinstance(data, Series):
+        data = data[mask]
+    else:
+        data = data.loc[mask, :]
+    return data.copy()
 
 def is_main_parameter(parameter: str) -> bool:
     """Check if given parameter is a main parameter (intercept is 
     excluded)."""
     return parameter != ANOVA.INTERCEPT and ANOVA.SEP not in parameter
 
-def get_order(parameter: str) -> int:
+def interaction_order(parameter: str) -> int:
     """Get the order of a parameter (i.e., how many interactions it
-    contains)."""
+    contains).
+    
+    Parameters
+    ----------
+    parameter : str
+        The parameter name to check.
+        
+    Returns
+    -------
+    int
+        The interaction order of the parameter.
+        
+    Examples
+    --------
+    ```python
+    interaction_order('x1')  # Returns 1
+    interaction_order('x1:x2')  # Returns 2
+    ```"""
     return parameter.count(ANOVA.SEP) + 1
 
 def hierarchical(parameters: list[str]) -> list[str]:
@@ -139,21 +182,28 @@ def hierarchical(parameters: list[str]) -> list[str]:
     -------
     h_parameters : list of str
         Sorted factors for hierarchical model"""
+    return list(_hierarchical_cached(tuple(parameters)))
 
+@lru_cache(maxsize=128)
+def _hierarchical_cached(parameters: tuple[str, ...]) -> tuple[str, ...]:
+    """Cached implementation of `hierarchical`. Repeated calls with the
+    same (unchanged) set of terms, e.g. from `is_hierarchical` during a
+    single fit, are then resolved without recomputing all interaction
+    subsets."""
     h_parameters = set(parameters)
     for parameter in parameters:
         split = parameter.split(ANOVA.SEP)
-        n_splits = len(split)
-        for s in split:
-            h_parameters.add(s)
-        if n_splits <= ANOVA.SMALLEST_INTERACTION:
+        _order = len(split)
+        h_parameters.update(split)
+        if _order <= ANOVA.SMALLEST_INTERACTION_ORDER:
             continue
 
-        for i in range(ANOVA.SMALLEST_INTERACTION, n_splits):
-            for combo in map(ANOVA.SEP.join, itertools.combinations(split, i)):
-                h_parameters.add(combo)
+        h_parameters.update(
+            ANOVA.SEP.join(combo)
+            for i in range(ANOVA.SMALLEST_INTERACTION_ORDER, _order)
+            for combo in itertools.combinations(split, i))
 
-    return sorted(sorted(h_parameters), key=get_order)
+    return tuple(sorted(h_parameters, key=lambda p: (interaction_order(p), p)))
 
 
 class BaseHTMLReprModel(ABC):
@@ -671,21 +721,55 @@ class LinearModel(BaseHTMLReprModel):
         """Check if current fitted model is hierarchical."""
         return all(term in self.terms for term in hierarchical(self.terms))
     
-    def effects(self) -> Series:
+    def effects(self, include_intercept: bool = True) -> Series:
         """Calculates the impact of each term on the target. The
         effects are described as absolute number of the parameter 
-        coefficients devided by its standard error."""
+        coefficients devided by its standard error.
+        
+        Parameters
+        ----------
+        include_intercept : bool, optional
+            If False, the intercept is dropped from the returned
+            Series, by default True.
+
+        Returns
+        -------
+        Series
+            A Pandas Series containing the effects of each term on the 
+            target variable. The index of the Series corresponds to the 
+            term names, and the values represent the calculated effects.
+        """
         if self._effects.empty:
             self._effects = terms_effect(self.model)
         effects = self._effects.copy().rename(index=self.term_map)
+        if not include_intercept:
+            effects = _drop_intercept(effects)
         return effects
 
-    def p_values(self) -> 'Series[float]':
+    def p_values(self, include_intercept: bool = True) -> 'Series[float]':
         """Get P-value for significance of adding model terms using 
-        anova typ III table for current model."""
+        anova typ III table for current model.
+        
+        Parameters
+        ----------
+        include_intercept : bool, optional
+            If False, the intercept is dropped from the returned
+            Series, by default True.
+        
+        Returns
+        -------
+        Series
+            A Pandas Series containing the p-values of each term on the 
+            target variable. The index of the Series corresponds to the 
+            term names, and the values represent the calculated 
+            p-values.
+        """
         if self._p_values.empty:
             self._p_values = terms_probability(self.model)
-        return self._p_values.copy().rename(index=self.term_map)
+        p_values = self._p_values.copy().rename(index=self.term_map)
+        if not include_intercept:
+            p_values = _drop_intercept(p_values)
+        return p_values
 
     def least_parameter(self) -> str:
         """Get the parameter name with the least effect or the least 
@@ -706,20 +790,15 @@ class LinearModel(BaseHTMLReprModel):
         the term name with the least p-value for the F-stats coming from
         current ANOVA table.
         """
-        p_values = self.p_values().copy()
-        has_intercept = ANOVA.INTERCEPT in p_values.index
+        include_intercept = not self.skip_intercept_as_least
+        p_values = self.p_values(include_intercept)
         if any(p_values.isna()):
-            effects = self.effects().copy()
-            if has_intercept and self.skip_intercept_as_least:
-                effects = effects.drop(ANOVA.INTERCEPT)
-            if any(effects.isna()):
-                leasts = effects[effects.isna()]
-            else:
-                leasts = effects[effects == effects.min()]
-            least = max(leasts.index, key=get_order)
+            effects = self.effects(include_intercept).copy()
+            effect_mask = effects.isna()
+            if not any(effect_mask):
+                effect_mask = effects == effects.min()
+            least = max(effects[effect_mask].index, key=interaction_order )
         else:
-            if has_intercept and self.skip_intercept_as_least:
-                p_values = p_values.drop(ANOVA.INTERCEPT)
             least = p_values.iloc[::-1].idxmax()
         return str(least)
     
@@ -985,7 +1064,7 @@ class LinearModel(BaseHTMLReprModel):
                 UserWarning)
         self.excluded.discard(term)
         return self
-
+    # TODO: This method can fail if the model is not hierarchical and the least parameter is a low order term. Test this method with a non-hierarchical model and a low order term as least parameter.
     def recursive_elimination(
             self,
             rsquared_max: float = 0.99,

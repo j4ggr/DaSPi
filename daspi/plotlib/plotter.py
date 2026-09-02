@@ -4449,7 +4449,7 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
             stretch: float = 1,
             height: float | None = None,
             skip_na: Literal['all', 'any'] | None = None,
-            ignore_feature: bool = True,
+            ignore_feature: bool = True, # TODO: This option seems not to work at all: fix it
             margin: float = 0,
             fill: bool = True,
             agreements: tuple[float, ...] | tuple[int, ...] = DEFAULT.AGREEMENTS,

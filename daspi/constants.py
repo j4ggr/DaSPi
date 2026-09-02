@@ -549,7 +549,7 @@ class _Anova_:
     """"Default name for source used in ANOVA table."""
     VIF: Literal['VIF'] = 'VIF'
     """"Default column name for VIF values in ANOVA table."""
-    SMALLEST_INTERACTION: int = 2
+    SMALLEST_INTERACTION_ORDER: int = 2
     """Smallest possible interaction"""
     RESIDUAL: Literal['Residual'] = 'Residual'
     """Name in anova table for residual (not explained) values."""

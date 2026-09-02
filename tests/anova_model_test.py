@@ -216,6 +216,26 @@ class TestLinearModel:
         assert p_values.max() > 0.05
         assert lm.least_parameter() == 'A'
 
+    def test_effects_include_intercept(self, lm: LinearModel) -> None:
+        lm.fit()
+        effects = lm.effects()
+        assert 'Intercept' in effects.index
+        effects_no_intercept = lm.effects(include_intercept=False)
+        assert 'Intercept' not in effects_no_intercept.index
+        assert len(effects_no_intercept) == len(effects) - 1
+        pd.testing.assert_series_equal(
+            effects_no_intercept, effects.drop('Intercept'))
+
+    def test_p_values_include_intercept(self, lm: LinearModel) -> None:
+        lm.fit()
+        p_values = lm.p_values()
+        assert 'Intercept' in p_values.index
+        p_values_no_intercept = lm.p_values(include_intercept=False)
+        assert 'Intercept' not in p_values_no_intercept.index
+        assert len(p_values_no_intercept) == len(p_values) - 1
+        pd.testing.assert_series_equal(
+            p_values_no_intercept, p_values.drop('Intercept'))
+
     def test_main_parameters_property(self, lm2: LinearModel) -> None:
         lm2.fit()
         assert lm2.main_parameters == ['A', 'B', 'C', 'bad']
