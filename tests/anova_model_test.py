@@ -387,10 +387,10 @@ class TestLinearModel:
 
     def test_eliminate_invalid_term(self, lm3: LinearModel) -> None:
         lm3.fit()
-        with pytest.raises(AssertionError, match=r'Given term Q is not in model'):
+        with pytest.raises(AssertionError, match=r'Given term Q .* is not in model'):
             lm3.eliminate('Q')
 
-        with pytest.raises(AssertionError, match=r'Given term x0:x1:x2 is not in model'):
+        with pytest.raises(AssertionError, match=r'Given term x0:x1:x2 .* is not in model'):
             lm3.eliminate('A:B:C')
 
     def test_eliminate_encoded_term(self, lm3: LinearModel) -> None:

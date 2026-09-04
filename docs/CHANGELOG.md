@@ -16,6 +16,25 @@ __Types of changes__:
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-09-04
+
+### Breaking Changes
+
+- **ANOVA naming**: Renamed `get_order` to `interaction_order` for clarity and updated all call sites and `__all__` exports. Renamed `ANOVA.SMALLEST_INTERACTION` constant to `ANOVA.SMALLEST_INTERACTION_ORDER` for consistency.
+
+### Added
+
+- **ANOVA**: Added `include_intercept` option to `LinearModel.effects()` and `LinearModel.p_values()` so callers can opt to drop the intercept row.
+
+### Changed
+
+- **Performance**: Optimized `hierarchical()` by memoizing the interaction-subset computation and simplifying set construction and sorting.
+
+### Fixed
+
+- **ANOVA**: `terms_effect()` no longer surfaces effects for parameters no longer present in the fitted model's design (e.g. imbalanced models where patsy drops levels); results are now filtered to the current model's `term_names`.
+- **Plotlib**: `GaussianKDE` now honors the `feature` argument and `ignore_feature=False` produces the expected per-feature separation instead of always using an incrementing base position.
+
 ## [2.1.0] - 2026-07-30
 
 ### Added
