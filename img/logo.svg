@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="288pt"
+   height="288pt"
+   viewBox="0 0 288 288"
+   version="1.1"
+   id="svg10723"
+   sodipodi:docname="logo.svg"
+   inkscape:version="1.2.2 (732a01da63, 2022-12-09)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <sodipodi:namedview
+     id="namedview10725"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="pt"
+     showgrid="false"
+     inkscape:zoom="0.92255338"
+     inkscape:cx="217.87357"
+     inkscape:cy="197.27856"
+     inkscape:window-width="1346"
+     inkscape:window-height="1205"
+     inkscape:window-x="4620"
+     inkscape:window-y="1174"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg10723" />
+  <metadata
+     id="metadata10704">
+    <rdf:RDF>
+      <cc:Work>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:date>2024-12-16T14:18:13.642860</dc:date>
+        <dc:format>image/svg+xml</dc:format>
+        <dc:creator>
+          <cc:Agent>
+            <dc:title>Matplotlib v3.9.2, https://matplotlib.org/</dc:title>
+          </cc:Agent>
+        </dc:creator>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs10708">
+    <linearGradient
+       id="linearGradient10744">
+      <stop
+         style="stop-color:#00a2d1;stop-opacity:1;"
+         offset="0"
+         id="stop11251" />
+      <stop
+         style="stop-color:#00b8c2;stop-opacity:1;"
+         offset="1"
+         id="stop11253" />
+    </linearGradient>
+    <style
+       type="text/css"
+       id="style10706">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient10744"
+       id="linearGradient10746"
+       x1="273.9679"
+       y1="97.555321"
+       x2="15.071568"
+       y2="194.67241"
+       gradientUnits="userSpaceOnUse" />
+  </defs>
+  <g
+     id="patch_1">
+    <path
+       d="M 0,288 H 288 V 0 H 0 Z"
+       style="fill:none"
+       id="path10710" />
+  </g>
+  <g
+     id="axes_1">
+    <g
+       id="line2d_1">
+      <path
+         d="M 90.871025,25.2 25.2,197.12897 H 197.12897 L 90.871025,90.871025 H 262.8 L 197.12897,262.8"
+         clip-path="url(#p433514db32)"
+         style="fill:none;stroke:url(#linearGradient10746);stroke-width:25;stroke-linejoin:bevel;fill-opacity:1"
+         id="path10713" />
+    </g>
+  </g>
+  <defs
+     id="defs10721">
+    <clipPath
+       id="p433514db32">
+      <rect
+         x="1.44"
+         y="1.44"
+         width="285.12"
+         height="285.12"
+         id="rect10718" />
+    </clipPath>
+  </defs>
+</svg>
