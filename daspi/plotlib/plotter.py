@@ -143,7 +143,9 @@ __all__ = [
     'CategoricalObservation',
     'CenterLocation',
     'ConfidenceInterval',
+    'DensityCurve',
     'ErrorBar',
+    'FittedDensity',
     'GaussianKDE',
     'GaussianKDEContour',
     'GaussianKDEContourUnivariate',
@@ -4280,7 +4282,342 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
                     self.ax.fill_between(quantiles, lower, upper, **_kwds)
 
 
-class GaussianKDE(SpreadOpacity, TransformPlotter):
+class DensityCurve(SpreadOpacity, TransformPlotter):
+    """Base class for plotting a probability density curve along the
+    feature axis.
+
+    This class holds all the logic shared by the density-curve
+    plotters (data grouping, optional quantile highlighting, filling
+    and drawing). Subclasses only need to implement :meth:`estimate`,
+    which computes the sequence of target values and the corresponding
+    density estimation for one feature group:
+
+    - `GaussianKDE` estimates the density non-parametrically from the
+      raw data and controls the curve width via `margin`.
+    - `FittedDensity` fits (or assumes) a distribution according to
+      `strategy` and evaluates its PDF, controlling the curve width via
+      `agreements` instead of `margin`.
+
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str, optional
+        Column name of the feature variable for the plot, by default ''.
+        Please note that this class is designed for univariate plots, so
+        by default, all curves will be drawn on the same feature axis. 
+        If you want to draw curves on different feature axes, change the
+        "ignore_feature" parameter to False and provide a feature column 
+        in the source DataFrame.
+    stretch : float, optional
+        Factor by which the curve was stretched in height,
+        by default 1.
+    height : float | None, optional
+        Height of the density curve at its maximum, by default None.
+    skip_na : Literal['none', 'all', 'any'], optional
+        Flag indicating whether to skip missing values in the feature 
+        grouped data, by default None
+        - None, no missing values are skipped
+        - all', grouped data is skipped if all values are missing
+        - any', grouped data is skipped if any value is missing
+
+    ignore_feature: bool, optional
+        Flag indicating whether the feature axis should be ignored. If 
+        True, all curves have base 0 on the feature axis,
+        by default True
+    margin : float, optional
+        Margin for the sequence as factor of data range (max - min ). 
+        If margin is 0, The two ends of the estimated density curve then 
+        show the minimum and maximum value. Default is 0.
+    fill : bool, optional
+        Flag whether to fill in the curves, by default True
+    agreements : tuple[float, ...] or tuple[int, ...], optional
+        Specifies the tolerated process variation for calculating 
+        quantiles. These quantiles are used to represent the filled area 
+        with different opacity, thus highlighting the quantiles.If you 
+        want the filled area to be uniform without highlighting the 
+        quantiles, provide an empty tuple. This argument is only taken 
+        into account if fill is set to True. The agreements can be either 
+        integers or floats, determining the process variation tolerance 
+        in the following ways:
+        - If integers, the quantiles are determined using the normal 
+          distribution (agreement * σ), e.g., agreement = 6 covers 
+          ~99.75% of the data.
+        - If floats, values must be between 0 and 1, interpreted as 
+          acceptable proportions for the quantiles, e.g., 0.9973 
+          corresponds to ~6σ.
+        - If empty tuple, the filled area is uniform without 
+          highlighting the quantiles.
+        
+        Default is `DEFAULT.AGREEMENTS` = (2, 4, 6), corresponding to 
+        (±1σ, ±2σ, ±3σ).
+    strategy : {'eval', 'fit', 'norm', 'data'}, optional
+        Which strategy should be used to determine the quantiles used
+        for highlighting, see `SpreadOpacity`. Default is 'data'.
+    possible_dists : tuple of strings or rv_continous, optional
+        Distributions to which the data may be subject, see
+        `SpreadOpacity`. Default is `DIST.COMMON`.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on 
+        the y-axis, by default True.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    n_points : int, optional
+        Number of points the density estimation and sequence 
+        should have, by default KD_SEQUENCE_LEN 
+        (defined in constants.py).
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
+    **kwds:
+        Additional keyword arguments that have no effect and are
+        only used to catch further arguments that have no use here
+        (occurs when this class is used within chart objects).
+    """
+    __slots__ = (
+        '_agreements',
+        '_height',
+        '_stretch',
+        'estimation',
+        'fill',
+        'margin',
+        'n_points',
+        'possible_dists',
+        'strategy',)
+
+    _height: float | None
+    """Height of the density curve at its maximum."""
+    _stretch: float
+    """Factor by which the curve was stretched in height."""
+    fill: bool
+    """Flag whether to fill in the curves"""
+    margin: float
+    """Margin for the sequence as factor of data range (max - min ). If
+    margin is 0, The two ends of the estimated density curve then show 
+    the minimum and maximum value."""
+    n_points: int
+    """Number of points that have the density estimation and its
+    sequence."""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str = '',
+            stretch: float = 1,
+            height: float | None = None,
+            skip_na: Literal['all', 'any'] | None = None,
+            ignore_feature: bool = True,
+            margin: float = 0,
+            fill: bool = True,
+            agreements: tuple[float, ...] | tuple[int, ...] = DEFAULT.AGREEMENTS,
+            strategy: EstimationStrategy = 'data',
+            possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
+            target_on_y: bool = True,
+            color: str | None = None,
+            n_points: int = DEFAULT.KD_SEQUENCE_LEN,
+            ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
+            **kwds) -> None:
+        self.strategy = strategy
+        self.agreements = agreements
+        self.possible_dists = possible_dists
+        self._stretch = stretch
+        self.n_points = n_points
+        self.margin = margin
+        self.fill = fill
+        if feature and not ignore_feature:
+            height = height if height else CATEGORY.FEATURE_SPACE
+        else:
+            feature = PLOTTER.TRANSFORMED_FEATURE
+        self._height = height
+        f_base = kwds.pop('f_base', DEFAULT.FEATURE_BASE)
+        super().__init__(
+            source=source,
+            target=target,
+            feature=feature,
+            f_base=f_base,
+            skip_na=skip_na,
+            target_on_y=target_on_y,
+            color=color,
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis,
+            **kwds)
+    
+    @property
+    def kw_default(self) -> dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = {
+            'color': COLOR.DARKEN if self.fill else self.color,}
+        return kwds
+    
+    @property
+    def height(self) -> float | None:
+        """Height of the density curve at its maximum."""
+        return self._height
+    
+    @property
+    def stretch(self) -> float:
+        """Factor by which the curve was stretched in height"""
+        return self._stretch
+
+    @property
+    def highlight_quantiles(self) -> bool:
+        """Flag indicating whether the quantiles should be highlighted."""
+        return bool(self.agreements) and self.fill
+
+    def estimate(
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> tuple[NDArray, NDArray]:
+        """Compute the sequence of target values and the corresponding
+        density estimation for one feature group. Must be implemented
+        by subclasses.
+
+        Parameters
+        ----------
+        feature_data : float | int
+            Base location (offset) of feature axis coming from 
+            `feature_grouped` generator.
+        target_data : pandas Series
+            Feature grouped target data used for transformation,
+            coming from `feature_grouped` generator.
+
+        Returns
+        -------
+        sequence : 1D array
+            Data points at regular intervals used as target data.
+        estimation : 1D array
+            Density estimation values used as feature data.
+        """
+        raise NotImplementedError(
+            f'{self.__class__.__name__} must implement `estimate`')
+
+    def transform(
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> DataFrame:
+        """Perform the transformation on the target data by estimating 
+        its density. To obtain a uniform curve, a sequence is generated 
+        with a specific number of points in the same range (min to max) 
+        as the target data.
+
+        Parameters
+        ----------
+        feature_data : float | int
+            Base location (offset) of feature axis coming from 
+            `feature_grouped` generator.
+        target_data : pandas Series
+            Feature grouped target data used for transformation,
+            coming from `feature_grouped` generator.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            The transformed data source for the plot. Contains the 
+            generated sequence as target data and the estimation as
+            feature data.
+        """
+
+        first_value: float = float(target_data.iat[0]) # pyright: ignore[reportArgumentType]
+        if all(target_data == first_value):
+            stretch = self.stretch if self.height is None else self.height
+            estimation = [stretch + feature_data]
+            sequence = [first_value]
+        else:
+            sequence, estimation = self.estimate(feature_data, target_data)
+        
+        ones = np.ones(len(sequence))
+        if self.highlight_quantiles and not isinstance(sequence, list):
+            quantiles = self.quantiles(target_data)
+            subgroups = self.subgroup_values(sequence, quantiles)
+        else:
+            subgroups = 0 * ones
+
+        data = pd.DataFrame({
+            self.target: sequence,
+            self.feature: estimation,
+            PLOTTER.SUBGROUP: subgroups,
+            PLOTTER.F_BASE_NAME: feature_data * ones})
+        return data
+    
+    def _get_lower_estimation_(
+        self,
+        f_base: float | int, # noqa: PYI041
+        estim_upp: Series
+        ) -> Series:
+        """Get the lower estimation of the kernel density. For the KDE 
+        it is just a straight line at the location of the feature base. 
+        For Violin the upper kernel density estimate is mirrored at the
+        feature base."""
+        if self.__class__.__name__ == 'Violin':
+            estim_low = 2 * f_base - estim_upp
+        else:
+            estim_low = pd.Series(
+                f_base * np.ones(len(estim_upp)),
+                index=estim_upp.index)
+        return estim_low
+        
+    def __call__(
+            self,
+            kw_line: dict[str, Any] | None = None,
+            **kwds
+            ) -> None:
+        """Perform the plotting operation.
+
+        The estimated kernel density is plotted as a line. The curves 
+        are additionally filled if the "fill" option was set to "true" 
+        during initialization.
+
+        Parameters
+        ----------
+        kw_line : dict[str, Any], optional
+            Additional keyword arguments for the axes `plot` method,
+            by default None.
+        **kwds : dict[str, Any], optional
+            Additional keyword arguments for the axes `fill_between`
+            method.
+        """
+        _kw_line = self.kw_default | (kw_line or {})
+        column = PLOTTER.F_BASE_NAME
+        for f_base, group in self.source.groupby(column, observed=True):
+            estim_upp = group[self.feature]
+            estim_low = self._get_lower_estimation_(f_base, estim_upp) # pyright: ignore[reportArgumentType]
+            sequence = group[self.target]
+            
+            for agreement in group[PLOTTER.SUBGROUP].unique():
+                _kwds = self._kw_fill(self.color, agreement, group) | kwds
+                if self.target_on_y:
+                    if self.fill:
+                        self.ax.fill_betweenx(
+                            sequence, estim_low, estim_upp, **_kwds)
+                    self.ax.plot(
+                        estim_upp, sequence, estim_low, sequence, **_kw_line)
+                else:
+                    if self.fill:
+                        self.ax.fill_between(
+                            sequence, estim_low, estim_upp, **_kwds)
+                    self.ax.plot(
+                        sequence, estim_upp, sequence, estim_low,**_kw_line)
+
+
+class GaussianKDE(DensityCurve):
     """Class for creating Gaussian Kernel Density Estimation (KDE) 
     plotters. Use this class for univariate plots.
 
@@ -4430,29 +4767,7 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
         ).label() # neded to label feature ticks
     ```
     """
-    __slots__ = (
-        '_agreements',
-        '_height',
-        '_stretch',
-        'estimation',
-        'fill',
-        'margin',
-        'n_points',
-        'possible_dists',
-        'strategy',)
-
-    _height: float | None
-    """Height of kde curve at its maximum."""
-    _stretch: float
-    """Factor by which the curve was stretched in height."""
-    fill: bool
-    """Flag whether to fill in the curves"""
-    margin: float
-    """Margin for the sequence as factor of data range (max - min ). If
-    margin is 0, The two ends of the estimated density curve then show 
-    the minimum and maximum value."""
-    n_points: int
-    """Number of points that have the kde and its sequence."""
+    __slots__ = ()
 
     def __init__(
             self,
@@ -4462,7 +4777,7 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
             stretch: float = 1,
             height: float | None = None,
             skip_na: Literal['all', 'any'] | None = None,
-            ignore_feature: bool = True, # TODO: This option seems not to work at all: fix it
+            ignore_feature: bool = True,
             margin: float = 0,
             fill: bool = True,
             agreements: tuple[float, ...] | tuple[int, ...] = DEFAULT.AGREEMENTS,
@@ -4473,167 +4788,41 @@ class GaussianKDE(SpreadOpacity, TransformPlotter):
             visible_spines: Literal['target', 'feature', 'none'] | None = None,
             hide_axis: Literal['target', 'feature', 'both'] | None = None,
             **kwds) -> None:
-        self.strategy= 'data'
-        self.agreements = agreements
-        self.possible_dists = DIST.COMMON
-        self._stretch = stretch
-        self.n_points = n_points
-        self.margin = margin
-        self.fill = fill
-        if feature and not ignore_feature:
-            height = height if height else CATEGORY.FEATURE_SPACE
-        else:
-            feature = PLOTTER.TRANSFORMED_FEATURE
-        self._height = height
-        f_base = kwds.pop('f_base', DEFAULT.FEATURE_BASE)
         super().__init__(
             source=source,
             target=target,
             feature=feature,
-            f_base=f_base,
+            stretch=stretch,
+            height=height,
             skip_na=skip_na,
+            ignore_feature=ignore_feature,
+            margin=margin,
+            fill=fill,
+            agreements=agreements,
+            strategy='data',
+            possible_dists=DIST.COMMON,
             target_on_y=target_on_y,
             color=color,
+            n_points=n_points,
             ax=ax,
             visible_spines=visible_spines,
             hide_axis=hide_axis,
             **kwds)
-    
-    @property
-    def kw_default(self) -> dict[str, Any]:
-        """Default keyword arguments for plotting (read-only)"""
-        kwds = {
-            'color': COLOR.DARKEN if self.fill else self.color,}
-        return kwds
-    
-    @property
-    def height(self) -> float | None:
-        """Height of kde curve at its maximum."""
-        return self._height
-    
-    @property
-    def stretch(self) -> float:
-        """Factor by which the curve was stretched in height"""
-        return self._stretch
 
-    @property
-    def highlight_quantiles(self) -> bool:
-        """Flag indicating whether the quantiles should be highlighted."""
-        return bool(self.agreements) and self.fill
-        
-    def transform(
+    def estimate(
             self,
             feature_data: float | int, # noqa: PYI041
             target_data: Series
-            ) -> DataFrame:
-        """Perform the transformation on the target data by estimating 
-        its kernel density. To obtain a uniform curve, a sequence 
-        is generated with a specific number of points in the same range 
-        (min to max) as the target data.
-
-        Parameters
-        ----------
-        feature_data : float | int
-            Base location (offset) of feature axis coming from 
-            `feature_grouped` generator.
-        target_data : pandas Series
-            Feature grouped target data used for transformation,
-            coming from `feature_grouped` generator.
-
-        Returns
-        -------
-        data : pandas DataFrame
-            The transformed data source for the plot. Contains the 
-            generated sequence as target data and the estimation as
-            feature data.
-        """
-
-        first_value: float = float(target_data.iat[0]) # pyright: ignore[reportArgumentType]
-        if all(target_data == first_value):
-            stretch = self.stretch if self.height is None else self.height
-            estimation = [stretch + feature_data]
-            sequence = [first_value]
-        else:
-            sequence, estimation = estimate_kernel_density(
-                data=target_data,
-                stretch=self.stretch,
-                height=self.height,
-                base=feature_data,
-                n_points=self.n_points,
-                margin=self.margin)
-        
-        ones = np.ones(len(sequence))
-        if self.highlight_quantiles and not isinstance(sequence, list):
-            quantiles = self.quantiles(target_data)
-            subgroups = self.subgroup_values(sequence, quantiles)
-        else:
-            subgroups = 0 * ones
-
-        data = pd.DataFrame({
-            self.target: sequence,
-            self.feature: estimation,
-            PLOTTER.SUBGROUP: subgroups,
-            PLOTTER.F_BASE_NAME: feature_data * ones})
-        return data
-    
-    def _get_lower_estimation_(
-        self,
-        f_base: float | int, # noqa: PYI041
-        estim_upp: Series
-        ) -> Series:
-        """Get the lower estimation of the kernel density. For the KDE 
-        it is just a straight line at the location of the feature base. 
-        For Violin the upper kernel density estimate is mirrored at the
-        feature base."""
-        if self.__class__.__name__ == 'Violin':
-            estim_low = 2 * f_base - estim_upp
-        else:
-            estim_low = pd.Series(
-                f_base * np.ones(len(estim_upp)),
-                index=estim_upp.index)
-        return estim_low
-        
-    def __call__(
-            self,
-            kw_line: dict[str, Any] | None = None,
-            **kwds
-            ) -> None:
-        """Perform the plotting operation.
-
-        The estimated kernel density is plotted as a line. The curves 
-        are additionally filled if the "fill" option was set to "true" 
-        during initialization.
-
-        Parameters
-        ----------
-        kw_line : dict[str, Any], optional
-            Additional keyword arguments for the axes `plot` method,
-            by default None.
-        **kwds : dict[str, Any], optional
-            Additional keyword arguments for the axes `fill_between`
-            method.
-        """
-        _kw_line = self.kw_default | (kw_line or {})
-        column = PLOTTER.F_BASE_NAME
-        for f_base, group in self.source.groupby(column, observed=True):
-            estim_upp = group[self.feature]
-            estim_low = self._get_lower_estimation_(f_base, estim_upp) # pyright: ignore[reportArgumentType]
-            sequence = group[self.target]
-            
-            for agreement in group[PLOTTER.SUBGROUP].unique():
-                _kwds = self._kw_fill(self.color, agreement, group) | kwds
-                if self.target_on_y:
-                    if self.fill:
-                        self.ax.fill_betweenx(
-                            sequence, estim_low, estim_upp, **_kwds)
-                    self.ax.plot(
-                        estim_upp, sequence, estim_low, sequence, **_kw_line)
-                else:
-                    if self.fill:
-                        self.ax.fill_between(
-                            sequence, estim_low, estim_upp, **_kwds)
-                    self.ax.plot(
-                        sequence, estim_upp, sequence, estim_low,**_kw_line)
+            ) -> tuple[NDArray, NDArray]:
+        """Estimate the kernel density of the target data, with the
+        curve width controlled by `margin`."""
+        return estimate_kernel_density(
+            data=target_data,
+            stretch=self.stretch,
+            height=self.height,
+            base=feature_data,
+            n_points=self.n_points,
+            margin=self.margin)
 
 
 class GaussianKDEContour(Plotter):
@@ -5236,6 +5425,126 @@ class Violin(GaussianKDE):
         """Default keyword arguments for plotting (read-only)"""
         kwds = {'color': self.color, 'alpha': COLOR.FILL_ALPHA}
         return kwds
+
+
+class FittedDensity(DensityCurve):
+    """Class for plotting a fitted probability density function (PDF)
+    as a curve along the feature axis.
+
+    Unlike `GaussianKDE`, which estimates the density non-parametrically
+    from the raw data and controls the curve width via `margin`, this
+    class fits (or assumes) a distribution to the data according to
+    `strategy` and evaluates its PDF. The width of the curve is
+    controlled by `agreements` instead of `margin`: the curve spans the
+    range between the quantiles corresponding to the largest agreement
+    value.
+
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str, optional
+        Column name of the feature variable for the plot,
+        by default ''.
+    strategy : {'eval', 'fit', 'norm', 'data'}, optional
+        Which strategy should be used to fit/assume the distribution
+        whose PDF is evaluated, see `SpreadOpacity`. Default is 'data'.
+    agreements : tuple[float, ...] or tuple[int, ...], optional
+        Specifies the tolerated process variation for calculating
+        quantiles. The largest agreement value also determines the
+        width of the plotted curve. See `SpreadOpacity` for details.
+        Default is `DEFAULT.AGREEMENTS` = (2, 4, 6), corresponding to
+        (±1σ, ±2σ, ±3σ).
+    possible_dists : tuple of strings or rv_continous, optional
+        Distributions to which the data may be subject, see
+        `SpreadOpacity`. Default is `DIST.COMMON`.
+    width : float, optional
+        Width of the curve, by default CATEGORY.FEATURE_SPACE.
+    fill : bool, optional
+        Flag whether to fill in the curves, by default True
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on
+        the y-axis, by default True.
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first
+        color is taken from the color cycle, by default None.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
+    **kwds:
+        Additional keyword arguments that have no effect and are
+        only used to catch further arguments that have no use here
+        (occurs when this class is used within chart objects).
+    """
+    __slots__ = ()
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str = '',
+            strategy: EstimationStrategy = 'data',
+            agreements: tuple[float, ...] = DEFAULT.AGREEMENTS,
+            possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
+            width: float = CATEGORY.FEATURE_SPACE,
+            fill: bool = True,
+            target_on_y: bool = True,
+            color: str | None = None,
+            ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
+            **kwds) -> None:
+        super().__init__(
+            source=source,
+            target=target,
+            feature=feature,
+            height=width/2,
+            ignore_feature=False,
+            margin=0,
+            fill=fill,
+            agreements=agreements,
+            strategy=strategy,
+            possible_dists=possible_dists,
+            target_on_y=target_on_y,
+            color=color,
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis,
+            **kwds)
+
+    @property
+    def kw_default(self) -> dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = {'color': self.color, 'alpha': COLOR.FILL_ALPHA}
+        return kwds
+
+    def estimate(
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> tuple[NDArray, NDArray]:
+        """Evaluate the fitted/assumed distribution's PDF over the
+        range spanned by the largest `agreements` value.
+
+        TODO: not implemented yet. Depends on an `estimate_pdf`
+        function (`daspi.statistics.estimation`) that fits/assumes a
+        distribution according to `strategy` and evaluates its PDF,
+        analogous to `estimate_kernel_density`.
+        """
+        raise NotImplementedError(
+            f'{self.__class__.__name__}.estimate is not implemented yet; '
+            'it depends on the upcoming `estimate_pdf` function.')
 
 
 class ErrorBar(TransformPlotter):

@@ -61,6 +61,7 @@ from matplotlib.typing import HashableList
 from numpy.typing import NDArray
 
 from .._typing import (
+    EstimationStrategy,
     LegendHandlesLabels,
     MosaicLayout,
     NumericSample1D,
