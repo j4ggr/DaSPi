@@ -4327,7 +4327,8 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
         Factor by which the curve was stretched in height,
         by default 1.
     height : float | None, optional
-        Height of the density curve at its maximum, by default None.
+        Height of the density curve at its maximum. If None, it will be 
+        determined automatically, by default None.
     skip_na : Literal['none', 'all', 'any'], optional
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
@@ -5548,8 +5549,10 @@ class FittedDensity(DensityCurve):
     possible_dists : tuple of strings or rv_continous, optional
         Distributions to which the data may be subject, see
         `SpreadOpacity`. Default is `DIST.COMMON`.
-    width : float, optional
-        Width of the curve, by default CATEGORY.FEATURE_SPACE.
+    height : float | None, optional
+        Height of the density curve at its maximum. If None, the
+        curve is drawn using the real estimated probability (not
+        normalized to a fixed height), by default None.
     fill : bool, optional
         Flag whether to fill in the curves, by default True
     cumulative : bool, optional
@@ -5587,7 +5590,7 @@ class FittedDensity(DensityCurve):
             strategy: EstimationStrategy = 'data',
             agreements: tuple[float, ...] = DEFAULT.AGREEMENTS,
             possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
-            width: float = CATEGORY.FEATURE_SPACE,
+            height: float | None = None,
             fill: bool = True,
             cumulative: bool = False,
             target_on_y: bool = True,
@@ -5600,7 +5603,7 @@ class FittedDensity(DensityCurve):
             source=source,
             target=target,
             feature=feature,
-            height=width/2,
+            height=height,
             ignore_feature=False,
             margin=0,
             fill=fill,

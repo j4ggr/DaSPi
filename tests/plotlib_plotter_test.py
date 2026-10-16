@@ -785,7 +785,7 @@ class TestFittedDensity:
     def test_init_custom_parameters(self, sample_data: pd.DataFrame) -> None:
         fd = FittedDensity(
             source=sample_data, target='value', strategy='norm',
-            cumulative=True, fill=False, width=0.5)
+            cumulative=True, fill=False, height=0.25)
         assert fd.strategy == 'norm'
         assert fd.cumulative == True
         assert fd.fill == False
