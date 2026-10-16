@@ -26,6 +26,7 @@ from daspi.plotlib.plotter import (
     Beeswarm,
     BlandAltman,
     Box,
+    FittedDensity,
     GaussianKDE,
     GaussianKDEContour,
     GaussianKDEContourUnivariate,
@@ -709,7 +710,144 @@ class TestSingleChart:
         assert STR.today in info_msg
         assert STR.username in info_msg
         assert self.info_msg not in info_msg
-    
+
+    def test_kde_cumulative_plot(self) -> None:
+        self.base = f'{self.fig_title}_KDE-cumulative'
+
+        self.kind = 'simple'
+        chart = SingleChart(
+                source=df_painkillers,
+                target=self.target,
+                target_on_y=False
+            ).plot(
+                GaussianKDE,
+                cumulative=True,
+                hide_axis=None,
+                visible_spines=None,
+            ).label(
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=True
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        assert self.file_name.is_file()
+        assert len(texts) == 2 # feature label should not appear
+        assert chart.label_facets.legend is None
+        assert texts[0].get_text() == self.sub_title
+        assert texts[1].get_text() == self.target
+
+        self.kind = 'multiple'
+        chart = SingleChart(
+                source=df_painkillers,
+                target=self.target,
+                hue=self.cat1,
+                target_on_y=True
+            ).plot(
+                GaussianKDE,
+                cumulative=True,
+                visible_spines='target',
+                hide_axis='feature',
+                agreements=(),
+            ).label(
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=True, 
+                info=True
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        legend_artists = chart.label_facets.legend_artists
+        info_msg = texts[-1].get_text()
+        assert self.file_name.is_file()
+        assert len(texts) == 4 # feature label should not appear
+        assert legend_artists[0].get_children()[0].get_text() == self.cat1 # type: ignore
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == self.sub_title
+        assert texts[2].get_text() == self.target
+        assert STR.today in info_msg
+        assert STR.username in info_msg
+        assert self.info_msg not in info_msg
+
+    def test_fitted_density_plot(self) -> None:
+        self.base = f'{self.fig_title}_fitted-density'
+
+        self.kind = 'pdf-norm'
+        chart = SingleChart(
+                source=df_painkillers,
+                target=self.target,
+                target_on_y=False
+            ).plot(
+                FittedDensity,
+                strategy='norm',
+                hide_axis=None,
+                visible_spines=None,
+            ).label(
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=True
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        assert self.file_name.is_file()
+        assert len(texts) == 2 # feature label should not appear
+        assert chart.label_facets.legend is None
+        assert texts[0].get_text() == self.sub_title
+        assert texts[1].get_text() == self.target
+
+        self.kind = 'pdf-data'
+        chart = SingleChart(
+                source=df_painkillers,
+                target=self.target,
+                target_on_y=False
+            ).plot(
+                FittedDensity,
+                strategy='data',
+                hide_axis=None,
+                visible_spines=None,
+            ).label(
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=True
+            ).save(self.file_name
+            ).close()
+        assert self.file_name.is_file()
+
+        self.kind = 'cdf-multiple'
+        chart = SingleChart(
+                source=df_painkillers,
+                target=self.target,
+                hue=self.cat1,
+                target_on_y=True
+            ).plot(
+                FittedDensity,
+                strategy='norm',
+                cumulative=True,
+                visible_spines='target',
+                hide_axis='feature',
+                agreements=(2, 4, 6),
+            ).label(
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=True, 
+                info=True
+            ).save(self.file_name
+            ).close()
+        texts = get_texts(chart)
+        legend_artists = chart.label_facets.legend_artists
+        info_msg = texts[-1].get_text()
+        assert self.file_name.is_file()
+        assert len(texts) == 4 # feature label should not appear
+        assert legend_artists[0].get_children()[0].get_text() == self.cat1 # type: ignore
+        assert texts[0].get_text() == self.fig_title
+        assert texts[1].get_text() == self.sub_title
+        assert texts[2].get_text() == self.target
+        assert STR.today in info_msg
+        assert STR.username in info_msg
+        assert self.info_msg not in info_msg
+
     def test_beeswarm_plot(self) -> None:
         self.base = f'{self.fig_title}_beeswarm'
 

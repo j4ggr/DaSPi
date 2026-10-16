@@ -126,6 +126,7 @@ from ..statistics import (
     estimate_capability_confidence,
     estimate_kernel_density,
     estimate_kernel_density_2d,
+    estimate_probability_density,
     fit_ci,
     mean_ci,
     prediction_ci,
@@ -5508,13 +5509,19 @@ class FittedDensity(DensityCurve):
     """Class for plotting a fitted probability density function (PDF)
     as a curve along the feature axis.
 
-    Unlike `GaussianKDE`, which estimates the density non-parametrically
-    from the raw data and controls the curve width via `margin`, this
-    class fits (or assumes) a distribution to the data according to
-    `strategy` and evaluates its PDF. The width of the curve is
-    controlled by `agreements` instead of `margin`: the curve spans the
-    range between the quantiles corresponding to the largest agreement
-    value.
+    Unlike `GaussianKDE`, which always estimates the density
+    non-parametrically from the raw data and controls the curve width
+    via `margin`, this class fits (or assumes) a distribution to the
+    data according to `strategy` and evaluates its PDF. The width of
+    the curve is controlled by `agreements` instead of `margin`: the
+    curve spans the range between the quantiles corresponding to the
+    largest agreement value.
+
+    If `strategy` is (or evaluates to) 'data', no distribution is
+    fitted at all; the PDF/CDF is instead estimated directly from the
+    raw data using the same Gaussian kernel density estimation as
+    `GaussianKDE`, only the curve width is still controlled by
+    `agreements` rather than `margin`.
 
     Parameters
     ----------
@@ -5528,7 +5535,10 @@ class FittedDensity(DensityCurve):
         by default ''.
     strategy : {'eval', 'fit', 'norm', 'data'}, optional
         Which strategy should be used to fit/assume the distribution
-        whose PDF is evaluated, see `SpreadOpacity`. Default is 'data'.
+        whose PDF is evaluated, see `SpreadOpacity`. If 'data', no
+        distribution is fitted and the PDF/CDF is estimated directly
+        from the raw data via Gaussian kernel density estimation
+        instead (same as `GaussianKDE`). Default is 'data'.
     agreements : tuple[float, ...] or tuple[int, ...], optional
         Specifies the tolerated process variation for calculating
         quantiles. The largest agreement value also determines the
@@ -5611,40 +5621,44 @@ class FittedDensity(DensityCurve):
         kwds = {'color': self.color, 'alpha': COLOR.FILL_ALPHA}
         return kwds
 
+    def _estimate(
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series,
+            cumulative: bool
+            ) -> tuple[NDArray, NDArray]:
+        """Fit/assume a distribution according to `strategy` and
+        evaluate its PDF or CDF over the range spanned by the largest
+        `agreements` value."""
+        return estimate_probability_density(
+            data=target_data,
+            strategy=self.strategy,
+            agreement=self.agreements[-1],
+            possible_dists=self.possible_dists,
+            cumulative=cumulative,
+            stretch=self.stretch,
+            height=self.height,
+            base=feature_data,
+            n_points=self.n_points)
+
     def estimate(
             self,
             feature_data: float | int, # noqa: PYI041
             target_data: Series
             ) -> tuple[NDArray, NDArray]:
         """Evaluate the fitted/assumed distribution's PDF over the
-        range spanned by the largest `agreements` value.
-
-        TODO: not implemented yet. Depends on an `estimate_pdf`
-        function (`daspi.statistics.estimation`) that fits/assumes a
-        distribution according to `strategy` and evaluates its PDF,
-        analogous to `estimate_kernel_density`.
-        """
-        raise NotImplementedError(
-            f'{self.__class__.__name__}.estimate is not implemented yet; '
-            'it depends on the upcoming `estimate_pdf` function.')
+        range spanned by the largest `agreements` value."""
+        return self._estimate(feature_data, target_data, cumulative=False)
 
     def estimate_cumulative(
             self,
             feature_data: float | int, # noqa: PYI041
             target_data: Series
             ) -> tuple[NDArray, NDArray]:
-        """Evaluate the fitted/assumed distribution's CDF over the
-        range spanned by the largest `agreements` value.
-
-        TODO: not implemented yet. Once `estimate` (and the underlying
-        `estimate_pdf`) fits/assumes the distribution, this should call
-        its analytic `cdf` directly instead of falling back to the
-        base class's numeric integration of `estimate`.
-        """
-        raise NotImplementedError(
-            f'{self.__class__.__name__}.estimate_cumulative is not '
-            'implemented yet; it depends on the upcoming `estimate_pdf` '
-            'function.')
+        """Evaluate the fitted/assumed distribution's CDF directly
+        (analytically) over the range spanned by the largest
+        `agreements` value."""
+        return self._estimate(feature_data, target_data, cumulative=True)
 
 
 class ErrorBar(TransformPlotter):

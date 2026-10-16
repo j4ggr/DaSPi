@@ -136,6 +136,7 @@ from .statistics.estimation import (
     estimate_distribution,
     estimate_kernel_density,
     estimate_kernel_density_2d,
+    estimate_probability_density,
     estimate_resolution,
     root_sum_squares,
 )
@@ -273,6 +274,7 @@ __all__ = [
     'estimate_distribution',
     'estimate_kernel_density',
     'estimate_kernel_density_2d',
+    'estimate_probability_density',
     'estimate_resolution',
     'f_test',
     'fit_ci',

@@ -9,7 +9,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from pytest import approx
-from typing import Generator
 from pathlib import Path
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
@@ -635,3 +634,194 @@ class TestGaussianKDEContourUnivariate:
         # Should successfully plot despite NaN values
         plotter()
         assert len(ax.collections) > 0
+
+
+class TestDensityCurve:
+
+    @pytest.fixture
+    def sample_data(self) -> pd.DataFrame:
+        np.random.seed(0)
+        return pd.DataFrame({'value': np.random.normal(5, 1, 100)})
+
+    @pytest.fixture
+    def ax(self) -> Axes:
+        return plt.subplots(1, 1)[1]
+
+    def test_estimate_not_implemented(
+            self, sample_data: pd.DataFrame) -> None:
+        with pytest.raises(NotImplementedError):
+            DensityCurve(source=sample_data, target='value')
+
+    def test_constant_curve_default_height(
+            self, sample_data: pd.DataFrame) -> None:
+        curve = GaussianKDE(
+            source=sample_data, target='value', target_on_y=False)
+        sequence, estimation = curve._constant_curve(2.0, 7.0)
+        assert sequence == [7.0]
+        assert estimation == [curve.stretch + 2.0]
+
+    def test_constant_curve_with_height(
+            self, sample_data: pd.DataFrame) -> None:
+        curve = GaussianKDE(
+            source=sample_data, target='value', height=3.0,
+            target_on_y=False)
+        sequence, estimation = curve._constant_curve(1.0, 4.0)
+        assert sequence == [4.0]
+        assert estimation == [1.0 + 3.0]
+
+    def test_transform_constant_data(self) -> None:
+        df = pd.DataFrame({'value': [5.0] * 20})
+        curve = GaussianKDE(
+            source=df, target='value', target_on_y=False)
+        data = curve.transform(0.0, df['value'])
+        assert len(data) == 1
+        assert data[curve.target].iloc[0] == 5.0
+
+    def test_estimate_cumulative_numeric_integration(
+            self, sample_data: pd.DataFrame) -> None:
+        curve = GaussianKDE(
+            source=sample_data, target='value', target_on_y=False)
+        feature_data = 0.0
+        _, cumulated = curve.estimate_cumulative(
+            feature_data, sample_data['value'])
+        assert cumulated[0] == approx(feature_data, abs=1e-6)
+        assert cumulated[-1] == approx(
+            feature_data + curve.stretch, abs=1e-6)
+        assert np.all(np.diff(cumulated) >= -1e-9)
+
+    def test_estimate_cumulative_with_height(
+            self, sample_data: pd.DataFrame) -> None:
+        curve = GaussianKDE(
+            source=sample_data, target='value', height=4.0,
+            target_on_y=False)
+        feature_data = 1.0
+        _, cumulated = curve.estimate_cumulative(
+            feature_data, sample_data['value'])
+        assert cumulated[0] == approx(feature_data, abs=1e-6)
+        assert cumulated[-1] == approx(feature_data + 4.0, abs=1e-6)
+
+    def test_transform_cumulative_dispatch(
+            self, sample_data: pd.DataFrame) -> None:
+        curve = GaussianKDE(
+            source=sample_data, target='value', target_on_y=False,
+            cumulative=True)
+        data = curve.transform(0.0, sample_data['value'])
+        assert data[curve.feature].min() == approx(0.0, abs=1e-6)
+        assert data[curve.feature].max() == approx(curve.stretch, abs=1e-6)
+
+    def test_highlight_quantiles_requires_fill(
+            self, sample_data: pd.DataFrame) -> None:
+        curve = GaussianKDE(
+            source=sample_data, target='value', fill=True,
+            agreements=(2, 4, 6))
+        assert curve.highlight_quantiles == True
+        curve_no_fill = GaussianKDE(
+            source=sample_data, target='value', fill=False,
+            agreements=(2, 4, 6))
+        assert curve_no_fill.highlight_quantiles == False
+
+
+class TestGaussianKDECumulative:
+
+    @pytest.fixture
+    def sample_data(self) -> pd.DataFrame:
+        np.random.seed(0)
+        return pd.DataFrame({'value': np.random.normal(5, 1, 100)})
+
+    @pytest.fixture
+    def ax(self) -> Axes:
+        return plt.subplots(1, 1)[1]
+
+    def test_cumulative_flag_default_false(
+            self, sample_data: pd.DataFrame) -> None:
+        kde = GaussianKDE(source=sample_data, target='value')
+        assert kde.cumulative == False
+
+    def test_cumulative_flag_set(self, sample_data: pd.DataFrame) -> None:
+        kde = GaussianKDE(
+            source=sample_data, target='value', cumulative=True)
+        assert kde.cumulative == True
+
+    def test_call_cumulative_produces_monotonic_curve(
+            self, sample_data: pd.DataFrame, ax: Axes) -> None:
+        kde = GaussianKDE(
+            source=sample_data, target='value', target_on_y=False,
+            cumulative=True, ax=ax)
+        kde()
+        values = kde.source[kde.feature].to_numpy()
+        assert values.min() == approx(0.0, abs=1e-6)
+        assert values.max() == approx(kde.stretch, abs=1e-6)
+        assert len(ax.lines) > 0
+
+    def test_call_non_cumulative_produces_bell_shape(
+            self, sample_data: pd.DataFrame, ax: Axes) -> None:
+        kde = GaussianKDE(
+            source=sample_data, target='value', target_on_y=False,
+            cumulative=False, ax=ax)
+        kde()
+        values = kde.source[kde.feature].to_numpy()
+        assert values.min() >= 0.0
+        assert len(ax.lines) > 0
+
+
+class TestFittedDensity:
+
+    @pytest.fixture
+    def sample_data(self) -> pd.DataFrame:
+        np.random.seed(0)
+        return pd.DataFrame({'value': np.random.normal(5, 1, 100)})
+
+    @pytest.fixture
+    def ax(self) -> Axes:
+        return plt.subplots(1, 1)[1]
+
+    def test_init_defaults(self, sample_data: pd.DataFrame) -> None:
+        fd = FittedDensity(source=sample_data, target='value')
+        assert fd.cumulative == False
+        assert fd.strategy == 'data'
+        assert fd.margin == 0
+        assert fd.fill == True
+
+    def test_init_custom_parameters(self, sample_data: pd.DataFrame) -> None:
+        fd = FittedDensity(
+            source=sample_data, target='value', strategy='norm',
+            cumulative=True, fill=False, width=0.5)
+        assert fd.strategy == 'norm'
+        assert fd.cumulative == True
+        assert fd.fill == False
+        assert fd.height == 0.25
+
+    def test_estimate_returns_pdf(self, sample_data: pd.DataFrame) -> None:
+        fd = FittedDensity(
+            source=sample_data, target='value', strategy='norm',
+            target_on_y=False)
+        sequence, estimation = fd.estimate(0.0, sample_data['value'])
+        assert len(sequence) == fd.n_points
+        assert len(estimation) == fd.n_points
+        assert np.all(estimation >= 0)
+
+    def test_estimate_cumulative_returns_cdf(
+            self, sample_data: pd.DataFrame) -> None:
+        fd = FittedDensity(
+            source=sample_data, target='value', strategy='norm',
+            target_on_y=False)
+        _, estimation = fd.estimate_cumulative(
+            0.0, sample_data['value'])
+        assert np.all(np.diff(estimation) >= -1e-9)
+        assert estimation.min() >= -1e-6
+        assert estimation.max() <= fd.stretch + 1e-6
+
+    def test_call_pdf(self, sample_data: pd.DataFrame, ax: Axes) -> None:
+        fd = FittedDensity(
+            source=sample_data, target='value', target_on_y=False,
+            strategy='norm', ax=ax)
+        fd()
+        assert len(ax.lines) > 0
+
+    def test_call_cumulative(
+            self, sample_data: pd.DataFrame, ax: Axes) -> None:
+        fd = FittedDensity(
+            source=sample_data, target='value', target_on_y=False,
+            strategy='norm', cumulative=True, ax=ax)
+        fd()
+        assert len(ax.lines) > 0

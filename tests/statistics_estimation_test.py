@@ -5,12 +5,14 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import pytest
+import scipy.stats as stats
 from pandas.core.frame import DataFrame
 from pytest import approx
 
 sys.path.append(str(Path(__file__).parent.resolve()))
 
 from daspi import Specification, SpecLimits, load_dataset
+from daspi.constants import DEFAULT, DIST
 from daspi.statistics.estimation import *
 
 source = Path(__file__).parent/'data'
@@ -786,3 +788,110 @@ class TestGageEstimator:
 
     def test_uncertainties(self) -> None:
         pass
+
+
+class TestEstimateProbabilityDensity:
+
+    @pytest.fixture
+    def norm_data(self) -> np.ndarray:
+        np.random.seed(42)
+        return np.random.normal(loc=10, scale=2, size=200)
+
+    def test_pdf_shape_and_range(self, norm_data: np.ndarray) -> None:
+        n_points = 50
+        sequence, estimation = estimate_probability_density(
+            norm_data, strategy='norm', agreement=6, n_points=n_points)
+        assert len(sequence) == n_points
+        assert len(estimation) == n_points
+        mean = norm_data.mean()
+        std = norm_data.std(ddof=1)
+        assert sequence.min() == approx(mean - 3*std, rel=1e-6)
+        assert sequence.max() == approx(mean + 3*std, rel=1e-6)
+        assert np.all(estimation >= 0)
+
+    def test_pdf_matches_normal_distribution(self, norm_data: np.ndarray) -> None:
+        sequence, estimation = estimate_probability_density(
+            norm_data, strategy='norm', agreement=6)
+        # scipy's MLE fit for norm uses ddof=0 (population std)
+        expected = stats.norm.pdf(
+            sequence, loc=norm_data.mean(), scale=norm_data.std(ddof=0))
+        assert estimation == approx(expected, rel=1e-6)
+
+    def test_pdf_height_normalizes_peak(self, norm_data: np.ndarray) -> None:
+        height = 5.0
+        _, estimation = estimate_probability_density(
+            norm_data, strategy='norm', agreement=6, height=height, base=0)
+        assert estimation.max() == approx(height, rel=1e-6)
+
+    def test_pdf_stretch_scales_linearly(self, norm_data: np.ndarray) -> None:
+        _, estimation_1 = estimate_probability_density(
+            norm_data, strategy='norm', agreement=6, stretch=1)
+        _, estimation_2 = estimate_probability_density(
+            norm_data, strategy='norm', agreement=6, stretch=2)
+        assert estimation_2 == approx(2*estimation_1, rel=1e-6)
+
+    def test_pdf_base_shifts_curve(self, norm_data: np.ndarray) -> None:
+        base = 3.0
+        _, estimation_0 = estimate_probability_density(
+            norm_data, strategy='norm', agreement=6, base=0)
+        _, estimation_base = estimate_probability_density(
+            norm_data, strategy='norm', agreement=6, base=base)
+        assert estimation_base == approx(estimation_0 + base, rel=1e-6)
+
+    def test_cumulative_is_monotonic_and_bounded(self, norm_data: np.ndarray) -> None:
+        _, estimation = estimate_probability_density(
+            norm_data, strategy='norm', agreement=6, cumulative=True, base=0)
+        assert np.all(np.diff(estimation) >= 0)
+        assert estimation.min() >= 0
+        assert estimation.max() <= 1
+
+    def test_cumulative_height_scales_to_full_range(
+            self, norm_data: np.ndarray) -> None:
+        height = 2.0
+        sequence, estimation = estimate_probability_density(
+            norm_data, strategy='norm', agreement=6, cumulative=True,
+            height=height, base=0)
+        # scipy's MLE fit for norm uses ddof=0 (population std)
+        expected = height * stats.norm.cdf(
+            sequence, loc=norm_data.mean(), scale=norm_data.std(ddof=0))
+        assert estimation == approx(expected, rel=1e-6)
+
+    def test_strategy_fit_uses_best_fit_distribution(self) -> None:
+        np.random.seed(1)
+        data = np.random.weibull(a=1.5, size=200)
+        sequence, estimation = estimate_probability_density(
+            data, strategy='fit', agreement=6, possible_dists=DIST.COMMON)
+        assert len(sequence) == DEFAULT.KD_SEQUENCE_LEN
+        assert np.all(estimation >= 0)
+
+    def test_n_points_customizable(self, norm_data: np.ndarray) -> None:
+        sequence, estimation = estimate_probability_density(
+            norm_data, strategy='norm', n_points=25)
+        assert len(sequence) == 25
+        assert len(estimation) == 25
+
+    def test_agreement_widens_range(self, norm_data: np.ndarray) -> None:
+        sequence_narrow, _ = estimate_probability_density(
+            norm_data, strategy='norm', agreement=2)
+        sequence_wide, _ = estimate_probability_density(
+            norm_data, strategy='norm', agreement=6)
+        assert sequence_wide.max() - sequence_wide.min() \
+            > sequence_narrow.max() - sequence_narrow.min()
+
+    def test_strategy_data_uses_kernel_density_not_fitted_dist(
+            self, norm_data: np.ndarray) -> None:
+        # 'data' strategy must not fit any distribution: it should
+        # match a plain Gaussian KDE evaluated over the same range.
+        sequence, estimation = estimate_probability_density(
+            norm_data, strategy='data', agreement=6)
+        kde = stats.gaussian_kde(norm_data, bw_method='scott')
+        expected = kde(sequence)
+        assert estimation == approx(expected, rel=1e-6)
+
+    def test_strategy_data_cumulative_matches_integrated_kde(
+            self, norm_data: np.ndarray) -> None:
+        _, estimation = estimate_probability_density(
+            norm_data, strategy='data', agreement=6, cumulative=True)
+        assert estimation[0] == approx(0.0, abs=1e-6)
+        assert estimation[-1] == approx(1.0, abs=1e-6)
+        assert np.all(np.diff(estimation) >= -1e-9)

@@ -77,6 +77,7 @@ from numpy.typing import NDArray
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 from scipy import stats
+from scipy.integrate import cumulative_trapezoid
 from scipy.interpolate import interp1d
 from scipy.stats import kurtosis, norm, skew
 from scipy.stats._distn_infrastructure import rv_continuous, rv_frozen
@@ -109,6 +110,7 @@ __all__ = [
     'estimate_distribution',
     'estimate_kernel_density',
     'estimate_kernel_density_2d',
+    'estimate_probability_density',
     'estimate_resolution',
     'root_sum_squares',
 ]
@@ -2914,6 +2916,7 @@ def estimate_kernel_density(
         base: float = 0,
         n_points: int = DEFAULT.KD_SEQUENCE_LEN,
         margin: float = 0.5,
+        sequence: NDArray | None = None,
         ) -> tuple[NDArray, NDArray]:
     """Estimates the kernel density of data and returns values that are 
     useful for a plot. If those values are plotted in combination with 
@@ -2944,11 +2947,20 @@ def estimate_kernel_density(
         amount. This is usefull for violin plots, by default 0
     n_points : int, optional
         Number of points the estimation and sequence should have,
-        by default KD_SEQUENCE_LEN (defined in constants.py)
+        by default KD_SEQUENCE_LEN (defined in constants.py). Ignored
+        if `sequence` is given.
     margin : float, optional
         Margin for the sequence as factor of data range (max - min ). 
         If margin is 0, The two ends of the estimated density curve then 
-        show the minimum and maximum value. Default is 0.
+        show the minimum and maximum value. Default is 0. Ignored if
+        `sequence` is given.
+    sequence : 1D array, optional
+        Points at which the kernel density is evaluated. If given,
+        `n_points` and `margin` are ignored and this sequence is used
+        and returned as is, allowing the same KDE to be evaluated over
+        a caller-defined range (e.g. agreement based quantiles instead
+        of the data range). Default is None, meaning the sequence is
+        generated from the data range extended by `margin`.
 
     Returns
     -------
@@ -2961,10 +2973,114 @@ def estimate_kernel_density(
     data = np.array(data)[~np.isnan(data)]
     assert any(data), f'Provided data is empty or contains only zeros: {data}'
     assert any(data != data[0]), f'All provided data have the same value: {data}'
-    seq_min, seq_max = _extended_range_(data, margin)
-    sequence = np.linspace(seq_min, seq_max, n_points)
+    if sequence is None:
+        seq_min, seq_max = _extended_range_(data, margin)
+        sequence = np.linspace(seq_min, seq_max, n_points)
     estimation = stats.gaussian_kde(data, bw_method='scott')(sequence)
     stretch = stretch if height is None else height/estimation.max()
+    estimation = stretch*estimation + base
+    return sequence, estimation
+
+def estimate_probability_density(
+        data: NumericSample1D,
+        *,
+        strategy: EstimationStrategy = 'data',
+        agreement: float | int = 6,  # noqa: PYI041
+        possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
+        cumulative: bool = False,
+        stretch: float = 1,
+        height: float | None = None,
+        base: float = 0,
+        n_points: int = DEFAULT.KD_SEQUENCE_LEN,
+        ) -> tuple[NDArray, NDArray]:
+    """Estimates the probability density function (PDF), or optionally
+    the cumulative distribution function (CDF), of data by fitting (or
+    assuming) a continuous distribution and returns values that are
+    useful for a plot.
+
+    Unlike `estimate_kernel_density`, which always estimates the
+    density non-parametrically from the raw data, this function
+    fits (or assumes) a distribution according to `strategy` and
+    evaluates its PDF (or CDF). The returned sequence spans the
+    quantiles corresponding to `agreement`.
+
+    If `strategy` is (or evaluates to) 'data', no distribution is
+    fitted at all. Instead, the density is estimated directly from the
+    raw data using a Gaussian kernel density estimation (same as
+    `estimate_kernel_density`), consistent with the 'data' strategy
+    meaning "read the values directly from the data" (see
+    `LocationDispersionEstimator`).
+
+    Parameters
+    ----------
+    data : NumericSample1D
+        1-D array of datapoints to estimate from.
+    strategy : {'eval', 'fit', 'norm', 'data'}, optional
+        Which strategy is used to fit/assume the distribution and to
+        determine the range (`agreement`) of the returned sequence,
+        see `LocationDispersionEstimator`. Default is 'data'.
+    agreement : int or float, optional
+        Specifies the tolerated process variation determining the
+        range of the returned sequence (and PDF/CDF), see
+        `LocationDispersionEstimator`. Default is 6.
+    possible_dists : tuple of strings or rv_continous, optional
+        Distributions to which the data may be subject, see
+        `LocationDispersionEstimator`. Default is `DIST.COMMON`.
+    cumulative : bool, optional
+        If True, the cumulative distribution (CDF) is returned instead
+        of the density (PDF), by default False.
+    stretch : float, optional
+        Stretch the distribution estimate by the given factor, is only 
+        considered if "height" is None, by default 1
+    height : float or None, optional
+        If the curve is plotted in combination with other data, you can 
+        use height to specify the height at the maximum point of the 
+        PDF curve (ignored if `cumulative` is True, since the CDF is
+        already bound between 0 and 1). If this value is specified, the
+        PDF area under the curve will not be normalized, by default None
+    base : float, optional
+        The curve is shifted in the estimated direction by the given 
+        amount, by default 0
+    n_points : int, optional
+        Number of points the estimation and sequence should have,
+        by default KD_SEQUENCE_LEN (defined in constants.py)
+
+    Returns
+    -------
+    sequence : 1D array
+        Data points at regular intervals spanning the quantiles
+        corresponding to `agreement`.
+    estimation : 1D array
+        Data points of the fitted (or, for strategy 'data', the
+        kernel-density-estimated) distribution's PDF or CDF.
+    """
+    estimator = LocationDispersionEstimator(
+        samples=data,
+        strategy=strategy,
+        agreement=agreement,
+        possible_dists=possible_dists)
+    lcl, ucl = estimator.lcl, estimator.ucl
+    sequence = np.linspace(lcl, ucl, n_points)
+    if estimator.strategy == 'data':
+        if cumulative:
+            _, density = estimate_kernel_density(
+                data=data, n_points=n_points, sequence=sequence)
+            estimation = cumulative_trapezoid(density, sequence, initial=0)
+            estimation = estimation / estimation[-1]
+            stretch = stretch if height is None else height
+        else:
+            _, estimation = estimate_kernel_density(
+                data=data, n_points=n_points, sequence=sequence)
+            stretch = stretch if height is None else height/estimation.max()
+    else:
+        if estimator.strategy == 'norm':
+            estimator.dist = 'norm'
+        if cumulative:
+            estimation = estimator.frozen.cdf(sequence)
+            stretch = stretch if height is None else height
+        else:
+            estimation = estimator.dist.pdf(sequence, *estimator.shape_params)
+            stretch = stretch if height is None else height/estimation.max()
     estimation = stretch*estimation + base
     return sequence, estimation
 
