@@ -64,6 +64,7 @@ from matplotlib.ticker import PercentFormatter
 from pandas.core.frame import DataFrame
 from scipy.stats._distn_infrastructure import rv_continuous
 
+from .._typing import EstimationStrategy
 from ..anova import GageRnRModel, GageStudyModel, LinearModel
 from ..constants import ANOVA, CATEGORY, COLOR, DEFAULT, DIST
 from ..statistics import UNBOUNDED, ProcessEstimator, SpecLimits
@@ -983,7 +984,7 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             hue: str = '',
             dist: rv_continuous | str = 'norm',
             error_values: tuple[float, ...] = (),
-            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
+            strategy: EstimationStrategy = 'norm',
             agreement: float | int = 6, # noqa: PYI041
             possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             stretch_figsize: bool | float | tuple[float, float] = False,

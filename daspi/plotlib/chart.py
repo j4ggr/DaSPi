@@ -67,7 +67,12 @@ from numpy.typing import NDArray
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
-from .._typing import LegendHandlesLabels, MosaicLayout, ShareAxisProperty
+from .._typing import (
+    EstimationStrategy,
+    LegendHandlesLabels,
+    MosaicLayout,
+    ShareAxisProperty,
+)
 from ..constants import CATEGORY, COLOR, KW, PLOTTER
 from ..statistics import UNBOUNDED, SpecLimits
 from ..strings import STR
@@ -1097,7 +1102,7 @@ class SingleChart(Chart):
             control_limits: bool = False, 
             spec_limits: SpecLimits = UNBOUNDED,
             confidence: float | None = None,
-            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
+            strategy: EstimationStrategy = 'norm',
             agreement: float | int = 6,  # noqa: PYI041
             **kwds,
             ) -> Self:
@@ -1908,7 +1913,7 @@ class JointChart(Chart):
             control_limits: bool | tuple[bool, ...] = False, 
             spec_limits: SpecLimits | tuple[SpecLimits, ...] = UNBOUNDED,
             confidence: float | None | tuple[float | None, ...] = None,
-            strategy: Literal['eval', 'fit', 'norm', 'data'] | tuple = 'norm',
+            strategy: EstimationStrategy | tuple = 'norm',
             agreement: float | int | tuple[int | float, ...] = 6,  # noqa: PYI041
             **kwds) -> Self:
         """Plot location and spread width lines, specification limits 
@@ -2369,7 +2374,7 @@ class MultivariateChart(SingleChart):
             control_limits: bool = False, 
             spec_limits: SpecLimits = UNBOUNDED,
             confidence: float | None = None,
-            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
+            strategy: EstimationStrategy = 'norm',
             agreement: float | int = 6,  # noqa: PYI041
             **kwds,
             ) -> Self:

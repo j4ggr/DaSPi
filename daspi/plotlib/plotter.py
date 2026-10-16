@@ -113,7 +113,7 @@ from scipy.stats import semicircular
 from scipy.stats._distn_infrastructure import rv_continuous
 from statsmodels.regression.linear_model import OLSResults
 
-from .._typing import LineStyle
+from .._typing import EstimationStrategy, LineStyle
 from ..constants import CATEGORY, COLOR, DEFAULT, DIST, KW, LINE, PLOTTER
 from ..statistics import (
     DistributionEstimator,
@@ -233,7 +233,7 @@ class SpreadOpacity:
     possible_dists: tuple[str | rv_continuous, ...]
     """tuple of possible distributions for the spread width
     estimation."""
-    strategy: Literal['eval', 'fit', 'norm', 'data']
+    strategy: EstimationStrategy
     """Strategy for estimating the spread width."""
     
     @property
@@ -4176,7 +4176,7 @@ class QuantileBoxes(SpreadOpacity, TransformPlotter):
             source: DataFrame,
             target: str,
             feature: str = '',
-            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'data',
+            strategy: EstimationStrategy = 'data',
             agreements: tuple[float, ...] = DEFAULT.AGREEMENTS,
             possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             vary_width: bool = True,
@@ -5837,7 +5837,7 @@ class SpreadWidth(ErrorBar):
     possible_dists: tuple[str | rv_continuous, ...]
     """tuple of possible distributions for the spread width
     estimation."""
-    strategy: Literal['eval', 'fit', 'norm', 'data']
+    strategy: EstimationStrategy
     """Strategy for estimating the spread width."""
 
     def __init__(
@@ -5845,7 +5845,7 @@ class SpreadWidth(ErrorBar):
             source: DataFrame,
             target: str,
             feature: str = '',
-            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
+            strategy: EstimationStrategy = 'norm',
             agreement: float | int = 6, # noqa: PYI041
             possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             show_center: bool = True,
@@ -6823,7 +6823,7 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
         `ProcessEstimator` class. Possible keword arguments are (default
         is None):
         - error_values: tuple[float, ...] = (),
-        - strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
+        - strategy: EstimationStrategy = 'norm',
         - agreement: float | int = 6,
         - possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON
     

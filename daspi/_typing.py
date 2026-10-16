@@ -9,6 +9,7 @@ from numpy.typing import NDArray
 from pandas.core.series import Series
 
 __all__ = [
+    'EstimationStrategy',
     'FloatOrArray',
     'LegendHandlesLabels',
     'LineStyle',
@@ -38,6 +39,16 @@ type ShareAxisProperty = (
     - 'all': share all axes
     - 'row': share axes within each row
     - 'col': share axes within each column
+"""
+
+type EstimationStrategy = Literal['eval', 'fit', 'norm', 'data']
+"""Type alias for estimation strategies for evaluating the probability 
+density function (PDF).
+
+    - 'eval': evaluate the PDF using the given data
+    - 'fit': fit a distribution to the data and evaluate the PDF
+    - 'norm': assume a normal distribution and evaluate the PDF
+    - 'data': use the empirical data to estimate the PDF
 """
 
 type LegendHandlesLabels = (

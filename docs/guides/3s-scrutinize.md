@@ -192,6 +192,12 @@ print(priority_df.sort_values('Rank'))
 
 Link causes to customer requirements:
 
+!!! tip "Try it yourself"
+    Prefer clicking over coding? Use the **[Interactive C&E Matrix](ce-matrix.html){:target="_blank"}** tool —
+    edit causes, requirements and weights directly in your browser, click cells to cycle
+    through 0 → 1 → 3 → 9, and watch the weighted Pareto ranking update live. Your work is
+    saved automatically and can be exported to CSV.
+
 ```python
 # Example: C&E Matrix analysis
 requirements = ['Quality', 'Cost', 'Delivery']

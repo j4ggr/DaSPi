@@ -68,7 +68,7 @@ here.
 import warnings
 from abc import abstractmethod
 from collections.abc import Callable, Hashable
-from typing import Any, Literal, Self, TypeVar, Union, overload
+from typing import Any, Literal, Self, TypeVar, Union, cast, overload
 
 import numpy as np
 import pandas as pd
@@ -81,7 +81,7 @@ from scipy.interpolate import interp1d
 from scipy.stats import kurtosis, norm, skew
 from scipy.stats._distn_infrastructure import rv_continuous, rv_frozen
 
-from .._typing import NumericSample1D
+from .._typing import EstimationStrategy, NumericSample1D
 from ..constants import DEFAULT, DIST, PERCENT_DECIMALS, SIGMA_DIFFERENCE
 from .confidence import confidence_to_alpha, cp_ci, cpk_ci, mean_ci, median_ci, stdev_ci
 from .hypothesis import (
@@ -636,7 +636,7 @@ class BaseEstimator:
         self._sorted = pd.Series(dtype=float)
         if not isinstance(samples, pd.Series):
             samples = pd.Series(samples)
-        self._samples = samples
+        self._samples = cast(pd.Series, samples)
         self._n_samples = None
         self._n_missing = None
         self._n_filtered = None
@@ -1485,7 +1485,7 @@ class LocationDispersionEstimator(DistributionEstimator):
     _sem: float | None
     _lcl: float | None
     _ucl: float | None
-    _strategy: Literal['eval', 'fit', 'norm', 'data'] 
+    _strategy: EstimationStrategy 
     _agreement: int | float
     _k: float
     _evaluate: Callable | None
@@ -1495,7 +1495,7 @@ class LocationDispersionEstimator(DistributionEstimator):
     def __init__(
             self,
             samples: NumericSample1D, 
-            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
+            strategy: EstimationStrategy = 'norm',
             agreement: int | float = 6,  # noqa: PYI041
             possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             evaluate: Callable | None = None,
@@ -1651,7 +1651,7 @@ class LocationDispersionEstimator(DistributionEstimator):
             are read directly from the samples."""
         return self._strategy
     @strategy.setter
-    def strategy(self, strategy: Literal['eval', 'fit', 'norm', 'data']) -> None:
+    def strategy(self, strategy: EstimationStrategy) -> None:
         assert strategy in ['eval', 'fit', 'norm', 'data']
         if self._strategy != strategy:
             self._strategy = strategy
@@ -2015,7 +2015,7 @@ class ProcessEstimator(LocationDispersionEstimator):
             samples: NumericSample1D, 
             spec_limits: SpecLimits | Specification,
             error_values: tuple[float, ...] = (),
-            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
+            strategy: EstimationStrategy = 'norm',
             agreement: float | int = 6,  # noqa: PYI041
             possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             evaluate: Callable | None = None,
@@ -2524,7 +2524,7 @@ class GageEstimator(LocationDispersionEstimator):
             tolerance: float | SpecLimits | Specification,
             resolution: float | None,
             tolerance_ratio: float = 0.2,
-            strategy: Literal['eval', 'fit', 'norm', 'data'] = 'eval',
+            strategy: EstimationStrategy = 'eval',
             agreement: float | int = 4,  # noqa: PYI041
             possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             evaluate: Callable | None = None,

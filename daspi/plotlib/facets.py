@@ -475,7 +475,7 @@ class StripesFacets:
         control_limits: bool = False,
         spec_limits: SpecLimits = UNBOUNDED,
         confidence: float | None = None,
-        strategy: Literal['eval', 'fit', 'norm', 'data'] = 'norm',
+        strategy: EstimationStrategy = 'norm',
         agreement: float | int = 6,  # noqa: PYI041
         **kwds) -> None:
         self.single_axes = single_axes
