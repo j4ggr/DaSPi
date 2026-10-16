@@ -109,6 +109,7 @@ from numpy.typing import ArrayLike, NDArray
 from pandas.api.types import is_scalar
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
+from scipy.integrate import cumulative_trapezoid
 from scipy.stats import semicircular
 from scipy.stats._distn_infrastructure import rv_continuous
 from statsmodels.regression.linear_model import OLSResults
@@ -335,7 +336,7 @@ class SpreadOpacity:
     
     def subgroup_values(
             self,
-            sequence: NDArray | int,
+            sequence: NDArray | list[float] | int,
             quantiles: list[float]
             ) -> list[float | int]:
         """Generate a list of subgroup values based on the agreements.
@@ -348,7 +349,7 @@ class SpreadOpacity:
 
         Parameters
         ----------
-        sequence : numpy array or int
+        sequence : numpy array, list of floats, or int
             The sequence of values to be categorized into subgroups. If 
             an integer is provided, it is interpreted as the number of 
             values in the sequence, and the subgroup values are generated 
@@ -369,6 +370,9 @@ class SpreadOpacity:
             for name in names:
                 subgroup.extend([name] * sequence)
             return subgroup
+        
+        if isinstance(sequence, list):
+            sequence = np.asarray(sequence)
 
         quantiles = sorted(quantiles)
         for name, beg, end in zip(names, quantiles[:-1:2], quantiles[1::2]):
@@ -4298,6 +4302,12 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
       `strategy` and evaluates its PDF, controlling the curve width via
       `agreements` instead of `margin`.
 
+    If `cumulative` is set to True, the cumulative distribution (CDF)
+    is plotted instead of the density (PDF). Subclasses may override
+    :meth:`estimate_cumulative` to compute the CDF directly (e.g. from
+    a fitted distribution's analytic `cdf`); by default it is derived
+    by numerically integrating :meth:`estimate`.
+
     Parameters
     ----------
     source : pandas DataFrame
@@ -4360,6 +4370,9 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
     possible_dists : tuple of strings or rv_continous, optional
         Distributions to which the data may be subject, see
         `SpreadOpacity`. Default is `DIST.COMMON`.
+    cumulative : bool, optional
+        If True, the cumulative distribution (CDF) is plotted instead
+        of the density (PDF), by default False.
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
         the y-axis, by default True.
@@ -4390,6 +4403,7 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
         '_agreements',
         '_height',
         '_stretch',
+        'cumulative',
         'estimation',
         'fill',
         'margin',
@@ -4401,6 +4415,9 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
     """Height of the density curve at its maximum."""
     _stretch: float
     """Factor by which the curve was stretched in height."""
+    cumulative: bool
+    """Flag whether the cumulative distribution (CDF) is plotted
+    instead of the density (PDF)."""
     fill: bool
     """Flag whether to fill in the curves"""
     margin: float
@@ -4425,6 +4442,7 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
             agreements: tuple[float, ...] | tuple[int, ...] = DEFAULT.AGREEMENTS,
             strategy: EstimationStrategy = 'data',
             possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
+            cumulative: bool = False,
             target_on_y: bool = True,
             color: str | None = None,
             n_points: int = DEFAULT.KD_SEQUENCE_LEN,
@@ -4435,6 +4453,7 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
         self.strategy = strategy
         self.agreements = agreements
         self.possible_dists = possible_dists
+        self.cumulative = cumulative
         self._stretch = stretch
         self.n_points = n_points
         self.margin = margin
@@ -4508,13 +4527,64 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
         raise NotImplementedError(
             f'{self.__class__.__name__} must implement `estimate`')
 
+    def estimate_cumulative(
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> tuple[NDArray, NDArray]:
+        """Compute the sequence of target values and the corresponding
+        cumulative distribution (CDF) for one feature group.
+
+        The default implementation numerically integrates
+        :meth:`estimate` (trapezoidal rule) and rescales the result to
+        span from `feature_data` to `feature_data + stretch` (or
+        `height`). Subclasses may override this to compute the CDF
+        directly, e.g. from a fitted distribution's analytic `cdf`.
+
+        Parameters
+        ----------
+        feature_data : float | int
+            Base location (offset) of feature axis coming from 
+            `feature_grouped` generator.
+        target_data : pandas Series
+            Feature grouped target data used for transformation,
+            coming from `feature_grouped` generator.
+
+        Returns
+        -------
+        sequence : 1D array
+            Data points at regular intervals used as target data.
+        estimation : 1D array
+            Cumulative distribution values used as feature data.
+        """
+        sequence, density = self.estimate(feature_data, target_data)
+        cumulated = cumulative_trapezoid(
+            y=density - feature_data,
+            x=sequence,
+            initial=0)
+        stretch = self.stretch if self.height is None else self.height
+        estimation = stretch * cumulated / cumulated[-1] + feature_data
+        return sequence, estimation
+
+    def _constant_curve(
+            self,
+            feature_data: float | int, # noqa: PYI041
+            first_value: float
+            ) -> tuple[list[float], list[float]]:
+        """Degenerate single-point curve used when all target values in
+        a feature group are identical (no density/CDF can be
+        estimated)."""
+        stretch = self.stretch if self.height is None else self.height
+        return [first_value], [stretch + feature_data]
+
     def transform(
             self,
             feature_data: float | int, # noqa: PYI041
             target_data: Series
             ) -> DataFrame:
         """Perform the transformation on the target data by estimating 
-        its density. To obtain a uniform curve, a sequence is generated 
+        its density (or cumulative distribution, if `cumulative` is
+        True). To obtain a uniform curve, a sequence is generated 
         with a specific number of points in the same range (min to max) 
         as the target data.
 
@@ -4534,17 +4604,19 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
             generated sequence as target data and the estimation as
             feature data.
         """
-
         first_value: float = float(target_data.iat[0]) # pyright: ignore[reportArgumentType]
         if all(target_data == first_value):
-            stretch = self.stretch if self.height is None else self.height
-            estimation = [stretch + feature_data]
-            sequence = [first_value]
+            sequence, estimation = self._constant_curve(
+                feature_data, first_value)
+        elif self.cumulative:
+            sequence, estimation = self.estimate_cumulative(
+                feature_data, target_data)
         else:
-            sequence, estimation = self.estimate(feature_data, target_data)
+            sequence, estimation = self.estimate(
+                feature_data, target_data)
         
         ones = np.ones(len(sequence))
-        if self.highlight_quantiles and not isinstance(sequence, list):
+        if self.highlight_quantiles and len(sequence) > 1:
             quantiles = self.quantiles(target_data)
             subgroups = self.subgroup_values(sequence, quantiles)
         else:
@@ -4685,6 +4757,9 @@ class GaussianKDE(DensityCurve):
         
         Default is `DEFAULT.AGREEMENTS` = (2, 4, 6), corresponding to 
         (±1σ, ±2σ, ±3σ).
+    cumulative : bool, optional
+        If True, the cumulative distribution (CDF) is plotted instead
+        of the density (PDF), by default False.
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
         the y-axis, by default True.
@@ -4781,6 +4856,7 @@ class GaussianKDE(DensityCurve):
             margin: float = 0,
             fill: bool = True,
             agreements: tuple[float, ...] | tuple[int, ...] = DEFAULT.AGREEMENTS,
+            cumulative: bool = False,
             target_on_y: bool = True,
             color: str | None = None,
             n_points: int = DEFAULT.KD_SEQUENCE_LEN,
@@ -4801,6 +4877,7 @@ class GaussianKDE(DensityCurve):
             agreements=agreements,
             strategy='data',
             possible_dists=DIST.COMMON,
+            cumulative=cumulative,
             target_on_y=target_on_y,
             color=color,
             n_points=n_points,
@@ -5465,6 +5542,9 @@ class FittedDensity(DensityCurve):
         Width of the curve, by default CATEGORY.FEATURE_SPACE.
     fill : bool, optional
         Flag whether to fill in the curves, by default True
+    cumulative : bool, optional
+        If True, the cumulative distribution (CDF) is plotted instead
+        of the density (PDF), by default False.
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
         the y-axis, by default True.
@@ -5499,6 +5579,7 @@ class FittedDensity(DensityCurve):
             possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             width: float = CATEGORY.FEATURE_SPACE,
             fill: bool = True,
+            cumulative: bool = False,
             target_on_y: bool = True,
             color: str | None = None,
             ax: Axes | None = None,
@@ -5516,6 +5597,7 @@ class FittedDensity(DensityCurve):
             agreements=agreements,
             strategy=strategy,
             possible_dists=possible_dists,
+            cumulative=cumulative,
             target_on_y=target_on_y,
             color=color,
             ax=ax,
@@ -5545,6 +5627,24 @@ class FittedDensity(DensityCurve):
         raise NotImplementedError(
             f'{self.__class__.__name__}.estimate is not implemented yet; '
             'it depends on the upcoming `estimate_pdf` function.')
+
+    def estimate_cumulative(
+            self,
+            feature_data: float | int, # noqa: PYI041
+            target_data: Series
+            ) -> tuple[NDArray, NDArray]:
+        """Evaluate the fitted/assumed distribution's CDF over the
+        range spanned by the largest `agreements` value.
+
+        TODO: not implemented yet. Once `estimate` (and the underlying
+        `estimate_pdf`) fits/assumes the distribution, this should call
+        its analytic `cdf` directly instead of falling back to the
+        base class's numeric integration of `estimate`.
+        """
+        raise NotImplementedError(
+            f'{self.__class__.__name__}.estimate_cumulative is not '
+            'implemented yet; it depends on the upcoming `estimate_pdf` '
+            'function.')
 
 
 class ErrorBar(TransformPlotter):
