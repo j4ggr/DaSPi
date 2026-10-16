@@ -16,6 +16,12 @@ __Types of changes__:
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-10-16
+
+### Changed
+
+- **Plotlib**: `FittedDensity`'s `width` constructor argument (default `CATEGORY.FEATURE_SPACE`) is replaced with `height: float | None = None`, matching `DensityCurve`/`GaussianKDE`. By default the curve now shows the real estimated probability instead of being normalized to a fixed width.
+
 ## [2.3.0] - 2026-10-16
 
 ### Added
