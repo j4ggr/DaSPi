@@ -16,6 +16,27 @@ __Types of changes__:
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-16
+
+### Added
+
+- **Plotlib**: New `FittedDensity` plotter that fits (or assumes) a distribution per `strategy` and draws its PDF/CDF, with curve width controlled via `agreements`. For `strategy='data'` it falls back to the same non-parametric kernel density estimation as `GaussianKDE`, so no distribution is fitted in that case. Supports `cumulative=True` for CDF plots, matching `GaussianKDE`.
+- **Plotlib**: `DensityCurve` base class extracted from `GaussianKDE`, factoring out shared grouping, quantile-highlighting, fill and draw logic behind an overridable `estimate()`/`estimate_cumulative()` hook. `GaussianKDE` and `FittedDensity` are now thin subclasses. Both classes and `FittedDensity` are exported from `daspi/__init__.py`.
+- **Plotlib**: `GaussianKDE` and `DensityCurve` gained a `cumulative` constructor flag to plot the CDF instead of the PDF, via numeric integration (`cumulative_trapezoid`) by default.
+- **Statistics**: Added `estimate_probability_density()` to `estimation.py`, estimating a PDF/CDF over an agreement-based quantile range using a fitted/assumed distribution, or a kernel density estimate for `strategy='data'`.
+- **Statistics**: `estimate_kernel_density()` accepts an optional `sequence` parameter so callers can evaluate the same kernel density estimate over a custom range instead of the default margin-based range.
+- **Typing**: Introduced `EstimationStrategy` type alias in `_typing.py`, replacing repeated `Literal['eval', 'fit', 'norm', 'data']` annotations across `chart.py`, `facets.py`, `plotter.py`, `precast.py` and `estimation.py`.
+- **Docs**: Added an interactive Cause & Effect matrix HTML tool, linked from the 3S scrutinize guide.
+
+### Changed
+
+- **Statistics**: `BaseEstimator.__init__` now casts `_samples` to `pd.Series`.
+- **Plotlib**: `SpreadOpacity.subgroup_values` now also accepts `list[float]` sequences.
+
+### Fixed
+
+- **Plotlib**: Fixed a missing `EstimationStrategy` import in `facets.py` that broke all plotlib imports.
+
 ## [2.2.0] - 2026-09-04
 
 ### Breaking Changes
