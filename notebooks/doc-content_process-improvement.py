@@ -27,28 +27,26 @@ def _():
     import matplotlib.pyplot as plt
     from daspi import Line, StripeSpan, SpecLimits, COLOR
 
-    fig, ax = plt.subplots()
-    df = pd.DataFrame(dict(x = np.random.weibull(a=1.5, size=100)))
-    line = Line(source=df, target='x', ax=ax)
-    line(marker='o')
-    spec_limits=SpecLimits(lower=0, upper=2.5)
-    ok_area = StripeSpan(
+    _fig, _ax = plt.subplots()
+    _df = pd.DataFrame(dict(x = np.random.weibull(a=1.5, size=100)))
+    _line = Line(source=_df, target='x', ax=_ax)
+    _line(marker='o')
+    _spec_limits=SpecLimits(lower=0, upper=2.5)
+    _ok_area = StripeSpan(
         label=r'OK',
-        lower_position=spec_limits.lower,
-        upper_position=spec_limits.upper,
+        lower_position=_spec_limits.lower,
+        upper_position=_spec_limits.upper,
         color=COLOR.GOOD,
         orientation='horizontal')
-    ok_area(ax=ax)
+    _ok_area(ax=_ax)
 
-    ax.legend([ok_area.handle], [ok_area.label])
-    return df, pd
+    _ax.legend([_ok_area.handle], [_ok_area.label])
+    return (pd,)
 
 
 @app.cell
-def _():
-    import daspi as dsp
-
-    chart = dsp.SingleChart(
+def _(dsp):
+    _chart = dsp.SingleChart(
             source=dsp.load_dataset('shoe-sole'),
             target='wear',
             feature='status',
@@ -57,22 +55,20 @@ def _():
             identity='tester',
             feature_axis='mean',
             reverse=True)
-    return (dsp,)
+    return
 
 
 @app.cell
-def _():
-    import pandas as pd
-    import daspi as dsp
+def _(dsp, pd):
     df = dsp.load_dataset('painkillers-dissolution')
     df.info()
-    return df, dsp, pd
+    return (df,)
 
 
 @app.cell
 def _(df, dsp):
     # dsp.style.use('seaborn')
-    chart = dsp.MultivariateChart(
+    _chart = dsp.MultivariateChart(
             source=df,
             target='dissolution',
             feature='temperature',
@@ -99,7 +95,7 @@ def _(df, dsp, pd):
     model = dsp.LinearModel(
         source=df,
         target='dissolution',
-        features=[
+        factors=[
             'employee',
             'stirrer',
             'brand',
@@ -123,7 +119,7 @@ def _(df, dsp, pd):
     data = pd.melt(
         data, value_vars=columns_map.values(), var_name='metric')
 
-    chart = dsp.SingleChart(
+    _chart = dsp.SingleChart(
             source=data,
             target='value',
             hue='metric'
@@ -137,7 +133,7 @@ def _(df, dsp, pd):
             target_label=True,
             feature_label='elimination step'
         )
-    _ = chart.axes[0, 0].set(xlim=(1, len(df_gof)), ylim=(0, 1))
+    _ = _chart.axes[0, 0].set(xlim=(1, len(df_gof)), ylim=(0, 1))
     return (model,)
 
 
@@ -151,7 +147,7 @@ def _(dsp, model):
 
 @app.cell
 def _(df, dsp):
-    chart = dsp.MultivariateChart(
+    _chart = dsp.MultivariateChart(
             source=df,
             target='dissolution',
             feature='water',
@@ -179,7 +175,7 @@ def _(df, dsp):
 
 @app.cell
 def _(df, dsp):
-    chart = dsp.JointChart(
+    _chart = dsp.JointChart(
             source=df,
             target='dissolution',
             feature=('water', 'employee'),
@@ -189,8 +185,8 @@ def _(df, dsp):
             sharey=True,
             dodge=True,
         )
-    for i in range(chart.n_axes):
-        chart.plot(
+    for _i in range(_chart.n_axes):
+        _chart.plot(
             dsp.CenterLocation,
             show_center=False,
         ).plot(
@@ -203,7 +199,7 @@ def _(df, dsp):
             on_last_axes=True
         )
 
-    chart.label(
+    _chart.label(
         fig_title='Painkillers Dissolution Process Analysis',
         sub_title='Expected mean dissolution time for each combination of water and employee',
         feature_label=('water type', 'employee'),

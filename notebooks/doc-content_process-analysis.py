@@ -36,18 +36,18 @@ def _(Any, dict, dsp, np, pd, stats):
 
     for i, mean in enumerate(means):
         pos = i
-        data = pd.DataFrame({
+        _data = pd.DataFrame({
             'capability': 'short-term',
             'position': pos,
             'values': stats.norm.rvs(size=N_SAMPLES, loc=mean, scale=0.2)})
-        df_batch = pd.concat([df_batch, data], axis=0, ignore_index=True)
+        df_batch = pd.concat([df_batch, _data], axis=0, ignore_index=True)
     df_tot = pd.DataFrame({
         'capability': 'long-term',
         'position': 0,
         'mean': '0',
         'values': df_batch['values']})
 
-    chart = dsp.JointChart(
+    _chart = dsp.JointChart(
             source=pd.concat([df_batch, df_tot]),
             target='values',
             feature='position',
@@ -66,7 +66,7 @@ def _(Any, dict, dsp, np, pd, stats):
         ).label(
         )
 
-    hueing = chart.charts[0].hueing
+    hueing = _chart.charts[0].hueing
 
     def axes_settings(ax) -> None:
         ax.xaxis.set_visible(False)
@@ -79,7 +79,7 @@ def _(Any, dict, dsp, np, pd, stats):
         feature='position',
         target='values',
         target_on_y=False,
-        ax=chart.axes[0, 0],
+        ax=_chart.axes[0, 0],
         color=hueing.categories[1])
     kw_kde: dict[str, Any] = dict(
         height=HEIGHT,
@@ -94,43 +94,43 @@ def _(Any, dict, dsp, np, pd, stats):
         dsp.GaussianKDE(source=group, f_base=pos, **(kw_base | kw_kde))()
         dsp.SpreadWidth(source=group, **(kw_base | kw_spread))()
 
-    kw_base['ax'] = chart.axes[1, 0]
+    kw_base['ax'] = _chart.axes[1, 0]
     kw_base['color'] = hueing.categories[0]
     dsp.GaussianKDE(source=df_tot, f_base=0, **(kw_base | kw_kde))()
     dsp.SpreadWidth(source=df_tot, **(kw_base | kw_spread))()
 
-    for ax in chart.axes.flat:
+    for ax in _chart.axes.flat:
         axes_settings(ax)
     return df_batch, df_tot
 
 
 @app.cell
 def _(df_batch, dsp):
-    pos, data = next(iter(df_batch.groupby('position')))
-    estimation = dsp.ProcessEstimator(data['values'], dsp.SpecLimits(-0.75, 0.75))
-    estimation.Z_lt
+    _pos, _data = next(iter(df_batch.groupby('position')))
+    _estimation = dsp.ProcessEstimator(_data['values'], dsp.SpecLimits(-0.75, 0.75))
+    _estimation.Z_lt
     return
 
 
 @app.cell
 def _(df_tot, dsp):
-    estimation = dsp.ProcessEstimator(df_tot['values'], dsp.SpecLimits(-0.75, 0.75))
-    estimation.Z
+    _estimation = dsp.ProcessEstimator(df_tot['values'], dsp.SpecLimits(-0.75, 0.75))
+    _estimation.Z
     return
 
 
 @app.cell
 def _(DPI, pd):
-    import daspi as dsp
+    import daspi as _dsp
 
-    df = dsp.load_dataset('drop_card')
-    spec_limits = dsp.SpecLimits(0, float(df.loc[0, 'usl']))
-    target = 'distance'
+    _df = _dsp.load_dataset('drop_card')
+    _spec_limits = _dsp.SpecLimits(0, float(_df.loc[0, 'usl']))
+    _target = 'distance'
 
-    chart = dsp.ProcessCapabilityAnalysisCharts(
-            source=df,
-            target=target,
-            spec_limits=spec_limits,
+    _chart = _dsp.ProcessCapabilityAnalysisCharts(
+            source=_df,
+            target=_target,
+            spec_limits=_spec_limits,
             hue='method'
         ).plot(
         ).stripes(
@@ -141,43 +141,43 @@ def _(DPI, pd):
             info=True
         )
 
-    chart.save('./docs/img/cpk-analysis_drop-card.png', dpi=DPI)
+    _chart.save('./docs/img/cpk-analysis_drop-card.png', dpi=DPI)
 
-    method_mapping = {0: 'parallel', 1: 'perpendicular'}
-    samples_parallel = df[df['method']==method_mapping[0]][target]
-    samples_series = df[df['method']==method_mapping[1]][target]
+    _method_mapping = {0: 'parallel', 1: 'perpendicular'}
+    _samples_parallel = _df[_df['method']==_method_mapping[0]][_target]
+    _samples_series = _df[_df['method']==_method_mapping[1]][_target]
 
     pd.concat([
-        dsp.ProcessEstimator(samples_parallel, spec_limits).describe(),
-        dsp.ProcessEstimator(samples_series, spec_limits).describe()],
+        _dsp.ProcessEstimator(_samples_parallel, _spec_limits).describe(),
+        _dsp.ProcessEstimator(_samples_series, _spec_limits).describe()],
         axis=1,
         ignore_index=True,
     ).rename(
-        columns=method_mapping
+        columns=_method_mapping
     )
 
-    return df, dsp
+    return
 
 
 @app.cell
 def _():
-    import daspi as dsp
+    import daspi as _dsp
 
-    df = dsp.load_dataset('painkillers-dissolution')
-    hue = 'brand'
-    n_groups = df.groupby(hue).ngroups
-    chart = dsp.BivariateUnivariateCharts(
-            source=df,
+    _df = _dsp.load_dataset('painkillers-dissolution')
+    _hue = 'brand'
+    _n_groups = _df.groupby(_hue).ngroups
+    _chart = _dsp.BivariateUnivariateCharts(
+            source=_df,
             target='dissolution',
             feature='temperature',
-            hue=hue,
+            hue=_hue,
             dodge_univariates=True,
         ).plot_univariates(
-            dsp.MeanTest, n_groups=n_groups
+            _dsp.MeanTest, n_groups=_n_groups
         ).plot_univariates(
-            dsp.QuantileBoxes, strategy='fit'
+            _dsp.QuantileBoxes, strategy='fit'
         ).plot_bivariate(
-            dsp.LinearRegressionLine, show_fit_ci=True
+            _dsp.LinearRegressionLine, show_fit_ci=True
         ).label(
             fig_title='Painkillers dissolution time vs. temperature',
             sub_title='95 % Bonferroni confidence interval of mean',
@@ -186,17 +186,15 @@ def _():
             info=True
         )
 
-    brands = (brand for brand in df[hue].unique().tolist()*2)
-    for plot in chart.plots:
-        if isinstance(plot, dsp.QuantileBoxes):
-            print(f'{next(brands)} {plot.target}: {plot.estimation.dist.name}')
-    return df, dsp
+    _brands = (brand for brand in _df[_hue].unique().tolist()*2)
+    for _plot in _chart.plots:
+        if isinstance(_plot, _dsp.QuantileBoxes):
+            print(f'{next(_brands)} {_plot.target}: {_plot.estimation.dist.name}')
+    return
 
 
 @app.cell
-def _(DPI, pd):
-    import daspi as dsp
-
+def _(DPI, dsp, pd):
     df = dsp.load_dataset('painkillers-dissolution')
     model = dsp.LinearModel(
         source=df,

@@ -14,7 +14,7 @@ def _():
     import pandas as pd
     from daspi.constants import COLOR
 
-    IMAGE_DIR = Path.cwd().parent / 'docs' / 'img'
+    IMAGE_DIR = Path.cwd() / 'docs' / 'img'
     assert IMAGE_DIR.is_dir(), f'Image path {IMAGE_DIR} does not exist.'
     DPI = 120
     return COLOR, DPI, FancyBboxPatch, IMAGE_DIR, Polygon, dsp, pd, plt
@@ -22,13 +22,13 @@ def _():
 
 @app.cell
 def _(dsp):
-    df = dsp.load_dataset('grnr_adjustment')
+    _df = dsp.load_dataset('grnr_adjustment')
     gage = dsp.GageEstimator(
-        samples=df['result_gage'],
-        reference=df['reference'][0],
-        u_cal=df['U_cal'][0],
-        tolerance=df['tolerance'][0],
-        resolution=df['resolution'][0]
+        samples=_df['result_gage'],
+        reference=_df['reference'][0],
+        u_cal=_df['U_cal'][0],
+        tolerance=_df['tolerance'][0],
+        resolution=_df['resolution'][0]
     )
 
     # Get metrics from describe
@@ -59,7 +59,7 @@ def _(DPI, IMAGE_DIR, desc, dsp, pd):
         # width=2
     )
 
-    chart = dsp.SingleChart(
+    _chart = dsp.SingleChart(
             source=df_cap,
             target='Value',
             feature='Metric',
@@ -81,18 +81,18 @@ def _(DPI, IMAGE_DIR, desc, dsp, pd):
 
 @app.cell
 def _(dsp):
-    df = dsp.load_dataset('grnr_layer_thickness')
+    _df = dsp.load_dataset('grnr_layer_thickness')
     gage_study = dsp.GageStudyModel(
-        source=df,
+        source=_df,
         target='result_gage',
         reference='reference',
-        u_cal=df['U_cal'][0],
-        tolerance=df['tolerance'][0],
-        resolution=df['resolution'][0]
+        u_cal=_df['U_cal'][0],
+        tolerance=_df['tolerance'][0],
+        resolution=_df['resolution'][0]
     )
 
     model = dsp.GageRnRModel(
-        source=df,
+        source=_df,
         target='result_rnr',
         part='part',
         gage=gage_study,
@@ -129,7 +129,7 @@ def _(DPI, IMAGE_DIR, dsp, model, pd):
         linestyle=dsp.LINE.DASHED,
     )
 
-    chart = dsp.JointChart(
+    _chart = dsp.JointChart(
             source=(df_ms, df_mp),
             target='Q',
             feature='Component',

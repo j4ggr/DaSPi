@@ -34,7 +34,7 @@ def _():
 
     import daspi as dsp
     # Create output directory if needed
-    os.makedirs("../docs/img", exist_ok=True)
+    os.makedirs("docs/img", exist_ok=True)
 
     dsp.CONFIG.username = 'j4ggr'
     return dsp, mo, plt
@@ -67,7 +67,7 @@ def _(dsp, plt):
     )
 
     # Save image
-    chart_capability.save("../docs/img/workflow-capability-example.png", dpi=150)
+    chart_capability.save("docs/img/workflow-capability-example.png", dpi=150)
     plt.close('all')
 
     chart_capability
@@ -113,7 +113,7 @@ def _(dsp, model, plt):
         sub_title="Painkillers Dissolution Time",
         info=True
     )
-    residuals.save("../docs/img/workflow-root-cause-residuals.png", dpi=150)
+    residuals.save("docs/img/workflow-root-cause-residuals.png", dpi=150)
     plt.close('all')
 
     residuals
@@ -136,7 +136,7 @@ def _(dsp, model, plt):
         sub_title="Painkillers Dissolution Time",
         info=True
     )
-    parameters.save("../docs/img/workflow-root-cause-parameters.png", dpi=150)
+    parameters.save("docs/img/workflow-root-cause-parameters.png", dpi=150)
     plt.close('all')
 
     parameters
@@ -184,7 +184,7 @@ def _(dsp, plt):
         info=True
     )
 
-    chart_spc.save("../docs/img/workflow-spc-example.png", dpi=150)
+    chart_spc.save("docs/img/workflow-spc-example.png", dpi=150)
     plt.close('all')
 
     chart_spc

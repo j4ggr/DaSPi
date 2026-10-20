@@ -17,10 +17,11 @@ def _():
     sys.path.insert(0, Path.cwd().as_posix())
 
     import daspi as dsp
+    import marimo as mo
     DPI = 120
     dsp.CONFIG.username = 'j4ggr'
     dsp.__version__
-    return DPI, dsp, np, pd, plt
+    return DPI, dsp, mo, np, pd, plt
 
 
 @app.cell

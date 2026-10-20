@@ -8,6 +8,7 @@ app = marimo.App()
 def _():
     import os
     import numpy as np
+    import pandas as pd
     import marimo as mo
     from pathlib import Path
 
@@ -19,7 +20,7 @@ def _():
     DPI = 120
     dsp.CONFIG.username = 'j4ggr'
     dsp.__version__
-    return DPI, Path, dsp, np
+    return DPI, Path, dsp, np, pd
 
 
 @app.cell
@@ -126,7 +127,7 @@ def _(dsp):
 @app.cell
 def _(DPI, dsp):
     df = dsp.load_dataset('anova')
-    chart = dsp.SingleChart(
+    _chart = dsp.SingleChart(
             source=df,
             target='Pain threshold',
             feature='Hair color',
@@ -141,7 +142,7 @@ def _(DPI, dsp):
             info=True
         )
 
-    chart.save('./docs/img/anova_jitter_pain-color.png', dpi=DPI)
+    _chart.save('./docs/img/anova_jitter_pain-color.png', dpi=DPI)
     return (df,)
 
 
@@ -164,7 +165,7 @@ def _(df):
 def _(DPI, df, dsp):
     LEVEL = 0.95
     n_groups = df.groupby(['Hair color']).ngroups
-    chart = dsp.SingleChart(
+    _chart = dsp.SingleChart(
             source=df,
             target='Pain threshold',
             feature='Hair color',
@@ -185,7 +186,7 @@ def _(DPI, df, dsp):
             target_label=True,
         )
 
-    chart.save('./docs/img/anova_mean-ci_pain-color.png', dpi=DPI)
+    _chart.save('./docs/img/anova_mean-ci_pain-color.png', dpi=DPI)
     return
 
 

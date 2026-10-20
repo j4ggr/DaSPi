@@ -14,6 +14,7 @@ def _():
     sys.path.insert(0, Path.cwd().as_posix())
 
     import daspi as dsp
+    import marimo as mo
     import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt
@@ -40,6 +41,7 @@ def _():
         ceil,
         dsp,
         img_dir,
+        mo,
         pd,
         plt,
     )
