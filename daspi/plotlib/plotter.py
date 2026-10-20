@@ -4429,6 +4429,11 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
     n_points: int
     """Number of points that have the density estimation and its
     sequence."""
+    _draw_lower_line_: bool = False
+    """Whether the lower estimation is also drawn as a line. The lower 
+    estimation is a flat line at the feature base for most subclasses, 
+    so only double-sided curves (e.g. `Violin`) need to set this to 
+    True."""
 
     def __init__(
             self,
@@ -4677,14 +4682,22 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
                     if self.fill:
                         self.ax.fill_betweenx(
                             sequence, estim_low, estim_upp, **_kwds)
-                    self.ax.plot(
-                        estim_upp, sequence, estim_low, sequence, **_kw_line)
+                    if self._draw_lower_line_:
+                        self.ax.plot(
+                            estim_upp, sequence, estim_low, sequence,
+                            **_kw_line)
+                    else:
+                        self.ax.plot(estim_upp, sequence, **_kw_line)
                 else:
                     if self.fill:
                         self.ax.fill_between(
                             sequence, estim_low, estim_upp, **_kwds)
-                    self.ax.plot(
-                        sequence, estim_upp, sequence, estim_low,**_kw_line)
+                    if self._draw_lower_line_:
+                        self.ax.plot(
+                            sequence, estim_upp, sequence, estim_low,
+                            **_kw_line)
+                    else:
+                        self.ax.plot(sequence, estim_upp, **_kw_line)
 
 
 class GaussianKDE(DensityCurve):
@@ -5500,6 +5513,10 @@ class Violin(GaussianKDE):
         """Default keyword arguments for plotting (read-only)"""
         kwds = {'color': self.color, 'alpha': COLOR.FILL_ALPHA}
         return kwds
+
+    _draw_lower_line_: bool = True
+    """The violin is double-sided, so the lower estimation is also 
+    drawn as a line."""
 
     @staticmethod
     def _get_lower_estimation_(
