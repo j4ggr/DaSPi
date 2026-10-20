@@ -46,21 +46,47 @@ PERCENT_DECIMALS = 2
 
 @dataclass(frozen=True)
 class _Line_:
+    """Line style and width constants used throughout the DaSPi library.
+    Don't instantiate this class directly. Use the `LINE` constant 
+    instead."""
+
     WIDTH: float = 1.0
     """Line width for special lines e.g. StripeLines."""
+    
     SOLID: LineStyle = (0, ())
     """Line style argument for a solid line."""
+    
     DOTTED: LineStyle = (0, (2, 2))
     """Line style argument for a dotted line."""
+    
     DASHED: LineStyle = (0, (5, 5))
     """Line style argument for a dashed line."""
+    
     DASHDOT: LineStyle = (0, (8, 5, 2, 5))
     """Line style argument for a dashed dotted line."""
+
 LINE = _Line_()
+"""Line style and width constants used throughout the DaSPi library.
+
+Examples
+--------
+
+```python
+import matplotlib.pyplot as plt
+import daspi as dsp
+
+plt.plot([0, 1], [0, 1], **dsp.LINE.SOLID)
+```
+"""
 
 
 @dataclass(frozen=True)
 class _Kw_:
+    """Keyword arguments for various plotting elements used throughout 
+    the DaSPi library.
+    
+    Don't instantiate this class directly. Use the `KW` constant 
+    instead."""
 
     _margin: float = 0.01
     """Margin between label and figure border."""
@@ -259,80 +285,158 @@ class _Kw_:
             'alpha': COLOR.MARKER_ALPHA}
     
 KW = _Kw_()
+"""Keyword arguments for various plotting elements used throughout the 
+DaSPi library.
+
+Example usage:
+
+```python
+import daspi as dsp
+print(dsp.KW.MEAN_LINE)
+```
+"""
 
 
 @dataclass(frozen=True)
 class _Regex_:
+    """Class containing precompiled regular expression patterns used 
+    throughout the DaSPi library.
+    
+    Don't instantiate this class directly. Use the `RE` constant 
+    instead."""
 
     ENCODED_NAME: Pattern = re.compile(r'(.+)\[[T.]?.+\]')
     """Patsy encoded column name."""
+    
     ENCODED_VALUE: Pattern = re.compile(r'\[T.(.+)]')
     """Patsy encoded value shown in parameter name."""
 
 RE = _Regex_()
+"""Precompiled regular expression patterns used throughout the DaSPi 
+library."""
 
 
 @dataclass(frozen=True)
 class _Color_:
+    """Color constants used throughout the DaSPi library.
+    
+    Don't instantiate this class directly. Use the `COLOR` constant 
+    instead."""
 
     GOOD: str = '#2ca02c7f'
     """Color for things that should be represented as 'good'."""
+    
     BAD: str = '#d627287f'
     """Color for things that should be represented as 'bad'."""
+    
     ANOMALY: str = '#ff7f0e7f'
     """Color for anomalies."""
+    
     SPECIAL_LINE: str = "#0e8bff7e"
     """Color for fitted lines or thresholds in precas charts."""
+    
     MEAN: str = '#2F3333'
     """Color for mean line used for StripesFacets."""
+    
     MEDIAN: str = '#626666'
     """Color for median line used for StripesFacets."""
+    
     PERCENTIL: str = '#979A9A'
     """Color for upper and lower percentil line used for StripesFacets."""
+    
     HANDLES: str = '#626666'
     """Color for size and shape legend handles."""
+    
     STRIPE: str = '#CACCCC'
     """Color for individual stripes."""
+    
     TRANSPARENT: str = '#ffffff00'
     """Transparent 'color' to hide ticks or other stuff."""
+    
     BLUR: str = '#ffffffaa'
     """Color to blur other colors, by adding 2/3 white."""
+    
     DARKEN: str = '#00000019'
     """Color to darken other colors, by adding 10 % black."""
+    
     MARKER_ALPHA: float = 0.5
     """The covering capacity of markers."""
+    
     FILL_ALPHA: float = 0.5
     """The covering capacity of filled areas."""
+    
     CI_ALPHA: float = 0.2
     """The covering capacity of confidence intervals."""
+    
     CI_STRIPES: str = '#D7DBDF'
     """Color for confidence interval stripes."""
+    
     SPECIAL_AREA1: str = "#145a5aa0"
     """Color for special area 1."""
+    
     SPECIAL_AREA2: str = "#5a47149f"
     """Color for special area 2."""
 
     @property
     def PALETTE(self) -> list[str]:
-        """Get prop cycler color palette."""
+        """Color palette from the current matplotlib rcParams property 
+        cycle."""
         return plt.rcParams['axes.prop_cycle'].by_key()['color']
 
     @property
     def LIMITS(self) -> tuple[str, str]:
-        """Color for specification limits."""
+        """Color for specification limits. It returns a tuple containing 
+        the colors for the lower and upper specification limits, 
+        respectively, and is defined by the constant :attr:`BAD` 
+        (twice)."""
         return (self.BAD, self.BAD)
 
     @property
     def STATISTIC_LINES(self) -> tuple[str, str, str]:
         """Statistic lines color in order lower (Percentil Q_0.99865)
-        upper (Percentil Q_0.00135) and mean."""
+        upper (Percentil Q_0.00135) and mean.
+        
+        It returns a tuple containing the colors for the lower 
+        percentile line, upper percentile line, and mean line, 
+        respectively and is defined by the constants :attr:`PERCENTIL` 
+        and :attr:`MEAN`.
+        """
         return (self.PERCENTIL, self.PERCENTIL, self.MEAN)
     
 COLOR = _Color_()
+"""Color constants for the plotting library. Used to maintain consistent 
+color schemes across different plots.
+
+Examples
+--------
+Getting the color palette:
+```python
+import daspi as dsp
+
+print(dsp.COLOR.PALETTE)
+```
+
+Use individual color constants for a Stripe within a plot:
+```python
+import numpy as np
+import daspi as dsp
+
+x = np.array([1, 2, 3, 4, 5])  # Example data for demonstration purposes
+x_bar = np.mean(x)
+
+stripe = dsp.StripeLine(
+    label=r'\bar x = 'f'{x_bar:.2f}',
+    position=x_bar,
+    color=dsp.COLOR.SPECIAL_LINE,)
+```
+"""
 
 
 @dataclass(frozen=True)
 class _Label_:
+    """Class containing label-related constants used throughout the 
+    DaSPi library. Don't instantiate this class directly. Use the 
+    `LABEL` constant instead."""
 
     PPI: float = 1/72
     """Font size points per inch."""
@@ -340,52 +444,79 @@ class _Label_:
     """Additional padding in pixels between labels e.g. title and
     subtitle."""
     X_ALIGNEMENT: int = 35
-    """Horizontal alignment of labels (fig title, sub title and info)."""
+    """Horizontal alignment of labels (fig title, sub title and info), 
+    given in pixels from the left figure border."""
     
 LABEL = _Label_()
+"""Label-related constants used throughout the DaSPi library, such as 
+font size conversion, padding between labels and horizontal alignment 
+of figure titles."""
 
 
 @dataclass(frozen=True)
 class _Plotter_:
+    """Column name constants used internally by the plotter classes to 
+    store generated or transformed data (e.g. fitted values, confidence 
+    intervals, LOWESS results).
+    
+    Don't instantiate this class directly. Use the `PLOTTER` constant 
+    instead."""
 
     FEATURE: Literal['_feature_'] = '_feature_'
     """Column name for generated features."""
+    
     TRANSFORMED_FEATURE: Literal['_transformed_'] = '_transformed_'
     """Column name for transformed feature if no features were given 
     during initialization."""
+    
     F_BASE_NAME: Literal['_base_'] = '_base_'
     """Column name for the base position of transformed features such 
     as Jitter or KDE."""
+    
     LOWER: Literal['_lower_'] = '_lower_'
     """Column name for lower points used for e.g. error bars."""
+    
     UPPER: Literal['_upper_'] = '_upper_'
     """Column name for upper points used for e.g. error bars."""
+    
     FITTED_VALUES: Literal['_fitted_values_'] = '_fitted_values_'
     """Column name for fitted values."""
+    
     FIT_CI_LOW: Literal['_fit_ci_low_'] = '_fit_ci_low_'
     """Column name for lower confidence of fitted values."""
+    
     FIT_CI_UPP: Literal['_fit_ci_upp_'] = '_fit_ci_upp_'
     """Column name for upper confidence of fitted values."""
+    
     PRED_CI_LOW: Literal['_pred_ci_low_'] = '_pred_ci_low_'
     """Column name for lower confidence of fitted line."""
+    
     PRED_CI_UPP: Literal['_pred_ci_upp_'] = '_pred_ci_upp_'
     """Column name for upper confidence of fitted line."""
+    
     LOWESS_TARGET: Literal['lowess_target'] = 'lowess_target'
     """Column name for lowess target values."""
+    
     LOWESS_FEATURE: Literal['lowess_feature'] = 'lowess_feature'
     """Column name for lowess feature values."""
+    
     LOWESS_LOW: Literal['lowess_low'] = 'lowess_low'
     """Column name for lower confidence of fitted values."""
+    
     LOWESS_UPP: Literal['lowess_upp'] = 'lowess_upp'
     """Column name for upper confidence of fitted values."""
+    
     PARETO_N_TICKS: Literal[11] = 11
     """Number of ticks to represent percentage values in Pareto charts."""
+    
     PARETO_AXLIM_FACTOR: float = 1.05
     """Factor to set the axis limit for the upper value in the Pareto
     diagram."""
+    
     PARETO_F_MARGIN: float = 0.1
     """Margin in feature axis direction to ensure space for percentage
     values."""
+    
     SUBGROUP: Literal['_subgroup_'] = '_subgroup_'
     """Column name for subgroups used mostly in TransformPlotter."""
 
@@ -403,20 +534,31 @@ class _Plotter_:
         return names
     
 PLOTTER = _Plotter_()
+"""Column name constants used internally by the plotter classes to 
+store generated or transformed data."""
 
 
 @dataclass(frozen=True)
 class _Category_:
+    """Constants used to visually distinguish categorical data (hue, 
+    size and shape) in plots.
+    
+    Don't instantiate this class directly. Use the `CATEGORY` constant 
+    instead."""
 
     MARKERS: tuple[str, ...] = ('o', 's', '^', 'p', 'D', 'v', 'P', 'X', '*')
     """Markers for visually easy distinction."""
+    
     MARKERSIZE_LIMITS: tuple[int, int] = (1, 13)
     """Marker size limits used for sizing."""
+    
     N_SIZE_BINS: int = 5
     """Amount of size bins in the legend."""
+    
     FEATURE_SPACE: float = 0.8
     """Space required in the direction of the feature axis to draw
     categorical artists such as violin or jitter."""
+    
     FEATURE_PAD: float = 0.05
     """Padding between dodget artists."""
 
@@ -433,29 +575,144 @@ class _Category_:
         return tuple(COLOR.PALETTE)
     
 CATEGORY = _Category_()
+"""Constants used to visually distinguish categorical data (hue, size 
+and shape) in plots."""
 
 
 @dataclass(frozen=True)
 class _Distribution_:
-
-    _ignore_: tuple[str, ...] = ('levy_stable', 'studentized_range')
-
+    """Groups of Scipy continuous distribution names used for fitting 
+    and selecting distributions throughout the DaSPi library.
+    
+    Don't instantiate this class directly. Use the `DIST` constant 
+    instead."""
+    
+    POSSIBLE: tuple[str, ...] = tuple(
+        d for d in _distn_names 
+        if d not in ('levy_stable', 'studentized_range'))
+    """Get all possible continuous distributions from Scipy, except 
+    'levy_stable' and 'studentized_range'. These distributions are often 
+    problematic or have special requirements, so they are excluded."""
+    
     COMMON: tuple[str, ...] = (
-        'norm', 'chi2', 'foldnorm', 'rayleigh', 'weibull_min', 'gamma', 'wald',
-        'expon', 'logistic', 'lognorm')
-    """Get distributions that commonly occur in practice."""
+        'norm',
+        'chi2',
+        'foldnorm',
+        'rayleigh',
+        'weibull_min',
+        'gamma',
+        'wald',
+        'expon',
+        'logistic',
+        'lognorm',)
+    """Distributions that commonly occur in practice. These are often a 
+    good starting point for fitting. It includes the following 
+    distributions:
+    - norm
+    - chi2
+    - foldnorm
+    - rayleigh
+    - weibull_min
+    - gamma
+    - wald
+    - expon
+    - logistic
+    - lognorm
+    """
 
-    @property
-    def POSSIBLE(self) -> tuple[str, ...]:
-        """Get all possible continuous distributions from Scipy, except 
-        'levy_stable' and 'studentized_range'."""
-        return tuple(d for d in _distn_names if d not in self._ignore_)
+    COMMON_NOT_NORM: tuple[str, ...] = tuple(d for d in COMMON if d != 'norm')
+    """Get all common distributions but norm, usefull to fit if norm
+    tests fail. It includes the following distributions:
+    - chi2
+    - foldnorm
+    - rayleigh
+    - weibull_min
+    - gamma
+    - wald
+    - expon
+    - logistic
+    - lognorm
+    """
 
-    @property
-    def COMMON_NOT_NORM(self) -> tuple[str, ...]:
-        """Get all common distributions but norm, usefull to fit if norm
-        tests fail."""
-        return tuple(d for d in self.COMMON if d != 'norm')
+    POSITIVE: tuple[str, ...] = (
+        'chi2',
+        'rayleigh',
+        'expon',
+        'gamma',
+        'weibull_min',
+        'lognorm',
+        'invgauss',)
+    """Continuous distributions with support x >= 0. Those are useful 
+    when modeling quantities that cannot be negative. It includes the
+    following distributions:
+    - chi2
+    - rayleigh
+    - expon
+    - gamma
+    - weibull_min
+    - lognorm
+    - invgauss
+    """
+
+    POSITIVE_SKEWED: tuple[str, ...] = (
+        'expon',
+        'gamma',
+        'weibull_min',
+        'lognorm',
+        'invgauss',
+        'rayleigh',)
+    """Common positive and right-skewed distributions. These are often 
+    used when modeling quantities that are strictly positive and exhibit
+    right skewness. It includes the following distributions:
+    - expon
+    - gamma
+    - weibull_min
+    - lognorm
+    - invgauss
+    - rayleigh
+    """
+
+    SYMMETRIC: tuple[str, ...] = (
+        'norm',
+        'logistic',)
+    """Common symmetric distributions. These distributions have a 
+    symmetric shape around their mean. It includes the following 
+    distributions:
+    - norm
+    - logistic
+    """
+
+    LIFETIME: tuple[str, ...] = (
+        'expon',
+        'gamma',
+        'weibull_min',
+        'lognorm',
+        'invgauss',)
+    """Common lifetime and reliability distributions. These 
+    distributions are often used to model the time until an event 
+    occurs, such as failure or death. It includes the following 
+    distributions:
+    - expon
+    - gamma
+    - weibull_min
+    - lognorm
+    - invgauss
+    """
+   
+    FAST_FIT: tuple[str, ...] = (
+        'norm',
+        'gamma',
+        'weibull_min',
+        'lognorm',)
+    """Distributions that are fast to fit and cover surprisingly many 
+    real datasets. These distributions are typically chosen when a 
+    balance between computational efficiency and modeling flexibility is 
+    desired. It includes the following distributions:
+    - norm
+    - gamma
+    - weibull_min
+    - lognorm
+    """
 
     @property
     def UNCERTAINTY_FACTORS(self) -> dict[str, float]:
@@ -474,31 +731,43 @@ class _Distribution_:
         -------
         - https://de.wikipedia.org/wiki/Stetige_Gleichverteilung
         - https://www.versuchsmethoden.de/Mess-System-Analyse.pdf"""
-        factors = {
+        return {
             'rectangular': 3**0.5,  # ≈ 1.732
             'triangular': 2.0,
             'normal': 1.0}
-        return factors
     
 DIST = _Distribution_()
+"""Groups of Scipy continuous distribution names used for fitting and 
+selecting distributions throughout the DaSPi library."""
 
 
 @dataclass(frozen=True)
 class _Default_:
+    """Default values used throughout the DaSPi library, e.g. confidence 
+    level, sequence lengths for kernel density estimation and LOWESS, 
+    and quantile ranges.
+    
+    Don't instantiate this class directly. Use the `DEFAULT` constant 
+    instead."""
 
     CONFIDENCE_LEVEL: float = 0.95
     """Default confidence level. 95 % confidence interval is used very 
     frequently in practice."""
+    
     FEATURE_BASE: Literal[0] = 0
     """Default feature base position for e.g. Jitter or KDE."""
+    
     KD_SEQUENCE_LEN: Literal[300] = 300
     """Amount of points for kernel density sequence."""
+    
     LOWESS_SEQUENCE_LEN: Literal[300] = 300
     """Amount of points for LOWESS curve."""
+    
     PLOTTING_COLOR: str = '#2F3333'
     """Default color in plots if there is no hueing only used for styles
     they dont use the regular color palette order (e.g. daspi and 
     ggplot2)."""
+    
     QUANTILE_RANGES: tuple[float, float, float] = (0.682, 0.954, 0.997)
     """Default quantile ranges for the Quantile Plotter.
 
@@ -528,51 +797,91 @@ class _Default_:
         return marker
     
 DEFAULT = _Default_()
+"""Default values used throughout the DaSPi library, e.g. confidence 
+level, sequence lengths for kernel density estimation and LOWESS, and 
+quantile ranges."""
 
 
 @dataclass(frozen=True)
 class _Anova_:
+    """Column and row names used when building ANOVA, VIF, Gage R&R and 
+    uncertainty tables throughout the DaSPi library.
+    
+    Don't instantiate this class directly. Use the `ANOVA` constant 
+    instead."""
 
     SEP: Literal[':'] = ':'
-    """Column name separator for interactions """
+    """Separator joining the names of interacting factors into a single 
+    column name, e.g. 'A:B' for the interaction between factors 'A' and 
+    'B'."""
+    
     INTERCEPT: str = INTERCEPT.name()
-    """Column name for intercept"""
+    """Column name used by patsy for the intercept term of a linear 
+    model."""
+    
     EFFECTS: Literal['effects'] = 'effects'
-    """"Default name for effects"""
+    """Default column name for the effect names (factors and their 
+    interactions) in a model's results."""
+    
     TARGET: Literal['target'] = 'target'
-    """"Default name for target used in GageStudyModel."""
+    """Default column name for the target (measured) values used in 
+    `GageStudyModel`."""
+    
     FACTORS: Literal['factors'] = 'factors'
-    """"Default name for factors"""
+    """Default column name for the factor values used when building a 
+    design matrix."""
+    
     REFERENCE: Literal['reference'] = 'reference'
-    """"Default name for reference used in GageStudyModel."""
+    """Default column name for the reference (true or nominal) values 
+    used in `GageStudyModel`."""
+    
     SOURCE: Literal['Source'] = 'Source'
-    """"Default name for source used in ANOVA table."""
+    """Default column name for the source of variation (e.g. factor or 
+    residual name) in an ANOVA table."""
+    
     VIF: Literal['VIF'] = 'VIF'
-    """"Default column name for VIF values in ANOVA table."""
+    """Default column name for the Variance Inflation Factor values used 
+    to detect multicollinearity in an ANOVA table."""
+    
     SMALLEST_INTERACTION_ORDER: int = 2
-    """Smallest possible interaction"""
+    """Smallest possible interaction order, i.e. the interaction between 
+    two factors (A:B)."""
+    
     RESIDUAL: Literal['Residual'] = 'Residual'
     """Name in anova table for residual (not explained) values."""
+    
     OBSERVATION: Literal['Observation'] = 'Observation'
     """Name in residual table for observation order."""
+    
     PREDICTION: Literal['Prediction'] = 'Prediction'
     """Name in residual table for predicted values."""
+    
     TOTAL: Literal['Total'] = 'Total'
     """Name in anova table for total (sum of the others) values."""
+    
     PV: Literal['PV'] = 'PV'
-    """Name in anova table for part values (Part Variation)."""
+    """Name in Gage R&R table for Part Variation, i.e. the variation 
+    coming from differences between the measured parts."""
+    
     EV: Literal['EV'] = 'EV'
-    """Name in anova table for repeatability values 
-    (Equipement Variation)."""
+    """Name in Gage R&R table for Equipment Variation (repeatability), 
+    i.e. the variation coming from the measurement equipment itself."""
+    
     AV: Literal['AV'] = 'AV'
-    """Name in anova table for reproducibility values 
-    (Appraiser Variation)."""
+    """Name in Gage R&R table for Appraiser Variation (reproducibility), 
+    i.e. the variation coming from different appraisers/operators."""
+    
     GV: Literal['GV'] = 'GV'
-    """Name in anova table for Gage Variation."""
+    """Name in Gage R&R table for Gage Variation, i.e. the combination of 
+    `EV` and `AV`."""
+    
     IA: Literal['IA'] = 'IA'
-    """Name in R&R table for interaction values."""
+    """Name in R&R table for the interaction between appraiser and part 
+    values."""
+    
     RNR: Literal['R&R'] = 'R&R'
-    """Name in rnr table for sum of R&R."""
+    """Name in R&R table for the total Gage R&R value, i.e. the sum of 
+    `GV` and `PV`."""
 
     @property
     def TABLE_COLNAMES(self) -> list[str]:
@@ -627,7 +936,10 @@ class _Anova_:
         """Column names when crating the reference analysis table using
         the `reference_analysis` method of GageRnRModel."""
         return ['Ref',	'mean', 'Bias', 's', 'R']
+
 ANOVA = _Anova_()
+"""Column and row names used when building ANOVA, VIF, Gage R&R and 
+uncertainty tables throughout the DaSPi library."""
 
 
 @dataclass(frozen=True)
@@ -636,14 +948,22 @@ class _DOE_:
 
     STD_ORDER: Literal['std_order'] = 'std_order'
     """Name for standard order in the design space."""
+    
     RUN_ORDER: Literal['run_order'] = 'run_order'
     """Name for run order in the design space."""
+    
     CENTRAL_POINT: Literal['central_point'] = 'central_point'
     """Name for central points in the design space."""
+    
     BLOCK: Literal['block'] = 'block'
     """Name for block in the design space."""
+    
     REPLICA: Literal['replica'] = 'replica'
     """Name for replicate in the design space."""
+    
     CORRECTED_CENTRAL: int = 0
     """Coded value for central points in the design space."""
+
 DOE = _DOE_()
+"""Design of Experiments (DOE) constants used for column names and 
+coded values in the design space."""
