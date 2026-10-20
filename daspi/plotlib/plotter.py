@@ -4631,22 +4631,18 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
             PLOTTER.F_BASE_NAME: feature_data * ones})
         return data
     
+    @staticmethod
     def _get_lower_estimation_(
-        self,
         f_base: float | int, # noqa: PYI041
         estim_upp: Series
         ) -> Series:
-        """Get the lower estimation of the kernel density. For the KDE 
-        it is just a straight line at the location of the feature base. 
-        For Violin the upper kernel density estimate is mirrored at the
-        feature base."""
-        if self.__class__.__name__ == 'Violin':
-            estim_low = 2 * f_base - estim_upp
-        else:
-            estim_low = pd.Series(
-                f_base * np.ones(len(estim_upp)),
-                index=estim_upp.index)
-        return estim_low
+        """Get the lower estimation of the density curve as a straight 
+        line at the location of the feature base. Subclasses whose 
+        curve is double-sided (e.g. `Violin`) override this to mirror 
+        `estim_upp` at the feature base instead."""
+        return pd.Series(
+            f_base * np.ones(len(estim_upp)),
+            index=estim_upp.index)
         
     def __call__(
             self,
@@ -5504,6 +5500,15 @@ class Violin(GaussianKDE):
         """Default keyword arguments for plotting (read-only)"""
         kwds = {'color': self.color, 'alpha': COLOR.FILL_ALPHA}
         return kwds
+
+    @staticmethod
+    def _get_lower_estimation_(
+        f_base: float | int, # noqa: PYI041
+        estim_upp: Series
+        ) -> Series:
+        """Mirror the upper kernel density estimate at the feature 
+        base to get the lower estimation for the double-sided violin."""
+        return 2 * f_base - estim_upp
 
 
 class FittedDensity(DensityCurve):
