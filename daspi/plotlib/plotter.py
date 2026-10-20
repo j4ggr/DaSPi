@@ -264,6 +264,21 @@ class SpreadOpacity:
         alphas = ((i + 1) * COLOR.FILL_ALPHA / n for i in range(n))
         return {q: a for q, a in zip(self.agreements[::-1], alphas)}
     
+    @staticmethod
+    def _unique_subgroups(column: Series) -> list[float | int]:
+        """Get the distinct subgroup labels referenced in `column`, 
+        in first-seen order. Entries are either plain labels or 
+        `(own, next)` tuples produced by `subgroup_values` with 
+        `sharp_edges=True`, so a plain `.unique()` on `column` would 
+        not work: it would return the tuples themselves instead of 
+        the individual labels they contain."""
+        seen: list[float | int] = []
+        for label in column:
+            for value in (label if isinstance(label, tuple) else (label,)):
+                if value not in seen:
+                    seen.append(value)
+        return seen
+    
     def _kw_fill(
             self,
             color: str | tuple,
@@ -290,14 +305,28 @@ class SpreadOpacity:
         dict[str, Any]
             A dictionary containing keyword arguments for the fill
             operation, including color, alpha (transparency), edgecolor,
-            linewidth, where, and interpolate."""
+            linewidth, where, and interpolate.
+
+        Notes
+        -----
+        - `edgecolor` is forced to 'none' because the mplstyle sheets 
+          set a default `patch.edgecolor`, which would otherwise stroke 
+          each separate quantile patch and leave a visible seam where 
+          adjacent patches meet.
+        - A boundary sample may belong to two subgroups at once, stored 
+          as a `(own, next)` tuple by `subgroup_values` (see 
+          `sharp_edges`). `where` treats such a sample as a match for 
+          both of its labels, so the neighboring patches share that 
+          exact point and meet without a gap or an overlapping area."""
         alpha = self._alphas.get(agreement, COLOR.FILL_ALPHA)
+        labels = data[PLOTTER.SUBGROUP]
         kw = {
             'color': color,
             'alpha': alpha,
-            'edgecolor': mcolors.to_rgb(color) + (alpha/2,),
-            'linewidth': 1,
-            'where': data[PLOTTER.SUBGROUP]==agreement,
+            'edgecolor': 'none',
+            'where': labels.apply(
+                lambda label: agreement in label
+                if isinstance(label, tuple) else label == agreement),
             'interpolate': False}
         return kw
 
@@ -338,8 +367,9 @@ class SpreadOpacity:
     def subgroup_values(
             self,
             sequence: NDArray | list[float] | int,
-            quantiles: list[float]
-            ) -> list[float | int]:
+            quantiles: list[float],
+            sharp_edges: bool = False
+            ) -> list[float | int | tuple[float | int, ...]]:
         """Generate a list of subgroup values based on the agreements.
 
         This method creates a list of subgroup values derived from the 
@@ -358,12 +388,25 @@ class SpreadOpacity:
         quantiles : list[float]
             The list of quantiles used to determine the subgroup 
             boundaries.
+        sharp_edges : bool, optional
+            If True, the last sample of each subgroup run is turned 
+            into a `(own, next)` tuple instead of a plain label, so it 
+            also belongs to the following subgroup. `_kw_fill` then 
+            includes that same sample in both neighboring `where` 
+            masks, so the two `fill_between`/`fill_betweenx` patches 
+            share one exact point and meet without a gap or an 
+            overlapping area. Needed for continuous curves (e.g. 
+            `DensityCurve`), whose quantile bands are carved out of 
+            one shared curve; not for discrete areas (e.g. 
+            `QuantileBoxes`), whose rows already have their own 
+            explicit bounds. Default is False.
 
         Returns
         -------
-        list[float | int]:
+        list[float | int | tuple[float | int, ...]]:
             A list of subgroup values, which can include both floats 
-            and integers.
+            and integers. If `sharp_edges` is True, boundary samples 
+            are `(own, next)` tuples instead of plain labels.
         """
         subgroup = []
         names = self.agreements[::-1] + self.agreements[1:]
@@ -389,7 +432,13 @@ class SpreadOpacity:
                 subgroup = subgroup[:difference]
             else:
                 subgroup.extend([names[-1]] * difference)
-        return subgroup
+        
+        if not sharp_edges:
+            return subgroup
+        return [
+            name if i == len(subgroup) - 1 or name == subgroup[i + 1]
+            else (name, subgroup[i + 1])
+            for i, name in enumerate(subgroup)]
 
 
 class Plotter(ABC):
@@ -4625,7 +4674,7 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
         ones = np.ones(len(sequence))
         if self.highlight_quantiles and len(sequence) > 1:
             quantiles = self.quantiles(target_data)
-            subgroups = self.subgroup_values(sequence, quantiles)
+            subgroups = self.subgroup_values(sequence, quantiles, sharp_edges=True)
         else:
             subgroups = 0 * ones
 
@@ -4676,7 +4725,7 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
             estim_low = self._get_lower_estimation_(f_base, estim_upp) # pyright: ignore[reportArgumentType]
             sequence = group[self.target]
             
-            for agreement in group[PLOTTER.SUBGROUP].unique():
+            for agreement in self._unique_subgroups(group[PLOTTER.SUBGROUP]):
                 _kwds = self._kw_fill(self.color, agreement, group) | kwds
                 if self.target_on_y:
                     if self.fill:
