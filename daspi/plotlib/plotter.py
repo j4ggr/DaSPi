@@ -4394,7 +4394,10 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
         If margin is 0, The two ends of the estimated density curve then 
         show the minimum and maximum value. Default is 0.
     fill : bool, optional
-        Flag whether to fill in the curves, by default True
+        Flag whether to fill in the curves, by default True. Has no 
+        effect if `cumulative` is True: the area under a CDF has no 
+        meaningful interpretation as probability mass (unlike a PDF), 
+        so it is never filled.
     agreements : tuple[float, ...] or tuple[int, ...], optional
         Specifies the tolerated process variation for calculating 
         quantiles. These quantiles are used to represent the filled area 
@@ -4537,7 +4540,7 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
     def kw_default(self) -> dict[str, Any]:
         """Default keyword arguments for plotting (read-only)"""
         kwds = {
-            'color': COLOR.DARKEN if self.fill else self.color,}
+            'color': COLOR.DARKEN if self.fill and not self.cumulative else self.color,}
         return kwds
     
     @property
@@ -4552,8 +4555,12 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
 
     @property
     def highlight_quantiles(self) -> bool:
-        """Flag indicating whether the quantiles should be highlighted."""
-        return bool(self.agreements) and self.fill
+        """Flag indicating whether the quantiles should be highlighted.
+        Always False for `cumulative` curves: the area under a CDF has
+        no meaningful interpretation as probability mass (unlike a
+        PDF), so quantile fill bands would shade a large area for a
+        small probability range and be visually misleading."""
+        return bool(self.agreements) and self.fill and not self.cumulative
 
     def estimate(
             self,
@@ -4728,7 +4735,7 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
             for agreement in self._unique_subgroups(group[PLOTTER.SUBGROUP]):
                 _kwds = self._kw_fill(self.color, agreement, group) | kwds
                 if self.target_on_y:
-                    if self.fill:
+                    if self.fill and not self.cumulative:
                         self.ax.fill_betweenx(
                             sequence, estim_low, estim_upp, **_kwds)
                     if self._draw_lower_line_:
@@ -4738,7 +4745,7 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
                     else:
                         self.ax.plot(estim_upp, sequence, **_kw_line)
                 else:
-                    if self.fill:
+                    if self.fill and not self.cumulative:
                         self.ax.fill_between(
                             sequence, estim_low, estim_upp, **_kwds)
                     if self._draw_lower_line_:
