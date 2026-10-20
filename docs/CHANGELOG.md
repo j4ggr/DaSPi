@@ -16,6 +16,19 @@ __Types of changes__:
 
 ## [Unreleased]
 
+## [2.3.3] - 2026-10-20
+
+### Changed
+
+- **Plotlib**: `DensityCurve._get_lower_estimation_` is now a plain staticmethod (flat line at the feature base) instead of branching on `self.__class__.__name__ == 'Violin'`; `Violin` overrides it directly to mirror the upper estimate.
+- **Plotlib**: Added a `_draw_lower_line_` class flag to `DensityCurve` (default `False`) so only double-sided curves like `Violin` draw the flat lower-base line; `GaussianKDE` and `FittedDensity` now draw just the upper curve.
+
+### Fixed
+
+- **Plotlib**: Fixed a hairline gap between adjacent quantile-opacity fill bands in `GaussianKDE`, `FittedDensity` and `Violin`. `SpreadOpacity.subgroup_values` gained a `sharp_edges` option so the boundary sample between two quantile bands belongs to both, and `_kw_fill` forces `edgecolor='none'` to avoid the mplstyle default stroking each band. `QuantileBoxes` is unaffected (discrete per-row bounds, not a shared continuous curve).
+- **Plotlib**: The area fill for `cumulative=True` density curves (CDF) is now disabled, since the area under a CDF has no probability-mass interpretation and previously shaded large, misleading regions near flat parts of the curve (e.g. close to 0 or 1). Quantile highlighting is likewise skipped for cumulative curves.
+- **Notebooks**: Repaired the marimo doc-content notebooks under `notebooks/`, which had accumulated duplicate cell-level variable names, a stale `LinearModel(features=...)` call (now `factors=`), missing imports, and relative output paths that escaped the repository. All notebooks now run end-to-end and regenerate the chart images used throughout the documentation.
+
 ## [2.3.2] - 2026-10-20
 
 ### Changed
