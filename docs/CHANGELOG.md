@@ -16,6 +16,16 @@ __Types of changes__:
 
 ## [Unreleased]
 
+## [2.3.2] - 2026-10-20
+
+### Changed
+
+- **Constants**: Unified and expanded docstrings across `constants.py`: added missing class docstrings (`_Plotter_`, `_Category_`, `_Distribution_`, `_Default_`, `_Anova_`) and missing module-level docstrings for the `LABEL`, `PLOTTER`, `CATEGORY`, `DIST`, `DEFAULT`, `ANOVA` and `DOE` constant instances, expanded skimpy Gage R&R abbreviation docstrings (`PV`, `EV`, `AV`, `GV`, `IA`, `RNR`, `SEP`, `INTERCEPT`), and added usage examples to `COLOR`.
+
+### Fixed
+
+- **Constants**: Fixed stray leading-quote typos in `_Anova_` field docstrings (`EFFECTS`, `TARGET`, `FACTORS`, `REFERENCE`, `SOURCE`, `VIF`).
+
 ## [2.3.1] - 2026-10-16
 
 ### Changed
