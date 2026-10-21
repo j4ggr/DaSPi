@@ -22,6 +22,7 @@ from daspi import COLOR
 from daspi import DEFAULT
 from daspi import CATEGORY
 from daspi import PLOTTER
+from daspi import STR
 from daspi.plotlib.plotter import *
 
 
@@ -387,6 +388,86 @@ class TestStripeSpan:
         assert patch.get_alpha() == 0.3
         assert patch.get_zorder() == 2.0
         assert patch.get_linewidth() == 2.0
+
+
+class TestPareto:
+
+    @pytest.fixture
+    def ax(self) -> Axes:
+        return plt.subplots(1, 1)[1]
+
+    @pytest.fixture
+    def source(self) -> pd.DataFrame:
+        return pd.DataFrame(dict(
+            x=list('abcdefghijklmno'),
+            y=list(100/x for x in range(1, 16))))
+
+    def test_no_threshold_keeps_all_levels(
+            self, source: pd.DataFrame, ax: Axes) -> None:
+        pareto = Pareto(source=source, target='y', feature='x', ax=ax)
+        assert pareto.threshold is None
+        assert pareto.rest_label == STR['rest']
+        assert len(pareto.source) == len(source)
+        assert set(pareto.source['x']) == set(source['x'])
+
+    def test_default_rest_label_follows_language(
+            self, source: pd.DataFrame, ax: Axes) -> None:
+        with STR.use_language('de'):
+            pareto = Pareto(
+                source=source, target='y', feature='x', threshold=10,
+                ax=ax)
+            assert pareto.rest_label == 'Rest'
+            assert 'Rest' in set(pareto.source['x'])
+
+    def test_threshold_combines_low_values_into_rest(
+            self, source: pd.DataFrame, ax: Axes) -> None:
+        pareto = Pareto(
+            source=source, target='y', feature='x', threshold=10, ax=ax)
+        assert 'rest' in set(pareto.source['x'])
+        kept = source.loc[source['y'] > 10, 'x']
+        combined = source.loc[source['y'] <= 10, 'y'].sum()
+        assert set(pareto.source['x']) == set(kept) | {'rest'}
+        rest_value = pareto.source.loc[
+            pareto.source['x'] == 'rest', 'y'].iat[0]
+        assert rest_value == approx(combined)
+        assert len(pareto.source) == len(kept) + 1
+
+    def test_threshold_with_custom_rest_label(
+            self, source: pd.DataFrame, ax: Axes) -> None:
+        pareto = Pareto(
+            source=source, target='y', feature='x', threshold=10,
+            rest_label='others', ax=ax)
+        assert 'others' in set(pareto.source['x'])
+        assert 'rest' not in set(pareto.source['x'])
+
+    def test_threshold_none_below_combines_nothing(
+            self, source: pd.DataFrame, ax: Axes) -> None:
+        pareto = Pareto(
+            source=source, target='y', feature='x', threshold=0, ax=ax)
+        assert 'rest' not in set(pareto.source['x'])
+        assert len(pareto.source) == len(source)
+
+    def test_threshold_rest_label_collision_raises(
+            self, source: pd.DataFrame, ax: Axes) -> None:
+        with pytest.raises(AssertionError) as err:
+            Pareto(
+                source=source, target='y', feature='x', threshold=10,
+                rest_label='a', ax=ax)
+        assert 'rest_label' in str(err.value)
+
+    def test_threshold_with_method_aggregates_before_combining(
+            self, ax: Axes) -> None:
+        source = pd.DataFrame(dict(
+            x=['a', 'a', 'b', 'b', 'c'],
+            y=[1, 1, 2, 2, 20]))
+        pareto = Pareto(
+            source=source, target='y', feature='x', threshold=3,
+            method='sum', ax=ax)
+        values = dict(zip(pareto.source['x'], pareto.source['y']))
+        assert values['c'] == approx(20)
+        assert values['b'] == approx(4)
+        assert values['rest'] == approx(2)
+        assert 'a' not in values
 
 
 class TestGaussianKDEContourUnivariate:

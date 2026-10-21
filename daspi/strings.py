@@ -46,6 +46,11 @@ class _String_:
         'de': 'abgelehnt',
         'fr': 'rejeté'})
     
+    rest = _LocalizedString({
+        'en': 'rest',
+        'de': 'Rest',
+        'fr': 'reste'})
+    
     borderline = _LocalizedString({
         'en': 'borderline',
         'de': 'grenzwertig',

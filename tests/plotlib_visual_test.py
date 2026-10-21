@@ -621,7 +621,37 @@ class TestSingleChart:
         assert STR.today in info_msg
         assert STR.username in info_msg
         assert self.info_msg in info_msg
-        
+
+    def test_pareto_threshold_plot(self) -> None:
+        self.base = f'{self.fig_title}_pareto-threshold'
+        sums = df_painkillers.groupby(self.cat1)[self.target].sum()
+        threshold = float(sums.median())
+
+        self.kind = 'simple'
+        chart = SingleChart(
+                source=df_painkillers,
+                target=self.target,
+                feature=self.cat1,
+            ).plot(
+                Pareto,
+                method='sum',
+                threshold=threshold,
+                highlight='rest'
+            ).label(
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+                feature_label=True,
+                target_label=self.target_label,
+                info=self.info_msg
+            ).save(self.file_name
+            ).close()
+        plot = chart.plots[-1]
+        assert self.file_name.is_file()
+        assert 'rest' in set(plot.source[self.cat1])
+        assert (sums <= threshold).sum() > 1
+        kept = sums[sums > threshold]
+        assert set(plot.source[self.cat1]) == set(kept.index) | {'rest'}
+
     def test_kde_plot(self) -> None:
         self.base = f'{self.fig_title}_KDE'
 

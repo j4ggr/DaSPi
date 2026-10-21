@@ -2834,6 +2834,19 @@ class Pareto(Bar):
     highlighted_as_last: bool, optional
         Whether the highlighted bar should be at the end, by default
         True.
+    threshold : float | None, optional
+        If given, combine every feature level whose aggregated target
+        value is less than or equal to this threshold into a single
+        bar labeled `rest_label`. The combination is done internally
+        before `method` is applied (`method` defaults to 'sum' for
+        this combination step if not given), so you no longer have to
+        pre-aggregate a "rest" row in your source DataFrame yourself.
+        By default None, meaning no combination is done.
+    rest_label : Any, optional
+        The feature value to use for the combined bar when `threshold`
+        is set. Ignored if `threshold` is None. Must not already be
+        used by another feature level in `source`. If None, the
+        localized string `STR['rest']` is used, by default None.
     no_percentage_line : bool, optional
         Whether to draw a line as cumulative percentage, by default True
     width: float, optional
@@ -2876,7 +2889,7 @@ class Pareto(Bar):
     
     Examples
     --------
-    Apply to an existing Axes object:
+    1. Draw a plain Pareto chart on an existing Axes object:
 
     ```python
     import pandas as pd
@@ -2892,7 +2905,10 @@ class Pareto(Bar):
     pareto()
     ```
 
-    You can also combine and highlight small frequencies:
+    2. Combine small frequencies into a "rest" bar and highlight it.
+       Set `threshold` to the upper bound (inclusive) of the values
+       you want to merge; all matching feature levels are summed into
+       one bar labeled `rest_label` (`STR['rest']` by default):
 
     ```python
     import pandas as pd
@@ -2903,16 +2919,14 @@ class Pareto(Bar):
     df = pd.DataFrame(dict(
         x = list('abcdefghijklmno'),
         y = list(100/x for x in range(1, 16))))
-    low_values = df.y <= 10
-    df2 = df[~low_values].copy()
-    df2.loc[len(df)-sum(low_values)] = ('rest', df[low_values].y.sum())
     pareto = Pareto(
-        source=df2, target='y', feature='x', highlight='rest', 
-        highlight_color='#ff000090', highlighted_as_last=True)
+        source=df, target='y', feature='x', threshold=10,
+        highlight='rest', highlight_color='#ff000090',
+        highlighted_as_last=True, ax=ax)
     pareto()
     ```
 
-    Apply using the plot method of a DaSPi Chart object:
+    3. Apply using the plot method of a DaSPi Chart object:
 
     ```python
     import daspi as dsp
@@ -2921,15 +2935,13 @@ class Pareto(Bar):
     df = pd.DataFrame(dict(
         x = list('abcdefghijklmno'),
         y = list(100/x for x in range(1, 16))))
-    low_values = df.y <= 10
-    df2 = df[~low_values].copy()
-    df2.loc[len(df)-sum(low_values)] = ('rest', df[low_values].y.sum())
     chart = dsp.SingleChart(
-            source=df2,
+            source=df,
             target='y',
             feature='x',
         ).plot(
             dsp.Pareto,
+            threshold=10,
             highlight='rest',
             highlight_color=dsp.COLOR.BAD,
             no_percentage_line=False
@@ -2943,12 +2955,17 @@ class Pareto(Bar):
     AssertionError
         If an other Axes object in this Figure instance shares the
         feature axis.
+    AssertionError
+        If `threshold` is given and `rest_label` already occurs as a
+        feature level in `source`.
     """
     __slots__ = (
         'highlight',
         'highlight_color',
         'highlighted_as_last',
-        'no_percentage_line')
+        'no_percentage_line',
+        'rest_label',
+        'threshold')
 
     highlight: Any
     """The feature value whose bar should be highlighted in the chart."""
@@ -2958,6 +2975,11 @@ class Pareto(Bar):
     """Whether the highlighted bar should be at the end."""
     no_percentage_line: bool
     """Whether to draw the percentage line and the percentage text."""
+    threshold: float | None
+    """Feature levels whose aggregated target value is less than or
+    equal to this value are combined into a single bar."""
+    rest_label: Any
+    """The feature value used for the bar combined via `threshold`."""
 
     def __init__(
             self,
@@ -2967,6 +2989,8 @@ class Pareto(Bar):
             highlight: Any = None,
             highlight_color: str = COLOR.BAD,
             highlighted_as_last: bool = True,
+            threshold: float | None = None,
+            rest_label: Any = None,
             no_percentage_line: bool = False,
             width: float = CATEGORY.FEATURE_SPACE,
             method: str | None = None,
@@ -2985,7 +3009,15 @@ class Pareto(Bar):
         self.highlight = highlight
         self.highlight_color = highlight_color
         self.highlighted_as_last = highlighted_as_last
-        
+        self.threshold = threshold
+        self.rest_label = rest_label or STR['rest']
+
+        if threshold is not None:
+            source = self._combine_rest(
+                source, target, feature, threshold, self.rest_label,
+                method or 'sum', kw_method or {})
+            method = None
+
         super().__init__(
             source=source,
             target=target,
@@ -3006,6 +3038,61 @@ class Pareto(Bar):
             'Do not use Pareto plotter in an chart where the feature axis '
             'is shared with other axes. Pareto sorts the feature axis, '
             'which can mess up the other axes')
+
+    @staticmethod
+    def _combine_rest(
+            source: DataFrame,
+            target: str,
+            feature: str,
+            threshold: float,
+            rest_label: Any,
+            method: str,
+            kw_method: dict[str, Any]
+            ) -> DataFrame:
+        """Aggregate `target` by `feature` using `method` and combine
+        every feature level whose aggregated value is less than or
+        equal to `threshold` into a single row labeled `rest_label`.
+
+        Parameters
+        ----------
+        source : pandas DataFrame
+            Pandas long format DataFrame containing the data source for
+            the plot.
+        target : str
+            Column name of the target variable.
+        feature : str
+            Column name of the feature variable.
+        threshold : float
+            Upper bound (inclusive) for values to be combined.
+        rest_label : Any
+            Feature value to use for the combined row.
+        method : str
+            Pandas Series method used to aggregate `target` per
+            feature level, e.g. 'sum' or 'count'.
+        kw_method : dict[str, Any]
+            Additional keyword arguments passed to `method`.
+
+        Returns
+        -------
+        data : pandas DataFrame
+            One row per feature level (plus the combined `rest_label`
+            row, if any), with only the `feature` and `target` columns.
+        """
+        grouped = getattr(
+            source.groupby(feature, sort=False, observed=True)[target],
+            method)(**kw_method)
+        assert rest_label not in grouped.index, (
+            f'rest_label {rest_label!r} already occurs as a feature level '
+            'in source, choose a different rest_label')
+
+        low = grouped <= threshold
+        if not low.any():
+            return grouped.rename_axis(feature).reset_index(name=target)
+
+        combined = pd.concat([
+            grouped[~low],
+            pd.Series({rest_label: grouped[low].sum()})])
+        return combined.rename_axis(feature).reset_index(name=target)
     
     @property
     def shared_feature_axes(self) -> bool:
