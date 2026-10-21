@@ -64,10 +64,15 @@ from matplotlib.ticker import PercentFormatter
 from pandas.core.frame import DataFrame
 from scipy.stats._distn_infrastructure import rv_continuous
 
-from .._typing import EstimationStrategy
 from ..anova import GageRnRModel, GageStudyModel, LinearModel
 from ..constants import ANOVA, CATEGORY, COLOR, DEFAULT, DIST
-from ..statistics import UNBOUNDED, ProcessEstimator, SpecLimits
+from ..statistics import (
+    UNBOUNDED,
+    DistributionEstimator,
+    ProcessEstimator,
+    SpecLimits,
+    ensure_generic,
+)
 from ..strings import STR
 from .chart import JointChart, check_label_order
 from .plotter import (
@@ -884,28 +889,35 @@ class ProcessCapabilityAnalysisCharts(JointChart):
         The specification limits for the process capability analysis.
     hue : str, optional
         The hue variable for the chart, by default ''.
+    strategy : {'norm', 'fit', 'data'}, optional
+        Which strategy should be used to determine the control
+        limits (process spread). Note that `'eval'` is not supported
+        here: each hue group could independently evaluate a different
+        strategy, which would make the chart panel inconsistent.
+        - `norm`: it is assumed that the data is subject to normal
+        distribution. The variation tolerance is then calculated as
+        agreement * standard deviation. `dist` must be `'norm'` in
+        this case.
+        - `fit`: the process spread is calculated from `dist`, fitted
+        to the process data (the same `dist` is used for the
+        Probability plot and the capability indices, so both stay
+        consistent).
+        - `data`: the quantiles for the process variation tolerance
+        are read directly from the data (no distribution is fitted
+        for the control limits). A representative `dist` is searched
+        once among `possible_dists` on the pooled data, purely to
+        give the Probability plot a common reference distribution
+        for every hue group.
+        by default 'norm'
     dist : scipy stats rv_continuous, optional
-        The probability distribution use for creating feature data
-        (the theoretical values). Default is 'norm'.
+        The probability distribution to use for creating feature data
+        (the theoretical values) and, if `strategy='fit'`, for
+        calculating the control limits. Ignored (auto-determined) if
+        `strategy='data'`. Default is 'norm'.
     error_values : tuple of float, optional
         If the process data may contain coded values for measurement 
         errors or similar, they can be specified here, 
         by default [].
-    strategy : {'eval', 'fit', 'norm', 'data'}, optional
-        Which strategy should be used to determine the control 
-        limits (process spread):
-        - `eval`: The strategy is determined according to the given 
-        evaluate function. If none is given, the internal `evaluate`
-        method is used.
-        - `fit`: First, the distribution that best represents the 
-        process data is searched for and then the agreed process 
-        spread is calculated
-        - norm: it is assumed that the data is subject to normal 
-        distribution. The variation tolerance is then calculated as 
-        agreement * standard deviation
-        - data: The quantiles for the process variation tolerance 
-        are read directly from the data.
-        by default 'norm'
     agreement : float or int, optional
         Specify the tolerated process variation for which the 
         control limits are to be calculated. 
@@ -919,8 +931,9 @@ class ProcessCapabilityAnalysisCharts(JointChart):
         spread, e.g. 0.9973 (which corresponds to ~ 6 σ)
         by default 6
     possible_dists : tuple of strings or rv_continous, optional
-        Distributions to which the data may be subject. Only 
-        continuous distributions of scipy.stats are allowed,
+        Distributions to which the data may be subject, only used to
+        search for a representative `dist` when `strategy='data'`.
+        Only continuous distributions of scipy.stats are allowed,
         by default DIST.COMMON
     stretch_figsize : bool | float | tuple[float, float], optional
         If True, the height and width of the figure are stretched based 
@@ -965,8 +978,10 @@ class ProcessCapabilityAnalysisCharts(JointChart):
     """The specification limits for the process capability analysis."""
 
     dist: rv_continuous | str
-    """The probability distribution use for creating feature data
-    (the theoretical values)."""
+    """The probability distribution used for creating feature data
+    (the theoretical values). For `strategy='data'` this is the
+    distribution found by searching `possible_dists` on the pooled
+    data, not a user-provided value."""
 
     kw_estim: dict[str, Any]
     """Keyword arguments for the ProcessEstimator instances used for 
@@ -982,25 +997,41 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             *,
             spec_limits: SpecLimits,
             hue: str = '',
+            strategy: Literal['norm', 'fit', 'data'] = 'norm',
             dist: rv_continuous | str = 'norm',
             error_values: tuple[float, ...] = (),
-            strategy: EstimationStrategy = 'norm',
             agreement: float | int = 6, # noqa: PYI041
             possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             stretch_figsize: bool | float | tuple[float, float] = False,
             ) -> None:
         assert not spec_limits.both_unbounded, (
             'At least one specification limit must not be None')
-        
+        assert strategy in ('norm', 'fit', 'data'), (
+            f"strategy must be 'norm', 'fit' or 'data', got {strategy!r}. "
+            "'eval' is not supported here: each hue group could evaluate "
+            "a different strategy, making the chart panel inconsistent.")
+        if strategy == 'norm':
+            assert ensure_generic(dist) is ensure_generic('norm'), (
+                f"dist must be 'norm' when strategy='norm', got {dist!r}: "
+                "the control limits are calculated assuming a normal "
+                "distribution.")
+
         self.spec_limits = spec_limits
-        self.dist = dist
+        self.n_groups = source.groupby(hue).ngroups if hue else 1
+        filtered = source[~source[target].isin(error_values)]
+
+        if strategy == 'data':
+            self.dist = DistributionEstimator(
+                filtered[target], possible_dists=possible_dists).dist
+        else:
+            self.dist = dist
+
         self.kw_estim = {
             'error_values': error_values,
             'strategy': strategy,
             'agreement': agreement,
-            'possible_dists': possible_dists}
-        self.n_groups = source.groupby(hue).ngroups if hue else 1
-        filtered = source[~source[target].isin(error_values)]
+            'possible_dists': (
+                possible_dists if strategy == 'data' else (self.dist,))}
         super().__init__(
             source=(filtered, filtered, filtered, source, source),
             target=target,
