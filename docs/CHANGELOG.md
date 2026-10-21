@@ -16,6 +16,12 @@ __Types of changes__:
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-10-21
+
+### Fixed
+
+- **Plotlib**: `ProcessCapabilityAnalysisCharts` no longer allows `strategy='eval'`, since each hue group's `ProcessEstimator` could independently evaluate a different strategy, making the chart panel inconsistent. `strategy` is now restricted to `'norm' | 'fit' | 'data'`. `strategy='norm'` now asserts `dist` is also `'norm'`. `strategy='fit'` fits the single given `dist` instead of letting each hue group independently search `possible_dists`, so the `Probability` plot and the capability indices always agree on the same distribution. `strategy='data'` searches `possible_dists` once on the pooled data to pick one representative `dist` shared by every hue group's `Probability` plot.
+
 ## [2.4.0] - 2026-10-21
 
 ### Added
