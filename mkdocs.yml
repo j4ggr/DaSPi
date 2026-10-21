@@ -59,8 +59,10 @@ plugins:
           show_bases: true
           show_source: false
           show_root_heading: true
+          show_root_full_path: false
           show_symbol_type_heading: true
           show_symbol_type_toc: true
+          show_signature: false
           show_docstring_functions: true
           inherited_members: false
           members_order: source
@@ -125,9 +127,9 @@ nav:
   - API:
     - Anova:
       - ANOVA: anova/index.md
-      - anova/linear-model.md
-      - anova/gage-study-model.md
-      - anova/gage-rnr-model.md
+      - LinearModel: anova/linear-model.md
+      - GageStudyModel: anova/gage-study-model.md
+      - GageRnRModel: anova/gage-rnr-model.md
     - DOE:
       - Design of Experiments: doe/index.md
       - doe/factor.md
@@ -138,69 +140,74 @@ nav:
       - Plotting Library: plotlib/index.md
       - Precast Charts:
         - Precast Module: plotlib/precast/index.md
-        - plotlib/precast/residual-charts.md
-        - plotlib/precast/parameter-relevance-charts.md
-        - plotlib/precast/pair-comparison-charts.md
-        - plotlib/precast/pairwise-matrix-charts.md
-        - plotlib/precast/bivariate-univariate-charts.md
-        - plotlib/precast/process-capability-analysis-charts.md
-        - plotlib/precast/gage-study-charts.md
-        - plotlib/precast/gage-rnr-charts.md
+        - ResidualsCharts: plotlib/precast/residual-charts.md
+        - ParameterRelevanceCharts: plotlib/precast/parameter-relevance-charts.md
+        - PairComparisonCharts: plotlib/precast/pair-comparison-charts.md
+        - PairwiseMatrixCharts: plotlib/precast/pairwise-matrix-charts.md
+        - BivariateUnivariateCharts: plotlib/precast/bivariate-univariate-charts.md
+        - ProcessCapabilityAnalysisCharts: plotlib/precast/process-capability-analysis-charts.md
+        - GageStudyCharts: plotlib/precast/gage-study-charts.md
+        - GageRnRCharts: plotlib/precast/gage-rnr-charts.md
       - Chart:
         - Chart Module: plotlib/chart/index.md
-        - plotlib/chart/chart.md
-        - plotlib/chart/single-chart.md
-        - plotlib/chart/multivariate-chart.md
-        - plotlib/chart/joint-chart.md
+        - Chart: plotlib/chart/chart.md
+        - SingleChart: plotlib/chart/single-chart.md
+        - MultivariateChart: plotlib/chart/multivariate-chart.md
+        - JointChart: plotlib/chart/joint-chart.md
       - Plotter:
         - Plotter Module: plotlib/plotter/index.md
-        - plotlib/plotter/plotter.md
-        - plotlib/plotter/scatter.md
-        - plotlib/plotter/line.md
-        - plotlib/plotter/stem.md
-        - plotlib/plotter/linear-regression-line.md
-        - plotlib/plotter/loess-line.md
-        - plotlib/plotter/probability.md
-        - plotlib/plotter/parallel-coordinate.md
-        - plotlib/plotter/transform-plotter.md
-        - plotlib/plotter/center-location.md
-        - plotlib/plotter/bar.md
-        - plotlib/plotter/pareto.md
-        - plotlib/plotter/jitter.md
-        - plotlib/plotter/beeswarm.md
-        - plotlib/plotter/categorical-observation.md
-        - plotlib/plotter/quantile-boxes.md
-        - plotlib/plotter/gaussian-kde.md
-        - plotlib/plotter/gaussian-kde-contour.md
-        - plotlib/plotter/gaussian-kde-contour-univariate.md
-        - plotlib/plotter/violin.md
-        - plotlib/plotter/errorbar.md
-        - plotlib/plotter/standard-error-mean.md
-        - plotlib/plotter/spread-width.md
-        - plotlib/plotter/confidence-interval.md
-        - plotlib/plotter/mean-test.md
-        - plotlib/plotter/variation-test.md
-        - plotlib/plotter/proportion-test.md
-        - plotlib/plotter/capability-confidence-interval.md
-        - plotlib/plotter/subplot.md
-        - plotlib/plotter/stripe.md
-        - plotlib/plotter/bland-altman.md
+        - Plotter: plotlib/plotter/plotter.md
+        - Scatter: plotlib/plotter/scatter.md
+        - Line: plotlib/plotter/line.md
+        - Stem: plotlib/plotter/stem.md
+        - LinearRegressionLine: plotlib/plotter/linear-regression-line.md
+        - LoessLine: plotlib/plotter/loess-line.md
+        - Probability: plotlib/plotter/probability.md
+        - ParallelCoordinate: plotlib/plotter/parallel-coordinate.md
+        - TransformPlotter: plotlib/plotter/transform-plotter.md
+        - CenterLocation: plotlib/plotter/center-location.md
+        - Bar: plotlib/plotter/bar.md
+        - Pareto: plotlib/plotter/pareto.md
+        - Box: plotlib/plotter/box.md
+        - Jitter: plotlib/plotter/jitter.md
+        - Beeswarm: plotlib/plotter/beeswarm.md
+        - CategoricalObservation: plotlib/plotter/categorical-observation.md
+        - QuantileBoxes: plotlib/plotter/quantile-boxes.md
+        - DensityCurve: plotlib/plotter/density-curve.md
+        - GaussianKDE: plotlib/plotter/gaussian-kde.md
+        - GaussianKDEContour: plotlib/plotter/gaussian-kde-contour.md
+        - GaussianKDEContourUnivariate: plotlib/plotter/gaussian-kde-contour-univariate.md
+        - Violin: plotlib/plotter/violin.md
+        - FittedDensity: plotlib/plotter/fitted-density.md
+        - ErrorBar: plotlib/plotter/errorbar.md
+        - StandardErrorMean: plotlib/plotter/standard-error-mean.md
+        - SpreadWidth: plotlib/plotter/spread-width.md
+        - ConfidenceInterval: plotlib/plotter/confidence-interval.md
+        - MeanTest: plotlib/plotter/mean-test.md
+        - VariationTest: plotlib/plotter/variation-test.md
+        - ProportionTest: plotlib/plotter/proportion-test.md
+        - CapabilityConfidenceInterval: plotlib/plotter/capability-confidence-interval.md
+        - Subplot: plotlib/plotter/subplot.md
+        - Stripe: plotlib/plotter/stripe.md
+        - BlandAltman: plotlib/plotter/bland-altman.md
       - Facets:
         - Facets Module: plotlib/facets/index.md
-        - plotlib/facets/axes-facets.md
-        - plotlib/facets/label-facets.md
-        - plotlib/facets/stripes-facets.md
+        - AxesFacets: plotlib/facets/axes-facets.md
+        - LabelFacets: plotlib/facets/label-facets.md
+        - StripesFacets: plotlib/facets/stripes-facets.md
     - Statistics:
       - Statistics Library: statistics/index.md
       - Hypothesis:
         - statistics/hypothesis/index.md
       - Estimation:
         - statistics/estimation/index.md
-        - statistics/estimation/distribution-estimator.md
-        - statistics/estimation/location-dispersion-estimator.md
-        - statistics/estimation/process-estimator.md
-        - statistics/estimation/gage-estimator.md
-        - statistics/estimation/loess.md
+        - DistributionEstimator: statistics/estimation/distribution-estimator.md
+        - LocationDispersionEstimator: statistics/estimation/location-dispersion-estimator.md
+        - ProcessEstimator: statistics/estimation/process-estimator.md
+        - GageEstimator: statistics/estimation/gage-estimator.md
+        - Loess: statistics/estimation/loess.md
+        - Lowess: statistics/estimation/lowess.md
       - Confidence:
         - statistics/confidence/index.md
-      - Monte-Carlo Library: statistics/montecarlo/index.md
+      - Monte-Carlo: 
+        - statistics/montecarlo/index.md

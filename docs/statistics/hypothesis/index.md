@@ -5,6 +5,7 @@
             - all_normal
             - kolmogorov_smirnov_test
             - f_test
+            - t_test
             - levene_test
             - variance_stability_test
             - mean_stability_test

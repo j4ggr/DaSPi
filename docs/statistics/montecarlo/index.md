@@ -2,7 +2,7 @@
     options:
         members:
             - SpecLimits
-            - Parameter
+            - Specification
             - RandomProcessValue
             - Binning
             - round_to_nearest

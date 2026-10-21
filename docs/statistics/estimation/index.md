@@ -5,6 +5,7 @@
             - MeasurementUncertainty
             - estimate_distribution
             - estimate_kernel_density
+            - estimate_probability_density
             - estimate_kernel_density_2d
             - estimate_capability_confidence
             - estimate_resolution

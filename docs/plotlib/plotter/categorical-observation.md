@@ -1,1 +1,1 @@
-::: daspi.plotlib.plotter.Scatter
+::: daspi.plotlib.plotter.CategoricalObservation
