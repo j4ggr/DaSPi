@@ -16,6 +16,23 @@ __Types of changes__:
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-10-21
+
+### Added
+
+- **Plotlib**: `Pareto` gained `threshold`/`rest_label` parameters: feature levels whose aggregated target value is <= `threshold` are now combined internally into a single bar (default label `STR['rest']`), removing the need to manually pre-aggregate a "rest" row in the source DataFrame.
+- **Strings**: Added localized `STR['rest']` string (en/de/fr), used as the default `rest_label` for `Pareto`.
+
+### Changed
+
+- **Performance**: `import daspi` no longer eagerly imports the ~150 classes/functions re-exported from `daspi/__init__.py`. They are now lazy-loaded on first access via a PEP 562 `__getattr__`, so heavy third-party dependencies (scipy, matplotlib, patsy, statsmodels) are only imported once a symbol that needs them is actually used. This reduces a bare `import daspi` from ~37s to ~1.9s; static type-checking and autocomplete are preserved via a `TYPE_CHECKING` import block.
+- **Plotlib**: `ProcessCapabilityAnalysisCharts.label()` now includes the fitted distribution name in the quantile feature label instead of a hardcoded "Std. Normal Distribution quantiles" string.
+
+### Fixed
+
+- **Plotlib**: Fixed mismatched backtick typos and missing opening quotes in several plotter docstrings (`ErrorBar`, `ConfidenceInterval`, `ProportionTest`, `CapabilityConfidenceInterval`), and fixed a `ProportionTest` standalone example that was missing its required `target` argument. Clarified the `ProportionTest` docstring to explain how `target`, `events`, `observations` and `feature` interact.
+- **Docs**: Fixed `scatter.md` and `categorical-observation.md` having swapped content (the `Scatter` page was rendering `CategoricalObservation` docs and vice versa). Added missing API doc pages for `Box`, `DensityCurve`, `FittedDensity` and `Lowess`, and missing documented members (`estimate_probability_density`, `sem`, `cp_ci`, `cpk_ci`, `delta_stdev_ci`, `t_test`). Removed stale `confidence.lowess`/`lowess_ci` entries and fixed `montecarlo.Parameter` -> `Specification`. Page titles for single-symbol API pages now match the actual class/function name, and headings no longer repeat the full constructor signature already covered by the Parameters table.
+
 ## [2.3.3] - 2026-10-20
 
 ### Changed
