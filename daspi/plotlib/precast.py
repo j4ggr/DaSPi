@@ -1060,9 +1060,9 @@ class ProcessCapabilityAnalysisCharts(JointChart):
         DataFrame
             A DataFrame containing the descriptions of each process."""
 
-        descriptions = [
+        descriptions = (
             p.describe(exclude=exclude, colname=n)
-            for n, p in self.processes().items()]
+            for n, p in self.processes().items())
         df_p = pd.concat(descriptions, axis=1)
         return df_p
 
@@ -1187,10 +1187,11 @@ class ProcessCapabilityAnalysisCharts(JointChart):
         if not target_label:
             target_label = self.targets[0]
         _target_label = 3 * (target_label, ) + (STR['cpk'], STR['cp'])
+        dist_name = self.dist if isinstance(self.dist, str) else self.dist.name
         if not feature_label:
             feature_label = (
                 STR['charts_flabel_observed'], 
-                STR['charts_flabel_quantiles'], '', '', '')
+                STR['charts_flabel_quantiles'].format(dist=dist_name), '', '', '')
         super().label(
             fig_title=fig_title,
             sub_title=sub_title,

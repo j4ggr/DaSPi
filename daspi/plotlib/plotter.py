@@ -2083,8 +2083,8 @@ class TransformPlotter(Plotter):
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
         - None, no missing values are skipped
-        - all', grouped data is skipped if all values are missing
-        - any', grouped data is skipped if any value is missing
+        - 'all', grouped data is skipped if all values are missing
+        - 'any', grouped data is skipped if any value is missing
 
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
@@ -2269,8 +2269,8 @@ class CenterLocation(TransformPlotter):
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
         - None, no missing values are skipped
-        - all', grouped data is skipped if all values are missing
-        - any', grouped data is skipped if any value is missing
+        - 'all', grouped data is skipped if all values are missing
+        - 'any', grouped data is skipped if any value is missing
 
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
@@ -2525,8 +2525,8 @@ class Bar(TransformPlotter):
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
         - None, no missing values are skipped
-        - all', grouped data is skipped if all values are missing
-        - any', grouped data is skipped if any value is missing
+        - 'all', grouped data is skipped if all values are missing
+        - 'any', grouped data is skipped if any value is missing
 
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
@@ -2849,8 +2849,8 @@ class Pareto(Bar):
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
         - None, no missing values are skipped
-        - all', grouped data is skipped if all values are missing
-        - any', grouped data is skipped if any value is missing
+        - 'all', grouped data is skipped if all values are missing
+        - 'any', grouped data is skipped if any value is missing
 
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on the
@@ -3412,8 +3412,8 @@ class Jitter(TransformPlotter):
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
         - None, no missing values are skipped
-        - all', grouped data is skipped if all values are missing
-        - any', grouped data is skipped if any value is missing
+        - 'all', grouped data is skipped if all values are missing
+        - 'any', grouped data is skipped if any value is missing
 
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
@@ -3621,8 +3621,8 @@ class Beeswarm(TransformPlotter):
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
         - None, no missing values are skipped
-        - all', grouped data is skipped if all values are missing
-        - any', grouped data is skipped if any value is missing
+        - 'all', grouped data is skipped if all values are missing
+        - 'any', grouped data is skipped if any value is missing
 
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
@@ -3871,8 +3871,8 @@ class CategoricalObservation(TransformPlotter):
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
         - None, no missing values are skipped
-        - all', grouped data is skipped if all values are missing
-        - any', grouped data is skipped if any value is missing
+        - 'all', grouped data is skipped if all values are missing
+        - 'any', grouped data is skipped if any value is missing
 
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on 
@@ -4382,8 +4382,8 @@ class DensityCurve(SpreadOpacity, TransformPlotter):
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
         - None, no missing values are skipped
-        - all', grouped data is skipped if all values are missing
-        - any', grouped data is skipped if any value is missing
+        - 'all', grouped data is skipped if all values are missing
+        - 'any', grouped data is skipped if any value is missing
 
     ignore_feature: bool, optional
         Flag indicating whether the feature axis should be ignored. If 
@@ -4791,8 +4791,8 @@ class GaussianKDE(DensityCurve):
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
         - None, no missing values are skipped
-        - all', grouped data is skipped if all values are missing
-        - any', grouped data is skipped if any value is missing
+        - 'all', grouped data is skipped if all values are missing
+        - 'any', grouped data is skipped if any value is missing
 
     ignore_feature: bool, optional
         Flag indicating whether the feature axis should be ignored. If 
@@ -5770,8 +5770,8 @@ class ErrorBar(TransformPlotter):
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
         - None, no missing values are skipped
-        - all', grouped data is skipped if all values are missing
-        - any', grouped data is skipped if any value is missing
+        - 'all', grouped data is skipped if all values are missing
+        - 'any', grouped data is skipped if any value is missing
 
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
@@ -6019,14 +6019,14 @@ class StandardErrorMean(ErrorBar):
     bars_same_color : bool, optional
         Flag indicating whether to use same color for error bars as 
         markers for center. If False, the error bars are black,
+        by default False
     skip_na : Literal['none', 'all', 'any'], optional
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
         - None, no missing values are skipped
-        - all', grouped data is skipped if all values are missing
-        - any', grouped data is skipped if any value is missing
+        - 'all', grouped data is skipped if all values are missing
+        - 'any', grouped data is skipped if any value is missing
 
-        by default False
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
         the y-axis, by default True.
@@ -6226,8 +6226,8 @@ class SpreadWidth(ErrorBar):
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
         - None, no missing values are skipped
-        - all', grouped data is skipped if all values are missing
-        - any', grouped data is skipped if any value is missing
+        - 'all', grouped data is skipped if all values are missing
+        - 'any', grouped data is skipped if any value is missing
 
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
@@ -6503,8 +6503,8 @@ class ConfidenceInterval(ErrorBar):
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
         - None, no missing values are skipped
-        - all', grouped data is skipped if all values are missing
-        - any', grouped data is skipped if any value is missing
+        - 'all', grouped data is skipped if all values are missing
+        - 'any', grouped data is skipped if any value is missing
 
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
@@ -7001,9 +7001,15 @@ class ProportionTest(ConfidenceInterval):
         Pandas long format DataFrame containing the data source for the
         plot.
     target : str
-        Column name to use for the target variable. If falsy, the name
-        will be formed from the specified `events` and `observations` 
-        with a "/" character in between.
+        Internal bookkeeping column name only, used to satisfy the
+        base class's single-target interface; it holds
+        `(events, observations)` pairs, not the proportion itself. This
+        argument has no default and must always be passed explicitly,
+        e.g. as `target=''` to auto-generate the name from `events`
+        and `observations` (joined with a "/" character). When this
+        plotter is used via `Chart.plot()`, the chart supplies its own
+        `target` automatically. See the Notes section for how this
+        relates to `events`/`observations`.
     n_groups : int, optional
         Number of groups (variable combinations) for the Bonferroni 
         adjustment. A good way to do this is to pass 
@@ -7062,10 +7068,54 @@ class ProportionTest(ConfidenceInterval):
         Additional keyword arguments that have no effect and are
         only used to catch further arguments that have no use here
         (occurs when this class is used within chart objects).
-    
+
+    Notes
+    -----
+    Unlike the other plotters in this module, `ProportionTest` cannot
+    work off a single `target` column alone. A proportion needs two
+    numbers per feature level, so this class requires both:
+
+    - `events`: the count of the thing you are testing the proportion
+      of (e.g. number of out-of-spec parts, number of failures, ...).
+    - `observations`: the total count the events were drawn from
+      (e.g. total number of parts inspected, total trials, ...).
+
+    How `target`, `events`/`observations` and `feature` play together:
+
+    - `feature` groups the rows exactly like in every other plotter
+      (the categories shown on the feature axis). For each feature
+      level, `events` and `observations` are aggregated with `method`
+      (relevant only if a level has more than one row) and passed to
+      `proportion_ci` to compute the center and confidence bounds.
+    - `events` and `observations` are the real inputs to the
+      statistics; they are consumed internally and never drawn
+      directly.
+    - `target` is only a bookkeeping column required by the base
+      `TransformPlotter`/`ConfidenceInterval` machinery, which expects
+      a single target column. Internally it is filled with
+      `(events, observations)` tuples, not with the proportion value.
+      If you pass an empty string, a name is generated automatically
+      as `'{events}/{observations}'`. This means the `target` you pass
+      here is independent of any `target` (e.g. a precomputed
+      `proportion` column) you use for another plotter in the same
+      chart, such as `Bar`.
+
+    Because `target` is this internal placeholder, `ProportionTest`
+    does not visualize a proportion on its own. If you want to draw
+    the proportion itself (e.g. as bars) in addition to its confidence
+    interval, precompute the proportion yourself and pass it as the
+    `target` of a separate plotter such as `Bar`, while passing
+    `events`/`observations` to `ProportionTest` as shown below.
+
     Examples
     --------
-    Apply to an existing Axes object:
+    Step by step: visualize the proportion of out-of-spec parts per
+    group as bars, with `ProportionTest` adding the confidence
+    interval on top.
+
+    1. Build sample data and compute `events` (out-of-spec count) and
+       `observations` (sample size) per group, plus the proportion to
+       plot as bars:
 
     ```python
     import numpy as np
@@ -7073,7 +7123,6 @@ class ProportionTest(ConfidenceInterval):
     import matplotlib.pyplot as plt
     from daspi import ProportionTest, ProcessEstimator, SpecLimits, Bar
 
-    fig, ax = plt.subplots()
     df = pd.DataFrame(dict(
         x = ['first'] * 100 + ['second'] * 100 + ['third'] * 100,
         y = (list(np.random.normal(loc=3, scale=1, size=100))
@@ -7081,7 +7130,6 @@ class ProportionTest(ConfidenceInterval):
             + list(np.random.normal(loc=2, scale=1, size=100)))))
     spec_limits = SpecLimits(upper=4.3)
 
-    # Create data that records how many are out of specification
     data = pd.DataFrame()
     for name, group in df.groupby('x'):
         y = ProcessEstimator(group['y'], spec_limits=spec_limits)
@@ -7091,80 +7139,56 @@ class ProportionTest(ConfidenceInterval):
             events = y.n_nok,
             observations = y.n_samples))
         data = pd.concat([data, temp], ignore_index=True, axis=0)
-    
-    # Now plot it in combination with a bar chart
+    ```
+
+    2. Draw the precomputed `proportion` as bars on an Axes:
+
+    ```python
+    fig, ax = plt.subplots()
     bar = Bar(source=data, target='proportion', feature='x', ax=ax)
     bar()
+    ```
+
+    3. Add `ProportionTest` on the same Axes. Note that `target=''`
+       is passed explicitly here, so the bookkeeping column name is
+       auto-generated, while `events` and `observations` provide the
+       actual counts used for the confidence interval:
+
+    ```python
     test = ProportionTest(
-        source=data, target='proportion', feature='x', events='events', 
-        observations='observations', show_center=False, n_groups=data.x.nunique(), 
-        confidence_level=0.95, bars_same_color=True,)
+        source=data, target='', feature='x', events='events',
+        observations='observations', show_center=False,
+        n_groups=data.x.nunique(), confidence_level=0.95,
+        bars_same_color=True, ax=ax)
     test()
     test.label_feature_ticks()
     test.target_as_percentage()
     ```
 
-    Apply using the plot method of a DaSPi Chart object:
+    Equivalent, using the `plot` method of a DaSPi `Chart` object. The
+    chart's own `target='proportion'` only drives the `Bar` plotter;
+    `ProportionTest` still relies on its own `events`/`observations`:
 
     ```python
-    import numpy as np
     import daspi as dsp
-    import pandas as pd
 
-    df = pd.DataFrame(dict(
-        x = ['first'] * 100 + ['second'] * 100 + ['third'] * 100,
-        y = (list(np.random.normal(loc=3, scale=1, size=100))
-            + list(np.random.normal(loc=4, scale=1, size=100))
-            + list(np.random.normal(loc=2, scale=1, size=100)))))
-    spec_limits = dsp.SpecLimits(upper=4.3)
-
-    # Create data that records how many are out of specification
-    data = pd.DataFrame()
-    for name, group in df.groupby('x'):
-        y = ProcessEstimator(group['y'], spec_limits=spec_limits)
-        temp = pd.DataFrame(dict(
-            x = [name],
-            proportion = y.n_nok / y.n_samples,
-            events = y.n_nok,
-            observations = y.n_samples))
-        data = pd.concat([data, temp], ignore_index=True, axis=0)
-
-    # Now plot it in combination with a bar chart
     chart = dsp.SingleChart(
             source=data,
             target='proportion',
             feature='x',
-            categorical_feature=True, # neded to label the feature tick labels
-        ).plot(
-            dsp.ProportionTest,
-            events='events', 
-            observations='observations',
-            show_center=False,
-            n_groups=data.x.nunique(), 
-            confidence_level=0.95,
-            bars_same_color=True,
+            categorical_feature=True, # needed to label the feature tick labels
         ).plot(
             dsp.Bar,
-        ).label() # neded to label the feature tick labels
+        ).plot(
+            dsp.ProportionTest,
+            events='events',
+            observations='observations',
+            show_center=False,
+            n_groups=data.x.nunique(),
+            confidence_level=0.95,
+            bars_same_color=True,
+        ).label() # needed to label the feature tick labels
     ```
-    
-    Notes
-    -----
-    This class is a bit of a hack, as it creates its own target variable 
-    using the ratio of events / observations. This allows it to 
-    visualize proportions directly, even if a target column is not 
-    explicitly provided.
-
-    A recommended and robust approach is to precompute the proportion 
-    yourself and pass it as the target variable. This gives you full 
-    control over how the proportion is calculated and ensures 
-    compatibility with other plotters or axes.
-
-    See the Examples section for a demonstration of this approach, where 
-    the proportion is computed manually and passed to both the Bar and 
-    ProportionTest plotters. This method is especially useful when 
-    combining multiple visualizations or when working with 
-    pre-aggregated data.
     """
 
     __slots__ = ('method',)
@@ -7221,7 +7245,7 @@ class ProportionTest(ConfidenceInterval):
             target_data: Series
             ) -> pd.DataFrame:
         """Perform the transformation on the target data by using the
-        given function `ci_func' and return the transformed data.
+        given function `ci_func` and return the transformed data.
 
         Parameters
         ----------
@@ -7230,7 +7254,9 @@ class ProportionTest(ConfidenceInterval):
             `feature_grouped` generator.
         target_data : pandas Series
             Feature grouped target data used for transformation, coming
-            from `feature_grouped` generator.
+            from `feature_grouped` generator. Each element is an
+            `(events, observations)` tuple, as stored in `self.target`
+            by `__init__`.
 
         Returns
         -------
@@ -7295,8 +7321,8 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
         Flag indicating whether to skip missing values in the feature 
         grouped data, by default None
         - None, no missing values are skipped
-        - all', grouped data is skipped if all values are missing
-        - any', grouped data is skipped if any value is missing
+        - 'all', grouped data is skipped if all values are missing
+        - 'any', grouped data is skipped if any value is missing
 
     target_on_y : bool, optional
         Flag indicating whether the target variable is plotted on
@@ -7483,7 +7509,7 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
             target_data: Series
             ) -> pd.DataFrame:
         """Perform the transformation on the target data by using the
-        given function `ci_func' and return the transformed data.
+        given function `ci_func` and return the transformed data.
 
         Parameters
         ----------

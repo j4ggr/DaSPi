@@ -147,9 +147,9 @@ class _String_:
         'fr': 'Ajustement'})
     
     charts_flabel_quantiles = _LocalizedString({
-        'en': 'Std. Normal Distribution quantiles',
-        'de': 'Standardnormalverteilung Quantile',
-        'fr': 'Quantiles de la distribution normale standard'})
+        'en': 'Quantiles of the distribution "{dist}"',
+        'de': 'Quantile der Verteilung "{dist}"',
+        'fr': 'Quantiles de la distribution "{dist}"'})
     
     charts_flabel_density = _LocalizedString({
         'en': 'Estimated kernel density',

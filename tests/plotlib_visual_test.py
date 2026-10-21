@@ -2060,7 +2060,8 @@ class TestPrecasts:
             STR['charts_flabel_observed'], target_label, target_label, 
             STR['cpk'], STR['cp'])
         assert ylabels == (
-            target_label, STR['charts_flabel_quantiles'], '', '', '')
+            target_label, STR['charts_flabel_quantiles'].format(dist='norm'),
+            '', '', '')
         assert STR.today in info_msg
         assert STR.username in info_msg
         assert self.info_msg in info_msg
