@@ -883,6 +883,8 @@ class LinearModel(BaseHTMLReprModel):
         DataFrame
             The goodness-of-fit metrics table as DataFrame containing
             the following columns:
+            - 'epoch' = the given `index`, i.e. the step at which a term
+            was added or removed during recursive elimination
             - 'formula' = current formula
             - 's' = Uncertainty of the model as square root of MS_Residual
             - 'aic' = Akaike's information criteria
@@ -895,6 +897,7 @@ class LinearModel(BaseHTMLReprModel):
         """
         self.anova(typ='III', vif=False)
         data = {
+            'epoch': index + 1 if isinstance(index, int) else index,
             'formula': self.formula,
             'hierarchical': self.is_hierarchical(),
             'least_parameter': self.least_parameter(),
