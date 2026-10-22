@@ -390,6 +390,156 @@ class TestStripeSpan:
         assert patch.get_linewidth() == 2.0
 
 
+class TestStripeArea:
+
+    @pytest.fixture
+    def ax(self) -> Axes:
+        return plt.subplots(1, 1)[1]
+
+    @pytest.fixture
+    def base(self) -> np.ndarray:
+        return np.linspace(0, 10, 11)
+
+    def test_init_defaults(self, base: np.ndarray) -> None:
+        stripe = StripeArea(
+            label='test',
+            base=base,
+            lower_values=base - 1,
+            upper_values=base + 1)
+        assert np.array_equal(stripe.base, base)
+        assert np.array_equal(stripe.lower_values, base - 1)
+        assert np.array_equal(stripe.upper_values, base + 1)
+        assert stripe.where is None
+        assert stripe.interpolate == False
+        assert stripe.step is None
+        assert stripe.color == COLOR.STRIPE
+        assert stripe.alpha == COLOR.CI_ALPHA
+        assert stripe.zorder == 0.7
+        assert stripe.border_linewidth == 0
+        assert stripe.show_position == False
+
+    def test_init_broadcasts_scalars(self, base: np.ndarray) -> None:
+        stripe = StripeArea(
+            label='test',
+            base=base,
+            lower_values=-1.0,
+            upper_values=1.0)
+        assert stripe.lower_values.shape == base.shape
+        assert stripe.upper_values.shape == base.shape
+        assert np.all(stripe.lower_values == -1.0)
+        assert np.all(stripe.upper_values == 1.0)
+
+    def test_init_position_and_width(self, base: np.ndarray) -> None:
+        stripe = StripeArea(
+            label='test',
+            base=base,
+            lower_values=-1.0,
+            upper_values=1.0)
+        assert stripe.position == approx(0.0)
+        assert stripe.width == approx(2.0)
+
+    def test_init_where_mask(self, base: np.ndarray) -> None:
+        where = base > 5
+        stripe = StripeArea(
+            label='test',
+            base=base,
+            lower_values=base - 1,
+            upper_values=base + 1,
+            where=where)
+        assert stripe.where is not None
+        assert np.array_equal(stripe.where, where)
+
+    def test_init_with_kwds(self, base: np.ndarray) -> None:
+        stripe = StripeArea(
+            label='test',
+            base=base,
+            lower_values=base - 1,
+            upper_values=base + 1,
+            c='blue',
+            lw=2.0)
+        assert stripe.color == 'blue'
+        assert stripe.border_linewidth == 2.0
+
+    def test_handle_property(self, base: np.ndarray) -> None:
+        stripe = StripeArea(
+            label='test',
+            base=base,
+            lower_values=base - 1,
+            upper_values=base + 1,
+            color=COLOR.PALETTE[0],
+            alpha=0.123)
+        handle = stripe.handle
+        assert isinstance(handle, Patch)
+        assert handle.get_alpha() == 0.123
+        assert to_hex(handle.get_facecolor()) == to_hex(COLOR.PALETTE[0]).lower()
+
+    def test_call_horizontal(self, ax: Axes, base: np.ndarray) -> None:
+        stripe = StripeArea(
+            label='test',
+            base=base,
+            lower_values=base - 1,
+            upper_values=base + 1,
+            border_linewidth=1.0)
+        stripe(ax)
+        assert ax in stripe._axes
+        assert len(ax.collections) == 1
+        collection = ax.collections[0]
+        assert collection.get_alpha() == COLOR.CI_ALPHA
+        assert collection.get_zorder() == 0.7
+
+    def test_call_vertical(self, ax: Axes, base: np.ndarray) -> None:
+        stripe = StripeArea(
+            label='test',
+            base=base,
+            lower_values=base - 1,
+            upper_values=base + 1,
+            orientation='vertical')
+        stripe(ax)
+        assert ax in stripe._axes
+        assert len(ax.collections) == 1
+
+    def test_call_idempotent(self, ax: Axes, base: np.ndarray) -> None:
+        stripe = StripeArea(
+            label='test',
+            base=base,
+            lower_values=base - 1,
+            upper_values=base + 1)
+        stripe(ax)
+        n_collections = len(ax.collections)
+        stripe(ax)
+        assert len(ax.collections) == n_collections
+
+    def test_call_with_where(self, ax: Axes, base: np.ndarray) -> None:
+        where = base > 5
+        stripe = StripeArea(
+            label='test',
+            base=base,
+            lower_values=base - 1,
+            upper_values=base + 1,
+            where=where)
+        stripe(ax)
+        collection = ax.collections[0]
+        # the filled polygon should only span the masked (base > 5) region
+        xs = collection.get_paths()[0].vertices[:, 0]
+        assert xs.min() >= 5.0
+
+    def test_custom_styling(self, ax: Axes, base: np.ndarray) -> None:
+        stripe = StripeArea(
+            label='test',
+            base=base,
+            lower_values=base - 1,
+            upper_values=base + 1,
+            color='red',
+            alpha=0.3,
+            zorder=2.0,
+            border_linewidth=2.0)
+        stripe(ax)
+        collection = ax.collections[0]
+        assert collection.get_facecolor()[0][:3] == approx((1.0, 0.0, 0.0))
+        assert collection.get_alpha() == 0.3
+        assert collection.get_zorder() == 2.0
+
+
 class TestPareto:
 
     @pytest.fixture

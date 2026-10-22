@@ -934,9 +934,8 @@ class SingleChart(Chart):
         if not isinstance(combination, tuple): 
             combination = (combination, )
         self._last_variate = deepcopy(self._current_variate)
-        for key, name in zip(self.variate_names, combination):
-            self._current_variate[key] = name
-    
+        self._current_variate |= dict(zip(self.variate_names, combination))
+
     def dodge(self) -> None:
         """Converts the feature data to tick positions, taking dodging 
         into account."""

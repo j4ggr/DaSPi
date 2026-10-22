@@ -169,6 +169,7 @@ __all__ = [
     'StandardErrorMean',
     'Stem',
     'Stripe',
+    'StripeArea',
     'StripeLine',
     'StripeSpan',
     'TransformPlotter',
@@ -8311,6 +8312,186 @@ class StripeSpan(Stripe):
             ax.axhspan(*args, **kwds)
         else:
             ax.axvspan(*args, **kwds)
+        self._axes.append(ax)
+
+
+class StripeArea(Stripe):
+    """Concrete implementation of `Stripe` for filling the area between
+    two boundary curves using `fill_between`/`fill_betweenx`.
+
+    Unlike `StripeSpan`, which draws a constant band across the full 
+    plotting area with `axhspan`/`axvspan`, `StripeArea` fills the 
+    region between two boundary curves that may vary along the 
+    orthogonal axis (e.g. a confidence band around a fitted line, or 
+    spec limits that change over the feature range). The `where` 
+    parameter allows the fill to be restricted to specific sections of 
+    the data range, exactly like the `where` argument of Matplotlib's 
+    `fill_between`/`fill_betweenx`.
+
+    Parameters
+    ----------
+    label : str
+        The label of the stripe as it appears in the legend.
+    base : array-like
+        The data coordinates along the orthogonal axis (x for 
+        horizontal stripes, y for vertical stripes) that the lower and
+        upper boundary values correspond to.
+    lower_values : array-like or float
+        The lower boundary of the filled area for each `base` value.
+        Scalars are broadcast across `base`.
+    upper_values : array-like or float
+        The upper boundary of the filled area for each `base` value.
+        Scalars are broadcast across `base`.
+    where : array-like of bool or None, optional
+        Boolean mask defining where the area should be filled, passed
+        directly to `fill_between`/`fill_betweenx`. If None, the area is
+        filled across the entire `base` range. Defaults to None.
+    interpolate : bool, optional
+        Whether to interpolate the boundaries at the edges of masked 
+        regions defined by `where`, passed to 
+        `fill_between`/`fill_betweenx`. Defaults to False.
+    step : {'pre', 'post', 'mid'} or None, optional
+        If not None, fill between `base` and the boundaries using steps 
+        of the given style, passed to `fill_between`/`fill_betweenx`.
+        Defaults to None.
+    orientation : {'horizontal', 'vertical'}, optional
+        The orientation of the stripe. Defaults to 'horizontal'.
+    color : str, optional
+        The fill color of the stripe. Defaults to `COLOR.STRIPE`.
+    alpha : float, optional
+        Transparency level of the stripe. Defaults to `COLOR.CI_ALPHA`.
+    zorder : float, optional
+        Drawing order of the stripe. Defaults to 0.7.
+    border_linewidth : float, optional
+        Width of the border line. Can also be set via `lw` or 
+        `linewidth` in `**kwds`. Defaults to 0.
+    **kwds :
+        Additional keyword arguments for fine-tuning appearance.
+        Priority order:
+        - Line width: `lw`, `linewidth`, then `border_linewidth`
+        - Color: `c`, then `color`
+
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from daspi import StripeArea, COLOR
+
+    fig, ax = plt.subplots()
+    x = np.linspace(0, 10, 100)
+    lower = np.sin(x) - 0.3
+    upper = np.sin(x) + 0.3
+    band = StripeArea(
+        label='band',
+        base=x,
+        lower_values=lower,
+        upper_values=upper,
+        where=x > 5,
+        color=COLOR.STRIPE)
+    band(ax=ax)
+    ax.legend([band.handle], [band.label])
+    ```
+
+    Notes
+    -----
+    This class is part of the DaSPi visualization toolkit and is 
+    designed to integrate seamlessly with other chart components. It 
+    ensures that each stripe is only drawn once per Axes instance.
+    """
+
+    __slots__ = (
+        'base',
+        'border_linewidth',
+        'interpolate',
+        'lower_values',
+        'step',
+        'upper_values',
+        'where')
+
+    base: NDArray
+    """The data coordinates along the orthogonal axis the boundary 
+    values correspond to."""
+    border_linewidth: float
+    """Width of the border line. Could also be set during initialisation
+    via `lw` or `linewidth`."""
+    interpolate: bool
+    """Whether to interpolate the boundaries at the edges of masked 
+    regions defined by `where`."""
+    lower_values: NDArray
+    """The lower boundary of the filled area for each `base` value."""
+    step: Literal['pre', 'post', 'mid'] | None
+    """If not None, fill using steps of the given style."""
+    upper_values: NDArray
+    """The upper boundary of the filled area for each `base` value."""
+    where: NDArray | None
+    """Boolean mask defining where the area should be filled."""
+
+    def __init__(
+            self,
+            label: str,
+            base: ArrayLike,
+            lower_values: ArrayLike | float,
+            upper_values: ArrayLike | float,
+            where: ArrayLike | None = None,
+            interpolate: bool = False,
+            step: Literal['pre', 'post', 'mid'] | None = None,
+            orientation: Literal['horizontal', 'vertical'] = 'horizontal',
+            color: str = COLOR.STRIPE,
+            alpha: float = COLOR.CI_ALPHA,
+            zorder: float = 0.7,
+            border_linewidth: float = 0,
+            **kwds) -> None:
+        self.base = np.asarray(base, dtype=float)
+        self.lower_values = np.broadcast_to(
+            np.asarray(lower_values, dtype=float), self.base.shape)
+        self.upper_values = np.broadcast_to(
+            np.asarray(upper_values, dtype=float), self.base.shape)
+        self.where = None if where is None else np.asarray(where, dtype=bool)
+        self.interpolate = interpolate
+        self.step = step
+
+        position = float(np.mean(self.lower_values + self.upper_values) / 2)
+        width = float(np.mean(self.upper_values - self.lower_values))
+        super().__init__(
+            label=label,
+            orientation=orientation,
+            position=position,
+            width=width,
+            color=kwds.get('c', color),
+            alpha=alpha,
+            zorder=zorder,
+            show_position=False)
+        self.border_linewidth = kwds.get(
+            'lw', kwds.get('linewidth', border_linewidth))
+
+    @property
+    def handle(self) -> Patch:
+        """Get the handle of the stripe used for legend."""
+        handle = Patch(color=self.color, alpha=self.alpha)
+        return handle
+
+    def __call__(self, ax: Axes) -> None:
+        """Draw the stripe on the given Axes object."""
+        if ax in self._axes:
+            return
+
+        kwds = {
+            'color': self.color,
+            'alpha': self.alpha,
+            'linewidth': self.border_linewidth,
+            'zorder': self.zorder,
+            'where': self.where,
+            'interpolate': self.interpolate,
+            'step': self.step}
+        if self.orientation == 'horizontal':
+            ax.fill_between(
+                self.base, self.lower_values, self.upper_values, **kwds)
+        else:
+            ax.fill_betweenx(
+                self.base, self.lower_values, self.upper_values, **kwds)
         self._axes.append(ax)
 
 
