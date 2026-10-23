@@ -21,7 +21,9 @@ Classes
 ``GoodnessOfFitCharts``
     Single-panel chart showing the evolution of R², adjusted R², the
     p-value of the least significant term and the normalized AIC across
-    the steps of a recursive parameter elimination.
+    the steps of a recursive parameter elimination. Also provides
+    `formula_at_epoch`/`refit_at_epoch` to refit the model with the
+    formula of a chosen step.
 
 ``PairComparisonCharts``
     Side-by-side comparison of two samples or groups using box plots,
@@ -414,8 +416,12 @@ class GoodnessOfFitCharts(SingleChart):
     min-max normalized Akaike information criterion (AIC) against the
     elimination step. A dashed line marks the significance level used
     to decide whether a term should be eliminated, and a shaded area
-    highlights the elimination steps at which the model was not
-    hierarchical.
+    highlights the elimination steps at which the model was
+    heterarchical, i.e. not hierarchical.
+
+    Once a preferred epoch has been identified visually, use
+    `formula_at_epoch` or `refit_at_epoch` to extract the formula used
+    at that step and refit the underlying `LinearModel` with it.
 
     Parameters
     ----------
@@ -423,11 +429,12 @@ class GoodnessOfFitCharts(SingleChart):
         The goodness-of-fit table collected during recursive
         elimination, i.e. the concatenated result of
         `LinearModel.recursive_elimination`. Must contain the columns
-        `ANOVA.EPOCH`, `ANOVA.R2`, `ANOVA.R2_ADJ`, `ANOVA.P_LEAST`,
-        `ANOVA.AIC` and `ANOVA.HIERARCHICAL`.
+        `ANOVA.EPOCH`, `ANOVA.FORMULA`, `ANOVA.R2`, `ANOVA.R2_ADJ`,
+        `ANOVA.P_LEAST`, `ANOVA.AIC` and `ANOVA.HIERARCHICAL`.
     linear_model : LinearModel
         The linear regression model the given `df_gof` table was
-        generated from. Used to draw the significance threshold line.
+        generated from. Used to draw the significance threshold line
+        and to refit via `refit_at_epoch`.
     stretch_figsize : bool | float | tuple[float, float], optional
         If True, the height and width of the figure are stretched based
         on the number rows and columns in the axes grid. If a float is
@@ -447,14 +454,22 @@ class GoodnessOfFitCharts(SingleChart):
     lm = dsp.LinearModel(
         source=df,
         target='dissolution',
-        features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+        factors=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
         covariates=['temperature', 'preparation'],
         order=2)
     df_gof = pd.concat(lm.recursive_elimination())
-    dsp.GoodnessOfFitCharts(df_gof, lm).plot().stripes().label(info=True)
+    chart = dsp.GoodnessOfFitCharts(df_gof, lm).plot().stripes().label(info=True)
     ```
 
     ![GoodnessOfFitChartsDocstringExample](https://raw.githubusercontent.com/j4ggr/DaSPi/main/docs/img/precast_goodness-of-fit-charts_example.png)
+
+    Once a good epoch has been picked by eye, e.g. epoch 5, refit the
+    model with the formula recorded at that step:
+
+    ```python
+    chart.refit_at_epoch(5)
+    dsp.ParameterRelevanceCharts(lm).plot().stripes().label()
+    ```
     """
 
     _AIC_NORM: Literal['aic_norm'] = 'aic_norm'
@@ -543,16 +558,57 @@ class GoodnessOfFitCharts(SingleChart):
         hierarchical = self.df_gof[ANOVA.HIERARCHICAL].to_numpy()
         base = [x for p in positions for x in (p - 0.5, p + 0.5)]
         where = [not h for h in hierarchical for _ in range(2)]
-        nonhierarchical = StripeArea(
-            label=STR['gofcharts_nonhierarchical'],
+        heterarchical = StripeArea(
+            label=STR['gofcharts_heterarchical'],
             base=base,
             lower_values=0,
             upper_values=1,
             where=where,
             color=COLOR.ANOMALY)
 
-        super().stripes([threshold, nonhierarchical])
+        super().stripes([threshold, heterarchical])
         return self
+
+    def formula_at_epoch(self, epoch: int) -> str:
+        """Get the model formula recorded at the given elimination
+        step.
+
+        Parameters
+        ----------
+        epoch : int
+            The elimination step whose formula should be extracted.
+
+        Returns
+        -------
+        str
+            The model formula used at the given `epoch`.
+        """
+        return LinearModel.formula_at_epoch(self.df_gof, epoch)
+
+    def refit_at_epoch(self, epoch: int, **kwds) -> LinearModel:
+        """Refit the underlying `LinearModel` with the formula recorded
+        at the given elimination step.
+
+        Use this once you have picked a preferred epoch by inspecting
+        the chart produced by `plot()`, e.g. where the significance
+        threshold and the hierarchy of the model satisfy you best.
+
+        Parameters
+        ----------
+        epoch : int
+            The elimination step whose formula should be used to refit
+            the model.
+        **kwds
+            Additional keyword arguments for `ols` function of 
+            `statsmodels.formula.api`, passed to `LinearModel.fit`.
+
+        Returns
+        -------
+        LinearModel
+            The `linear_model` passed to this chart, refitted with the
+            formula of the given `epoch`.
+        """
+        return self.lm.refit_at_epoch(self.df_gof, epoch, **kwds)
 
     def label(self, info: bool | str = False, **kwds) -> Self: # type: ignore
         """Adds titles and labels to the chart generated by the

@@ -16,6 +16,13 @@ __Types of changes__:
 
 ## [Unreleased]
 
+### Added
+
+- **Plotlib**: New precast chart `GoodnessOfFitCharts` visualizes R², adjusted R², p_least and normalized AIC across `LinearModel.recursive_elimination` epochs, with a shaded area marking heterarchical epochs (where an interaction term remains while one of its main effects was already eliminated).
+- **Anova**: `LinearModel.formula_at_epoch` (staticmethod) extracts the formula recorded at a given elimination epoch from a goodness-of-fit table. `LinearModel.refit_at_epoch` refits the model with that formula, keeping `excluded` in sync so `formula` and related properties stay consistent. `GoodnessOfFitCharts` exposes both as convenience methods.
+- **Constants**: Added `ANOVA.EPOCH`, `ANOVA.FORMULA`, `ANOVA.HIERARCHICAL`, `ANOVA.LEAST_PARAMETER`, `ANOVA.P_LEAST`, `ANOVA.AIC`, `ANOVA.R2`, `ANOVA.R2_ADJ`, `ANOVA.R2_PRED` column-name constants, used by `LinearModel.gof_metrics` and `GoodnessOfFitCharts`.
+- **Strings**: Added localized `STR['gofcharts_*']` strings (en/de/fr) for `GoodnessOfFitCharts` labels and titles.
+
 ## [2.4.1] - 2026-10-21
 
 ### Fixed

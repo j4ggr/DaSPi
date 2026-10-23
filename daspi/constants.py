@@ -848,6 +848,11 @@ class _Anova_:
     during recursive elimination in a goodness-of-fit table, see 
     `LinearModel.gof_metrics`."""
     
+    FORMULA: Literal['formula'] = 'formula'
+    """Column name for the model formula at a given elimination step in 
+    a goodness-of-fit table, see `LinearModel.gof_metrics` and 
+    `LinearModel.formula_at_epoch`."""
+    
     HIERARCHICAL: Literal['hierarchical'] = 'hierarchical'
     """Column name for the flag indicating whether the model is 
     hierarchical in a goodness-of-fit table, see 

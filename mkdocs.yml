@@ -142,6 +142,7 @@ nav:
         - Precast Module: plotlib/precast/index.md
         - ResidualsCharts: plotlib/precast/residual-charts.md
         - ParameterRelevanceCharts: plotlib/precast/parameter-relevance-charts.md
+        - GoodnessOfFitCharts: plotlib/precast/goodness-of-fit-charts.md
         - PairComparisonCharts: plotlib/precast/pair-comparison-charts.md
         - PairwiseMatrixCharts: plotlib/precast/pairwise-matrix-charts.md
         - BivariateUnivariateCharts: plotlib/precast/bivariate-univariate-charts.md

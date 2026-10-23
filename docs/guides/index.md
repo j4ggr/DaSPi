@@ -183,7 +183,9 @@ Use `ResidualsCharts(model).plot()` to check model assumptions.
 
 ### 7. Interpret Results
 Analyze with `ParameterRelevanceCharts`, `model.anova()`, and 
-`model.gof_metrics()`.
+`model.gof_metrics()`. Use `GoodnessOfFitCharts` to track R², adjusted
+R², p_least and AIC across elimination epochs, then pick an epoch and
+refit with `model.refit_at_epoch()`.
 
 ### 8. Assess Capability
 Evaluate process performance with `ProcessCapabilityAnalysisCharts` 

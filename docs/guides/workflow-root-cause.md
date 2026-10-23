@@ -94,6 +94,54 @@ The ANOVA table shows which factors significantly affect your output:
 - **Predicted R²:** Cross-validation estimate (avoid overfitting)
 - **Target:** R² > 0.7 for good fit, adjusted R² ≈ predicted R²
 
+### Tracking Metrics Across Elimination Epochs
+
+`recursive_elimination` removes one term at a time. Each of these
+steps (an "epoch") has its own goodness-of-fit metrics, which can be
+collected and visualized with `GoodnessOfFitCharts` to help you decide
+when to stop eliminating terms:
+
+```python
+import pandas as pd
+import daspi as dsp
+
+df = dsp.load_dataset("painkillers-dissolution")
+model = dsp.LinearModel(
+    source=df,
+    target="dissolution",
+    factors=["employee", "stirrer", "brand", "catalyst", "water"],
+    covariates=["temperature", "preparation"],
+    order=2)
+
+# Collect the goodness-of-fit table for every elimination epoch
+df_gof = pd.concat(model.recursive_elimination())
+
+# Visualize R², adjusted R², p_least and normalized AIC per epoch
+chart = dsp.GoodnessOfFitCharts(df_gof, model
+    ).plot(
+    ).stripes(
+    ).label(info=True)
+```
+
+The shaded "heterarchical" area marks epochs where the remaining terms
+no longer form a hierarchical model (i.e. an interaction term remains
+while one of its main effects has already been eliminated), which is
+usually a sign to stop or reconsider the elimination at that point.
+
+Once you have picked a preferred epoch from the plot, extract its
+formula and refit the model directly:
+
+```python
+# Extract the formula used at epoch 5 without refitting
+formula = model.formula_at_epoch(df_gof, epoch=5)
+
+# Or refit the model with that epoch's formula in one step
+model.refit_at_epoch(df_gof, epoch=5)
+
+# The chart offers the same convenience methods
+chart.refit_at_epoch(5)
+```
+
 ---
 
 ## Real-World Example: Quality Investigation

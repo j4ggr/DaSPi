@@ -374,8 +374,7 @@ class LinearModel(BaseHTMLReprModel):
         target='dissolution',
         factors=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
         covariates=['temperature', 'preparation'],
-        order=2,
-        covariates=None)
+        order=2,)
 
     # Store goodnes of fit values for each elimination step
     df_gof = pd.concat(model.recursive_elimination())
@@ -885,7 +884,9 @@ class LinearModel(BaseHTMLReprModel):
             the following columns:
             - 'epoch' = the given `index`, i.e. the step at which a term
             was added or removed during recursive elimination
-            - 'formula' = current formula
+            - 'formula' = current formula, can be used to refit the
+            model at this step, see `formula_at_epoch` and 
+            `refit_at_epoch`
             - 's' = Uncertainty of the model as square root of MS_Residual
             - 'aic' = Akaike's information criteria
             - 'r2' = R-squared of the model
@@ -898,7 +899,7 @@ class LinearModel(BaseHTMLReprModel):
         self.anova(typ='III', vif=False)
         data = {
             ANOVA.EPOCH: index + 1 if isinstance(index, int) else index,
-            'formula': self.formula,
+            ANOVA.FORMULA: self.formula,
             ANOVA.HIERARCHICAL: self.is_hierarchical(),
             ANOVA.LEAST_PARAMETER: self.least_parameter(),
             ANOVA.P_LEAST: self.p_values().max(),
@@ -908,6 +909,115 @@ class LinearModel(BaseHTMLReprModel):
             ANOVA.R2_ADJ: self.model.rsquared_adj,
             ANOVA.R2_PRED: self.r2_pred()}
         return pd.DataFrame(data, index=[index])
+    
+    @staticmethod
+    def formula_at_epoch(df_gof: DataFrame, epoch: int) -> str:
+        """Extract the model formula recorded at a given elimination
+        step from a goodness-of-fit table.
+
+        Parameters
+        ----------
+        df_gof : DataFrame
+            The goodness-of-fit table collected during recursive
+            elimination, i.e. the concatenated result of 
+            `recursive_elimination`. Must contain the columns 'epoch' 
+            and 'formula', see `gof_metrics`.
+        epoch : int
+            The elimination step whose formula should be extracted.
+
+        Returns
+        -------
+        str
+            The model formula used at the given `epoch`.
+
+        Examples
+        --------
+        ```python
+        import pandas as pd
+        import daspi as dsp
+
+        df = dsp.load_dataset('painkillers-dissolution')
+        lm = dsp.LinearModel(
+            source=df,
+            target='dissolution',
+            factors=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+            covariates=['temperature', 'preparation'],
+            order=2)
+        df_gof = pd.concat(lm.recursive_elimination())
+        dsp.LinearModel.formula_at_epoch(df_gof, epoch=5)
+        ```
+        """
+        rows = df_gof[df_gof[ANOVA.EPOCH] == epoch]
+        assert not rows.empty, (
+            f'No entry found for epoch={epoch} in df_gof, got epochs '
+            f'{sorted(df_gof[ANOVA.EPOCH].unique())}')
+        return str(rows[ANOVA.FORMULA].iloc[0])
+    
+    def refit_at_epoch(self, df_gof: DataFrame, epoch: int, **kwds) -> Self:
+        """Refit this model using the formula recorded at a given
+        elimination step of a goodness-of-fit table.
+
+        This is a convenience method combining `formula_at_epoch` and
+        `fit`, allowing you to go back to any intermediate step of a
+        previously run `recursive_elimination` once you have picked a
+        preferred epoch, e.g. by inspecting a
+        `daspi.GoodnessOfFitCharts` plot.
+
+        Parameters
+        ----------
+        df_gof : DataFrame
+            The goodness-of-fit table collected during recursive
+            elimination, i.e. the concatenated result of 
+            `recursive_elimination`. Must contain the columns 'epoch' 
+            and 'formula', see `gof_metrics`.
+        epoch : int
+            The elimination step whose formula should be used to refit
+            the model.
+        **kwds
+            Additional keyword arguments for `ols` function of 
+            `statsmodels.formula.api`, passed to `fit`.
+
+        Returns
+        -------
+        Self
+            The current instance of the model, refitted with the
+            formula of the given `epoch`, for method chaining.
+
+        Notes
+        -----
+        This also resyncs the `excluded` attribute so that the
+        `formula` property and methods relying on it (`eliminate`, 
+        `include`, `recursive_elimination`) stay consistent with the
+        formula used for refitting.
+
+        Examples
+        --------
+        ```python
+        import pandas as pd
+        import daspi as dsp
+
+        df = dsp.load_dataset('painkillers-dissolution')
+        lm = dsp.LinearModel(
+            source=df,
+            target='dissolution',
+            factors=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+            covariates=['temperature', 'preparation'],
+            order=2)
+        df_gof = pd.concat(lm.recursive_elimination())
+        lm.refit_at_epoch(df_gof, epoch=5)
+        dsp.ParameterRelevanceCharts(lm).plot().stripes().label()
+        ```
+        """
+        formula = self.formula_at_epoch(df_gof, epoch)
+        terms = [t.strip() for t in formula.split('~', 1)[1].split('+')]
+        drop_intercept = '-1' in terms
+        terms = [t for t in terms if t != '-1']
+        self.excluded = {t for t in self._initial_terms if t not in terms}
+        if drop_intercept:
+            self.excluded.add(ANOVA.INTERCEPT)
+        else:
+            self.excluded.discard(ANOVA.INTERCEPT)
+        return self.fit(**kwds)
     
     def summary(
             self, 

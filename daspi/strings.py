@@ -166,10 +166,10 @@ class _String_:
         'de': 'Metrik',
         'fr': 'Métrique'})
     
-    gofcharts_nonhierarchical = _LocalizedString({
-        'en': 'Nonhierarchical',
-        'de': 'Hierarchieverstoß',
-        'fr': 'Non-hiérarchique'})
+    gofcharts_heterarchical = _LocalizedString({
+        'en': 'Heterarchical',
+        'de': 'Heterarchisch',
+        'fr': 'Hétérarchique'})
     
     resid_name = _LocalizedString({
         'en': 'Residuals',

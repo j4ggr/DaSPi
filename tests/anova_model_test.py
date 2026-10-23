@@ -248,6 +248,20 @@ class TestLinearModel:
         assert gof['p_least'].iloc[-2] >= lm2.alpha
         assert lm2.main_parameters == ['C']
 
+    def test_formula_at_epoch_and_refit(self, lm2: LinearModel) -> None:
+        df_gof = pd.concat(list(lm2.recursive_elimination()))
+
+        for epoch, formula in zip(df_gof[ANOVA.EPOCH], df_gof[ANOVA.FORMULA]):
+            assert LinearModel.formula_at_epoch(df_gof, epoch) == formula
+
+        with pytest.raises(AssertionError):
+            LinearModel.formula_at_epoch(df_gof, epoch=9999)
+
+        first_epoch = int(df_gof[ANOVA.EPOCH].iloc[0])
+        first_formula = df_gof[ANOVA.FORMULA].iloc[0]
+        lm2.refit_at_epoch(df_gof, first_epoch)
+        assert lm2.formula == first_formula
+
     def test_alpha_property(self, lm: LinearModel) -> None:
         assert lm.alpha == 0.05
         lm.alpha = 0.1

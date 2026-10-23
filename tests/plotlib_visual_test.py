@@ -2174,6 +2174,12 @@ class TestPrecasts:
         assert set(legend_labels) == {
             '$R^2$', '$R^2_{adj}$', '$p_{least}$', '$AIC_{norm}$'}
 
+        epoch = int(df_gof['epoch'].iloc[0])
+        formula = chart.formula_at_epoch(epoch)
+        assert formula == df_gof['formula'].iloc[0]
+        chart.refit_at_epoch(epoch)
+        assert model.formula == formula
+
     def test_gage_study_model(self) -> None:
         df = load_dataset('grnr_layer_thickness')
         gage = GageStudyModel(
