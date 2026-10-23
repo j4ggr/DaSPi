@@ -16,12 +16,19 @@ __Types of changes__:
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-10-23
+
 ### Added
 
-- **Plotlib**: New precast chart `GoodnessOfFitCharts` visualizes R², adjusted R², p_least and normalized AIC across `LinearModel.recursive_elimination` epochs, with a shaded area marking heterarchical epochs (where an interaction term remains while one of its main effects was already eliminated).
+- **Plotlib**: New `StripeArea` stripe type fills the region between two boundary curves (as opposed to `StripeSpan`'s constant band), supporting the `where`, `interpolate` and `step` options from Matplotlib's `fill_between`/`fill_betweenx`. Useful for e.g. confidence bands or spec limits that vary along the orthogonal axis.
+- **Plotlib**: New precast chart `GoodnessOfFitCharts` visualizes R², adjusted R², p_least and normalized AIC across `LinearModel.recursive_elimination` epochs, with a shaded `StripeArea` marking heterarchical epochs (where an interaction term remains while one of its main effects was already eliminated).
 - **Anova**: `LinearModel.formula_at_epoch` (staticmethod) extracts the formula recorded at a given elimination epoch from a goodness-of-fit table. `LinearModel.refit_at_epoch` refits the model with that formula, keeping `excluded` in sync so `formula` and related properties stay consistent. `GoodnessOfFitCharts` exposes both as convenience methods.
 - **Constants**: Added `ANOVA.EPOCH`, `ANOVA.FORMULA`, `ANOVA.HIERARCHICAL`, `ANOVA.LEAST_PARAMETER`, `ANOVA.P_LEAST`, `ANOVA.AIC`, `ANOVA.R2`, `ANOVA.R2_ADJ`, `ANOVA.R2_PRED` column-name constants, used by `LinearModel.gof_metrics` and `GoodnessOfFitCharts`.
 - **Strings**: Added localized `STR['gofcharts_*']` strings (en/de/fr) for `GoodnessOfFitCharts` labels and titles.
+
+### Fixed
+
+- **Plotlib**: `GoodnessOfFitCharts`'s target axis no longer gets rounded out to roughly -0.2..1.2 by the global `round_numbers` autolimit style; `plot()` now sets a tight, data-driven 3% y-axis margin instead.
 
 ## [2.4.1] - 2026-10-21
 
