@@ -48,6 +48,7 @@ from daspi.plotlib.precast import (
     BivariateUnivariateCharts,
     GageRnRCharts,
     GageStudyCharts,
+    GoodnessOfFitCharts,
     PairComparisonCharts,
     ParameterRelevanceCharts,
     ProcessCapabilityAnalysisCharts,
@@ -2149,6 +2150,29 @@ class TestPrecasts:
             ).label(info=True
             ).save(self.file_name)
         assert self.file_name.is_file()
+
+    def test_goodness_of_fit_charts(self) -> None:
+        df = load_dataset('painkillers-dissolution')
+        model = LinearModel(
+            source=df,
+            target='dissolution',
+            factors=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+            covariates=['temperature', 'preparation'],
+            order=2)
+        df_gof = pd.concat(model.recursive_elimination())
+
+        self.base = f'{self.fig_title}_goodness_of_fit_charts'
+        self.kind = 'basic'
+        chart = GoodnessOfFitCharts(df_gof, model
+            ).plot(
+            ).stripes(
+            ).label(info=True
+            ).save(self.file_name)
+        assert self.file_name.is_file()
+        assert len(chart.hueing.labels) == 4
+        legend_labels = chart.legend_data[STR['gofcharts_metric_name']][1]
+        assert set(legend_labels) == {
+            '$R^2$', '$R^2_{adj}$', '$p_{least}$', '$AIC_{norm}$'}
 
     def test_gage_study_model(self) -> None:
         df = load_dataset('grnr_layer_thickness')

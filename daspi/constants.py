@@ -843,6 +843,40 @@ class _Anova_:
     """Default column name for the Variance Inflation Factor values used 
     to detect multicollinearity in an ANOVA table."""
     
+    EPOCH: Literal['epoch'] = 'epoch'
+    """Column name for the step at which a term was added or removed 
+    during recursive elimination in a goodness-of-fit table, see 
+    `LinearModel.gof_metrics`."""
+    
+    HIERARCHICAL: Literal['hierarchical'] = 'hierarchical'
+    """Column name for the flag indicating whether the model is 
+    hierarchical in a goodness-of-fit table, see 
+    `LinearModel.gof_metrics`."""
+    
+    LEAST_PARAMETER: Literal['least_parameter'] = 'least_parameter'
+    """Column name for the least significant term in a goodness-of-fit 
+    table, see `LinearModel.gof_metrics`."""
+    
+    P_LEAST: Literal['p_least'] = 'p_least'
+    """Column name for the p-value of the least significant term in a 
+    goodness-of-fit table, see `LinearModel.gof_metrics`."""
+    
+    AIC: Literal['aic'] = 'aic'
+    """Column name for Akaike's information criterion in a 
+    goodness-of-fit table, see `LinearModel.gof_metrics`."""
+    
+    R2: Literal['r2'] = 'r2'
+    """Column name for R-squared in a goodness-of-fit table, see 
+    `LinearModel.gof_metrics`."""
+    
+    R2_ADJ: Literal['r2_adj'] = 'r2_adj'
+    """Column name for adjusted R-squared in a goodness-of-fit table, 
+    see `LinearModel.gof_metrics`."""
+    
+    R2_PRED: Literal['r2_pred'] = 'r2_pred'
+    """Column name for predicted R-squared in a goodness-of-fit table, 
+    see `LinearModel.gof_metrics`."""
+    
     SMALLEST_INTERACTION_ORDER: int = 2
     """Smallest possible interaction order, i.e. the interaction between 
     two factors (A:B)."""

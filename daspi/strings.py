@@ -141,6 +141,36 @@ class _String_:
         'de': 'Residuen Analyse',
         'fr': 'Analyse des résidus'})
     
+    gofcharts_fig_title = _LocalizedString({
+        'en': 'Recursive elimination',
+        'de': 'Rekursive Eliminierung',
+        'fr': 'Élimination récursive'})
+    
+    gofcharts_sub_title = _LocalizedString({
+        'en': 'Goodness-of-fit metrics across elimination steps',
+        'de': 'Verlauf der Gütemaße über die Eliminierungsschritte',
+        'fr': 'Mesures d\'adéquation au cours des étapes d\'élimination'})
+    
+    gofcharts_feature_label = _LocalizedString({
+        'en': 'Elimination step',
+        'de': 'Schritt rekursiver Eliminierung',
+        'fr': 'Étape d\'élimination'})
+    
+    gofcharts_target_label = _LocalizedString({
+        'en': 'Metric value',
+        'de': 'Metrik-Wert',
+        'fr': 'Valeur de la métrique'})
+    
+    gofcharts_metric_name = _LocalizedString({
+        'en': 'Metric',
+        'de': 'Metrik',
+        'fr': 'Métrique'})
+    
+    gofcharts_nonhierarchical = _LocalizedString({
+        'en': 'Nonhierarchical',
+        'de': 'Hierarchieverstoß',
+        'fr': 'Non-hiérarchique'})
+    
     resid_name = _LocalizedString({
         'en': 'Residuals',
         'de': 'Residuen',
@@ -175,6 +205,11 @@ class _String_:
         'en': r'effect_α\;(α={alpha})',
         'de': r'Effekt_α\;(α={alpha})',
         'fr': r'effet_α\;(α={alpha})'})
+
+    gofcharts_label_alpha_th = _LocalizedString({
+        'en': r'p_{{least,α}}\;(α={alpha})',
+        'de': r'p_{{least,α}}\;(α={alpha})',
+        'fr': r'p_{{least,α}}\;(α={alpha})'})
 
     cp = _LocalizedString({
         'en': 'Process Capability index Cp',

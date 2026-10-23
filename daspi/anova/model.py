@@ -897,16 +897,16 @@ class LinearModel(BaseHTMLReprModel):
         """
         self.anova(typ='III', vif=False)
         data = {
-            'epoch': index + 1 if isinstance(index, int) else index,
+            ANOVA.EPOCH: index + 1 if isinstance(index, int) else index,
             'formula': self.formula,
-            'hierarchical': self.is_hierarchical(),
-            'least_parameter': self.least_parameter(),
-            'p_least': self.p_values().max(),
+            ANOVA.HIERARCHICAL: self.is_hierarchical(),
+            ANOVA.LEAST_PARAMETER: self.least_parameter(),
+            ANOVA.P_LEAST: self.p_values().max(),
             's': self.uncertainty,
-            'aic': self.model.aic,
-            'r2': self.model.rsquared,
-            'r2_adj': self.model.rsquared_adj,
-            'r2_pred': self.r2_pred()}
+            ANOVA.AIC: self.model.aic,
+            ANOVA.R2: self.model.rsquared,
+            ANOVA.R2_ADJ: self.model.rsquared_adj,
+            ANOVA.R2_PRED: self.r2_pred()}
         return pd.DataFrame(data, index=[index])
     
     def summary(

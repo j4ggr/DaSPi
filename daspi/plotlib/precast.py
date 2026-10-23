@@ -18,6 +18,11 @@ Classes
     residuals vs. fitted, residuals vs. run order, normal probability
     plot of residuals, and histogram of residuals.
 
+``GoodnessOfFitCharts``
+    Single-panel chart showing the evolution of R², adjusted R², the
+    p-value of the least significant term and the normalized AIC across
+    the steps of a recursive parameter elimination.
+
 ``PairComparisonCharts``
     Side-by-side comparison of two samples or groups using box plots,
     jitter, and optional confidence intervals for the difference in
@@ -74,7 +79,7 @@ from ..statistics import (
     ensure_generic,
 )
 from ..strings import STR
-from .chart import JointChart, check_label_order
+from .chart import JointChart, SingleChart, check_label_order
 from .plotter import (
     Bar,
     Beeswarm,
@@ -96,6 +101,7 @@ from .plotter import (
     Scatter,
     SkipSubplot,
     Stem,
+    StripeArea,
     StripeLine,
     StripeSpan,
 )
@@ -104,6 +110,7 @@ __all__ = [
     'BivariateUnivariateCharts',
     'GageRnRCharts',
     'GageStudyCharts',
+    'GoodnessOfFitCharts',
     'PairComparisonCharts',
     'PairwiseMatrixCharts',
     'ParameterRelevanceCharts',
@@ -390,6 +397,187 @@ class ResidualsCharts(JointChart):
                 STR['charts_flabel_density'],
                     f'{STR["charts_flabel_predicted"]} {self.lm.target}',
                 STR['charts_flabel_observed']),
+            'info': info
+            } | kwds
+        super().label(**labels) # type: ignore
+        return self
+
+
+class GoodnessOfFitCharts(SingleChart):
+    """
+    Visualizes the evolution of goodness-of-fit metrics across the
+    steps of a recursive parameter elimination.
+
+    The `GoodnessOfFitCharts` class takes the goodness-of-fit table
+    collected during `LinearModel.recursive_elimination` and plots
+    R², adjusted R², the p-value of the least significant term and the
+    min-max normalized Akaike information criterion (AIC) against the
+    elimination step. A dashed line marks the significance level used
+    to decide whether a term should be eliminated, and a shaded area
+    highlights the elimination steps at which the model was not
+    hierarchical.
+
+    Parameters
+    ----------
+    df_gof : DataFrame
+        The goodness-of-fit table collected during recursive
+        elimination, i.e. the concatenated result of
+        `LinearModel.recursive_elimination`. Must contain the columns
+        `ANOVA.EPOCH`, `ANOVA.R2`, `ANOVA.R2_ADJ`, `ANOVA.P_LEAST`,
+        `ANOVA.AIC` and `ANOVA.HIERARCHICAL`.
+    linear_model : LinearModel
+        The linear regression model the given `df_gof` table was
+        generated from. Used to draw the significance threshold line.
+    stretch_figsize : bool | float | tuple[float, float], optional
+        If True, the height and width of the figure are stretched based
+        on the number rows and columns in the axes grid. If a float is
+        provided, the figure size is stretched by the given factor. If a
+        tuple of two floats is provided, the figure size is stretched by
+        the given factors for the x and y axis, respectively.
+        by default False.
+
+    Examples
+    --------
+
+    ```python
+    import pandas as pd
+    import daspi as dsp
+
+    df = dsp.load_dataset('painkillers-dissolution')
+    lm = dsp.LinearModel(
+        source=df,
+        target='dissolution',
+        features=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+        covariates=['temperature', 'preparation'],
+        order=2)
+    df_gof = pd.concat(lm.recursive_elimination())
+    dsp.GoodnessOfFitCharts(df_gof, lm).plot().stripes().label(info=True)
+    ```
+
+    ![GoodnessOfFitChartsDocstringExample](https://raw.githubusercontent.com/j4ggr/DaSPi/main/docs/img/precast_goodness-of-fit-charts_example.png)
+    """
+
+    _AIC_NORM: Literal['aic_norm'] = 'aic_norm'
+    """Internal column name for the min-max normalized AIC values."""
+
+    __slots__ = ('df_gof', 'lm', 'metric_labels')
+
+    df_gof: DataFrame
+    """The goodness-of-fit table used to build this chart."""
+    lm: LinearModel
+    """The linear regression model the goodness-of-fit table was 
+    generated from."""
+    metric_labels: dict[str, str]
+    """Mapping of the goodness-of-fit column names to the mathtext 
+    label used for them in the legend."""
+
+    def __init__(
+            self,
+            df_gof: DataFrame,
+            linear_model: LinearModel,
+            stretch_figsize: bool | float | tuple[float, float] = False
+            ) -> None:
+        self.lm = linear_model
+        required = (
+            ANOVA.EPOCH, ANOVA.R2, ANOVA.R2_ADJ, ANOVA.P_LEAST, ANOVA.AIC,
+            ANOVA.HIERARCHICAL)
+        missing = [c for c in required if c not in df_gof.columns]
+        assert not missing, (
+            f'df_gof is missing required columns {missing}, got '
+            f'{list(df_gof.columns)}')
+        self.df_gof = df_gof.sort_values(ANOVA.EPOCH).reset_index(drop=True)
+
+        aic = self.df_gof[ANOVA.AIC]
+        aic_norm = (aic - aic.min()) / (aic.max() - aic.min())
+        self.metric_labels = {
+            ANOVA.R2: '$R^2$',
+            ANOVA.R2_ADJ: '$R^2_{adj}$',
+            ANOVA.P_LEAST: '$p_{least}$',
+            self._AIC_NORM: '$AIC_{norm}$'}
+        source = (self.df_gof
+            .assign(**{self._AIC_NORM: aic_norm})
+            .melt(
+                id_vars=[ANOVA.EPOCH],
+                value_vars=list(self.metric_labels),
+                var_name=STR['gofcharts_metric_name'],
+                value_name=STR['gofcharts_target_label'])
+            .replace(self.metric_labels))
+
+        super().__init__(
+            source=source,
+            target=STR['gofcharts_target_label'],
+            feature=ANOVA.EPOCH,
+            hue=STR['gofcharts_metric_name'],
+            categorical_feature=True,
+            stretch_figsize=stretch_figsize)
+
+    def plot(self) -> Self: # type: ignore
+        """Plot each goodness-of-fit metric as a line against the
+        elimination step.
+
+        Returns
+        -------
+        Self
+            The `GoodnessOfFitCharts` instance, for method chaining.
+        """
+        super().plot(Line, kw_call={'marker': 'o'})
+        return self
+
+    def stripes(self) -> Self: # type: ignore
+        """Adds a dashed line at the significance level used for the
+        elimination and a shaded area marking the elimination steps at
+        which the model was not hierarchical.
+
+        Returns
+        -------
+        Self
+            The `GoodnessOfFitCharts` instance, for method chaining.
+        """
+        threshold = StripeLine(
+            label=STR['gofcharts_label_alpha_th'].format(alpha=self.lm.alpha),
+            position=self.lm.alpha,
+            orientation='horizontal',
+            color=self.hueing[self.metric_labels[ANOVA.P_LEAST]])
+
+        positions = range(len(self.df_gof))
+        hierarchical = self.df_gof[ANOVA.HIERARCHICAL].to_numpy()
+        base = [x for p in positions for x in (p - 0.5, p + 0.5)]
+        where = [not h for h in hierarchical for _ in range(2)]
+        nonhierarchical = StripeArea(
+            label=STR['gofcharts_nonhierarchical'],
+            base=base,
+            lower_values=0,
+            upper_values=1,
+            where=where,
+            color=COLOR.ANOMALY)
+
+        super().stripes([threshold, nonhierarchical])
+        return self
+
+    def label(self, info: bool | str = False, **kwds) -> Self: # type: ignore
+        """Adds titles and labels to the chart generated by the
+        `plot()` method.
+
+        Parameters
+        ----------
+        info : bool | str, optional
+            If `True`, the method will add an informative subtitle to
+            the chart. If a string is provided, it will be used as the
+            subtitle, by default False.
+        **kwds : Any
+            Additional keyword arguments to be passed to the `label()`
+            method of the `SingleChart` instance.
+
+        Returns
+        -------
+        Self
+            The `GoodnessOfFitCharts` instance, for method chaining.
+        """
+        labels = {
+            'fig_title': STR['gofcharts_fig_title'],
+            'sub_title': STR['gofcharts_sub_title'],
+            'target_label': STR['gofcharts_target_label'],
+            'feature_label': STR['gofcharts_feature_label'],
             'info': info
             } | kwds
         super().label(**labels) # type: ignore
