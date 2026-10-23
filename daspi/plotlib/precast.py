@@ -536,6 +536,10 @@ class GoodnessOfFitCharts(SingleChart):
             The `GoodnessOfFitCharts` instance, for method chaining.
         """
         super().plot(Line, kw_call={'marker': 'o'})
+        values = self.source[self.target]
+        low, high = values.min(), values.max()
+        pad = 0.03 * (high - low or 1)
+        self.axes[0].set_ylim(low - pad, high + pad)
         return self
 
     def stripes(self) -> Self: # type: ignore

@@ -2180,6 +2180,29 @@ class TestPrecasts:
         chart.refit_at_epoch(epoch)
         assert model.formula == formula
 
+    def test_goodness_of_fit_charts_refit_at_epoch(self) -> None:
+        df = load_dataset('painkillers-dissolution')
+        model = LinearModel(
+            source=df,
+            target='dissolution',
+            factors=['employee', 'stirrer', 'brand', 'catalyst', 'water'],
+            covariates=['temperature', 'preparation'],
+            order=2)
+        df_gof = pd.concat(model.recursive_elimination())
+
+        self.base = f'{self.fig_title}_goodness_of_fit_charts'
+        self.kind = 'refit-epoch-7'
+        epoch = 7
+        formula = GoodnessOfFitCharts(df_gof, model).formula_at_epoch(epoch)
+        model.refit_at_epoch(df_gof, epoch)
+        assert model.formula == formula
+        chart = ParameterRelevanceCharts(model
+            ).plot(
+            ).stripes(
+            ).label(info=True
+            ).save(self.file_name)
+        assert self.file_name.is_file()
+
     def test_gage_study_model(self) -> None:
         df = load_dataset('grnr_layer_thickness')
         gage = GageStudyModel(
