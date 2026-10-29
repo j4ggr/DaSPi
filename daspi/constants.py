@@ -204,6 +204,12 @@ class _Kw_:
         return {'zorder': 2.2, 'alpha': 0.8, 'marker': ''}
 
     @property
+    def FIT_LINE_HANDLE(self) -> dict[str, Any]:
+        """Keyword arguments for the legend handle of a fitted line
+        (e.g. `MovingAverageLine`, `ExponentialSmoothingLine`)."""
+        return {'lw': LINE.WIDTH, 'alpha': 0.8}
+
+    @property
     def FIT_CI(self) -> dict[str, Any]:
         """Keyword arguments for confidence interval area for fit."""
         return {'zorder': 2.3, 'alpha': COLOR.FILL_ALPHA, 'lw': 0}
@@ -520,6 +526,14 @@ class _Plotter_:
     SUBGROUP: Literal['_subgroup_'] = '_subgroup_'
     """Column name for subgroups used mostly in TransformPlotter."""
 
+    SMOOTHED_TARGET: Literal['_smoothed_target_'] = '_smoothed_target_'
+    """Column name for smoothed target values (moving average,
+    exponential smoothing)."""
+
+    SMOOTHED_FEATURE: Literal['_smoothed_feature_'] = '_smoothed_feature_'
+    """Column name for the feature values matching the smoothed target
+    values (moving average, exponential smoothing)."""
+
     @property
     def REGRESSION_CI_NAMES(self) -> tuple[str, str, str, str]:
         """Get names for regression confidences in order:
@@ -787,6 +801,13 @@ class _Default_:
     - 4 = ±2 σ, capturing about 95.4% of the data.
     - 6 = ±3 σ, capturing about 99.7% of the data.
     """
+
+    MA_WINDOW: Literal[5] = 5
+    """Default window size for the `MovingAverageLine` Plotter."""
+
+    EWM_ALPHA: float = 0.3
+    """Default smoothing factor (alpha) for the
+    `ExponentialSmoothingLine` Plotter."""
 
     @property
     def MARKER(self) -> str:

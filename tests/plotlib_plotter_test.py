@@ -26,6 +26,34 @@ from daspi import STR
 from daspi.plotlib.plotter import *
 
 
+class TestPlotterColorSync:
+    """Covers the generic `Plotter.__init_subclass__` wrapper that
+    keeps `self.color` in sync with a `color` override passed to
+    `__call__` (e.g. via `kw_call`), regardless of which concrete
+    Plotter subclass is used."""
+
+    @pytest.fixture
+    def ax(self) -> Axes:
+        return plt.subplots(1, 1)[1]
+
+    @pytest.fixture
+    def source(self) -> pd.DataFrame:
+        return pd.DataFrame(dict(x=[1, 2, 3], y=[1.0, 2.0, 3.0]))
+
+    def test_call_color_override_syncs_self_color(
+            self, source: pd.DataFrame, ax: Axes) -> None:
+        line = Line(source=source, target='y', feature='x', ax=ax)
+        line(color='firebrick')
+        assert line.color == 'firebrick'
+
+    def test_no_color_override_keeps_default(
+            self, source: pd.DataFrame, ax: Axes) -> None:
+        line = Line(source=source, target='y', feature='x', ax=ax)
+        default_color = line.color
+        line()
+        assert line.color == default_color
+
+
 class TestStripe:
     
     class ConcreteStripe(Stripe):
@@ -538,6 +566,129 @@ class TestStripeArea:
         assert collection.get_facecolor()[0][:3] == approx((1.0, 0.0, 0.0))
         assert collection.get_alpha() == 0.3
         assert collection.get_zorder() == 2.0
+
+
+class TestMovingAverageLine:
+
+    @pytest.fixture
+    def ax(self) -> Axes:
+        return plt.subplots(1, 1)[1]
+
+    @pytest.fixture
+    def source(self) -> pd.DataFrame:
+        return pd.DataFrame(dict(
+            x=np.arange(20),
+            y=np.array([1.0, 3.0] * 10)))
+
+    def test_rolling_mean_values(
+            self, source: pd.DataFrame, ax: Axes) -> None:
+        ma = MovingAverageLine(
+            source=source, target='y', feature='x', window=2, ax=ax)
+        expected = source['y'].rolling(window=2).mean().to_numpy()
+        assert np.allclose(
+            ma.source[PLOTTER.SMOOTHED_TARGET].to_numpy(),
+            expected,
+            equal_nan=True)
+
+    def test_sorts_by_feature(self, ax: Axes) -> None:
+        source = pd.DataFrame(dict(x=[3, 1, 2], y=[30.0, 10.0, 20.0]))
+        ma = MovingAverageLine(
+            source=source, target='y', feature='x', window=1, ax=ax)
+        assert list(ma.source[PLOTTER.SMOOTHED_FEATURE]) == [1, 2, 3]
+        assert list(ma.source[PLOTTER.SMOOTHED_TARGET]) == [10.0, 20.0, 30.0]
+
+    def test_uses_observation_order_without_feature(self, ax: Axes) -> None:
+        source = pd.DataFrame(dict(y=[1.0, 2.0, 3.0]))
+        ma = MovingAverageLine(source=source, target='y', window=1, ax=ax)
+        assert list(ma.source[PLOTTER.SMOOTHED_FEATURE]) == [1, 2, 3]
+
+    def test_legend_label(self, source: pd.DataFrame, ax: Axes) -> None:
+        ma = MovingAverageLine(
+            source=source, target='y', feature='x', window=5, ax=ax)
+        assert ma.legend_label == f'{STR["moving_average"]} (n=5)'
+
+    def test_call_draws_line(self, source: pd.DataFrame, ax: Axes) -> None:
+        ma = MovingAverageLine(
+            source=source, target='y', feature='x', window=3, color='red',
+            ax=ax)
+        ma()
+        assert len(ax.lines) == 1
+        assert ax.lines[0].get_color() == 'red'
+        assert ax.lines[0].get_marker() == ''
+
+    def test_show_scatter_sets_marker(
+            self, source: pd.DataFrame, ax: Axes) -> None:
+        ma = MovingAverageLine(
+            source=source, target='y', feature='x', window=3, marker='o',
+            show_scatter=True, ax=ax)
+        ma()
+        assert ax.lines[0].get_marker() == 'o'
+
+    def test_call_color_override_syncs_legend_color(
+            self, source: pd.DataFrame, ax: Axes) -> None:
+        ma = MovingAverageLine(
+            source=source, target='y', feature='x', window=3, ax=ax)
+        ma(color='firebrick')
+        assert ax.lines[0].get_color() == 'firebrick'
+        assert ma.color == 'firebrick'
+
+
+class TestExponentialSmoothingLine:
+
+    @pytest.fixture
+    def ax(self) -> Axes:
+        return plt.subplots(1, 1)[1]
+
+    @pytest.fixture
+    def source(self) -> pd.DataFrame:
+        return pd.DataFrame(dict(
+            x=np.arange(20),
+            y=np.array([1.0, 3.0] * 10)))
+
+    def test_ewm_mean_values(self, source: pd.DataFrame, ax: Axes) -> None:
+        ema = ExponentialSmoothingLine(
+            source=source, target='y', feature='x', alpha=0.3, ax=ax)
+        expected = source['y'].ewm(alpha=0.3, adjust=False).mean().to_numpy()
+        assert np.allclose(
+            ema.source[PLOTTER.SMOOTHED_TARGET].to_numpy(), expected)
+
+    def test_invalid_alpha_raises(self, source: pd.DataFrame, ax: Axes) -> None:
+        with pytest.raises(AssertionError):
+            ExponentialSmoothingLine(
+                source=source, target='y', feature='x', alpha=0.0, ax=ax)
+        with pytest.raises(AssertionError):
+            ExponentialSmoothingLine(
+                source=source, target='y', feature='x', alpha=1.5, ax=ax)
+
+    def test_legend_label(self, source: pd.DataFrame, ax: Axes) -> None:
+        ema = ExponentialSmoothingLine(
+            source=source, target='y', feature='x', alpha=0.2, ax=ax)
+        assert ema.legend_label == f'{STR["exponential_smoothing"]} (\u03b1=0.2)'
+
+    def test_call_draws_line(self, source: pd.DataFrame, ax: Axes) -> None:
+        ema = ExponentialSmoothingLine(
+            source=source, target='y', feature='x', alpha=0.3, color='navy',
+            ax=ax)
+        ema()
+        assert len(ax.lines) == 1
+        assert ax.lines[0].get_color() == 'navy'
+        assert ax.lines[0].get_marker() == ''
+
+    def test_show_scatter_sets_marker(
+            self, source: pd.DataFrame, ax: Axes) -> None:
+        ema = ExponentialSmoothingLine(
+            source=source, target='y', feature='x', alpha=0.3, marker='o',
+            show_scatter=True, ax=ax)
+        ema()
+        assert ax.lines[0].get_marker() == 'o'
+
+    def test_call_color_override_syncs_legend_color(
+            self, source: pd.DataFrame, ax: Axes) -> None:
+        ema = ExponentialSmoothingLine(
+            source=source, target='y', feature='x', alpha=0.3, ax=ax)
+        ema(color='navy')
+        assert ax.lines[0].get_color() == 'navy'
+        assert ema.color == 'navy'
 
 
 class TestPareto:

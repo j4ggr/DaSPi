@@ -376,12 +376,13 @@ class LinearModel(BaseHTMLReprModel):
         covariates=['temperature', 'preparation'],
         order=2,)
 
-    # Store goodnes of fit values for each elimination step
+    # Store and visualize goodnes of fit values for each elimination step
     df_gof = pd.concat(model.recursive_elimination())
+    dsp.GoodnessOfFitCharts(df_gof, model).plot().stripes().label(info=True)
 
     # Plot residual and parameter relevance analysis
     dsp.ResidualsCharts(model).plot().stripes().label(info=True)
-    dsp.ParameterRelevanceCharts(model).plot().label(info=True)
+    dsp.ParameterRelevanceCharts(model).plot().stripes().label(info=True)
 
     # Get HTML output
     model

@@ -96,6 +96,21 @@ class _String_:
         'de': 'Linien',
         'fr': 'Lignes'})
 
+    moving_average = _LocalizedString({
+        'en': 'MA',
+        'de': 'GLD',
+        'fr': 'MM'})
+
+    exponential_smoothing = _LocalizedString({
+        'en': 'EMA',
+        'de': 'EGLD',
+        'fr': 'ME'})
+
+    smoothing = _LocalizedString({
+        'en': 'Smoothing',
+        'de': 'Glättung',
+        'fr': 'Lissage'})
+
     ci = _LocalizedString({
         'en': 'CI',
         'de': 'KI',

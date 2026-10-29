@@ -90,6 +90,7 @@ Control marks:
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator, Hashable, Iterable
+from functools import wraps
 from itertools import cycle
 from typing import Any, Literal, Self
 
@@ -147,6 +148,7 @@ __all__ = [
     'ConfidenceInterval',
     'DensityCurve',
     'ErrorBar',
+    'ExponentialSmoothingLine',
     'FittedDensity',
     'GaussianKDE',
     'GaussianKDEContour',
@@ -157,6 +159,7 @@ __all__ = [
     'LinearRegressionLine',
     'LoessLine',
     'MeanTest',
+    'MovingAverageLine',
     'ParallelCoordinate',
     'Pareto',
     'Plotter',
@@ -550,6 +553,25 @@ class Plotter(ABC):
         self.visible_spines = visible_spines
         self.hide_axis = hide_axis
     
+    def __init_subclass__(cls, **kwargs) -> None:
+        """Wrap every subclass `__call__` so that a `color` override
+        passed at call-time (e.g. via `kw_call`) is synced back to
+        `self.color`. Without this, artists relying on `self.color`
+        after the call (e.g. legend handles) could show a different
+        color than the one actually drawn."""
+        super().__init_subclass__(**kwargs)
+        call = cls.__dict__.get('__call__')
+        if call is None:
+            return
+
+        @wraps(call)
+        def wrapped_call(self: 'Plotter', *args: Any, **kwds: Any) -> Any:
+            if 'color' in kwds:
+                self._color = kwds['color']
+            return call(self, *args, **kwds)
+
+        cls.__call__ = wrapped_call
+
     @property
     def visible_spines(self) -> Literal['target', 'feature', 'none'] | None:
         """Get which spines are visible if specified.
@@ -1678,6 +1700,355 @@ class LoessLine(Plotter):
                 self.ax.fill_between(self.x, lower, upper, **_kw_fit_ci)
             else:
                 self.ax.fill_betweenx(self.y, lower, upper, **_kw_fit_ci)
+
+
+class MovingAverageLine(Plotter):
+    """A plotter for a simple moving average (rolling mean) line.
+
+    The feature-grouped data is sorted by the feature column (or by
+    observation order if no feature is given) and smoothed with a
+    rolling mean of the given `window` size. This is useful to
+    highlight the underlying trend of noisy time-ordered or
+    feature-ordered data.
+
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str, optional
+        Column name of the feature variable for the plot. If not given,
+        the observation order is used instead, by default ''.
+    window : int, optional
+        Size of the rolling window (number of observations) used to
+        calculate the moving average, by default `DEFAULT.MA_WINDOW`.
+    center : bool, optional
+        Whether the window label is set at the center of the window
+        (True) or at the trailing edge (False), by default False.
+    min_periods : int | None, optional
+        Minimum number of observations required within the window to
+        produce a value. If None, defaults to `window`, by default None.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on the
+        y-axis, by default True
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the individuals. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
+    show_scatter : bool, optional
+        Flag indicating whether to show markers on the smoothed line,
+        by default False.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
+
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import MovingAverageLine
+
+    fig, ax = plt.subplots()
+    x = np.arange(100)
+    df = pd.DataFrame(dict(x=x, y=np.sin(x / 5) + np.random.normal(0, 0.3, 100)))
+    ma_line = MovingAverageLine(source=df, target='y', feature='x', window=7, ax=ax)
+    ma_line(color='firebrick')
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    x = np.arange(100)
+    df = pd.DataFrame(dict(x=x, y=np.sin(x / 5) + np.random.normal(0, 0.3, 100)))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x'
+        ).plot(
+            dsp.Scatter,
+        ).plot(
+            dsp.MovingAverageLine,
+            window=7,
+            kw_call=dict(color='firebrick'))
+    ```
+    """
+    __slots__ = ('center', 'legend_label', 'min_periods', 'show_scatter', 'window')
+
+    window: int
+    """Size of the rolling window used to calculate the moving
+    average."""
+    center: bool
+    """Whether the window label is set at the center of the window."""
+    min_periods: int | None
+    """Minimum number of observations required within the window to
+    produce a value."""
+    show_scatter: bool
+    """Whether to show markers on the smoothed line."""
+    legend_label: str
+    """Legend hint stating the moving average window size, e.g.
+    'MA (n=7)'. Used by `Chart` to build a legend entry for this
+    plotter."""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str = '',
+            window: int = DEFAULT.MA_WINDOW,
+            center: bool = False,
+            min_periods: int | None = None,
+            target_on_y: bool = True,
+            color: str | None = None,
+            marker: str | None = None,
+            show_scatter: bool = False,
+            ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
+            **kwds) -> None:
+        self.window = window
+        self.center = center
+        self.min_periods = min_periods
+        self.show_scatter = show_scatter
+        self.legend_label = f'{STR["moving_average"]} (n={window})'
+
+        if feature:
+            raw = source[[target, feature]].sort_values(feature)
+        else:
+            raw = source[[target]].copy()
+            raw[PLOTTER.SMOOTHED_FEATURE] = np.arange(len(raw)) + 1
+            feature = PLOTTER.SMOOTHED_FEATURE
+        smoothed = raw[target].rolling(
+            window=window, center=center, min_periods=min_periods).mean()
+        df = pd.DataFrame({
+            PLOTTER.SMOOTHED_TARGET: smoothed.to_numpy(),
+            PLOTTER.SMOOTHED_FEATURE: raw[feature].to_numpy()})
+        super().__init__(
+            source=df,
+            target=PLOTTER.SMOOTHED_TARGET,
+            feature=PLOTTER.SMOOTHED_FEATURE,
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
+
+    @property
+    def kw_default(self) -> dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = KW.FIT_LINE | {'color': self.color}
+        return kwds
+
+    def __call__(self, **kwds) -> None:
+        """Perform the moving average line plot operation.
+
+        Parameters
+        ----------
+        **kwds : 
+            Additional keyword arguments to be passed to the Axes `plot`
+            method.
+        """
+        marker = self.marker if self.show_scatter else ''
+        _kwds: dict[str, Any] = self.kw_default | {'marker': marker} | kwds
+        self.ax.plot(self.x, self.y, **_kwds)
+
+
+class ExponentialSmoothingLine(Plotter):
+    """A plotter for an exponentially weighted moving average line.
+
+    The feature-grouped data is sorted by the feature column (or by
+    observation order if no feature is given) and smoothed using
+    pandas' exponentially weighted mean (`Series.ewm`). Compared to
+    `MovingAverageLine`, recent observations are weighted more heavily
+    the larger `alpha` is, instead of weighting every observation inside
+    a fixed window equally.
+
+    Parameters
+    ----------
+    source : pandas DataFrame
+        Pandas long format DataFrame containing the data source for the
+        plot.
+    target : str
+        Column name of the target variable for the plot.
+    feature : str, optional
+        Column name of the feature variable for the plot. If not given,
+        the observation order is used instead, by default ''.
+    alpha : float, optional
+        The smoothing factor, between 0 (exclusive) and 1 (inclusive).
+        Higher values discount older observations faster (less
+        smoothing), by default `DEFAULT.EWM_ALPHA`.
+    adjust : bool, optional
+        Whether to use the adjusted (unbiased for the first
+        observations) or the recursive formula for the exponentially
+        weighted mean, see pandas `Series.ewm` for details,
+        by default False.
+    target_on_y : bool, optional
+        Flag indicating whether the target variable is plotted on the
+        y-axis, by default True
+    color : str | None, optional
+        Color to be used to draw the artists. If None, the first 
+        color is taken from the color cycle, by default None.
+    marker : str | None, optional
+        The marker style for the individuals. Available markers see:
+        https://matplotlib.org/stable/api/markers_api.html, 
+        by default None
+    show_scatter : bool, optional
+        Flag indicating whether to show markers on the smoothed line,
+        by default False.
+    ax : matplotlib.axes.Axes | None, optional
+        The axes object for the plot. If None, the current axes is 
+        fetched using `plt.gca()`. If no axes are available, a new one 
+        is created. Defaults to None.
+    visible_spines : Literal['target', 'feature', 'none'] | None, optional
+        Specifies which spines are visible, the others are hidden.
+        If 'none', no spines are visible. If None, the spines are drawn
+        according to the stylesheet. Defaults to None.
+    hide_axis : Literal['target', 'feature', 'both'] | None, optional
+        Specifies which axes should be hidden. If None, both axes 
+        are displayed. Defaults to None.
+    **kwds:
+        Those arguments have no effect. Only serves to catch further
+        arguments that have no use here (occurs when this class is 
+        used within chart objects).
+
+    Examples
+    --------
+    Apply to an existing Axes object:
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from daspi import ExponentialSmoothingLine
+
+    fig, ax = plt.subplots()
+    x = np.arange(100)
+    df = pd.DataFrame(dict(x=x, y=np.sin(x / 5) + np.random.normal(0, 0.3, 100)))
+    ema_line = ExponentialSmoothingLine(
+        source=df, target='y', feature='x', alpha=0.2, ax=ax)
+    ema_line(color='firebrick')
+    ```
+
+    Apply using the plot method of a DaSPi Chart object:
+
+    ```python
+    import numpy as np
+    import daspi as dsp
+    import pandas as pd
+
+    x = np.arange(100)
+    df = pd.DataFrame(dict(x=x, y=np.sin(x / 5) + np.random.normal(0, 0.3, 100)))
+    chart = dsp.SingleChart(
+            source=df,
+            target='y',
+            feature='x'
+        ).plot(
+            dsp.Scatter,
+        ).plot(
+            dsp.ExponentialSmoothingLine,
+            alpha=0.2,
+            kw_call=dict(color='firebrick'))
+    ```
+    """
+    __slots__ = ('adjust', 'alpha', 'legend_label', 'show_scatter')
+
+    alpha: float
+    """The smoothing factor used to calculate the exponentially 
+    weighted mean."""
+    adjust: bool
+    """Whether to use the adjusted or recursive exponentially weighted 
+    mean formula."""
+    show_scatter: bool
+    """Whether to show markers on the smoothed line."""
+    legend_label: str
+    """Legend hint stating the smoothing factor, e.g. 'EMA (α=0.2)'.
+    Used by `Chart` to build a legend entry for this plotter."""
+
+    def __init__(
+            self,
+            source: DataFrame,
+            target: str,
+            feature: str = '',
+            alpha: float = DEFAULT.EWM_ALPHA,
+            adjust: bool = False,
+            target_on_y: bool = True,
+            color: str | None = None,
+            marker: str | None = None,
+            show_scatter: bool = False,
+            ax: Axes | None = None,
+            visible_spines: Literal['target', 'feature', 'none'] | None = None,
+            hide_axis: Literal['target', 'feature', 'both'] | None = None,
+            **kwds) -> None:
+        assert 0 < alpha <= 1, 'alpha must be between 0 (exclusive) and 1'
+        self.alpha = alpha
+        self.adjust = adjust
+        self.show_scatter = show_scatter
+        self.legend_label = f'{STR["exponential_smoothing"]} (\u03b1={alpha:.2g})'
+
+        if feature:
+            raw = source[[target, feature]].sort_values(feature)
+        else:
+            raw = source[[target]].copy()
+            raw[PLOTTER.SMOOTHED_FEATURE] = np.arange(len(raw)) + 1
+            feature = PLOTTER.SMOOTHED_FEATURE
+        smoothed = raw[target].ewm(alpha=alpha, adjust=adjust).mean()
+        df = pd.DataFrame({
+            PLOTTER.SMOOTHED_TARGET: smoothed.to_numpy(),
+            PLOTTER.SMOOTHED_FEATURE: raw[feature].to_numpy()})
+        super().__init__(
+            source=df,
+            target=PLOTTER.SMOOTHED_TARGET,
+            feature=PLOTTER.SMOOTHED_FEATURE,
+            target_on_y=target_on_y,
+            color=color,
+            marker=marker,
+            ax=ax,
+            visible_spines=visible_spines,
+            hide_axis=hide_axis)
+
+    @property
+    def kw_default(self) -> dict[str, Any]:
+        """Default keyword arguments for plotting (read-only)"""
+        kwds = KW.FIT_LINE | {'color': self.color}
+        return kwds
+
+    def __call__(self, **kwds) -> None:
+        """Perform the exponential smoothing line plot operation.
+
+        Parameters
+        ----------
+        **kwds : 
+            Additional keyword arguments to be passed to the Axes `plot`
+            method.
+        """
+        marker = self.marker if self.show_scatter else ''
+        _kwds: dict[str, Any] = self.kw_default | {'marker': marker} | kwds
+        self.ax.plot(self.x, self.y, **_kwds)
 
 
 class Probability(LinearRegressionLine):

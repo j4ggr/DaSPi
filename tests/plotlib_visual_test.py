@@ -26,6 +26,7 @@ from daspi.plotlib.plotter import (
     Beeswarm,
     BlandAltman,
     Box,
+    ExponentialSmoothingLine,
     FittedDensity,
     GaussianKDE,
     GaussianKDEContour,
@@ -36,6 +37,7 @@ from daspi.plotlib.plotter import (
     LinearRegressionLine,
     LoessLine,
     MeanTest,
+    MovingAverageLine,
     Pareto,
     Probability,
     QuantileBoxes,
@@ -233,6 +235,39 @@ class TestSingleChart:
         assert STR.username in texts[4].get_text()
         assert self.info_msg in info_msg
     
+    def test_moving_average_and_exponential_smoothing_plot(self) -> None:
+        self.base = f'{self.fig_title}_smoothing'
+        self.kind = 'ma-ema'
+        chart = SingleChart(
+                source=df_painkillers,
+                target=self.target,
+                feature=self.feature
+            ).plot(Scatter
+            ).plot(
+                MovingAverageLine,
+                window=5,
+                kw_call=dict(color='firebrick')
+            ).plot(
+                ExponentialSmoothingLine,
+                alpha=0.2,
+                kw_call=dict(color='navy')
+            ).label(
+                fig_title=self.fig_title,
+                sub_title=self.sub_title,
+            ).save(self.file_name
+            ).close()
+        assert self.file_name.is_file()
+
+        handles, labels = chart.legend_data[STR['smoothing']]
+        assert len(handles) == 2
+        assert labels == (
+            f'{STR["moving_average"]} (n=5)',
+            f'{STR["exponential_smoothing"]} (\u03b1=0.2)')
+
+        legend_artists = chart.label_facets.legend_artists
+        assert len(legend_artists) == 2
+        assert legend_artists[0].get_children()[0].get_text() == STR['smoothing'] # type: ignore
+
 
     def test_scatter_plot(self) -> None:
         self.base = f'{self.fig_title}_scatter'

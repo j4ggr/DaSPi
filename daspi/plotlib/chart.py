@@ -62,6 +62,7 @@ import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.axis import XAxis, YAxis
 from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
 from matplotlib.ticker import AutoMinorLocator, Formatter
 from numpy.typing import NDArray
 from pandas.core.frame import DataFrame
@@ -740,6 +741,14 @@ class SingleChart(Chart):
             handle_label[self.size] = self.sizing.handles_labels()
         if hasattr(self, 'stripes_facets'):
             handle_label[STR['stripes']] = self.stripes_facets.handles_labels()
+        smoothers = {
+            label: Line2D(
+                xdata=[], ydata=[], color=plot.color, **KW.FIT_LINE_HANDLE)
+            for plot in self._plots
+            if (label := getattr(plot, 'legend_label', None)) is not None}
+        if smoothers:
+            handle_label[STR['smoothing']] = (
+                tuple(smoothers.values()), tuple(smoothers.keys()))
         return handle_label
 
     def _check_current_data_(self) -> bool:
