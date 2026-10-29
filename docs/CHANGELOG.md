@@ -16,6 +16,19 @@ __Types of changes__:
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-10-29
+
+### Added
+
+- **Plotlib**: New `MovingAverageLine` plotter overlays a rolling-mean smoothing curve on a chart, with configurable `window`, `center` and `min_periods`. New `ExponentialSmoothingLine` plotter overlays an exponentially weighted moving average, with configurable `alpha` and `adjust`. Both sort by the feature column (or use observation order if no feature is given), support an optional `show_scatter` to mark the smoothed curve, and expose a `legend_label` hint stating the window size or smoothing factor (e.g. `MA (n=5)`, `EMA (α=0.2)`).
+- **Plotlib**: `SingleChart.legend_data` (and therefore `MultivariateChart`/`JointChart`) now collects any plotted `Plotter` exposing a `legend_label` attribute into a dedicated "Smoothing" legend group, alongside the existing hue/shape/size/stripes groups.
+- **Constants**: Added `PLOTTER.SMOOTHED_TARGET`, `PLOTTER.SMOOTHED_FEATURE`, `DEFAULT.MA_WINDOW`, `DEFAULT.EWM_ALPHA` and `KW.FIT_LINE_HANDLE`.
+- **Strings**: Added localized `STR['moving_average']`, `STR['exponential_smoothing']` and `STR['smoothing']` strings (en/de/fr).
+
+### Fixed
+
+- **Plotlib**: Passing `color` via `kw_call` to override a plotter's color at call-time (e.g. `chart.plot(Line, kw_call=dict(color='firebrick'))`) previously updated the drawn artist but left `Plotter.color` stale, so legend handles built from `plot.color` (e.g. the new "Smoothing" legend group) could show a different color than the one actually drawn. `Plotter.__init_subclass__` now wraps every subclass's `__call__` to keep `self.color` in sync with any `color` override, for all `Plotter` subclasses.
+
 ## [2.5.0] - 2026-10-23
 
 ### Added
