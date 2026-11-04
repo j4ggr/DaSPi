@@ -221,6 +221,100 @@ class TestJointChart:
         assert chart.single_label_allowed(is_target=True)
 
 
+class TestChartSet:
+    """Tests for the Chart.set() method shared by all Chart subclasses."""
+
+    @pytest.fixture
+    def single_data(self) -> pd.DataFrame:
+        return pd.DataFrame({
+            'x': [1, 2, 3, 4, 5],
+            'y': [2, 4, 6, 8, 10],
+        })
+
+    @pytest.fixture
+    def joint_data(self) -> pd.DataFrame:
+        return pd.DataFrame({
+            'x': [1, 2, 3, 4, 5],
+            'y': [2, 4, 6, 8, 10],
+        })
+
+    def test_returns_self(self, single_data: pd.DataFrame) -> None:
+        chart = SingleChart(single_data, 'y', 'x')
+        assert chart.set(title='hello') is chart
+
+    def test_feature_target_mapping_target_on_y(
+            self, single_data: pd.DataFrame) -> None:
+        chart = SingleChart(single_data, 'y', 'x', target_on_y=True)
+        chart.set(feature_lim=(0, 1), target_lim=(2, 3))
+        assert chart.axes.ax.get_xlim() == (0, 1)
+        assert chart.axes.ax.get_ylim() == (2, 3)
+
+    def test_feature_target_mapping_target_on_x(
+            self, single_data: pd.DataFrame) -> None:
+        chart = SingleChart(single_data, 'y', 'x', target_on_y=False)
+        chart.set(feature_lim=(0, 1), target_lim=(2, 3))
+        assert chart.axes.ax.get_xlim() == (2, 3)
+        assert chart.axes.ax.get_ylim() == (0, 1)
+
+    def test_non_xy_kwargs_passthrough(self, single_data: pd.DataFrame) -> None:
+        chart = SingleChart(single_data, 'y', 'x')
+        chart.set(title='my title')
+        assert chart.axes.ax.get_title(loc='left') == 'my title'
+
+    def test_ax_all_applies_to_every_axes(
+            self, joint_data: pd.DataFrame) -> None:
+        chart = JointChart(
+            joint_data, feature='x', target='y', ncols=2, nrows=2)
+        chart.set(ax='all', title='shared title')
+        assert all(
+            ax.get_title(loc='left') == 'shared title'
+            for ax in chart.axes.flat)
+
+    def test_ax_first_applies_only_to_first_axes(
+            self, joint_data: pd.DataFrame) -> None:
+        chart = JointChart(
+            joint_data, feature='x', target='y', ncols=2, nrows=2)
+        chart.set(ax='first', title='first title')
+        titles = [ax.get_title(loc='left') for ax in chart.axes.flat]
+        assert titles[0] == 'first title'
+        assert all(t == '' for t in titles[1:])
+
+    def test_ax_last_applies_only_to_last_axes(
+            self, joint_data: pd.DataFrame) -> None:
+        chart = JointChart(
+            joint_data, feature='x', target='y', ncols=2, nrows=2)
+        chart.set(ax='last', title='last title')
+        titles = [ax.get_title(loc='left') for ax in chart.axes.flat]
+        assert titles[-1] == 'last title'
+        assert all(t == '' for t in titles[:-1])
+
+    def test_ax_by_flat_index(self, joint_data: pd.DataFrame) -> None:
+        chart = JointChart(
+            joint_data, feature='x', target='y', ncols=2, nrows=2)
+        chart.set(ax=2, title='indexed title')
+        titles = [ax.get_title(loc='left') for ax in chart.axes.flat]
+        assert titles[2] == 'indexed title'
+        assert all(t == '' for i, t in enumerate(titles) if i != 2)
+
+    def test_ax_by_grid_index(self, joint_data: pd.DataFrame) -> None:
+        chart = JointChart(
+            joint_data, feature='x', target='y', ncols=2, nrows=2)
+        chart.set(ax=(1, 0), title='grid title')
+        assert chart.axes[1, 0].get_title(loc='left') == 'grid title'
+        assert chart.axes[0, 0].get_title(loc='left') == ''
+
+    def test_ax_none_falls_back_to_current_axes(
+            self, single_data: pd.DataFrame) -> None:
+        chart = SingleChart(single_data, 'y', 'x')
+        chart.set(ax=None, title='current title')
+        assert chart.axes.ax.get_title(loc='left') == 'current title'
+
+    def test_set_blocked_after_label(self, single_data: pd.DataFrame) -> None:
+        chart = SingleChart(single_data, 'y', 'x').label()
+        with pytest.raises(AssertionError):
+            chart.set(title='too late')
+
+
 class TestChartFormatting:
     """Test the new formatting features for SingleChart and MultivariateChart."""
 

@@ -114,12 +114,27 @@ def check_label_order[T](method: Callable[..., T]) -> Callable[..., T]:
         If the decorated method is called after label() method.
     """
     @wraps(method)
-    def wrapper(self: Chart, *args: Any, **kwargs: Any) -> T:
+    def wrapper(self: 'Chart', *args: Any, **kwargs: Any) -> T:
         assert not hasattr(self, 'label_facets'), (
             f'Cannot call {method.__name__}() after label(). '
             'The label() method must be called after stripes() and plot().')
         return method(self, *args, **kwargs)
     return wrapper
+
+
+_XY_SET_PARAMS: dict[str, tuple[str, str]] = {
+    'lim': ('xlim', 'ylim'),
+    'bound': ('xbound', 'ybound'),
+    'margin': ('xmargin', 'ymargin'),
+    'scale': ('xscale', 'yscale'),
+    'ticks': ('xticks', 'yticks'),
+    'ticklabels': ('xticklabels', 'yticklabels'),
+    'inverted': ('xinverted', 'yinverted'),
+    'autoscale': ('autoscalex_on', 'autoscaley_on'),
+}
+"""Mapping of generic axis parameters to their corresponding Axes.set 
+keys. The keys correspond to the parameters used in the `Axes.set` 
+method for the x and y axes, respectively."""
 
 
 class Chart(ABC):
@@ -443,6 +458,124 @@ class Chart(ABC):
         This method allows customization of chart labels and titles to
         enhance readability and provide context for the visualized data.
         """
+    
+    @check_label_order
+    def set(
+            self,
+            ax: int | tuple[int, int] | Literal['all', 'first', 'last'] | None = 'all',
+            *,
+            feature_lim: tuple[float, float] | None = None,
+            target_lim: tuple[float, float] | None = None,
+            feature_bound: tuple[float, float] | None = None,
+            target_bound: tuple[float, float] | None = None,
+            feature_margin: float | None = None,
+            target_margin: float | None = None,
+            feature_scale: str | None = None,
+            target_scale: str | None = None,
+            feature_ticks: Sequence[float] | None = None,
+            target_ticks: Sequence[float] | None = None,
+            feature_ticklabels: Sequence[str] | None = None,
+            target_ticklabels: Sequence[str] | None = None,
+            feature_inverted: bool | None = None,
+            target_inverted: bool | None = None,
+            feature_autoscale: bool | None = None,
+            target_autoscale: bool | None = None,
+            **kwds: Any,
+            ) -> Self:
+        """Set properties on one, several or all Axes of this chart.
+
+        This is a thin wrapper around matplotlib's
+        ``Axes.set(**kwargs)``. The `feature_*`/`target_*` keywords
+        mirror the x/y-paired properties of ``Axes.set`` (e.g. `xlim`
+        and `ylim`) but are named after the chart's feature and target
+        variable instead, so they resolve to the correct axis based on
+        the `target_on_y` attribute. All other matplotlib ``Axes.set``
+        properties that have no x/y counterpart (e.g. `title`,
+        `aspect`, `facecolor`) can be passed directly via `**kwds`.
+
+        Note that `xlabel`/`ylabel` are intentionally not supported
+        here, use the `label()` method to set axis labels instead.
+
+        Parameters
+        ----------
+        ax : int | tuple[int, int] | {'all', 'first', 'last'} | None, optional
+            Selects which Axes the properties are applied to:
+            - int or tuple[int, int]: the Axes at that position in the
+              `axes` grid (see `AxesFacets.__getitem__`).
+            - 'all': every Axes in the grid, by default.
+            - 'first': only the first Axes in the grid.
+            - 'last': only the last Axes in the grid.
+            - None: the Axes that was last worked on (falls back to the
+              default Axes if none was worked on yet).
+        feature_lim, target_lim : tuple[float, float], optional
+            Feature/target axis view limits (`xlim`/`ylim`).
+        feature_bound, target_bound : tuple[float, float], optional
+            Feature/target axis bounds (`xbound`/`ybound`).
+        feature_margin, target_margin : float, optional
+            Feature/target axis margins (`xmargin`/`ymargin`).
+        feature_scale, target_scale : str, optional
+            Feature/target axis scale (`xscale`/`yscale`).
+        feature_ticks, target_ticks : Sequence[float], optional
+            Feature/target axis tick locations (`xticks`/`yticks`).
+        feature_ticklabels, target_ticklabels : Sequence[str], optional
+            Feature/target axis tick labels
+            (`xticklabels`/`yticklabels`).
+        feature_inverted, target_inverted : bool, optional
+            Whether the feature/target axis is inverted
+            (`xinverted`/`yinverted`).
+        feature_autoscale, target_autoscale : bool, optional
+            Whether the feature/target axis autoscales
+            (`autoscalex_on`/`autoscaley_on`).
+        **kwds
+            Additional keyword arguments forwarded as-is to
+            `Axes.set()`, for properties without a feature/target
+            counterpart (e.g. `title`, `aspect`, `facecolor`,
+            `visible`, `zorder`).
+
+        Returns
+        -------
+        Self
+            The updated Chart object.
+        """
+        feature_values = {
+            'lim': feature_lim, 'bound': feature_bound,
+            'margin': feature_margin, 'scale': feature_scale,
+            'ticks': feature_ticks, 'ticklabels': feature_ticklabels,
+            'inverted': feature_inverted, 'autoscale': feature_autoscale}
+        target_values = {
+            'lim': target_lim, 'bound': target_bound,
+            'margin': target_margin, 'scale': target_scale,
+            'ticks': target_ticks, 'ticklabels': target_ticklabels,
+            'inverted': target_inverted, 'autoscale': target_autoscale}
+
+        feature_axis = 0 if self.target_on_y else 1
+        target_axis = 1 if self.target_on_y else 0
+        kwds = dict(kwds)
+        for name, value in feature_values.items():
+            if value is not None:
+                kwds[_XY_SET_PARAMS[name][feature_axis]] = value
+        for name, value in target_values.items():
+            if value is not None:
+                kwds[_XY_SET_PARAMS[name][target_axis]] = value
+
+        if ax == 'all':
+            axes = self.axes.flat
+        elif ax == 'first':
+            axes = [self.axes.flat[0]]
+        elif ax == 'last':
+            axes = [self.axes.flat[-1]]
+        elif ax is None:
+            current = self._ax if self._ax is not None else self.axes.ax
+            assert current is not None, (
+                'No current Axes to set properties on, specify `ax` '
+                'explicitly.')
+            axes = [current]
+        else:
+            axes = [self.axes[ax]]
+
+        for _ax in axes:
+            _ax.set(**kwds)
+        return self
     
     def save(
             self,
