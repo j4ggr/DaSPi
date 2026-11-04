@@ -16,6 +16,12 @@ __Types of changes__:
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-11-04
+
+### Added
+
+- **Plotlib**: New `Chart.set()` method, available on `SingleChart`, `JointChart` and `MultivariateChart`, applies arbitrary `Axes.set()` properties to one, several or all of the chart's Axes. An `ax` selector picks the target Axes (`'all'` by default, `'first'`, `'last'`, a flat index, a `(row, col)` grid index, or `None` to fall back to the currently active Axes). The x/y-paired properties (`xlim`/`ylim`, `xscale`/`yscale`, `xticks`/`yticks`, etc.) are exposed as `feature_*`/`target_*` keywords that resolve to the correct axis based on `target_on_y`; all other properties (`title`, `aspect`, `facecolor`, ...) are forwarded as-is. Like `plot()`/`stripes()`, `set()` cannot be called after `label()`.
+
 ## [2.6.0] - 2026-10-29
 
 ### Added
