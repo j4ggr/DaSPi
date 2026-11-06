@@ -6808,8 +6808,8 @@ class SpreadWidth(ErrorBar):
             source: DataFrame,
             target: str,
             feature: str = '',
-            strategy: EstimationStrategy = 'norm',
-            agreement: float | int = 6, # noqa: PYI041
+            strategy: EstimationStrategy | None = None,
+            agreement: float | int | None = None, # noqa: PYI041
             possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             show_center: bool = True,
             kind: Literal['mean', 'median'] = 'mean',
@@ -6824,8 +6824,8 @@ class SpreadWidth(ErrorBar):
             **kwds) -> None:
         self._kind = 'mean'
         self.kind = kind
-        self.strategy = strategy
-        self.agreement = agreement
+        self.strategy = strategy if strategy is not None else DEFAULT.STRATEGY
+        self.agreement = agreement if agreement is not None else DEFAULT.AGREEMENT
         self.possible_dists = possible_dists
         
         super().__init__(
@@ -7812,8 +7812,8 @@ class CapabilityConfidenceInterval(ConfidenceInterval):
         `ProcessEstimator` class. Possible keword arguments are (default
         is None):
         - error_values: tuple[float, ...] = (),
-        - strategy: EstimationStrategy = 'norm',
-        - agreement: float | int = 6,
+        - strategy: EstimationStrategy = `daspi.CONFIG.strategy` (default 'eval'),
+        - agreement: float | int = `daspi.CONFIG.agreement` (default 6),
         - possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON
     
     **kwds:

@@ -427,7 +427,8 @@ class StripesFacets:
           distribution. The variation tolerance is then calculated as 
           agreement * standard deviation
         - data: The quantiles for the process variation tolerance are
-          read directly from the data. by default 'norm'
+          read directly from the data. by default `daspi.CONFIG.strategy`
+          ('eval')
     
     agreement : float or int, optional
         Specify the tolerated process variation for which the control 
@@ -438,7 +439,8 @@ class StripesFacets:
         calculated from this.
         If float, the value must be between 0 and 1.This value is then 
         interpreted as the acceptable proportion for the spread, e.g. 
-        0.9973 (which corresponds to ~ 6 sigma) by default 6
+        0.9973 (which corresponds to ~ 6 sigma) by default
+        `daspi.CONFIG.agreement` (6)
     **kwds : dict, optional
         Additional keyword arguments to pass to the ProcessEstimator.
     """
@@ -476,16 +478,16 @@ class StripesFacets:
         control_limits: bool = False,
         spec_limits: SpecLimits = UNBOUNDED,
         confidence: float | None = None,
-        strategy: EstimationStrategy = 'norm',
-        agreement: float | int = 6,  # noqa: PYI041
+        strategy: EstimationStrategy | None = None,
+        agreement: float | int | None = None,  # noqa: PYI041
         **kwds) -> None:
         self.single_axes = single_axes
         self._confidence = confidence
         self.estimation = ProcessEstimator(
             samples=target,
             spec_limits=spec_limits,
-            strategy=strategy,
-            agreement=agreement,
+            strategy=strategy if strategy is not None else DEFAULT.STRATEGY,
+            agreement=agreement if agreement is not None else DEFAULT.AGREEMENT,
             **kwds)
         self.target_on_y = target_on_y
         self.stripes = {s.identity: s for s in (stripes or [])}

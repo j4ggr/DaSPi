@@ -1243,8 +1243,8 @@ class SingleChart(Chart):
             control_limits: bool = False, 
             spec_limits: SpecLimits = UNBOUNDED,
             confidence: float | None = None,
-            strategy: EstimationStrategy = 'norm',
-            agreement: float | int = 6,  # noqa: PYI041
+            strategy: EstimationStrategy | None = None,
+            agreement: float | int | None = None,  # noqa: PYI041
             **kwds,
             ) -> Self:
         """Plot location and spread width lines, specification limits 
@@ -1286,7 +1286,7 @@ class SingleChart(Chart):
             - `data`: The quantiles for the process variation tolerance 
             are read directly from the data.
             
-            Default is 'norm'.
+            If None, uses `daspi.CONFIG.strategy` (default 'eval').
         agreement : int or float, optional
             Specify the tolerated process variation for which the 
             control limits are to be calculated. 
@@ -1299,7 +1299,7 @@ class SingleChart(Chart):
             then interpreted as the acceptable proportion for the 
             spread, e.g. 0.9973 (which corresponds to ~ 6 sigma)
             
-            Default is 6 because SixSigma ;-)
+            If None, uses `daspi.CONFIG.agreement` (default 6).
         **kwds:
             Additional keyword arguments for configuring StripesFacets.
 
@@ -2054,8 +2054,8 @@ class JointChart(Chart):
             control_limits: bool | tuple[bool, ...] = False, 
             spec_limits: SpecLimits | tuple[SpecLimits, ...] = UNBOUNDED,
             confidence: float | None | tuple[float | None, ...] = None,
-            strategy: EstimationStrategy | tuple = 'norm',
-            agreement: float | int | tuple[int | float, ...] = 6,  # noqa: PYI041
+            strategy: EstimationStrategy | None | tuple = None,
+            agreement: float | int | None | tuple[int | float, ...] = None,  # noqa: PYI041
             **kwds) -> Self:
         """Plot location and spread width lines, specification limits 
         and/or confidence interval areas as stripes on each Axes. The
@@ -2096,7 +2096,7 @@ class JointChart(Chart):
             - `data`: The quantiles for the process variation tolerance 
             are read directly from the data.
             
-            Default is 'norm'.
+            If None, uses `daspi.CONFIG.strategy` (default 'eval').
         agreement : int | float | tuple[int | float, ...], optional
             Specify the tolerated process variation for which the 
             control limits are to be calculated. 
@@ -2109,7 +2109,7 @@ class JointChart(Chart):
             then interpreted as the acceptable proportion for the 
             spread, e.g. 0.9973 (which corresponds to ~ 6 sigma)
             
-            Default is 6 because SixSigma ;-)
+            If None, uses `daspi.CONFIG.agreement` (default 6).
         **kwds:
             Additional keyword arguments for configuring StripesFacets.
 
@@ -2515,8 +2515,8 @@ class MultivariateChart(SingleChart):
             control_limits: bool = False, 
             spec_limits: SpecLimits = UNBOUNDED,
             confidence: float | None = None,
-            strategy: EstimationStrategy = 'norm',
-            agreement: float | int = 6,  # noqa: PYI041
+            strategy: EstimationStrategy | None = None,
+            agreement: float | int | None = None,  # noqa: PYI041
             **kwds,
             ) -> Self:
         """Plot location and spread width lines, specification limits 
@@ -2558,7 +2558,7 @@ class MultivariateChart(SingleChart):
             - `data`: The quantiles for the process variation tolerance 
             are read directly from the data.
             
-            Default is 'norm'.
+            If None, uses `daspi.CONFIG.strategy` (default 'eval').
         agreement : int or float, optional
             Specify the tolerated process variation for which the 
             control limits are to be calculated. 
@@ -2571,7 +2571,7 @@ class MultivariateChart(SingleChart):
             then interpreted as the acceptable proportion for the 
             spread, e.g. 0.9973 (which corresponds to ~ 6 sigma)
             
-            Default is 6 because SixSigma ;-)
+            If None, uses `daspi.CONFIG.agreement` (default 6).
         **kwds:
             Additional keyword arguments for configuring StripesFacets.
 

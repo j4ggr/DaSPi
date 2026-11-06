@@ -44,6 +44,7 @@ from collections.abc import Generator
 from contextlib import _GeneratorContextManager, contextmanager
 from typing import Any, Literal
 
+from ._typing import EstimationStrategy
 from .strings import STR
 
 __all__ = ['CONFIG', 'Config']
@@ -101,7 +102,33 @@ class Config:
         """Set matplotlib style."""
         from .plotlib.appearance import style
         style.use(value)
-    
+
+    # Strategy property (delegates to DEFAULT)
+    @property
+    def strategy(self) -> EstimationStrategy:
+        """Default strategy used to determine control limits (process
+        spread) for the `stripes` methods."""
+        from .constants import DEFAULT
+        return DEFAULT.STRATEGY
+
+    @strategy.setter
+    def strategy(self, value: EstimationStrategy) -> None:
+        from .constants import DEFAULT
+        DEFAULT.STRATEGY = value
+
+    # Agreement property (delegates to DEFAULT)
+    @property
+    def agreement(self) -> float | int:
+        """Default tolerated process variation (agreement) for control
+        limits in the `stripes` methods."""
+        from .constants import DEFAULT
+        return DEFAULT.AGREEMENT
+
+    @agreement.setter
+    def agreement(self, value: float | int) -> None:
+        from .constants import DEFAULT
+        DEFAULT.AGREEMENT = value
+
     # Context managers
     def use_style(self, style_name: str) -> _GeneratorContextManager:
         """Context manager for temporary style change.
@@ -165,7 +192,8 @@ class Config:
         ----------
         **kwargs : Any
             Key-value pairs of settings to update. Valid keys are
-            'language', 'username', and 'style'
+            'language', 'username', 'style', 'strategy' and
+            'agreement'
         
         Raises
         ------
@@ -186,7 +214,8 @@ class Config:
             if not hasattr(self, key):
                 raise AttributeError(
                     f"Config has no setting '{key}'. "
-                    f"Valid settings: language, username, style"
+                    f"Valid settings: language, username, style, strategy, "
+                    f"agreement"
                 )
             setattr(self, key, value)
     
@@ -194,13 +223,15 @@ class Config:
         """Reset all settings to defaults.
         
         Sets language to 'en', username to the value from the
-        USERNAME environment variable (or 'user' if not set), and
-        style to 'daspi'.
+        USERNAME environment variable (or 'user' if not set), style
+        to 'daspi', strategy to 'eval' and agreement to 6.
         """
         from os import environ
         STR.language = 'en'
         STR.username = environ.get('USERNAME', 'user')
         self.style = 'daspi'
+        self.strategy = 'eval'
+        self.agreement = 6
 
 # Global configuration instance
 CONFIG = Config()

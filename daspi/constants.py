@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from patsy.desc import INTERCEPT
 from scipy.stats._continuous_distns import _distn_names
 
-from ._typing import LineStyle
+from ._typing import EstimationStrategy, LineStyle
 
 __all__ = [
     'ANOVA',
@@ -755,14 +755,16 @@ DIST = _Distribution_()
 selecting distributions throughout the DaSPi library."""
 
 
-@dataclass(frozen=True)
+@dataclass
 class _Default_:
     """Default values used throughout the DaSPi library, e.g. confidence 
     level, sequence lengths for kernel density estimation and LOWESS, 
     and quantile ranges.
     
     Don't instantiate this class directly. Use the `DEFAULT` constant 
-    instead."""
+    instead. Note that this class is not frozen (unlike the other
+    constant groups in this module) because `STRATEGY` and `AGREEMENT`
+    are meant to be changed at runtime via `daspi.CONFIG.configure()`."""
 
     CONFIDENCE_LEVEL: float = 0.95
     """Default confidence level. 95 % confidence interval is used very 
@@ -808,6 +810,16 @@ class _Default_:
     EWM_ALPHA: float = 0.3
     """Default smoothing factor (alpha) for the
     `ExponentialSmoothingLine` Plotter."""
+
+    STRATEGY: EstimationStrategy = 'eval'
+    """Default strategy used to determine control limits (process
+    spread) for the `stripes` methods. Change this via
+    `daspi.CONFIG.configure(strategy=...)`."""
+
+    AGREEMENT: float | int = 6
+    """Default tolerated process variation (agreement) for control
+    limits in the `stripes` methods. Change this via
+    `daspi.CONFIG.configure(agreement=...)`."""
 
     @property
     def MARKER(self) -> str:

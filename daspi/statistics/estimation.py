@@ -1487,7 +1487,7 @@ class LocationDispersionEstimator(DistributionEstimator):
     _sem: float | None
     _lcl: float | None
     _ucl: float | None
-    _strategy: EstimationStrategy 
+    _strategy: EstimationStrategy | None
     _agreement: int | float
     _k: float
     _evaluate: Callable | None
@@ -1497,8 +1497,8 @@ class LocationDispersionEstimator(DistributionEstimator):
     def __init__(
             self,
             samples: NumericSample1D, 
-            strategy: EstimationStrategy = 'norm',
-            agreement: int | float = 6,  # noqa: PYI041
+            strategy: EstimationStrategy | None = None,
+            agreement: int | float | None = None,  # noqa: PYI041
             possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             evaluate: Callable | None = None,
             nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',
@@ -1519,10 +1519,9 @@ class LocationDispersionEstimator(DistributionEstimator):
         self._ucl = None
         self._q_low = None
         self._q_upp = None
-        self._strategy = 'norm'
-        self.strategy = strategy
+        self._strategy = strategy
         self._agreement = -1
-        self.agreement = agreement
+        self.agreement = agreement if agreement is not None else DEFAULT.AGREEMENT
         self._evaluate = evaluate
         self._attrs_describe = (
             'n_samples',
@@ -1636,7 +1635,7 @@ class LocationDispersionEstimator(DistributionEstimator):
         return self._q_upp
 
     @property
-    def strategy(self) -> Literal['eval', 'fit', 'norm', 'data']:
+    def strategy(self) -> Literal['fit', 'norm', 'data']:
         """Strategy used to determine the control limits. The control 
         limits can also be interpreted as the process range.
 
@@ -1650,7 +1649,16 @@ class LocationDispersionEstimator(DistributionEstimator):
             distribution. The variation tolerance is then calculated as 
             agreement * standard deviation
             - data: The quantiles for the process variation tolerance 
-            are read directly from the samples."""
+            are read directly from the samples.
+
+        Getting this value never returns 'eval' or None: if unset, it
+        resolves to `DEFAULT.STRATEGY`, and if that is (or resolves to)
+        'eval', `evaluate()` is run immediately and its result ('fit',
+        'norm' or 'data') is stored and returned instead."""
+        if self._strategy is None:
+            self._strategy = DEFAULT.STRATEGY
+        if self._strategy == 'eval':
+            self._strategy = self.evaluate()
         return self._strategy
     @strategy.setter
     def strategy(self, strategy: EstimationStrategy) -> None:
@@ -1817,10 +1825,7 @@ class LocationDispersionEstimator(DistributionEstimator):
     
     def _calculate_control_limits_(self) -> tuple[float, float]:
         """Calculate the control limits according to given strategy
-        
-        - `eval`: first evaluate the strategy according to evaluate 
-            method. Then the limits are calculated using one of the 
-            following points.
+
         - `fit`: first fit samples to a distribution and then calculate
             quantile for this distribution according to given agreement.
         - `norm`: The control limits are calculated from the mean plus 
@@ -1829,15 +1834,16 @@ class LocationDispersionEstimator(DistributionEstimator):
         - `data`: The quantiles are calculated directly from the sample
             according the given agreement
 
+        Note that `strategy` is never 'eval' here: the `strategy`
+        property resolves 'eval' to one of 'fit', 'norm' or 'data' via
+        `evaluate()` before returning.
+
         Returns
         -------
         lcl, ucl : float
             control limits also known as process range.
         """
         match self.strategy:
-            case 'eval':
-                self.strategy = self.evaluate()
-                lcl, ucl = self._calculate_control_limits_()
             case 'fit':
                 lcl = float(self.dist.ppf(self.q_low, *self.shape_params))
                 ucl = float(self.dist.ppf(self.q_upp, *self.shape_params))
@@ -2017,8 +2023,8 @@ class ProcessEstimator(LocationDispersionEstimator):
             samples: NumericSample1D, 
             spec_limits: SpecLimits | Specification,
             error_values: tuple[float, ...] = (),
-            strategy: EstimationStrategy = 'norm',
-            agreement: float | int = 6,  # noqa: PYI041
+            strategy: EstimationStrategy | None = None,
+            agreement: float | int | None = None,  # noqa: PYI041
             possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             evaluate: Callable | None = None,
             nan_policy: Literal['propagate', 'raise', 'omit'] = 'omit',

@@ -543,7 +543,8 @@ class TestProcessEstimator:
 
     def test_describe_with_nan_values(self) -> None:
         data = [1.0, np.nan, 3.0, 4.0, np.nan]
-        estimator = ProcessEstimator(data, SpecLimits(lower=1.5, upper=3.5))
+        estimator = ProcessEstimator(
+            data, SpecLimits(lower=1.5, upper=3.5), strategy='norm')
         result = estimator.describe()
         assert not np.isnan(result.loc['mean'][0])
         assert not np.isnan(result.loc['std'][0])

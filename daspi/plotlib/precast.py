@@ -1248,10 +1248,11 @@ class ProcessCapabilityAnalysisCharts(JointChart):
             strategy: Literal['norm', 'fit', 'data'] = 'norm',
             dist: rv_continuous | str = 'norm',
             error_values: tuple[float, ...] = (),
-            agreement: float | int = 6, # noqa: PYI041
+            agreement: float | int | None = None, # noqa: PYI041
             possible_dists: tuple[str | rv_continuous, ...] = DIST.COMMON,
             stretch_figsize: bool | float | tuple[float, float] = False,
             ) -> None:
+        agreement = agreement if agreement is not None else DEFAULT.AGREEMENT
         assert not spec_limits.both_unbounded, (
             'At least one specification limit must not be None')
         assert strategy in ('norm', 'fit', 'data'), (
