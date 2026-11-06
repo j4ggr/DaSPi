@@ -74,6 +74,36 @@ chart = dsp.SingleChart(...).plot(...)
 - `'seaborn-v0_8'` — Seaborn style
 - Any matplotlib style name
 
+### Strategy
+
+Controls the default `strategy` used to determine control limits
+(process spread) wherever it isn't passed explicitly, e.g. in
+`Chart.stripes()`, `ProcessEstimator` and `GageEstimator`.
+
+```python
+# Always assume normal distribution unless told otherwise
+dsp.CONFIG.strategy = 'norm'
+
+# chart.stripes(control_limits=True) now uses 'norm' by default
+chart = dsp.SingleChart(...).plot(...).stripes(control_limits=True)
+```
+
+**Available strategies:**
+- `'eval'` — evaluate the best strategy from the data (default)
+- `'fit'` — fit the best-matching distribution
+- `'norm'` — assume a normal distribution
+- `'data'` — read quantiles directly from the data
+
+### Agreement
+
+Controls the default `agreement` (tolerated process variation) used
+for control limits wherever it isn't passed explicitly.
+
+```python
+# Use 4 sigma instead of the default 6 sigma (SixSigma) everywhere
+dsp.CONFIG.agreement = 4
+```
+
 ---
 
 ## Configure Multiple Settings
@@ -84,7 +114,9 @@ Use the `configure()` method to set multiple properties at once:
 dsp.CONFIG.configure(
     language='fr',
     username='analyst',
-    style='seaborn-v0_8'
+    style='seaborn-v0_8',
+    strategy='norm',
+    agreement=6
 )
 ```
 
@@ -151,6 +183,8 @@ This sets:
 - Language to `'en'`
 - Username to environment variable or `'user'`
 - Style to `'daspi'`
+- Strategy to `'eval'`
+- Agreement to `6`
 
 ---
 

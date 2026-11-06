@@ -16,6 +16,16 @@ __Types of changes__:
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-11-06
+
+### Added
+
+- **Configuration**: `CONFIG.strategy` and `CONFIG.agreement` manage the default `strategy`/`agreement` used to determine control limits wherever they aren't passed explicitly (e.g. `Chart.stripes()`, `ProcessEstimator`, `GageEstimator`, `CenterLocation`). Included in `CONFIG.configure()` and `CONFIG.reset()`.
+
+### Changed
+
+- **Statistics**: The default `strategy` for control-limit calculations changed from `'norm'` to `'eval'` (now driven by `CONFIG.strategy` / `DEFAULT.STRATEGY`), so the strategy is evaluated from the data unless explicitly overridden. `LocationDispersionEstimator.strategy` now resolves lazily and never returns the literal `'eval'`: it reports whatever `evaluate()` resolved to ('fit', 'norm' or 'data').
+
 ## [2.7.0] - 2026-11-04
 
 ### Added

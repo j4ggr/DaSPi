@@ -216,7 +216,7 @@ Built-in support for Cp/Cpk, ANOVA, DOE, Gage R&R, and control charts — everyt
 
 ## 🔧 Technical Features
 
-- **Centralized configuration** — Manage language, username, and styles globally  
+- **Centralized configuration** — Manage language, username, styles and statistical defaults (strategy, agreement) globally  
 - **Multivariate visualization** — Explore complex relationships  
 - **Linear models & ANOVA** — Statistical inference made simple  
 - **Hypothesis testing** — Confidence intervals and p-values  
