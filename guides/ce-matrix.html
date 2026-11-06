@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Cause &amp; Effect Matrix — DaSPi</title>
+<style>
+  :root {
+    --teal: #009688;
+    --teal-dark: #00695c;
+    --teal-light: #b2dfdb;
+    --amber: #ffab00;
+    --amber-dark: #ff8f00;
+    --bg: #f4f7f7;
+    --panel: #ffffff;
+    --text: #1f2a2a;
+    --muted: #5f7370;
+    --border: #d9e3e2;
+    --strong: #e53935;
+    --moderate: #ffb300;
+    --weak: #8bc34a;
+    --none: #eceff1;
+    --radius: 10px;
+    --shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: linear-gradient(180deg, var(--teal-light) 0%, var(--bg) 260px);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  header.hero {
+    padding: 2.25rem 2rem 1.5rem;
+    text-align: center;
+  }
+
+  header.hero h1 {
+    margin: 0 0 0.35rem;
+    font-size: 2rem;
+    background: linear-gradient(90deg, var(--teal-dark), var(--amber-dark));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  header.hero p {
+    margin: 0 auto;
+    max-width: 720px;
+    color: var(--muted);
+    font-size: 0.98rem;
+    line-height: 1.5;
+  }
+
+  .wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.25rem 3rem;
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 0.9rem 1rem;
+    margin-bottom: 1.25rem;
+    position: sticky;
+    top: 0.75rem;
+    z-index: 20;
+  }
+
+  button, .file-btn {
+    font: inherit;
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    padding: 0.55rem 0.95rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+  }
+  button:active { transform: translateY(1px) scale(0.98); }
+
+  .btn-primary { background: var(--teal); color: #fff; }
+  .btn-primary:hover { background: var(--teal-dark); box-shadow: 0 4px 12px rgba(0,150,136,0.35); }
+
+  .btn-amber { background: var(--amber); color: #3a2900; }
+  .btn-amber:hover { background: var(--amber-dark); box-shadow: 0 4px 12px rgba(255,171,0,0.4); }
+
+  .btn-ghost { background: #eef3f2; color: var(--text); }
+  .btn-ghost:hover { background: #e1eae8; }
+
+  .btn-danger { background: #fdecea; color: var(--strong); }
+  .btn-danger:hover { background: #fbd8d4; }
+
+  .spacer { flex: 1; }
+
+  .scale-legend {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    font-size: 0.78rem;
+    color: var(--muted);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .legend-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .legend-swatch {
+    width: 14px; height: 14px; border-radius: 4px; display: inline-block;
+    border: 1px solid rgba(0,0,0,0.08);
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.1rem;
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+  }
+
+  table.ce {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    min-width: 640px;
+  }
+
+  table.ce th, table.ce td {
+    border: 1px solid var(--border);
+    padding: 0;
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  table.ce thead th {
+    padding: 0;
+    font-weight: 600;
+    font-size: 0.82rem;
+  }
+
+  /* sticky positioning lives on an inner wrapper so the <th>/<td> itself
+     always reserves its full content height in the table's row layout */
+  .sticky-head {
+    position: sticky;
+    top: 4.6rem;
+    z-index: 10;
+    background: var(--teal-dark);
+    color: #fff;
+    padding: 0.5rem 0.4rem;
+    display: block;
+  }
+
+  th.corner {
+    min-width: 190px;
+    padding: 0;
+  }
+  th.corner .sticky-head {
+    background: var(--teal);
+    left: 0;
+    z-index: 15;
+  }
+
+  td.row-head {
+    padding: 0;
+    text-align: left;
+    min-width: 190px;
+  }
+  td.row-head .sticky-left {
+    position: sticky;
+    left: 0;
+    background: #f7fbfa;
+    z-index: 5;
+    display: block;
+  }
+
+  .req-col-head {
+    min-width: 90px;
+    max-width: 130px;
+  }
+
+  .editable {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-weight: 600;
+    text-align: center;
+    padding: 0.35rem;
+    color: inherit;
+    outline: none;
+  }
+  td.row-head .editable {
+    text-align: left;
+    color: var(--text);
+    font-weight: 600;
+  }
+  thead .editable {
+    color: #fff;
+    text-align: center;
+  }
+  thead .editable::placeholder { color: rgba(255,255,255,0.7); }
+  .editable:focus {
+    background: rgba(255,255,255,0.15);
+    border-radius: 4px;
+  }
+  td.row-head .editable:focus { background: #e3f2f1; }
+
+  .weight-input {
+    width: 46px;
+    border: 1px solid rgba(255,255,255,0.5);
+    border-radius: 6px;
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    text-align: center;
+    font-weight: 700;
+    padding: 0.15rem 0;
+    margin-top: 0.15rem;
+  }
+
+  td.cell {
+    cursor: pointer;
+    user-select: none;
+    font-weight: 700;
+    font-size: 0.95rem;
+    min-width: 64px;
+    height: 46px;
+    transition: background 0.15s ease, transform 0.1s ease;
+    position: relative;
+  }
+  td.cell:hover { transform: scale(1.04); box-shadow: inset 0 0 0 2px var(--amber); z-index: 2; }
+  td.cell[data-v="0"] { background: var(--none); color: #b0bcbb; }
+  td.cell[data-v="1"] { background: #dcedc8; color: #33691e; }
+  td.cell[data-v="3"] { background: #ffe082; color: #8d5a00; }
+  td.cell[data-v="9"] { background: #ef9a9a; color: #7f0000; }
+
+  td.total-cell {
+    font-weight: 800;
+    background: #f0f7f6;
+    color: var(--teal-dark);
+    min-width: 80px;
+  }
+
+  td.rank-cell {
+    font-weight: 800;
+    color: var(--amber-dark);
+    background: #fff8e1;
+    min-width: 46px;
+  }
+
+  .remove-row-btn, .remove-col-btn {
+    border: none;
+    background: transparent;
+    color: #ff8a80;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
+  .remove-row-btn:hover, .remove-col-btn:hover { background: rgba(255,0,0,0.12); }
+
+  .row-head-inner, .col-head-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.25rem;
+    padding: 0.15rem 0.4rem;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--teal-dark);
+    margin: 0 0 0.9rem;
+  }
+  .section-title .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--amber);
+    display: inline-block;
+  }
+
+  .chart-wrap {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.35rem 0;
+  }
+  .bar-label {
+    width: 190px;
+    flex-shrink: 0;
+    font-size: 0.83rem;
+    font-weight: 600;
+    text-align: right;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bar-track {
+    flex: 1;
+    background: #eef3f2;
+    border-radius: 6px;
+    height: 22px;
+    position: relative;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--teal), var(--amber));
+    border-radius: 6px 0 0 6px;
+    transition: width 0.4s cubic-bezier(.4,1.4,.6,1);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 6px;
+  }
+  .bar-value {
+    font-size: 0.72rem;
+    color: #063a35;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .cum-line {
+    width: 60px;
+    text-align: right;
+    font-size: 0.75rem;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.78rem;
+    padding: 1.5rem 1rem 2.5rem;
+  }
+  footer a { color: var(--teal-dark); }
+
+  .hint {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin: 0 0 0.75rem;
+    text-align: center;
+  }
+
+  @media print {
+    .toolbar, .hint { display: none !important; }
+    body { background: #fff; }
+    .panel { box-shadow: none; border: 1px solid #ccc; }
+  }
+
+  ::-webkit-scrollbar { height: 10px; width: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--teal-light); border-radius: 10px; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>Cause &amp; Effect Matrix</h1>
+  <p>
+    Prioritize potential causes against weighted customer &amp; process requirements.
+    Click a cell to cycle through the correlation strength
+    <strong>(0 → 1 → 3 → 9)</strong>, edit any label directly, and watch the
+    weighted Pareto ranking update live.
+  </p>
+</header>
+
+<div class="wrap">
+
+  <div class="toolbar">
+    <button class="btn-primary" id="addRow">➕ Add Cause</button>
+    <button class="btn-primary" id="addCol">➕ Add Requirement</button>
+    <div class="scale-legend">
+      <span class="legend-chip"><span class="legend-swatch" style="background:#eceff1"></span>0 · none</span>
+      <span class="legend-chip"><span class="legend-swatch" style="background:#dcedc8"></span>1 · weak</span>
+      <span class="legend-chip"><span class="legend-swatch" style="background:#ffe082"></span>3 · moderate</span>
+      <span class="legend-chip"><span class="legend-swatch" style="background:#ef9a9a"></span>9 · strong</span>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn-ghost" id="sortBtn">⇅ Sort by Score</button>
+    <button class="btn-amber" id="exportCsv">⬇ Export CSV</button>
+    <button class="btn-ghost" id="printBtn">🖨 Print</button>
+    <button class="btn-danger" id="resetBtn">↺ Reset</button>
+  </div>
+
+  <p class="hint">Your matrix is saved automatically in this browser (local storage) — reload safely without losing work.</p>
+
+  <div class="panel">
+    <div class="section-title"><span class="dot"></span>Matrix</div>
+    <table class="ce" id="ceTable">
+      <thead>
+        <tr id="headRow"></tr>
+      </thead>
+      <tbody id="bodyRows"></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <div class="section-title"><span class="dot"></span>Weighted Pareto Ranking</div>
+    <div class="chart-wrap" id="chart"></div>
+  </div>
+
+</div>
+
+<footer>
+  DaSPi · Interactive C&amp;E Matrix tool for the
+  <a href="3s-scrutinize/#cause-effect-matrix">Scrutinize</a> phase of the 3S methodology.
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const STORAGE_KEY = "daspi-ce-matrix-v1";
+
+  const defaultState = {
+    requirements: [
+      { name: "Quality", weight: 9 },
+      { name: "Cost", weight: 7 },
+      { name: "Delivery", weight: 5 }
+    ],
+    causes: ["Calibration drift", "Temperature fluctuation", "Material variation", "Operator skill"],
+    values: [
+      [9, 6, 3],
+      [7, 4, 2],
+      [8, 7, 4],
+      [6, 5, 8]
+    ]
+  };
+
+  let state = loadState();
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.requirements && parsed.causes && parsed.values) return parsed;
+      }
+    } catch (e) { /* ignore corrupted storage */ }
+    return JSON.parse(JSON.stringify(defaultState));
+  }
+
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function nextValue(v) {
+    const order = [0, 1, 3, 9];
+    const idx = order.indexOf(v);
+    return order[(idx + 1) % order.length];
+  }
+
+  function rowTotal(rowIdx) {
+    return state.values[rowIdx].reduce(
+      (sum, v, colIdx) => sum + v * (Number(state.requirements[colIdx].weight) || 0),
+      0
+    );
+  }
+
+  function render() {
+    renderTable();
+    renderChart();
+    saveState();
+  }
+
+  function renderTable() {
+    const headRow = document.getElementById("headRow");
+    const bodyRows = document.getElementById("bodyRows");
+    headRow.innerHTML = "";
+    bodyRows.innerHTML = "";
+
+    const corner = document.createElement("th");
+    corner.className = "corner";
+    corner.innerHTML = '<div class="sticky-head"><div class="col-head-inner"><span>Causes ⟍ Requirements</span></div></div>';
+    headRow.appendChild(corner);
+
+    state.requirements.forEach((req, colIdx) => {
+      const th = document.createElement("th");
+      th.className = "req-col-head";
+      th.innerHTML = `
+        <div class="sticky-head">
+          <div class="col-head-inner">
+            <input class="editable" data-col="${colIdx}" data-field="name" value="${escapeAttr(req.name)}" placeholder="Requirement">
+            <button class="remove-col-btn" data-col="${colIdx}" title="Remove column">✕</button>
+          </div>
+          <div>
+            Wt.
+            <input type="number" min="0" max="10" class="weight-input" data-col="${colIdx}" data-field="weight" value="${req.weight}">
+          </div>
+        </div>`;
+      headRow.appendChild(th);
+    });
+
+    const totalTh = document.createElement("th");
+    totalTh.innerHTML = '<div class="sticky-head">Total Score</div>';
+    headRow.appendChild(totalTh);
+
+    const rankTh = document.createElement("th");
+    rankTh.innerHTML = '<div class="sticky-head">Rank</div>';
+    headRow.appendChild(rankTh);
+
+    const totals = state.causes.map((_, i) => rowTotal(i));
+    const ranking = [...totals]
+      .map((t, i) => ({ i, t }))
+      .sort((a, b) => b.t - a.t)
+      .reduce((acc, item, rank) => { acc[item.i] = rank + 1; return acc; }, {});
+
+    state.causes.forEach((cause, rowIdx) => {
+      const tr = document.createElement("tr");
+
+      const rowHead = document.createElement("td");
+      rowHead.className = "row-head";
+      rowHead.innerHTML = `
+        <div class="sticky-left row-head-inner">
+          <input class="editable" data-row="${rowIdx}" value="${escapeAttr(cause)}" placeholder="Cause">
+          <button class="remove-row-btn" data-row="${rowIdx}" title="Remove row">✕</button>
+        </div>`;
+      tr.appendChild(rowHead);
+
+      state.requirements.forEach((_, colIdx) => {
+        const td = document.createElement("td");
+        const v = state.values[rowIdx][colIdx];
+        td.className = "cell";
+        td.dataset.v = v;
+        td.dataset.row = rowIdx;
+        td.dataset.col = colIdx;
+        td.textContent = v;
+        tr.appendChild(td);
+      });
+
+      const totalTd = document.createElement("td");
+      totalTd.className = "total-cell";
+      totalTd.textContent = totals[rowIdx];
+      tr.appendChild(totalTd);
+
+      const rankTd = document.createElement("td");
+      rankTd.className = "rank-cell";
+      rankTd.textContent = "#" + ranking[rowIdx];
+      tr.appendChild(rankTd);
+
+      bodyRows.appendChild(tr);
+    });
+
+    attachTableEvents();
+  }
+
+  function escapeAttr(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  }
+
+  function attachTableEvents() {
+    document.querySelectorAll("td.cell").forEach((cell) => {
+      cell.addEventListener("click", () => {
+        const r = Number(cell.dataset.row);
+        const c = Number(cell.dataset.col);
+        state.values[r][c] = nextValue(state.values[r][c]);
+        render();
+      });
+    });
+
+    document.querySelectorAll(".row-head .editable").forEach((input) => {
+      input.addEventListener("change", () => {
+        state.causes[Number(input.dataset.row)] = input.value || "Cause";
+        saveState();
+      });
+    });
+
+    document.querySelectorAll("thead .editable[data-field='name']").forEach((input) => {
+      input.addEventListener("change", () => {
+        state.requirements[Number(input.dataset.col)].name = input.value || "Requirement";
+        saveState();
+      });
+    });
+
+    document.querySelectorAll(".weight-input").forEach((input) => {
+      input.addEventListener("input", () => {
+        const w = Math.max(0, Math.min(10, Number(input.value) || 0));
+        state.requirements[Number(input.dataset.col)].weight = w;
+        render();
+      });
+    });
+
+    document.querySelectorAll(".remove-row-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const r = Number(btn.dataset.row);
+        if (state.causes.length <= 1) return;
+        state.causes.splice(r, 1);
+        state.values.splice(r, 1);
+        render();
+      });
+    });
+
+    document.querySelectorAll(".remove-col-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const c = Number(btn.dataset.col);
+        if (state.requirements.length <= 1) return;
+        state.requirements.splice(c, 1);
+        state.values.forEach((row) => row.splice(c, 1));
+        render();
+      });
+    });
+  }
+
+  function renderChart() {
+    const chart = document.getElementById("chart");
+    chart.innerHTML = "";
+
+    const totals = state.causes.map((name, i) => ({ name, total: rowTotal(i) }));
+    totals.sort((a, b) => b.total - a.total);
+
+    const grand = totals.reduce((s, t) => s + t.total, 0) || 1;
+    const max = Math.max(...totals.map((t) => t.total), 1);
+    let cum = 0;
+
+    totals.forEach((t) => {
+      cum += t.total;
+      const pct = (cum / grand) * 100;
+      const width = (t.total / max) * 100;
+
+      const row = document.createElement("div");
+      row.className = "bar-row";
+      row.innerHTML = `
+        <div class="bar-label" title="${escapeAttr(t.name)}">${escapeAttr(t.name)}</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${width}%">
+            <span class="bar-value">${t.total}</span>
+          </div>
+        </div>
+        <div class="cum-line">${pct.toFixed(0)}%</div>`;
+      chart.appendChild(row);
+    });
+  }
+
+  document.getElementById("addRow").addEventListener("click", () => {
+    state.causes.push("New cause");
+    state.values.push(state.requirements.map(() => 0));
+    render();
+  });
+
+  document.getElementById("addCol").addEventListener("click", () => {
+    state.requirements.push({ name: "New requirement", weight: 5 });
+    state.values.forEach((row) => row.push(0));
+    render();
+  });
+
+  let sortDesc = true;
+  document.getElementById("sortBtn").addEventListener("click", () => {
+    const totals = state.causes.map((_, i) => ({ i, t: rowTotal(i) }));
+    totals.sort((a, b) => (sortDesc ? b.t - a.t : a.t - b.t));
+    sortDesc = !sortDesc;
+    state.causes = totals.map((x) => state.causes[x.i]);
+    state.values = totals.map((x) => state.values[x.i]);
+    render();
+  });
+
+  document.getElementById("exportCsv").addEventListener("click", () => {
+    const header = ["Cause", ...state.requirements.map((r) => `${r.name} (wt ${r.weight})`), "Total Score"];
+    const rows = state.causes.map((cause, i) => [cause, ...state.values[i], rowTotal(i)]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ce-matrix.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById("printBtn").addEventListener("click", () => window.print());
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    if (!confirm("Reset the matrix to the default example? This cannot be undone.")) return;
+    state = JSON.parse(JSON.stringify(defaultState));
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
